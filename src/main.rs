@@ -1,0 +1,45 @@
+mod asset_defs;
+mod image_table;
+mod data_asset;
+mod editors;
+mod app;
+
+use crate::image_table::IMAGES;
+
+fn add_font(ctx: &egui::Context) {
+    use eframe::epaint::text::{FontInsert, InsertFontFamily};
+    
+    ctx.add_font(FontInsert::new(
+        "ComicMono",
+        egui::FontData::from_static(include_bytes!("../assets/fonts/ComicMono.ttf")),
+        vec![
+            InsertFontFamily {
+                family: egui::FontFamily::Proportional,
+                priority: egui::epaint::text::FontPriority::Highest,
+            },
+            InsertFontFamily {
+                family: egui::FontFamily::Monospace,
+                priority: egui::epaint::text::FontPriority::Lowest,
+            },
+        ],
+    ));
+}
+
+fn main() -> eframe::Result {
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([1800.0, 900.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Raven Game Editor",
+        options,
+        Box::new(|cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+            add_font(&cc.egui_ctx);
+            cc.egui_ctx.set_zoom_factor(1.75);
+            cc.egui_ctx.set_theme(egui::ThemePreference::Light);
+            Ok(Box::new(crate::app::RavenEditorApp::new(cc)))
+        })
+    )
+}

@@ -1,0 +1,15 @@
+[package]
+name = "raven-game-editor"
+version = "0.1.0"
+edition = "2024"
+description = "Asset editor for games running in the Raspberry Pi Pico"
+license = "MIT"
+keywords = ["gamedev"]
+
+[dependencies]
+eframe = "0.33.0"
+egui = "0.33.0"
+egui_extras = { version = "0.33.0", features = ["all_loaders"] }
+image = { version = "0.25", features = ["png"] }
+regex = "1.12.2"
+rfd = "0.15.4"
