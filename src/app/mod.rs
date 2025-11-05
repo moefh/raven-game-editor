@@ -1,8 +1,12 @@
 mod dialogs;
 mod settings;
 mod log_window;
+mod window_context;
+mod texture_manager;
+mod image_collection;
 
 use std::collections::HashMap;
+use std::path;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::image_table::IMAGES;
 use crate::asset_defs::ASSET_DEFS;
@@ -10,8 +14,11 @@ use crate::include_ref_image;
 use crate::editors::{
     DataAssetEditor, TilesetEditor, MapDataEditor, RoomEditor,
     SpriteEditor, SpriteAnimationEditor, SfxEditor, ModDataEditor,
-    FontEditor, PropFontEditor
+    FontEditor, PropFontEditor,
 };
+pub use window_context::WindowContext;
+pub use texture_manager::{AppTextureManager, AppTextureName};
+pub use image_collection::ImageCollection;
 
 const MENU_HEIGHT: f32 = 22.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
@@ -79,7 +86,7 @@ impl AppWindows {
     fn show_log_window(&mut self, ctx: &egui::Context, window_space: egui::Rect, log_text: &String) {
         log_window::show_log_window(ctx, window_space, &mut self.log_window_open, log_text);
     }
-    
+
 }
 
 struct AssetEditors {
@@ -217,6 +224,7 @@ pub struct RavenEditorApp {
     dialogs: AppDialogs,
     windows: AppWindows,
     editors: AssetEditors,
+    tex_manager: AppTextureManager,
 }
 
 impl RavenEditorApp {
@@ -228,6 +236,27 @@ impl RavenEditorApp {
             dialogs: AppDialogs::new(),
             windows: AppWindows::new(),
             editors: AssetEditors::new(),
+            tex_manager: AppTextureManager::new(),
+        }
+    }
+
+    pub fn from_file<P: AsRef<path::Path> + ?Sized>(cc: &eframe::CreationContext<'_>, path: &P) -> Self {
+        let mut app = Self::new(cc);
+        app.open(&path);
+        app
+    }
+
+    pub fn open<P: AsRef<path::Path> + ?Sized>(&mut self, path: &P) {
+        let mut store = crate::data_asset::DataAssetStore::new();
+        match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
+            Ok(()) => {
+                self.set_store(store);
+            },
+            Err(_) => {
+                self.dialogs.open_message_box("Error Reading Project",
+                                              "Error reading project.\n\nConsult the log window for details.");
+                self.windows.log_window_open = true;
+            }
         }
     }
 
@@ -236,7 +265,7 @@ impl RavenEditorApp {
         self.store = store;
         self.editors.create_editors_for_new_store(&self.store);
     }
-    
+
     fn new_asset_name(&self, asset_type: DataAssetType) -> String {
         if let Some(prefix) = ASSET_DEFS.iter().find(|def| def.asset_type == asset_type).map(|def| def.default_name_prefix) {
             let mut num = 1;
@@ -344,17 +373,7 @@ impl eframe::App for RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add_space(22.0);
                         if ui.button("Open...").clicked() && let Some(path) = rfd::FileDialog::new().pick_file() {
-                            let mut store = crate::data_asset::DataAssetStore::new();
-                            match crate::data_asset::reader::read_project(&path, &mut store, &mut self.logger) {
-                                Ok(()) => {
-                                    self.set_store(store);
-                                },
-                                Err(_) => {
-                                    self.dialogs.open_message_box("Error Reading Project",
-                                                                  "Error reading project.\n\nConsult the log window for details.");
-                                    self.windows.log_window_open = true;
-                                }
-                            }
+                            self.open(&path);
                         }
                     });
                     ui.separator();
@@ -472,10 +491,11 @@ impl eframe::App for RavenEditorApp {
             },
             max: content_rect.max,
         };
+        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager);
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
-                editor.show(ctx, window_space, tileset);
+                editor.show(&mut win_ctx, tileset);
             }
         }
         for map in self.store.assets.maps.iter_mut() {
@@ -490,7 +510,7 @@ impl eframe::App for RavenEditorApp {
         }
         for sprite in self.store.assets.sprites.iter_mut() {
             if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) {
-                editor.show(ctx, window_space, sprite);
+                editor.show(&mut win_ctx, sprite);
             }
         }
         for anim in self.store.assets.animations.iter_mut() {

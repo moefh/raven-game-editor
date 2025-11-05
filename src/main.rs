@@ -5,6 +5,7 @@ mod editors;
 mod app;
 
 use crate::image_table::IMAGES;
+use crate::app::RavenEditorApp;
 
 fn add_font(ctx: &egui::Context) {
     use eframe::epaint::text::{FontInsert, InsertFontFamily};
@@ -31,6 +32,12 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
+    let argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    let filename: Option<&std::path::Path> = match argv.get(1) {
+        Some(s) => Some(s.as_ref()),
+        None => None,
+    };
+
     eframe::run_native(
         "Raven Game Editor",
         options,
@@ -39,7 +46,12 @@ fn main() -> eframe::Result {
             add_font(&cc.egui_ctx);
             cc.egui_ctx.set_zoom_factor(1.75);
             cc.egui_ctx.set_theme(egui::ThemePreference::Light);
-            Ok(Box::new(crate::app::RavenEditorApp::new(cc)))
+            Ok(Box::new(
+                match filename {
+                    Some(filename) => RavenEditorApp::from_file(cc, filename),
+                    None => RavenEditorApp::new(cc),
+                }
+            ))
         })
     )
 }
