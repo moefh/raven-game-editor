@@ -9,7 +9,7 @@ use crate::app::RavenEditorApp;
 
 fn add_font(ctx: &egui::Context) {
     use eframe::epaint::text::{FontInsert, InsertFontFamily};
-    
+
     ctx.add_font(FontInsert::new(
         "ComicMono",
         egui::FontData::from_static(include_bytes!("../assets/fonts/ComicMono.ttf")),
@@ -44,7 +44,10 @@ fn main() -> eframe::Result {
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
             add_font(&cc.egui_ctx);
-            cc.egui_ctx.set_zoom_factor(1.75);
+            cc.egui_ctx.set_zoom_factor(1.5);
+            cc.egui_ctx.options_mut(|opt: &mut egui::Options| {
+                opt.zoom_with_keyboard = false;
+            });
             cc.egui_ctx.set_theme(egui::ThemePreference::Light);
             Ok(Box::new(
                 match filename {

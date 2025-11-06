@@ -35,7 +35,7 @@ impl StringLogger {
             print,
         }
     }
-    
+
     pub fn log(&mut self, msg: &str) {
         self.log.push_str(msg);
         self.log.push('\n');
@@ -126,11 +126,11 @@ impl<T> AssetList<T> {
     fn remove(&mut self, id: &DataAssetId) -> Option<T> {
         self.store.remove(id)
     }
-    
+
     pub fn contains(&self, id: &DataAssetId) -> bool {
         self.store.contains_key(id)
     }
-    
+
     pub fn get(&self, id: &DataAssetId) -> Option<&T> {
         self.store.get(id)
     }
@@ -142,11 +142,11 @@ impl<T> AssetList<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.store.values()
     }
-    
+
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.store.values_mut()
     }
-    
+
 }
 
 pub struct AssetIdList {
@@ -168,7 +168,7 @@ impl AssetIdList {
     fn remove_id(&mut self, remove_id: DataAssetId) {
         self.store.retain(|&id| id != remove_id)
     }
-    
+
     //pub fn get(&self, index: usize) -> Option<&DataAssetId> {
     //    self.store.get(index)
     //}
@@ -176,7 +176,7 @@ impl AssetIdList {
     //pub fn len(&self) -> usize {
     //    self.store.len()
     //}
-    
+
     pub fn iter(&self) -> impl Iterator<Item = &DataAssetId> {
         self.store.iter()
     }
@@ -184,7 +184,7 @@ impl AssetIdList {
     pub fn get_first(&self) -> Option<DataAssetId> {
         self.store.first().copied()
     }
-    
+
 }
 
 pub struct AssetCollection {
@@ -214,7 +214,7 @@ impl AssetCollection {
             prop_fonts: AssetList::new(),
         }
     }
-    
+
     pub fn get_asset(&self, asset_id : DataAssetId) -> Option<&DataAsset> {
         if let Some(v) = self.tilesets.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.maps.get(&asset_id) { return Some(&v.asset); }
@@ -227,7 +227,7 @@ impl AssetCollection {
         if let Some(v) = self.prop_fonts.get(&asset_id) { return Some(&v.asset); }
         None
     }
-    
+
     pub fn get_asset_mut(&mut self, asset_id : DataAssetId) -> Option<&mut DataAsset> {
         if let Some(v) = self.tilesets.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.maps.get_mut(&asset_id) { return Some(&mut v.asset); }
@@ -275,7 +275,7 @@ pub struct AssetIdCollection {
     pub mods: AssetIdList,
     pub fonts: AssetIdList,
     pub prop_fonts: AssetIdList,
-}    
+}
 
 impl AssetIdCollection {
 
@@ -292,7 +292,7 @@ impl AssetIdCollection {
             prop_fonts: AssetIdList::new(),
         }
     }
-    
+
     pub fn ids_of_type(&self, asset_type: DataAssetType) -> impl Iterator<Item = &DataAssetId> {
         match asset_type {
             DataAssetType::Tileset => self.tilesets.iter(),
@@ -306,7 +306,7 @@ impl AssetIdCollection {
             DataAssetType::PropFont => self.prop_fonts.iter(),
         }
     }
-    
+
 }
 
 pub struct DataAssetStore {
@@ -372,14 +372,14 @@ impl DataAssetStore {
         self.assets.rooms.insert(id, Room::new(DataAsset::new(id, name)));
         Some(id)
     }
-    
+
     pub fn add_sprite(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sprites.push(id);
         self.assets.sprites.insert(id, Sprite::new(DataAsset::new(id, name)));
         Some(id)
     }
-    
+
     pub fn add_animation(&mut self, name: String, sprite_id: DataAssetId) -> Option<DataAssetId> {
         if ! self.assets.sprites.contains(&sprite_id) {
             return None;
@@ -389,28 +389,28 @@ impl DataAssetStore {
         self.assets.animations.insert(id, SpriteAnimation::new(DataAsset::new(id, name), sprite_id));
         Some(id)
     }
-    
+
     pub fn add_sfx(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sfxs.push(id);
         self.assets.sfxs.insert(id, Sfx::new(DataAsset::new(id, name)));
         Some(id)
     }
-    
+
     pub fn add_mod(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.mods.push(id);
         self.assets.mods.insert(id, ModData::new(DataAsset::new(id, name)));
         Some(id)
     }
-    
+
     pub fn add_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.fonts.push(id);
         self.assets.fonts.insert(id, Font::new(DataAsset::new(id, name)));
         Some(id)
     }
-    
+
     pub fn add_prop_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.prop_fonts.push(id);

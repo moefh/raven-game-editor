@@ -40,7 +40,7 @@ impl AppDialogs {
             message_box_text: "".to_owned(),
         }
     }
-    
+
     fn open_message_box(&mut self, title: impl AsRef<str>, text: impl AsRef<str>) {
         self.message_box_open = true;
         self.message_box_text = text.as_ref().to_owned();
@@ -50,7 +50,7 @@ impl AppDialogs {
     fn open_about(&mut self) {
         self.about_open = true;
     }
-    
+
     fn show_about(&mut self, ctx: &egui::Context) {
         if dialogs::show_about_dialog(ctx).should_close() {
             self.about_open = false;
@@ -62,7 +62,7 @@ impl AppDialogs {
             self.message_box_open = false;
         }
     }
-    
+
 }
 
 struct AppWindows {
@@ -78,11 +78,11 @@ impl AppWindows {
             log_window_open: false,
         }
     }
-    
+
     fn show_settings(&mut self, ctx: &egui::Context, window_space: egui::Rect) {
         settings::show_editor_settings(ctx, window_space, &mut self.settings_open);
     }
-    
+
     fn show_log_window(&mut self, ctx: &egui::Context, window_space: egui::Rect, log_text: &String) {
         log_window::show_log_window(ctx, window_space, &mut self.log_window_open, log_text);
     }
@@ -140,7 +140,7 @@ impl AssetEditors {
         for &id in store.asset_ids.fonts.iter() { self.add_font(id); }
         for &id in store.asset_ids.prop_fonts.iter() { self.add_prop_font(id); }
     }
-    
+
     fn get_editor(&self, id: DataAssetId) -> Option<&DataAssetEditor> {
         if let Some(editor) = self.tilesets.get(&id) { return Some(&editor.asset); }
         if let Some(editor) = self.maps.get(&id) { return Some(&editor.asset); }
@@ -153,7 +153,7 @@ impl AssetEditors {
         if let Some(editor) = self.prop_fonts.get(&id) { return Some(&editor.asset); }
         None
     }
-    
+
     fn get_editor_mut(&mut self, id: DataAssetId) -> Option<&mut DataAssetEditor> {
         if let Some(editor) = self.tilesets.get_mut(&id) { return Some(&mut editor.asset); }
         if let Some(editor) = self.maps.get_mut(&id) { return Some(&mut editor.asset); }
@@ -179,43 +179,43 @@ impl AssetEditors {
         if self.prop_fonts.remove(&id).is_some() { return true; }
         false
     }
-    
+
     fn add_tileset(&mut self, id: DataAssetId) {
         self.tilesets.insert(id, TilesetEditor::new(id, false));
     }
-    
+
     fn add_map(&mut self, id: DataAssetId) {
         self.maps.insert(id, MapDataEditor::new(id, false));
     }
-    
+
     fn add_room(&mut self, id: DataAssetId) {
         self.rooms.insert(id, RoomEditor::new(id, false));
     }
-    
+
     fn add_sprite(&mut self, id: DataAssetId) {
         self.sprites.insert(id, SpriteEditor::new(id, false));
     }
-    
+
     fn add_animation(&mut self, id: DataAssetId) {
         self.animations.insert(id, SpriteAnimationEditor::new(id, false));
     }
-    
+
     fn add_sfx(&mut self, id: DataAssetId) {
         self.sfxs.insert(id, SfxEditor::new(id, false));
     }
-    
+
     fn add_mod(&mut self, id: DataAssetId) {
         self.mods.insert(id, ModDataEditor::new(id, false));
     }
-    
+
     fn add_font(&mut self, id: DataAssetId) {
         self.fonts.insert(id, FontEditor::new(id, false));
     }
-    
+
     fn add_prop_font(&mut self, id: DataAssetId) {
         self.prop_fonts.insert(id, PropFontEditor::new(id, false));
     }
-    
+
 }
 
 pub struct RavenEditorApp {
@@ -255,7 +255,7 @@ impl RavenEditorApp {
             Err(_) => {
                 self.dialogs.open_message_box("Error Reading Project",
                                               "Error reading project.\n\nConsult the log window for details.");
-                self.windows.log_window_open = true;
+                self.windows.log_window_open = true;  // show log with detailed error
             }
         }
     }
@@ -292,7 +292,7 @@ impl RavenEditorApp {
             self.editors.remove_editor(id);
         }
     }
-    
+
     fn add_asset(&mut self, asset_type: DataAssetType) {
         match asset_type {
             DataAssetType::Tileset => {
@@ -477,7 +477,7 @@ impl eframe::App for RavenEditorApp {
                 }
             });
         });
-        
+
         // ============================================
         // WINDOWS
         egui::CentralPanel::default().show(ctx, |_ui| {
@@ -545,6 +545,6 @@ impl eframe::App for RavenEditorApp {
         if self.windows.log_window_open {
             self.windows.show_log_window(ctx, window_space, self.logger.modify());
         }
-        
+
     }
 }

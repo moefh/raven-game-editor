@@ -17,8 +17,11 @@ pub fn show_editor_settings(ctx: &egui::Context, window_space: egui::Rect, windo
         .max_height(window_space.max.y - window_space.min.y)
         .constrain_to(window_space)
         .open(window_open).show(ctx, |ui| {
-            egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 egui::widgets::global_theme_preference_buttons(ui);
+                ui.label(format!("Current zoom: {}", ctx.zoom_factor()));
+                egui::gui_zoom::zoom_menu_buttons(ui);
+                ctx.texture_ui(ui);
             });
         });
 }
