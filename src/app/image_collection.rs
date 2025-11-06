@@ -52,6 +52,10 @@ impl ImageCollection {
         Vec2::new(self.width as f32, self.height as f32)
     }
 
+    pub fn get_full_size(&self) -> Vec2 {
+        Vec2::new(self.width as f32, (self.height * self.num_items) as f32)
+    }
+
     pub fn get_item_uv(&self, item: u32) -> Rect {
         let item = if item > self.num_items { self.num_items - 1 } else { item };
         Rect {
