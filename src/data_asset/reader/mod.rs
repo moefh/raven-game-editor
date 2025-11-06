@@ -123,7 +123,7 @@ impl<'a> ProjectDataReader<'a> {
             last_type_size: 0,
             prefix_lower: String::new(),
             prefix_upper: String::new(),
-            
+
             read_data: ReadData {
                 font_data: HashMap::new(),
                 prop_font_data: HashMap::new(),
@@ -137,7 +137,7 @@ impl<'a> ProjectDataReader<'a> {
                 room_maps: HashMap::new(),
                 room_entities: HashMap::new(),
                 room_triggers: HashMap::new(),
-                
+
                 fonts: Vec::new(),
                 prop_fonts: Vec::new(),
                 mods: Vec::new(),
@@ -178,7 +178,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error("trying to unread a token while a token is already unread", t.pos)?
     }
-    
+
     fn expect_token(&mut self) -> Result<Token> {
         match self.read() {
             Ok(tok) if ! tok.is_eof() => Ok(tok),
@@ -193,7 +193,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error(format!("expected '{}', found '{}'", id, t), t.pos)?
     }
-    
+
     fn expect_any_ident(&mut self, expected: &str) -> Result<Token> {
         let t = self.tok.read()?;
         if t.is_any_ident() {
@@ -201,7 +201,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error(format!("expected {}, found '{}'", expected, t), t.pos)?
     }
-    
+
     fn expect_punct(&mut self, ch: char) -> Result<Token> {
         let t = self.tok.read()?;
         if t.is_punct(ch) {
@@ -233,7 +233,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error(format!("expected number, found '{}'", t), t.pos)
     }
-    
+
     fn read_signed_number(&mut self) -> Result<i64> {
         let t = self.tok.read()?;
         if let Some(n) = t.get_number() {
@@ -248,7 +248,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error(format!("expected '-' or number, found '{}'", t), t.pos)?
     }
-    
+
     fn parse_number(&mut self, source: &str) -> Option<u64> {
         let mut num_tok = Tokenizer::new(source);
         match num_tok.read() {
@@ -276,7 +276,7 @@ impl<'a> ProjectDataReader<'a> {
             self.handle_pre_processor_other(line);
         }
     }
-    
+
     fn handle_pre_processor_line(&mut self, line: &str) {
         if let Some(define) = RE_PRE_PROCESSOR_DEFINE.captures(line) &&
             let Some(name) = define.get(1) &&
@@ -302,7 +302,7 @@ impl<'a> ProjectDataReader<'a> {
         if ! ident.starts_with(&self.prefix_lower) { return None; }
         Some(&ident[self.prefix_lower.len()..])
     }
-    
+
     // compare to "<prefix>_<name>"
     fn is_global_lower(&self, ident: &str, name: &str) -> bool {
         if let Some(ident_name) = self.get_global_lower(ident) {
@@ -310,14 +310,14 @@ impl<'a> ProjectDataReader<'a> {
         }
         false
     }
-    
+
     // return "<X>" for "<PREFIX>_<TYPE_NAME>_<X>_<SUFFIX>"
     fn get_global_upper_of_type_with_suffix<'x>(&self, ident: &'x str, type_name: &str, suffix: &str) -> Option<&'x str> {
         let name_suffix = match self.get_global_upper_of_type(ident, type_name) {
             Some(name) => name,
             None => { return None; },
         };
-        
+
         if ! name_suffix.ends_with(suffix) { return None; }
         let name_no_suffix = &name_suffix[..name_suffix.len()-suffix.len()];
         if ! name_no_suffix.ends_with("_") { return None; }
@@ -350,7 +350,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(name) => name,
             None => { return None; },
         };
-        
+
         if ! name_suffix.ends_with(suffix) { return None; }
         let name_no_suffix = &name_suffix[..name_suffix.len()-suffix.len()];
         if ! name_no_suffix.ends_with("_") { return None; }
@@ -362,7 +362,7 @@ impl<'a> ProjectDataReader<'a> {
         if ! ident.starts_with(&self.prefix_upper) { return None; }
         Some(&ident[self.prefix_upper.len()..])
     }
-    
+
     fn read_project_prefix(&mut self) -> Result<()> {
         loop {
             let t = self.expect_token()?;
@@ -401,7 +401,7 @@ impl<'a> ProjectDataReader<'a> {
                         self.handle_pre_processor_define(name.as_str(), value.as_str());
                         continue;
                     }
-                
+
                 self.handle_pre_processor_non_define(line);
                 continue;
             }
@@ -409,7 +409,7 @@ impl<'a> ProjectDataReader<'a> {
             return error(format!("must have define for vga_sync_bits before this: {}", &t), t.pos);
         }
     }
-    
+
     // =======================================================================================
     // === ARRAYS
     // =======================================================================================
@@ -440,7 +440,7 @@ impl<'a> ProjectDataReader<'a> {
 
         Ok(data)
     }
-    
+
     fn read_u16_array(&mut self) -> Result<Vec<u16>> {
         self.expect_punct('{')?;
 
@@ -484,7 +484,7 @@ impl<'a> ProjectDataReader<'a> {
             } else {
                 return error_expected("number", &t)?;
             }
-            
+
             let next = self.expect_any_punct("',' or '}'")?;
             if next.is_punct('}') { break; }
             if ! next.is_punct(',') {
@@ -543,7 +543,7 @@ impl<'a> ProjectDataReader<'a> {
             data,
         })
     }
-    
+
     // =======================================================================================
     // === REFERENCES ("&<prefix>_<type>[<index>]")
     // =======================================================================================
@@ -582,12 +582,12 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_u8_array()?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got font data '{}'", name));
         self.read_data.font_data.insert(name.to_string(), data);
-        
+
         Ok(())
     }
 
@@ -634,11 +634,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.fonts_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added font '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === PROP FONT
     // =======================================================================================
@@ -654,7 +654,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.logger.log(&format!("-> got font data '{}'", name));
         self.read_data.prop_font_data.insert(name.to_string(), data);
-        
+
         Ok(())
     }
 
@@ -678,7 +678,7 @@ impl<'a> ProjectDataReader<'a> {
             let mut char_offsets = self.read_u16_array()?;
             self.expect_punct('}')?;
             self.expect_punct(',')?;
-            
+
             let full_name = match data_ident.get_ident() {
                 Some(ident) => ident,
                 None => { return error_expected("prop_font_data_...", &t)?; },
@@ -704,11 +704,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.prop_fonts_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added prop font '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === MOD
     // =======================================================================================
@@ -719,7 +719,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_i8or16_array(self.last_type_size)?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got mod sample data '{}'", name));
@@ -734,7 +734,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('{')?;
 
         let mut pattern = Vec::<ModCell>::new();
-        
+
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -770,7 +770,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('{')?;
 
         let mut sample_defs = Vec::<ModSample>::new();
-        
+
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -828,10 +828,10 @@ impl<'a> ProjectDataReader<'a> {
                 data: samples,
             });
         }
-        
+
         Ok(sample_defs)
     }
-    
+
     fn read_mod(&mut self) -> Result<()> {
         let mut sample_defs = self.read_mod_sample_defs()?;
         self.expect_punct(',')?;
@@ -869,14 +869,14 @@ impl<'a> ProjectDataReader<'a> {
             error(format!("mod with invalid num patterns: expected {}, got {}",
                           expected_num_patterns, num_patterns), pattern_ident.pos)?
         }
-        
+
         let (id, mod_data) = if let Some(id) = self.store.add_mod(name.to_string()) &&
             let Some(mod_data) = self.store.assets.mods.get_mut(&id) {
                 (id, mod_data)
             } else {
                 return error(format!("error adding mod '{}'", name), pattern_ident.pos)?;
             };
-        
+
         mod_data.samples.append(&mut sample_defs);
         mod_data.pattern.extend_from_slice(pattern);
         mod_data.num_channels = num_channels as u8;
@@ -885,14 +885,14 @@ impl<'a> ProjectDataReader<'a> {
         self.logger.log(&format!("-> added mod '{}' id={}", name, id));
         Ok(())
     }
-    
+
     fn read_mods(&mut self) -> Result<()> {
         self.expect_punct('[')?;
         self.expect_punct(']')?;
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        loop {  
+        loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') {
@@ -902,7 +902,7 @@ impl<'a> ProjectDataReader<'a> {
             self.read_mod()?;
             self.expect_punct(',')?;
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
@@ -917,12 +917,12 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_i8or16_array(self.last_type_size)?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got sfx sample data '{}'", name));
         self.read_data.sfx_sample_data.insert(name.to_string(), data);
-        
+
         Ok(())
     }
 
@@ -977,7 +977,7 @@ impl<'a> ProjectDataReader<'a> {
                 error(format!("invalid sample: data has {} bits per sample, but sfx wants {}",
                                    sample_data.data_size, bits_per_sample), data_ident.pos)?
             };
-            
+
             sfx.len = len as u32;
             sfx.loop_start = loop_start as u32;
             sfx.loop_len = loop_len as u32;
@@ -986,11 +986,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.sfxs_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added sfx '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === TILESET
     // =======================================================================================
@@ -1001,12 +1001,12 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_u32_array()?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got tileset data '{}'", name));
         self.read_data.tileset_data.insert(name.to_string(), data);
-        
+
         Ok(())
     }
 
@@ -1069,11 +1069,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.tilesets_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added tileset '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === SPRITE
     // =======================================================================================
@@ -1084,12 +1084,12 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_u32_array()?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got sprite data '{}'", name));
         self.read_data.sprite_data.insert(name.to_string(), data);
-        
+
         Ok(())
     }
 
@@ -1133,6 +1133,9 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("error adding sprite '{}'", name), ident.pos)?;
                 };
 
+            if num_frames % 2 != 0 {
+                error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), t.pos)?;
+            }
             let want_stride = width.div_ceil(4);  // (width+3)/4
             if stride != want_stride {
                 error(format!("sprite stride doesn't match width: got {}, expected {}", stride, want_stride), t.pos)?;
@@ -1146,17 +1149,17 @@ impl<'a> ProjectDataReader<'a> {
             sprite.width = width as u32;
             sprite.height = height as u32;
             sprite.stride = stride as u32;
-            sprite.num_frames = num_frames as u32;
+            sprite.num_frames = num_frames as u32 / 2;  // ignore mirror frames
             sprite.data.extend_from_slice(data);
             self.read_data.sprites.push(id);
             self.read_data.sprites_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added sprite '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === MAP
     // =======================================================================================
@@ -1167,7 +1170,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_u8_array()?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got map tiles '{}'", name));
@@ -1226,11 +1229,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.maps_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === SPRITE ANIMATIONS
     // =======================================================================================
@@ -1241,7 +1244,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
 
         let data = self.read_u8_array()?;
-        
+
         self.expect_punct(';')?;
 
         self.logger.log(&format!("-> got sprite animations frames '{}'", name));
@@ -1253,7 +1256,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('{')?;
 
         let mut loops = Vec::<SpriteAnimationLoop>::new();
-        
+
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -1273,10 +1276,10 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct('}')?;
             self.expect_punct(',')?;
         }
-        
+
         Ok(loops)
     }
-    
+
     fn read_sprite_animations(&mut self) -> Result<()> {
         self.expect_punct('[')?;
         self.expect_punct(']')?;
@@ -1307,7 +1310,7 @@ impl<'a> ProjectDataReader<'a> {
             } else {
                 error(format!("animation clip rectangle must have 4 numbers, found {}", clip_rect.len()), t.pos)?
             };
-            
+
             let full_name = match frames_ident.get_ident() {
                 Some(ident) => ident,
                 None => { return error_expected("sprite_animation_frames_...", &t)?; },
@@ -1334,7 +1337,7 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.animations_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
@@ -1371,7 +1374,7 @@ impl<'a> ProjectDataReader<'a> {
                 y,
                 map_id,
             });
-            
+
         }
         self.expect_punct(';')?;
 
@@ -1379,7 +1382,7 @@ impl<'a> ProjectDataReader<'a> {
         self.read_data.room_maps.insert(name.to_string(), maps);
         Ok(())
     }
-    
+
     fn read_room_entities(&mut self, name: &str) -> Result<()> {
         self.expect_punct('[')?;
         self.expect_punct(']')?;
@@ -1551,7 +1554,7 @@ impl<'a> ProjectDataReader<'a> {
             if num_triggers != triggers_data.len() {
                 error(format!("unexpected triggers length: got {}, expected {}", triggers_data.len(), num_triggers), t.pos)?;
             }
-            
+
             room.maps.extend_from_slice(maps_data);
             room.entities.extend_from_slice(entities_data);
             room.triggers.extend_from_slice(triggers_data);
@@ -1559,11 +1562,11 @@ impl<'a> ProjectDataReader<'a> {
             self.read_data.rooms_by_name.insert(name.to_string(), id);
             self.logger.log(&format!("-> added room '{}' id={}", name, id));
         }
-        
+
         self.expect_punct(';')?;
         Ok(())
     }
-    
+
     // =======================================================================================
     // === NAMES
     // =======================================================================================
@@ -1586,7 +1589,7 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("expected '<PREFIX>_{}_xxx' or '}}', got {}", type_and_name, t), t.pos)?;
                 };
             names.push(name);
-            
+
             let next = self.expect_any_punct("',' or '}'")?;
             if next.is_punct('}') { break; }
             if ! next.is_punct(',') {
@@ -1617,7 +1620,7 @@ impl<'a> ProjectDataReader<'a> {
         item_prefix.push_str(name_type);
         Ok((*asset_id, item_prefix))
     }
-    
+
     fn read_sprite_animation_loop_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
         let (id, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "SPRITE_ANIMATION", "LOOP_NAMES", "LOOP",
                                                                     &self.read_data.animations_by_name, pos)?;
@@ -1637,7 +1640,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         Ok(())
     }
-        
+
     fn read_sprite_animation_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
         if ident.ends_with("LOOP_NAMES") {
             self.read_sprite_animation_loop_names(ident, pos)?;
@@ -1665,7 +1668,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         Ok(())
     }
-    
+
     fn read_room_trigger_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
         let (id, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "TRG_NAMES", "TRG",
                                                                     &self.read_data.rooms_by_name, pos)?;
@@ -1685,7 +1688,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         Ok(())
     }
-    
+
     fn read_room_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
         if ident.ends_with("_ENT_NAMES") {
             self.read_room_entity_names(ident, pos)?;
@@ -1697,7 +1700,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         error(format!("unknown room enum: '{}'", ident), pos)
     }
-    
+
     // =======================================================================================
     // === IDS
     // =======================================================================================
@@ -1729,7 +1732,7 @@ impl<'a> ProjectDataReader<'a> {
                 },
                 None => { return error_expected("identifier", &t); }
             };
-            
+
             let next = self.expect_any_punct("',' or '}'")?;
             if next.is_punct('}') { break; }
             if ! next.is_punct(',') {
@@ -1741,10 +1744,10 @@ impl<'a> ProjectDataReader<'a> {
         if ! got_count {
             self.logger.log(&format!("-> WARNING: asset ids for {} doesn't end with COUNT", ident));
         }
-        
+
         Ok(())
     }
-    
+
     // =======================================================================================
     // =======================================================================================
     // =======================================================================================
@@ -1755,7 +1758,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         false
     }
-    
+
     pub fn read_project(&mut self) -> Result<()> {
         self.read_project_prefix()?;
 
@@ -1851,7 +1854,7 @@ impl<'a> ProjectDataReader<'a> {
                 self.read_sprite_animations()?;
                 continue;
             }
-            
+
             // room stuff
             if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "room_maps") {
                 self.read_room_maps(name)?;
@@ -1869,7 +1872,7 @@ impl<'a> ProjectDataReader<'a> {
                 self.read_rooms()?;
                 continue;
             }
-            
+
             if let Some(ident) = t.get_ident() {
                 // C keywords, C types and struct names
                 if C_KEYWORDS.contains(&ident) { continue; }
