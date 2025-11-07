@@ -1,6 +1,6 @@
 use crate::app::WindowContext;
 use crate::IMAGES;
-use crate::data_asset::{Font, DataAssetId};
+use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 pub struct FontEditor {
     pub asset: super::DataAssetEditor,
@@ -20,11 +20,29 @@ impl FontEditor {
         let title = format!("{} - Font", font.asset.name);
         let window = super::create_editor_window(font.asset.id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
-            egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
-                ui.text_edit_singleline(&mut font.asset.name);
-                ui.add(
-                    egui::Image::new(IMAGES.font).max_width(32.0)
-                );
+            // header:
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", font.asset.id)).show_inside(ui, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.menu_button("Font", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                            if ui.button("Properties...").clicked() {
+                                //...
+                            }
+                        });
+                    });
+                });
+            });
+
+            // footer:
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", font.asset.id)).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                ui.label(format!("{} bytes", font.data_size()));
+            });
+
+            // body:
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                ui.add(egui::Image::new(IMAGES.font).max_width(32.0));
             });
         });
     }

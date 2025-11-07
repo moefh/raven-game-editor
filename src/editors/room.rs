@@ -1,6 +1,9 @@
 use crate::app::WindowContext;
 use crate::IMAGES;
-use crate::data_asset::{Room, RoomMap, RoomEntity, MapData, DataAssetId, SpriteAnimation, AssetIdCollection, AssetIdList, AssetList};
+use crate::data_asset::{
+    Room, RoomMap, RoomEntity, MapData, DataAssetId, GenericAsset,
+    SpriteAnimation, AssetIdCollection, AssetIdList, AssetList,
+};
 
 pub struct RoomEditor {
     pub asset: super::DataAssetEditor,
@@ -33,11 +36,28 @@ impl RoomEditor {
         let title = format!("{} - Room", room.asset.name);
         let window = super::create_editor_window(room.asset.id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
-            egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
-                ui.text_edit_singleline(&mut room.asset.name);
-                ui.add(
-                    egui::Image::new(IMAGES.room).max_width(32.0)
-                );
+            // header:
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", room.asset.id)).show_inside(ui, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.menu_button("Room", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                            if ui.button("Properties...").clicked() {
+                                //...
+                            }
+                        });
+                    });
+                });
+            });
+
+            // footer:
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                ui.label(format!("{} bytes", room.data_size()));
+            });
+
+            // body:
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 ui.label(format!("maps referenced: {}", room.maps.len()));
                 if let Some(map_id) = get_ui_selectable_asset_id(self.selected_map_id, &asset_ids.maps) {
                     let map_name = if let Some(map) = maps.get(&map_id) {

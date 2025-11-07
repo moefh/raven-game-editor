@@ -48,7 +48,7 @@ impl SpriteEditor {
             self.force_reload_image = false;
 
             // item picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", sprite.asset.id)).show_inside(ui, |ui| {
+            egui::SidePanel::left(format!("editor_panel_{}_left", sprite.asset.id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 let picker_zoom = 2.0;
                 let scroll = super::widgets::image_item_picker(ui, sprite.asset.id, texture, &image, self.selected_frame, picker_zoom);
@@ -62,7 +62,7 @@ impl SpriteEditor {
             });
 
             // color picker:
-            egui::SidePanel::right(format!("editor_panel_{}_right", sprite.asset.id)).show_inside(ui, |ui| {
+            egui::SidePanel::right(format!("editor_panel_{}_right", sprite.asset.id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 super::widgets::color_picker(ui, sprite.asset.id, &mut self.color_picker);
             });

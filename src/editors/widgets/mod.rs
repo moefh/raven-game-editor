@@ -31,7 +31,7 @@ pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egu
                 Image::from_texture((texture.id(), image_picker_size)).uv(FULL_UV).paint_at(ui, canvas_rect);
 
                 // draw selection rectangle
-                let stroke = egui::Stroke::new(2.0, egui::Color32::BLACK);
+                let stroke = egui::Stroke::new(3.0, egui::Color32::BLACK);
                 let mut sel_rect = Rect {
                     min: canvas_rect.min,
                     max: canvas_rect.min + image_size,
@@ -39,6 +39,10 @@ pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egu
                 sel_rect.min.y += (selected_image as f32) * image_size.y;
                 sel_rect.max.y += (selected_image as f32) * image_size.y;
                 painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
+
+                let in_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+                let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
+                painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
             }).response
     })
 }

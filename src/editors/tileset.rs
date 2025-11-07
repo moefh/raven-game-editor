@@ -48,7 +48,7 @@ impl TilesetEditor {
             self.force_reload_image = false;
 
             // item picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", tileset.asset.id)).show_inside(ui, |ui| {
+            egui::SidePanel::left(format!("editor_panel_{}_left", tileset.asset.id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 let picker_zoom = 4.0;
                 let scroll = super::widgets::image_item_picker(ui, tileset.asset.id, texture, &image, self.selected_tile, picker_zoom);
@@ -62,7 +62,7 @@ impl TilesetEditor {
             });
 
             // color picker:
-            egui::SidePanel::right(format!("editor_panel_{}_right", tileset.asset.id)).show_inside(ui, |ui| {
+            egui::SidePanel::right(format!("editor_panel_{}_right", tileset.asset.id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 super::widgets::color_picker(ui, tileset.asset.id, &mut self.color_picker);
             });

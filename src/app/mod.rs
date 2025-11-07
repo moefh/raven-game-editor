@@ -418,6 +418,13 @@ impl eframe::App for RavenEditorApp {
         });
 
         // ============================================
+        // FOOTER
+        egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", self.store.assets.data_size()));
+        });
+
+        // ============================================
         // ASSET TREE
         egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
