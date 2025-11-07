@@ -38,7 +38,6 @@ pub struct ModData {
 }
 
 impl ModData {
-
     pub fn new(asset: super::DataAsset) -> Self {
         ModData {
             asset,
@@ -57,5 +56,29 @@ impl ModData {
             MOD_PERIOD_TABLE[index]
         }
     }
-    
+}
+
+impl super::GenericAsset for ModData {
+    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn data_size(&self) -> usize {
+        // sample_header: len(4) + loop_start(4) + loop_len(4) +
+        //                finetune(1) + volume(1) + bits_per_sample(2) + data<ptr>(4)
+        let sample_header = 3usize * 4usize + 4usize + 4usize;
+
+        // header: 31*sample_header + num_channels(1) +
+        //         num_song_positions(1) + song_positions(128) +
+        //         num_patterns(1) + pad(1) + pattern<ptr>(4)
+        let header = 31usize * sample_header + 132usize + 4usize;
+
+        // cell_header: sample(1) + note_index(1) + effect(2)
+        let cell_header = 1usize + 1usize + 2usize;
+
+        // patterns: num_patterns * num_channels * 64 * cell_header
+        let patterns = self.pattern.len() * cell_header;
+
+        // samples:
+        let samples = self.samples.iter().fold(0, |acc, s| acc + s.len as usize);
+
+        header + patterns + samples
+    }
 }

@@ -42,7 +42,6 @@ pub struct Room {
 }
 
 impl Room {
-
     pub fn new(asset: super::DataAsset) -> Self {
         Room {
             asset,
@@ -51,5 +50,24 @@ impl Room {
             entities: Vec::new(),
         }
     }
-    
+}
+
+impl super::GenericAsset for Room {
+    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn data_size(&self) -> usize {
+        // header: num_maps(1) + num_entities(1) + num_triggers(1) + pad(1) +
+        //         maps<ptr>(4) + entities<ptr>(4) + triggers<ptr>(4)
+        let header = 4usize + 3usize * 4usize;
+
+        // map[0..num_maps]: x(2) + y(2) + map<ptr>(4)
+        let maps = self.maps.len() * (2usize * 2usize + 4usize);
+
+        // entity[0..num_entities]: x(2) + y(2) + anim<ptr>(4) + data[0..4](2)
+        let entities = self.entities.len() * (2usize * 2usize + 4usize + 4usize * 2usize);
+
+        // trigger[0..num_triggers]: x(2) + y(2) + w(2) + h(2) + data[0..4](2)
+        let triggers = self.triggers.len() * (4usize * 2usize + 4usize * 2usize);
+
+        header + maps + entities + triggers
+    }
 }

@@ -277,6 +277,19 @@ impl AssetCollection {
         false
     }
 
+    pub fn data_size(&self) -> usize {
+        let sum = 0;
+        let sum = self.tilesets.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.maps.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.rooms.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.sprites.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.animations.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.sfxs.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.mods.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.fonts.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.prop_fonts.iter().fold(sum, |sum, a| sum + a.data_size());
+        sum
+    }
 }
 
 pub struct AssetIdCollection {

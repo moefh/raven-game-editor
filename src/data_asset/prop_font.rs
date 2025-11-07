@@ -7,7 +7,6 @@ pub struct PropFont {
 }
 
 impl PropFont {
-
     pub fn new(asset: super::DataAsset) -> Self {
         PropFont {
             asset,
@@ -17,5 +16,17 @@ impl PropFont {
             char_offsets: Vec::new(),
         }
     }
-    
+}
+
+impl super::GenericAsset for PropFont {
+    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn data_size(&self) -> usize {
+        // header: height(1) + pad(3) + data<ptr>(4) + 96*char_width(1) + 96*char_offset(2)
+        let header = 4usize + 4usize + 96usize + 96usize * 2usize;
+
+        // data: TODO
+        let data = self.data.len();
+
+        header + data
+    }
 }
