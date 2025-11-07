@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct Font {
     pub asset: super::DataAsset,
     pub width: u32,
@@ -5,13 +6,28 @@ pub struct Font {
     pub data: Vec<u8>,
 }
 
+pub struct CreationData<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub data: &'a [u8],
+}
+
 impl Font {
     pub fn new(asset: super::DataAsset) -> Self {
         Font {
             asset,
-            width: 0,
-            height: 0,
-            data: Vec::new(),
+            width: 6,
+            height: 8,
+            data: vec![0; 8*96],
+        }
+    }
+
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        Font {
+            asset,
+            width: data.width,
+            height: data.height,
+            data: Vec::from(data.data),
         }
     }
 }

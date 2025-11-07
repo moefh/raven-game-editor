@@ -1,7 +1,15 @@
+#[allow(dead_code)]
 pub struct PropFont {
     pub asset: super::DataAsset,
     pub height: u32,
     pub data: Vec<u8>,
+    pub char_widths: Vec<u8>,
+    pub char_offsets: Vec<u16>,
+}
+
+pub struct CreationData<'a> {
+    pub height: u32,
+    pub data: &'a [u8],
     pub char_widths: Vec<u8>,
     pub char_offsets: Vec<u16>,
 }
@@ -14,6 +22,16 @@ impl PropFont {
             data: Vec::new(),
             char_widths: Vec::new(),
             char_offsets: Vec::new(),
+        }
+    }
+
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        PropFont {
+            asset,
+            height: data.height,
+            data: Vec::from(data.data),
+            char_widths: data.char_widths,
+            char_offsets: data.char_offsets,
         }
     }
 }

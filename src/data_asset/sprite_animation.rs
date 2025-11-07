@@ -1,4 +1,5 @@
 #[allow(unused)]
+#[derive(Clone)]
 pub struct SpriteAnimationLoop {
     pub name: String,
     pub offset: u16,
@@ -16,6 +17,15 @@ pub struct SpriteAnimation {
     pub loops: Vec<SpriteAnimationLoop>,
 }
 
+pub struct CreationData<'a> {
+    pub sprite_id: super::DataAssetId,
+    pub clip_rect: super::Rect,
+    pub use_foot_frames: bool,
+    pub foot_overlap: i8,
+    pub frame_indices: &'a [u8],
+    pub loops: &'a [SpriteAnimationLoop],
+}
+
 impl SpriteAnimation {
     pub fn new(asset: super::DataAsset, sprite_id: super::DataAssetId) -> Self {
         SpriteAnimation {
@@ -26,6 +36,18 @@ impl SpriteAnimation {
             foot_overlap: 0,
             frame_indices: Vec::new(),
             loops: Vec::new(),
+        }
+    }
+
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        SpriteAnimation {
+            asset,
+            sprite_id: data.sprite_id,
+            clip_rect: data.clip_rect,
+            use_foot_frames: data.use_foot_frames,
+            foot_overlap: data.foot_overlap,
+            frame_indices: Vec::from(data.frame_indices),
+            loops: Vec::from(data.loops),
         }
     }
 }

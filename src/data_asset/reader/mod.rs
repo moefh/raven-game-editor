@@ -602,9 +602,9 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let width = self.read_number()?;
+            let width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let height = self.read_number()?;
+            let height = self.read_number()? as u32;
             self.expect_punct(',')?;
             let ident = self.expect_any_ident("font data identifier")?;
             self.expect_punct('}')?;
@@ -621,18 +621,18 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("font data not found: '{}'", full_name), ident.pos)?;
                 };
 
-            let (id, font) = if let Some(id) = self.store.add_font(name.to_string()) &&
-                let Some(font) = self.store.assets.fonts.get_mut(&id) {
-                    (id, font)
-                } else {
-                    return error(format!("error adding font '{}'", name), ident.pos)?;
-                };
-            font.width = width as u32;
-            font.height = height as u32;
-            font.data.extend_from_slice(data);
-            self.read_data.fonts.push(id);
-            self.read_data.fonts_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added font '{}' id={}", name, id));
+            let data = super::font::CreationData {
+                width,
+                height,
+                data,
+            };
+            if let Some(id) = self.store.add_font_from(name.to_string(), data) {
+                self.read_data.fonts.push(id);
+                self.read_data.fonts_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added font '{}' id={}", name, id));
+            } else {
+                return error(format!("error adding font '{}'", name), ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -669,13 +669,13 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let height = self.read_number()?;
+            let height = self.read_number()? as u32;
             self.expect_punct(',')?;
             let data_ident = self.expect_any_ident("prop font data identifier")?;
             self.expect_punct(',')?;
-            let mut char_widths = self.read_u8_array()?;
+            let char_widths = self.read_u8_array()?;
             self.expect_punct(',')?;
-            let mut char_offsets = self.read_u16_array()?;
+            let char_offsets = self.read_u16_array()?;
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
@@ -689,20 +689,20 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     error(format!("prop font data not found: '{}'", full_name), data_ident.pos)?
                 };
-            let (id, pfont) = if let Some(id) = self.store.add_prop_font(name.to_string()) &&
-                let Some(pfont) = self.store.assets.prop_fonts.get_mut(&id) {
-                    (id, pfont)
-                } else {
-                    return error(format!("error adding prop font '{}'", name), data_ident.pos)?;
-                };
 
-            pfont.height = height as u32;
-            pfont.data.extend_from_slice(data);
-            pfont.char_widths.append(&mut char_widths);
-            pfont.char_offsets.append(&mut char_offsets);
-            self.read_data.prop_fonts.push(id);
-            self.read_data.prop_fonts_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added prop font '{}' id={}", name, id));
+            let data = super::prop_font::CreationData {
+                height,
+                data,
+                char_widths,
+                char_offsets,
+            };
+            if let Some(id) = self.store.add_prop_font_from(name.to_string(), data) {
+                self.read_data.prop_fonts.push(id);
+                self.read_data.prop_fonts_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added prop font '{}' id={}", name, id));
+            } else {
+                return error(format!("error adding prop font '{}'", name), data_ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -833,10 +833,10 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn read_mod(&mut self) -> Result<()> {
-        let mut sample_defs = self.read_mod_sample_defs()?;
+        let sample_defs = self.read_mod_sample_defs()?;
         self.expect_punct(',')?;
 
-        let num_channels = self.read_number()? as usize;
+        let num_channels = self.read_number()? as u8;
         self.expect_punct(',')?;
 
         let num_song_positions = self.read_number()? as usize;
@@ -864,25 +864,25 @@ impl<'a> ProjectDataReader<'a> {
                           song_positions.len(), num_song_positions), pattern_ident.pos)?
         }
 
-        let expected_num_patterns = pattern.len() / (num_channels * 64);
+        let expected_num_patterns = pattern.len() / (num_channels as usize * 64);
         if num_patterns != expected_num_patterns {
             error(format!("mod with invalid num patterns: expected {}, got {}",
                           expected_num_patterns, num_patterns), pattern_ident.pos)?
         }
 
-        let (id, mod_data) = if let Some(id) = self.store.add_mod(name.to_string()) &&
-            let Some(mod_data) = self.store.assets.mods.get_mut(&id) {
-                (id, mod_data)
-            } else {
-                return error(format!("error adding mod '{}'", name), pattern_ident.pos)?;
-            };
-
-        mod_data.samples.append(&mut sample_defs);
-        mod_data.pattern.extend_from_slice(pattern);
-        mod_data.num_channels = num_channels as u8;
-        self.read_data.mods.push(id);
-        self.read_data.mods_by_name.insert(name.to_string(), id);
-        self.logger.log(&format!("-> added mod '{}' id={}", name, id));
+        let data = super::mod_data::CreationData {
+            num_channels,
+            samples: sample_defs,
+            pattern,
+            song_positions,
+        };
+        if let Some(id) = self.store.add_mod_from(name.to_string(), data) {
+            self.read_data.mods.push(id);
+            self.read_data.mods_by_name.insert(name.to_string(), id);
+            self.logger.log(&format!("-> added mod '{}' id={}", name, id));
+        } else {
+            return error(format!("error adding mod '{}'", name), pattern_ident.pos)?;
+        }
         Ok(())
     }
 
@@ -937,13 +937,13 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let len = self.read_number()?;
+            let len = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let loop_start = self.read_number()?;
+            let loop_start = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let loop_len = self.read_number()?;
+            let loop_len = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let bits_per_sample = self.read_number()?;
+            let bits_per_sample = self.read_number()? as u16;
             self.expect_punct(',')?;
             self.expect_punct('{')?;
             self.expect_punct('.')?;
@@ -964,27 +964,27 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("unknown sfx samples '{}'", full_name), data_ident.pos)?;
                 };
-            let (id, sfx) = if let Some(id) = self.store.add_sfx(name.to_string()) &&
-                let Some(sfx) = self.store.assets.sfxs.get_mut(&id) {
-                    (id, sfx)
-                } else {
-                    error(format!("error adding sfx '{}'", full_name), data_ident.pos)?
-                };
-
-            let mut sample_data = if sample_data.data_size == bits_per_sample as u32 {
-                sample_data.data.clone()  // samples can be shared between sfxs
+            let sample_data = if sample_data.data_size == bits_per_sample as u32 {
+                &sample_data.data
             } else {
                 error(format!("invalid sample: data has {} bits per sample, but sfx wants {}",
                                    sample_data.data_size, bits_per_sample), data_ident.pos)?
             };
 
-            sfx.len = len as u32;
-            sfx.loop_start = loop_start as u32;
-            sfx.loop_len = loop_len as u32;
-            sfx.samples.append(&mut sample_data);
-            self.read_data.sfxs.push(id);
-            self.read_data.sfxs_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added sfx '{}' id={}", name, id));
+            let data = super::sfx::CreationData {
+                len,
+                loop_start,
+                loop_len,
+                bits_per_sample,
+                samples: sample_data,
+            };
+            if let Some(id) = self.store.add_sfx_from(name.to_string(), data) {
+                self.read_data.sfxs.push(id);
+                self.read_data.sfxs_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added sfx '{}' id={}", name, id));
+            } else {
+                error(format!("error adding sfx '{}'", full_name), data_ident.pos)?
+            }
         }
 
         self.expect_punct(';')?;
@@ -1021,13 +1021,13 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let width = self.read_number()?;
+            let width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let height = self.read_number()?;
+            let height = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let stride = self.read_number()?;
+            let stride = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let num_tiles = self.read_number()?;
+            let num_tiles = self.read_number()? as u32;
             self.expect_punct(',')?;
             let ident = self.expect_any_ident("tileset data identifier")?;
             self.expect_punct('}')?;
@@ -1043,31 +1043,34 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("tileset data not found: '{}'", full_name), ident.pos)?;
                 };
-            let (id, tileset) = if let Some(id) = self.store.add_tileset(name.to_string()) &&
-                let Some(tileset) = self.store.assets.tilesets.get_mut(&id) {
-                    (id, tileset)
-                } else {
-                    return error(format!("error adding tileset '{}'", name), ident.pos)?;
-                };
 
-            let want_stride = width.div_ceil(4);  // (width+3)/4
+            if width != super::tileset::TILE_SIZE || width != super::tileset::TILE_SIZE {
+                error(format!("invalid tileset size: got {}x{}, expected {}x{}",
+                              width, height, super::tileset::TILE_SIZE, super::tileset::TILE_SIZE), t.pos)?;
+            }
+            let want_stride = width.div_ceil(4);
             if stride != want_stride {
                 error(format!("tileset stride doesn't match width: got {}, expected {}", stride, want_stride), t.pos)?;
             }
             let want_len = stride * height * num_tiles;
-            if data.len() as u64 != want_len {
+            if data.len() as u32 != want_len {
                 error(format!("unexpected tileset data length: got {}, expected {} = {}*{}*{}",
                               data.len(), want_len, stride, height, num_tiles), t.pos)?;
             }
 
-            tileset.width = width as u32;
-            tileset.height = height as u32;
-            tileset.stride = stride as u32;
-            tileset.num_tiles = num_tiles as u32;
-            tileset.data.extend_from_slice(data);
-            self.read_data.tilesets.push(id);
-            self.read_data.tilesets_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added tileset '{}' id={}", name, id));
+            let data = super::tileset::CreationData {
+                width,
+                height,
+                num_tiles,
+                data,
+            };
+            if let Some(id) = self.store.add_tileset_from(name.to_string(), data) {
+                self.read_data.tilesets.push(id);
+                self.read_data.tilesets_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added tileset '{}' id={}", name, id));
+            } else {
+                return error(format!("error adding tileset '{}'", name), ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -1104,13 +1107,13 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let width = self.read_number()?;
+            let width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let height = self.read_number()?;
+            let height = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let stride = self.read_number()?;
+            let stride = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let num_frames = self.read_number()?;
+            let num_frames = self.read_number()? as u32;
             self.expect_punct(',')?;
             let ident = self.expect_any_ident("sprite data identifier")?;
             self.expect_punct('}')?;
@@ -1126,13 +1129,6 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name), ident.pos)?;
                 };
-            let (id, sprite) = if let Some(id) = self.store.add_sprite(name.to_string()) &&
-                let Some(sprite) = self.store.assets.sprites.get_mut(&id) {
-                    (id, sprite)
-                } else {
-                    return error(format!("error adding sprite '{}'", name), ident.pos)?;
-                };
-
             if num_frames % 2 != 0 {
                 error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), t.pos)?;
             }
@@ -1141,19 +1137,24 @@ impl<'a> ProjectDataReader<'a> {
                 error(format!("sprite stride doesn't match width: got {}, expected {}", stride, want_stride), t.pos)?;
             }
             let want_len = stride * height * num_frames;
-            if data.len() as u64 != want_len {
+            if data.len() as u32 != want_len {
                 error(format!("unexpected sprite data length: got {}, expected {} = {}*{}*{}",
                               data.len(), want_len, stride, height, num_frames), t.pos)?;
             }
 
-            sprite.width = width as u32;
-            sprite.height = height as u32;
-            sprite.stride = stride as u32;
-            sprite.num_frames = num_frames as u32 / 2;  // ignore mirror frames
-            sprite.data.extend_from_slice(data);
-            self.read_data.sprites.push(id);
-            self.read_data.sprites_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added sprite '{}' id={}", name, id));
+            let data = super::sprite::CreationData {
+                width,
+                height,
+                num_frames: num_frames / 2,    // ignore mirrors frames
+                data: &data[0..data.len()/2],
+            };
+            if let Some(id) = self.store.add_sprite_from(name.to_string(), data) {
+                self.read_data.sprites.push(id);
+                self.read_data.sprites_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added sprite '{}' id={}", name, id));
+            } else {
+                return error(format!("error adding sprite '{}'", name), ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -1189,13 +1190,13 @@ impl<'a> ProjectDataReader<'a> {
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
 
-            let width = self.read_number()?;
+            let width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let height = self.read_number()?;
+            let height = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let bg_width = self.read_number()?;
+            let bg_width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let bg_height = self.read_number()?;
+            let bg_height = self.read_number()? as u32;
             self.expect_punct(',')?;
             let tileset_id = self.read_asset_index_reference("tilesets")?;
             self.expect_punct(',')?;
@@ -1213,21 +1214,22 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name), ident.pos)?;
                 };
-            let (id, map_data) = if let Some(id) = self.store.add_map(name.to_string(), tileset_id) &&
-                let Some(map_data) = self.store.assets.maps.get_mut(&id) {
-                    (id, map_data)
-                } else {
-                    return error(format!("error adding map '{}'", name), ident.pos)?;
-                };
 
-            map_data.width = width as u32;
-            map_data.height = height as u32;
-            map_data.bg_width = bg_width as u32;
-            map_data.bg_height = bg_height as u32;
-            map_data.tiles.extend_from_slice(tiles_data);
-            self.read_data.maps.push(id);
-            self.read_data.maps_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
+            let data = super::map_data::CreationData {
+                tileset_id,
+                width,
+                height,
+                bg_width,
+                bg_height,
+                tiles: tiles_data,
+            };
+            if let Some(id) = self.store.add_map_from(name.to_string(), data) {
+                self.read_data.maps.push(id);
+                self.read_data.maps_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
+            } else {
+                return error(format!("error adding map '{}'", name), ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -1301,7 +1303,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let foot_overlap = self.read_signed_number()?;
             self.expect_punct(',')?;
-            let mut loops = self.read_sprite_animation_loops()?;
+            let loops = self.read_sprite_animation_loops()?;
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
@@ -1321,21 +1323,22 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("sprite animation frames data not found: '{}'", full_name), t.pos)?;
                 };
-            let (id, animation) = if let Some(id) = self.store.add_animation(name.to_string(), sprite_id) &&
-                let Some(animation) = self.store.assets.animations.get_mut(&id) {
-                    (id, animation)
-                } else {
-                    return error(format!("error adding sprite animation '{}' with sprite id '{}'", name, sprite_id), t.pos)?;
-                };
 
-            animation.clip_rect = super::Rect::new(clip_x, clip_y, clip_w, clip_h);
-            animation.use_foot_frames = use_foot_frames != 0;
-            animation.foot_overlap = foot_overlap as i8;
-            animation.loops.append(&mut loops);
-            animation.frame_indices.extend_from_slice(frames_data);
-            self.read_data.animations.push(id);
-            self.read_data.animations_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
+            let data = super::sprite_animation::CreationData {
+                sprite_id,
+                clip_rect: super::Rect::new(clip_x, clip_y, clip_w, clip_h),
+                use_foot_frames: use_foot_frames != 0,
+                foot_overlap: foot_overlap as i8,
+                loops: &loops,
+                frame_indices: &frames_data,
+            };
+            if let Some(id) = self.store.add_animation_from(name.to_string(), data) {
+                self.read_data.animations.push(id);
+                self.read_data.animations_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
+            } else {
+                return error(format!("error adding sprite animation '{}' with sprite id '{}'", name, sprite_id), t.pos)?;
+            }
         }
 
         self.expect_punct(';')?;
@@ -1537,14 +1540,6 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("room triggers data not found: '{}'", triggers_name), triggers_ident.pos)?;
                 };
-
-            let (id, room) = if let Some(id) = self.store.add_room(name.to_string()) &&
-                let Some(room) = self.store.assets.rooms.get_mut(&id) {
-                    (id, room)
-                } else {
-                    return error(format!("error adding room '{}'", name), maps_ident.pos)?;
-                };
-
             if num_maps != maps_data.len() {
                 error(format!("unexpected maps length: got {}, expected {}", maps_data.len(), num_maps), t.pos)?;
             }
@@ -1555,12 +1550,18 @@ impl<'a> ProjectDataReader<'a> {
                 error(format!("unexpected triggers length: got {}, expected {}", triggers_data.len(), num_triggers), t.pos)?;
             }
 
-            room.maps.extend_from_slice(maps_data);
-            room.entities.extend_from_slice(entities_data);
-            room.triggers.extend_from_slice(triggers_data);
-            self.read_data.rooms.push(id);
-            self.read_data.rooms_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added room '{}' id={}", name, id));
+            let data = super::room::CreationData {
+                maps: maps_data,
+                entities: entities_data,
+                triggers: triggers_data,
+            };
+            if let Some(id) = self.store.add_room_from(name.to_string(), data) {
+                self.read_data.rooms.push(id);
+                self.read_data.rooms_by_name.insert(name.to_string(), id);
+                self.logger.log(&format!("-> added room '{}' id={}", name, id));
+            } else {
+                return error(format!("error adding room '{}'", name), maps_ident.pos)?;
+            }
         }
 
         self.expect_punct(';')?;

@@ -7,19 +7,35 @@ pub struct Sprite {
     pub data: Vec<u32>,
 }
 
-impl Sprite {
+pub struct CreationData<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub num_frames: u32,
+    pub data: &'a [u32],
+}
 
+impl Sprite {
     pub fn new(asset: super::DataAsset) -> Self {
         Sprite {
             asset,
-            width: 0,
-            height: 0,
-            stride: 0,
-            num_frames: 0,
-            data: Vec::new(),
+            width: 32,
+            height: 32,
+            stride: 32/4,
+            num_frames: 8,
+            data: vec![0x3f3f3f3f; 32*32/4*8],
         }
     }
 
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        Sprite {
+            asset,
+            width: data.width,
+            height: data.height,
+            stride: data.width.div_ceil(4),
+            num_frames: data.num_frames,
+            data: Vec::from(data.data),
+        }
+    }
 }
 
 impl super::GenericAsset for Sprite {

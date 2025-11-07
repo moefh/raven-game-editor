@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct MapData {
     pub asset: super::DataAsset,
     pub tileset_id: super::DataAssetId,
@@ -8,16 +9,37 @@ pub struct MapData {
     pub tiles: Vec<u8>,
 }
 
+pub struct CreationData<'a> {
+    pub tileset_id: super::DataAssetId,
+    pub width: u32,
+    pub height: u32,
+    pub bg_width: u32,
+    pub bg_height: u32,
+    pub tiles: &'a [u8],
+}
+
 impl MapData {
     pub fn new(asset: super::DataAsset, tileset_id: super::DataAssetId) -> Self {
         MapData {
             asset,
             tileset_id,
-            width: 0,
-            height: 0,
-            bg_width: 0,
-            bg_height: 0,
-            tiles: Vec::new(),
+            width: 24,
+            height: 24,
+            bg_width: 24,
+            bg_height: 24,
+            tiles: vec![0; 24*24*4],
+        }
+    }
+
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        MapData {
+            asset,
+            tileset_id: data.tileset_id,
+            width: data.width,
+            height: data.height,
+            bg_width: data.bg_width,
+            bg_height: data.bg_height,
+            tiles: Vec::from(data.tiles),
         }
     }
 }

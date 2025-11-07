@@ -41,6 +41,12 @@ pub struct Room {
     pub triggers: Vec<RoomTrigger>,
 }
 
+pub struct CreationData<'a> {
+    pub maps: &'a [RoomMap],
+    pub entities: &'a [RoomEntity],
+    pub triggers: &'a [RoomTrigger],
+}
+
 impl Room {
     pub fn new(asset: super::DataAsset) -> Self {
         Room {
@@ -48,6 +54,15 @@ impl Room {
             maps: Vec::new(),
             triggers: Vec::new(),
             entities: Vec::new(),
+        }
+    }
+
+    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+        Room {
+            asset,
+            maps: Vec::from(data.maps),
+            triggers: Vec::from(data.triggers),
+            entities: Vec::from(data.entities),
         }
     }
 }
