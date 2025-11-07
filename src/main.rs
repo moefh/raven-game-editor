@@ -29,6 +29,7 @@ fn add_font(ctx: &egui::Context) {
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1800.0, 900.0]),
+        centered: true,
         ..Default::default()
     };
 
