@@ -1044,7 +1044,7 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("tileset data not found: '{}'", full_name), ident.pos)?;
                 };
 
-            if width != super::tileset::TILE_SIZE || width != super::tileset::TILE_SIZE {
+            if width != super::tileset::TILE_SIZE || height != super::tileset::TILE_SIZE {
                 error(format!("invalid tileset size: got {}x{}, expected {}x{}",
                               width, height, super::tileset::TILE_SIZE, super::tileset::TILE_SIZE), t.pos)?;
             }
@@ -1129,7 +1129,7 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name), ident.pos)?;
                 };
-            if num_frames % 2 != 0 {
+            if ! num_frames.is_multiple_of(2) {
                 error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), t.pos)?;
             }
             let want_stride = width.div_ceil(4);  // (width+3)/4
@@ -1330,7 +1330,7 @@ impl<'a> ProjectDataReader<'a> {
                 use_foot_frames: use_foot_frames != 0,
                 foot_overlap: foot_overlap as i8,
                 loops: &loops,
-                frame_indices: &frames_data,
+                frame_indices: frames_data,
             };
             if let Some(id) = self.store.add_animation_from(name.to_string(), data) {
                 self.read_data.animations.push(id);

@@ -47,20 +47,18 @@ fn create_color_picker_all_pal() -> Vec<u8> {
 fn create_color_picker_grad_pal() -> Vec<u8> {
     let mut colors = [0u8; 6*5];
 
-    for c in 0..COLOR_PICKER_GRAD_COLORS.len() {
-        let targets = [ COLOR_PICKER_GRAD_COLORS[c], 0b111111 ];
+    for (c, &grad_color) in COLOR_PICKER_GRAD_COLORS.iter().enumerate() {
+        let targets = [ grad_color, 0b111111 ];
         let mut x = 0;
         let mut color = 0b000000;
-        for i in 0..targets.len() {
-            let target = targets[i];
+        for (i, &target) in targets.iter().enumerate() {
             let dcolor = if i == 0 { target & 0b010101 } else { (0b111111 & !color) & 0b010101 };
             for _ in 0..3 {
                 if color != 0 && color != 0b111111 {  // don't show black
                     let r = (color & 0b110000) >> 4;
                     let g = (color & 0b001100) >> 2;
                     let b = color & 0b000011;
-                    let index = (c * 5 + x) as usize;
-                    colors[index] = ((r<<4) | (g<<2) | b) as u8;
+                    colors[c * 5 + x] = (r<<4) | (g<<2) | b;
                     x += 1;
                 }
                 color += dcolor;
