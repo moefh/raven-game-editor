@@ -1,3 +1,4 @@
+use crate::app::WindowContext;
 use crate::IMAGES;
 use crate::data_asset::{PropFont, DataAssetId};
 
@@ -15,10 +16,10 @@ impl PropFontEditor {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, window_space: egui::Rect, prop_font: &mut PropFont) {
+    pub fn show(&mut self, wc: &WindowContext, prop_font: &mut PropFont) {
         let title = format!("{} - Prop Font", prop_font.asset.name);
-        let window = super::create_editor_window(prop_font.asset.id, &title, window_space);
-        window.open(&mut self.asset.open).show(ctx, |ui| {
+        let window = super::create_editor_window(prop_font.asset.id, &title, wc);
+        window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
                 ui.text_edit_singleline(&mut prop_font.asset.name);
                 ui.add(

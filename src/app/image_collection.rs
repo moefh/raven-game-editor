@@ -1,5 +1,5 @@
 use crate::app::{AppTextureManager, AppTextureName};
-use crate::data_asset::{DataAssetId, Tileset, Sprite};
+use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 use egui::{Rect, Pos2, Vec2};
 
 pub struct ImageCollection {
@@ -12,40 +12,18 @@ pub struct ImageCollection {
 }
 
 impl ImageCollection {
-    pub fn tileset<'a>(tex_man: &'a mut super::AppTextureManager, ctx: &egui::Context, tileset: &Tileset, force_load: bool)
-                       -> (ImageCollection, &'a egui::TextureHandle) {
-        let image = Self::from_tileset(tileset, super::AppTextureName::new(tileset.asset.id, 0));
-        let texture = image.get_tileset_texture(tex_man, ctx, tileset, force_load);
+    pub fn load_asset<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut super::AppTextureManager, ctx: &egui::Context, force_load: bool)
+                          -> (Self, &'a egui::TextureHandle) {
+        let image = ImageCollection {
+            tex: super::AppTextureName::new(asset.asset_id(), 0),
+            asset_id: asset.asset_id(),
+            width: asset.width(),
+            height: asset.height(),
+            stride: asset.stride(),
+            num_items: asset.num_items(),
+        };
+        let texture = image.get_asset_texture(tex_man, ctx, asset, force_load);
         (image, texture)
-    }
-
-    pub fn sprite<'a>(tex_man: &'a mut super::AppTextureManager, ctx: &egui::Context, sprite: &Sprite, force_load: bool)
-                      -> (ImageCollection, &'a egui::TextureHandle) {
-        let image = Self::from_sprite(sprite, super::AppTextureName::new(sprite.asset.id, 0));
-        let texture = image.get_sprite_texture(tex_man, ctx, sprite, force_load);
-        (image, texture)
-    }
-
-    pub fn from_tileset(tileset: &Tileset, tex: AppTextureName) -> Self {
-        ImageCollection {
-            tex,
-            asset_id: tileset.asset.id,
-            width: tileset.width,
-            height: tileset.height,
-            stride: tileset.stride,
-            num_items: tileset.num_tiles,
-        }
-    }
-
-    pub fn from_sprite(sprite: &Sprite, tex: AppTextureName) -> Self {
-        ImageCollection {
-            tex,
-            asset_id: sprite.asset.id,
-            width: sprite.width,
-            height: sprite.height,
-            stride: sprite.stride,
-            num_items: sprite.num_frames,
-        }
     }
 
     pub fn get_item_size(&self) -> Vec2 {
@@ -64,24 +42,14 @@ impl ImageCollection {
         }
     }
 
-    pub fn get_tileset_texture<'a>(&self, man: &'a mut AppTextureManager, ctx: &egui::Context,
-                                   tileset: &Tileset, force_load: bool) -> &'a egui::TextureHandle {
-        if self.asset_id != tileset.asset.id {
-            println!("WARNING: get_tileset_texture() for wrong tileset id: {} vs {}", self.asset_id, tileset.asset.id);
+    pub fn get_asset_texture<'a>(&self, man: &'a mut AppTextureManager, ctx: &egui::Context,
+                                 asset: &impl ImageCollectionAsset, force_load: bool) -> &'a egui::TextureHandle {
+        if self.asset_id != asset.asset_id() {
+            println!("WARNING: get_asset_texture() for wrong asset id: {} vs {}", self.asset_id, asset.asset_id());
         }
         let width = self.width as usize;
         let height = (self.height * self.num_items) as usize;
-        man.get_rgba_texture(ctx, self.tex, width, height, &tileset.data, force_load)
-    }
-
-    pub fn get_sprite_texture<'a>(&self, man: &'a mut AppTextureManager, ctx: &egui::Context,
-                                  sprite: &Sprite, force_load: bool) -> &'a egui::TextureHandle {
-        if self.asset_id != sprite.asset.id {
-            println!("WARNING: get_sprite_texture() for wrong sprite: {} vs {}", self.asset_id, sprite.asset.id);
-        }
-        let width = self.width as usize;
-        let height = (self.height * self.num_items) as usize;
-        man.get_rgba_texture(ctx, self.tex, width, height, &sprite.data, force_load)
+        man.get_rgba_texture(ctx, self.tex, width, height, asset.data(), force_load)
     }
 
     pub fn set_pixel(&self, data: &mut [u32], x: i32, y: i32, item: u32, color: u8) -> bool {
@@ -92,6 +60,10 @@ impl ImageCollection {
         let y = y as u32;
         let color = color as u32;
         let index = ((item * self.height + y) * self.stride + x / 4) as usize;
+        if index > data.len() {
+            println!("ERROR: set_pixel(): data is too small: {} vs {}", index, data.len());
+            return false;
+        }
         let quad = data[index];
         let new_quad = match x % 4 {
             0 => (quad & 0xffffff00) | color,

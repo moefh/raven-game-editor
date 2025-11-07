@@ -1,3 +1,4 @@
+use crate::app::WindowContext;
 use crate::IMAGES;
 use crate::data_asset::{Font, DataAssetId};
 
@@ -15,10 +16,10 @@ impl FontEditor {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, window_space: egui::Rect, font: &mut Font) {
+    pub fn show(&mut self, wc: &WindowContext, font: &mut Font) {
         let title = format!("{} - Font", font.asset.name);
-        let window = super::create_editor_window(font.asset.id, &title, window_space);
-        window.open(&mut self.asset.open).show(ctx, |ui| {
+        let window = super::create_editor_window(font.asset.id, &title, wc);
+        window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
                 ui.text_edit_singleline(&mut font.asset.name);
                 ui.add(

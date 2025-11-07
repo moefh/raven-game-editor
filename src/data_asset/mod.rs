@@ -107,6 +107,20 @@ impl DataAsset {
     }
 }
 
+pub trait GenericAsset {
+    //fn asset(&self) -> &DataAsset;
+    fn data_size(&self) -> usize;
+}
+
+pub trait ImageCollectionAsset {
+    fn asset_id(&self) -> DataAssetId;
+    fn width(&self) -> u32;
+    fn height(&self) -> u32;
+    fn stride(&self) -> u32;
+    fn num_items(&self) -> u32;
+    fn data(&self) -> &[u32];
+}
+
 pub struct AssetList<T> {
     store: HashMap<DataAssetId, T>
 }

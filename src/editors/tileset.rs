@@ -1,75 +1,94 @@
+use crate::IMAGES;
 use crate::app::{WindowContext, ImageCollection};
-use crate::data_asset::{Tileset, DataAssetId};
-use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
+use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
     force_reload_image: bool,
-}
-
-fn get_image_zoom(image_size: Vec2, canvas_size: Vec2) -> f32 {
-    let (zoomx, zoomy) = (canvas_size.x / (image_size.x + 1.0), (canvas_size.y / (image_size.y + 1.0)));
-    f32::max(f32::min(zoomx, zoomy).floor(), 1.0)
+    selected_tile: u32,
+    color_picker: super::widgets::ColorPickerState,
 }
 
 impl TilesetEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         TilesetEditor {
-            asset: super::DataAssetEditor {
-                id,
-                open,
-            },
+            asset: super::DataAssetEditor::new(id, open),
             force_reload_image: false,
+            selected_tile: 0,
+            color_picker: super::widgets::ColorPickerState::new(0b000011, 0b110000),
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
-        let tile = 22;
         let title = format!("{} - Tileset", tileset.asset.name);
-        let window = super::create_editor_window(self.asset.id, &title, wc.window_space);
-        window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
-            ui.text_edit_singleline(&mut tileset.asset.name);
+        let window = super::create_editor_window(self.asset.id, &title, wc);
+        let (min_size, default_size) = super::calc_image_editor_window_size(tileset);
+        window.min_size(min_size).default_size(default_size).open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
+            // header:
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", tileset.asset.id)).show_inside(ui, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.menu_button("Tileset", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                            if ui.button("Properties...").clicked() {
+                                //...
+                            }
+                        });
+                    });
+                });
+            });
 
-            let (image, texture) = ImageCollection::tileset(wc.tex_man, wc.egui.ctx, tileset, self.force_reload_image);
+            // footer:
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                ui.label(format!("{} bytes", tileset.data_size()));
+            });
+
+            let (image, texture) = ImageCollection::load_asset(tileset, wc.tex_man, wc.egui.ctx, self.force_reload_image);
             self.force_reload_image = false;
-            egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
-                let frame_size = image.get_item_size();
-                let min_size = Vec2::new(100.0, 100.0).min(1.1 * frame_size).max(ui.available_size());
-                let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
 
-                let image_zoom = get_image_zoom(frame_size, resp.rect.size());
-                let center = resp.rect.center();
-                let canvas_rect = Rect {
-                    min: center - image_zoom * frame_size / 2.0,
-                    max: center + image_zoom * frame_size / 2.0,
+            // item picker:
+            egui::SidePanel::left(format!("editor_panel_{}_left", tileset.asset.id)).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                let picker_zoom = 4.0;
+                let scroll = super::widgets::image_item_picker(ui, tileset.asset.id, texture, &image, self.selected_tile, picker_zoom);
+                if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
+                    let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
+                    if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
+                        let frame_size = picker_zoom * image.get_item_size();
+                        self.selected_tile = u32::min((pos.y / frame_size.y).floor() as u32, image.num_items-1);
+                    }
                 };
-                let frame_uv = image.get_item_uv(tile);
-                Image::from_texture((texture.id(), frame_size)).uv(frame_uv).paint_at(ui, canvas_rect);
+            });
 
-                let canvas_size = canvas_rect.size();
-                let display_grid = f32::min(canvas_size.x, canvas_size.y) / f32::max(frame_size.x, frame_size.y) > 3.0;
-                if display_grid {
-                    let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
-                    for y in 0..=tileset.height {
-                        let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / tileset.height as f32;
-                        painter.hline(canvas_rect.x_range(), py, stroke);
-                    }
-                    for x in 0..=tileset.width {
-                        let px = canvas_rect.min.x + canvas_rect.width() * x as f32 / tileset.width as f32;
-                        painter.vline(px, canvas_rect.y_range(), stroke);
-                    }
-                }
+            // color picker:
+            egui::SidePanel::right(format!("editor_panel_{}_right", tileset.asset.id)).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                super::widgets::color_picker(ui, tileset.asset.id, &mut self.color_picker);
+            });
 
-                let screen_to_frame = emath::RectTransform::from_to(
-                    canvas_rect,
-                    Rect { min: Pos2::ZERO, max: Pos2::ZERO + frame_size }
-                );
-                if let Some(pointer_pos) = resp.interact_pointer_pos() {
-                    let canvas_pos = screen_to_frame * pointer_pos;
-                    let x = canvas_pos.x as i32;
-                    let y = canvas_pos.y as i32;
-                    self.force_reload_image = image.set_pixel(&mut tileset.data, x, y, tile, 0u8);
-                }
+            // image:
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                ui.scope_builder(
+                    egui::UiBuilder::new().id_salt(format!("tileset_{}_tiles", tileset.asset.id)), |ui| {
+                        let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile);
+                        if let Some(pointer_pos) = resp.interact_pointer_pos() &&
+                            canvas_to_image.from().contains(pointer_pos) {
+                                let image_pos = canvas_to_image * pointer_pos;
+                                let x = image_pos.x as i32;
+                                let y = image_pos.y as i32;
+                                if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
+                                    Some(self.color_picker.left_color)
+                                } else if resp.dragged_by(egui::PointerButton::Secondary) {
+                                    Some(self.color_picker.right_color)
+                                } else {
+                                    None
+                                } {
+                                    self.force_reload_image = image.set_pixel(&mut tileset.data, x, y, self.selected_tile, color);
+                                }
+                            }
+                    });
             });
         });
     }

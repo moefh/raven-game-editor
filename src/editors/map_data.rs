@@ -1,3 +1,4 @@
+use crate::app::WindowContext;
 use crate::IMAGES;
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId};
 
@@ -15,11 +16,10 @@ impl MapDataEditor {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, window_space: egui::Rect,
-                map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+    pub fn show(&mut self, wc: &WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         let title = format!("{} - Map", map_data.asset.name);
-        let window = super::create_editor_window(map_data.asset.id, &title, window_space);
-        window.open(&mut self.asset.open).show(ctx, |ui| {
+        let window = super::create_editor_window(map_data.asset.id, &title, wc);
+        window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Name:");

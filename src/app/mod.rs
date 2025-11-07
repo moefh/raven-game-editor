@@ -500,12 +500,12 @@ impl eframe::App for RavenEditorApp {
         }
         for map in self.store.assets.maps.iter_mut() {
             if let Some(editor) = self.editors.maps.get_mut(&map.asset.id) {
-                editor.show(ctx, window_space, map, &self.store.asset_ids.tilesets, &self.store.assets.tilesets);
+                editor.show(&mut win_ctx, map, &self.store.asset_ids.tilesets, &self.store.assets.tilesets);
             }
         }
         for room in self.store.assets.rooms.iter_mut() {
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) {
-                editor.show(ctx, window_space, room, &self.store.asset_ids, &self.store.assets.maps, &self.store.assets.animations);
+                editor.show(&mut win_ctx, room, &self.store.asset_ids, &self.store.assets.maps, &self.store.assets.animations);
             }
         }
         for sprite in self.store.assets.sprites.iter_mut() {
@@ -515,27 +515,27 @@ impl eframe::App for RavenEditorApp {
         }
         for anim in self.store.assets.animations.iter_mut() {
             if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
-                editor.show(ctx, window_space, anim);
+                editor.show(&mut win_ctx, anim);
             }
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) {
-                editor.show(ctx, window_space, sfx);
+                editor.show(&mut win_ctx, sfx);
             }
         }
         for mod_data in self.store.assets.mods.iter_mut() {
             if let Some(editor) = self.editors.mods.get_mut(&mod_data.asset.id) {
-                editor.show(ctx, window_space, mod_data);
+                editor.show(&mut win_ctx, mod_data);
             }
         }
         for font in self.store.assets.fonts.iter_mut() {
             if let Some(editor) = self.editors.fonts.get_mut(&font.asset.id) {
-                editor.show(ctx, window_space, font);
+                editor.show(&mut win_ctx, font);
             }
         }
         for pfont in self.store.assets.prop_fonts.iter_mut() {
             if let Some(editor) = self.editors.prop_fonts.get_mut(&pfont.asset.id) {
-                editor.show(ctx, window_space, pfont);
+                editor.show(&mut win_ctx, pfont);
             }
         }
 

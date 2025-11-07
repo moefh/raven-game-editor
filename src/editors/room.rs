@@ -1,3 +1,4 @@
+use crate::app::WindowContext;
 use crate::IMAGES;
 use crate::data_asset::{Room, RoomMap, RoomEntity, MapData, DataAssetId, SpriteAnimation, AssetIdCollection, AssetIdList, AssetList};
 
@@ -26,12 +27,12 @@ impl RoomEditor {
             selected_animation_id: None,
         }
     }
-    
-    pub fn show(&mut self, ctx: &egui::Context, window_space: egui::Rect, room: &mut Room,
+
+    pub fn show(&mut self, wc: &WindowContext, room: &mut Room,
                 asset_ids: &AssetIdCollection, maps: &AssetList<MapData>, animations: &AssetList<SpriteAnimation>) {
         let title = format!("{} - Room", room.asset.name);
-        let window = super::create_editor_window(room.asset.id, &title, window_space);
-        window.open(&mut self.asset.open).show(ctx, |ui| {
+        let window = super::create_editor_window(room.asset.id, &title, wc);
+        window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             egui::ScrollArea::neither().auto_shrink([false, false]).show(ui, |ui| {
                 ui.text_edit_singleline(&mut room.asset.name);
                 ui.add(
@@ -68,7 +69,7 @@ impl RoomEditor {
                 } else {
                     ui.label("no maps to select!");
                 }
-                
+
                 ui.label(format!("entities: {}", room.entities.len()));
                 if let Some(animation_id) = get_ui_selectable_asset_id(self.selected_animation_id, &asset_ids.animations) {
                     let animation_name = if let Some(animation) = animations.get(&animation_id) {
