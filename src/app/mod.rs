@@ -21,6 +21,7 @@ pub use texture_manager::{AppTextureManager, AppTextureName};
 pub use image_collection::ImageCollection;
 
 const MENU_HEIGHT: f32 = 22.0;
+const FOOTER_HEIGHT: f32 = 24.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
 struct AppDialogs {
@@ -496,7 +497,10 @@ impl eframe::App for RavenEditorApp {
                 x: content_rect.min.x + ASSET_TREE_PANEL_WIDTH,
                 y: content_rect.min.y + MENU_HEIGHT,
             },
-            max: content_rect.max,
+            max: egui::Pos2 {
+                x: content_rect.max.x,
+                y: content_rect.max.y - FOOTER_HEIGHT,
+            },
         };
         let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager);
 
