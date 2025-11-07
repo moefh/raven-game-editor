@@ -19,13 +19,16 @@ pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egu
             |ui| {
                 let image_size = zoom * image.get_item_size();
                 let image_picker_size = zoom * image.get_full_size();
-                let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::splat(15.0));
+                let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(15.0, 5.0)).min(Vec2::new(200.0, f32::INFINITY));
                 let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
                 let space = response.rect;
                 let canvas_rect = Rect {
                     min: space.min,
                     max: space.min + image_picker_size,
                 };
+
+                // draw background
+                painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
 
                 // draw items
                 Image::from_texture((texture.id(), image_picker_size)).uv(FULL_UV).paint_at(ui, canvas_rect);
@@ -50,7 +53,7 @@ pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egu
 pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection, selected_image: u32)
                     -> (egui::Response, emath::RectTransform) {
     let image_size = image.get_item_size();
-    let min_size = Vec2::splat(100.0).min(1.1 * image_size).max(ui.available_size());
+    let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
     let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
 
     let resp_size = resp.rect.size();

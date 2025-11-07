@@ -116,9 +116,41 @@ pub trait ImageCollectionAsset {
     fn asset_id(&self) -> DataAssetId;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
-    fn stride(&self) -> u32;
     fn num_items(&self) -> u32;
-    fn data(&self) -> &[u32];
+    fn data(&self) -> &[u8];
+}
+
+pub fn image_pixels_u32_to_u8(data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
+    let stride = width.div_ceil(4) as usize;
+    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
+    for y in 0 .. (height * num_items) as usize {
+        for x in 0..stride {
+            let quad = data[y*stride + x];
+            if x < stride-1 || width.is_multiple_of(4) {
+                pixels.push((quad         & 0xff) as u8);
+                pixels.push(((quad >>  8) & 0xff) as u8);
+                pixels.push(((quad >> 16) & 0xff) as u8);
+                pixels.push(((quad >> 24) & 0xff) as u8);
+            } else {
+                match width % 4 {
+                    1 => {
+                        pixels.push((quad         & 0xff) as u8);
+                    },
+                    2 => {
+                        pixels.push((quad         & 0xff) as u8);
+                        pixels.push(((quad >>  8) & 0xff) as u8);
+                    },
+                    3 => {
+                        pixels.push((quad         & 0xff) as u8);
+                        pixels.push(((quad >>  8) & 0xff) as u8);
+                        pixels.push(((quad >> 16) & 0xff) as u8);
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+    pixels
 }
 
 pub struct AssetList<T> {

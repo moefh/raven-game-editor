@@ -48,8 +48,8 @@ pub fn raven_color_to_rgb(raven_color: u8) -> egui::Color32 {
 pub fn calc_image_editor_window_size(image: &impl ImageCollectionAsset) -> (egui::Vec2, egui::Vec2) {
     let img_w = image.width() as f32;
     let img_h = image.height() as f32;
-    let min_width = (2.0 + 1.5) * img_w + 220.0;
-    let min_height = 2.0 * img_h + 70.0;
+    let min_width = 130.0 + img_w + 220.0;
+    let min_height = 2.0 * img_h + 80.0;
     let min_size = egui::Vec2::new(min_width, min_height);
     let default_size = egui::Vec2::new(min_width + 5.0 * img_w, min_height + 200.0).max(egui::Vec2::new(min_width + 200.0, 0.0));
     (min_size, default_size)

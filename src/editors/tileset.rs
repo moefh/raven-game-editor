@@ -2,9 +2,86 @@ use crate::IMAGES;
 use crate::app::{WindowContext, ImageCollection};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
+struct PropertiesDialog {
+    image_changed: bool,
+    open: bool,
+    name: String,
+    num_tiles: f32,
+    sel_color: u8,
+}
+
+impl PropertiesDialog {
+    fn new() -> Self {
+        PropertiesDialog {
+            image_changed: false,
+            open: false,
+            name: String::new(),
+            num_tiles: 0.0,
+            sel_color: 0,
+        }
+    }
+
+    fn set_open(&mut self, tileset: &Tileset, sel_color: u8) {
+        self.name.clear();
+        self.name.push_str(&tileset.asset.name);
+        self.num_tiles = tileset.num_tiles as f32;
+        self.sel_color = sel_color;
+        self.open = true;
+    }
+
+    fn confirm(&mut self, tileset: &mut Tileset) {
+        tileset.asset.name.clear();
+        tileset.asset.name.push_str(&self.name);
+        if self.num_tiles as u32 != tileset.num_tiles {
+            let image = ImageCollection::from_asset(tileset);
+            image.resize(tileset.width, tileset.height, self.num_tiles as u32, &mut tileset.data, self.sel_color);
+            tileset.num_tiles = self.num_tiles as u32;
+            self.image_changed = true;
+        }
+    }
+
+    fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
+        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+            ui.set_width(250.0);
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                ui.heading("Tileset Properties");
+                ui.add_space(16.0);
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut self.name);
+                });
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label("Num tiles:");
+                    ui.add(egui::Slider::new(&mut self.num_tiles, 1.0..=255.0).step_by(1.0));
+                });
+                ui.add_space(16.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui.button("Cancel").clicked() {
+                        ui.close();
+                    }
+                    if ui.button("Ok").clicked() {
+                        self.confirm(tileset);
+                        ui.close();
+                    }
+                });
+            });
+        }).should_close() {
+            self.open = false;
+        }
+        if self.image_changed {
+            self.image_changed = false;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
     force_reload_image: bool,
+    properties_dialog: PropertiesDialog,
     selected_tile: u32,
     color_picker: super::widgets::ColorPickerState,
 }
@@ -14,12 +91,18 @@ impl TilesetEditor {
         TilesetEditor {
             asset: super::DataAssetEditor::new(id, open),
             force_reload_image: false,
+            properties_dialog: PropertiesDialog::new(),
             selected_tile: 0,
             color_picker: super::widgets::ColorPickerState::new(0b000011, 0b110000),
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
+            self.selected_tile = self.selected_tile.min(tileset.num_tiles-1);
+            self.force_reload_image = true;
+        }
+
         let title = format!("{} - Tileset", tileset.asset.name);
         let window = super::create_editor_window(self.asset.id, &title, wc);
         let (min_size, default_size) = super::calc_image_editor_window_size(tileset);
@@ -31,7 +114,7 @@ impl TilesetEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                             if ui.button("Properties...").clicked() {
-                                //...
+                                self.properties_dialog.set_open(tileset, self.color_picker.right_color);
                             }
                         });
                     });
