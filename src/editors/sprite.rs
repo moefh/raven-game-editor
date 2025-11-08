@@ -60,25 +60,28 @@ impl PropertiesDialog {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Sprite Properties");
                 ui.add_space(16.0);
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut self.name);
-                });
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label("Width:");
-                    ui.add(egui::Slider::new(&mut self.width, 1.0..=512.0).step_by(1.0));
-                });
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label("Height:");
-                    ui.add(egui::Slider::new(&mut self.height, 1.0..=512.0).step_by(1.0));
-                });
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label("Num frames:");
-                    ui.add(egui::Slider::new(&mut self.num_frames, 1.0..=255.0).step_by(1.0));
-                });
+
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", sprite.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
+
+                        ui.label("Width:");
+                        ui.add(egui::Slider::new(&mut self.width, 1.0..=512.0).step_by(1.0));
+                        ui.end_row();
+
+                        ui.label("Height:");
+                        ui.add(egui::Slider::new(&mut self.height, 1.0..=512.0).step_by(1.0));
+                        ui.end_row();
+
+                        ui.label("Num frames:");
+                        ui.add(egui::Slider::new(&mut self.num_frames, 1.0..=255.0).step_by(1.0));
+                        ui.end_row();
+                    });
+
                 ui.add_space(16.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {

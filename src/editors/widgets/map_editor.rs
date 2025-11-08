@@ -104,7 +104,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
     let canvas_rect = Rect {
         min: response_rect.min.floor(),
         max: response_rect.max.floor(),
-    };
+    }.round_to_pixels(ui.pixels_per_point());
     let zoomed_tile_size = Tileset::TILE_SIZE as f32 * state.zoom;
     let map_size = Vec2 {
         x: map_data.width as f32 * zoomed_tile_size,
@@ -116,7 +116,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
         Rect {
             min: canvas_rect.min,
             max: canvas_rect.min + map_size.min(canvas_rect.size()),
-        }
+        }.round_to_pixels(ui.pixels_per_point())
     };
 
     // limit scroll in case we've been resized
@@ -134,7 +134,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
             for x in 0..map_data.bg_width {
                 let tile = get_layer_tile(map_data, LAYER_MAP_BG, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
-                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
                 Image::from_texture((texture.id(), TILE_SIZE)).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
         }
@@ -146,7 +146,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
             for x in 0..map_data.width {
                 let tile = get_layer_tile(map_data, LAYER_MAP_FG, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
-                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
                 Image::from_texture((texture.id(), TILE_SIZE)).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
         }
@@ -156,7 +156,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
     let stroke = egui::Stroke::new(1.0, Color32::BLACK);
     if (state.display_layers & LAYER_FLAG_GRID) != 0 {
         for y in 0..map_data.height+1 {
-            let cy = canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y % zoomed_tile_size;
+            let cy = (canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y%zoomed_tile_size).round_to_pixels(ui.pixels_per_point());
             painter.hline(bg_rect.x_range(), cy, stroke);
         }
         for x in 0..map_data.width+1 {
@@ -164,7 +164,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
             painter.vline(cx, bg_rect.y_range(), stroke);
         }
     }
-    let border_rect = bg_rect.expand2(Vec2::splat(-ui.pixels_per_point())).floor_ui();
+    let border_rect = bg_rect.expand2(Vec2::splat(-ui.pixels_per_point())).round_to_pixels(ui.pixels_per_point());
     painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
 
     // check zoom
