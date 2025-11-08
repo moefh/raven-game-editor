@@ -8,7 +8,7 @@ pub struct SfxDisplayState {
 impl SfxDisplayState {
     pub fn new() -> Self {
         SfxDisplayState {
-            samples_per_point: 10.0,
+            samples_per_point: 0.0,
             first_sample: 0.0,
         }
     }
@@ -41,8 +41,7 @@ impl SfxDisplayState {
     }
 }
 
-pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i16], loop_start: &mut f32, loop_end: &mut f32)
-                   -> egui::Response {
+pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i16], loop_start: &mut f32, loop_end: &mut f32) {
     let ask_size = Vec2::new(100.0, 50.0).max(ui.available_size());
     let (response, painter) = ui.allocate_painter(ask_size, Sense::drag());
     let canvas_rect = response.rect;
@@ -55,7 +54,20 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
     };
     painter.hline(canvas_rect.x_range(), canvas_rect.min.y + canvas_rect.height()/2.0, stroke);
 
-    if samples.len() == 0 { return response; }
+    if samples.len() == 0 { return; }  // nothing to do if we have no samples!
+
+    if state.samples_per_point == 0.0 {
+        // wait until next frame so we have an accurate canvas width
+        // before settling on the samples_per_point value:
+        state.samples_per_point = 0.1;
+    } else if state.samples_per_point < 0.25 {
+        let samples_len = samples.len() as f32;
+        state.samples_per_point = if samples_len > canvas_rect.width() {
+            (samples_len / canvas_rect.width()).ceil()
+        } else {
+            1.0
+        };
+    }
 
     // limit scroll in case we've been resized
     state.clip_scroll(canvas_rect.width(), samples);
@@ -133,6 +145,4 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
             *loop_end = pos;
         }
     }
-
-    response
 }

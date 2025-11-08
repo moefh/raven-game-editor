@@ -2,20 +2,83 @@ use crate::IMAGES;
 use crate::app::WindowContext;
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
+struct PropertiesDialog {
+    open: bool,
+    name: String,
+}
+
+impl PropertiesDialog {
+    fn new() -> Self {
+        PropertiesDialog {
+            open: false,
+            name: String::new(),
+        }
+    }
+
+    fn set_open(&mut self, sfx: &Sfx) {
+        self.name.clear();
+        self.name.push_str(&sfx.asset.name);
+        self.open = true;
+    }
+
+    fn confirm(&mut self, sfx: &mut Sfx) {
+        sfx.asset.name.clear();
+        sfx.asset.name.push_str(&self.name);
+    }
+
+    fn show(&mut self, wc: &WindowContext, sfx: &mut Sfx) {
+        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+            ui.set_width(250.0);
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                ui.heading("Sfx Properties");
+                ui.add_space(16.0);
+
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", sfx.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
+                    });
+
+                ui.add_space(16.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui.button("Cancel").clicked() {
+                        ui.close();
+                    }
+                    if ui.button("Ok").clicked() {
+                        self.confirm(sfx);
+                        ui.close();
+                    }
+                });
+            });
+        }).should_close() {
+            self.open = false;
+        }
+    }
+}
+
 pub struct SfxEditor {
     pub asset: super::DataAssetEditor,
-    state: super::widgets::SfxDisplayState,
+    sfx_display_state: super::widgets::SfxDisplayState,
+    properties_dialog: PropertiesDialog,
 }
 
 impl SfxEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SfxEditor {
             asset: super::DataAssetEditor::new(id, open),
-            state: super::widgets::SfxDisplayState::new(),
+            sfx_display_state: super::widgets::SfxDisplayState::new(),
+            properties_dialog: PropertiesDialog::new(),
         }
     }
 
     pub fn show(&mut self, wc: &WindowContext, sfx: &mut Sfx) {
+        if self.properties_dialog.open {
+            self.properties_dialog.show(wc, sfx);
+        }
+
         let title = format!("{} - Sfx", sfx.asset.name);
         let window = super::create_editor_window(sfx.asset.id, &title, wc);
 
@@ -30,7 +93,7 @@ impl SfxEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                             if ui.button("Properties...").clicked() {
-                                //...
+                                self.properties_dialog.set_open(sfx);
                             }
                         });
                     });
@@ -59,7 +122,7 @@ impl SfxEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                super::widgets::sfx_display(ui, &mut self.state, &sfx.samples, &mut loop_start, &mut loop_end);
+                super::widgets::sfx_display(ui, &mut self.sfx_display_state, &sfx.samples, &mut loop_start, &mut loop_end);
             });
         });
 
