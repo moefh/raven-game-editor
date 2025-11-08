@@ -31,7 +31,7 @@ macro_rules! image_table {
         };
 
         pub const IMAGE_REFS: ImageRefsTable = ImageRefsTable {
-            $( $name: $crate::image_table::ImageRef { uri: concat!("bytes://", $file), bytes: include_bytes!($file) }, )*
+            $( $name: $crate::misc::image_table::ImageRef { uri: concat!("bytes://", $file), bytes: include_bytes!($file) }, )*
         };
     );
 
@@ -39,17 +39,17 @@ macro_rules! image_table {
 }
 
 image_table! {
-    pico: "../assets/PicoIcon.png",
-    open: "../assets/OpenIcon.png",
-    properties: "../assets/PropertiesIcon.png",
-    chicken: "../assets/ChickenIcon.png",
-    tileset: "../assets/TilesetIcon.png",
-    map_data: "../assets/MapIcon.png",
-    room: "../assets/RoomIcon.png",
-    sprite: "../assets/SpriteIcon.png",
-    animation: "../assets/AnimationIcon.png",
-    sfx: "../assets/SfxIcon.png",
-    mod_data: "../assets/MODicon.png",
-    font: "../assets/FwFontIcon.png",
-    prop_font: "../assets/FontIcon.png",
+    pico: "../../assets/PicoIcon.png",
+    open: "../../assets/OpenIcon.png",
+    properties: "../../assets/PropertiesIcon.png",
+    chicken: "../../assets/ChickenIcon.png",
+    tileset: "../../assets/TilesetIcon.png",
+    map_data: "../../assets/MapIcon.png",
+    room: "../../assets/RoomIcon.png",
+    sprite: "../../assets/SpriteIcon.png",
+    animation: "../../assets/AnimationIcon.png",
+    sfx: "../../assets/SfxIcon.png",
+    mod_data: "../../assets/MODicon.png",
+    font: "../../assets/FwFontIcon.png",
+    prop_font: "../../assets/FontIcon.png",
 }

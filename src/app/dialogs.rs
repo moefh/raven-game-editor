@@ -1,4 +1,4 @@
-use crate::image_table::IMAGES;
+use super::IMAGES;
 
 pub struct AppDialogs {
     pub about_open: bool,

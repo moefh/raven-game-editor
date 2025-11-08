@@ -1,9 +1,9 @@
-use crate::app::{AppTextureManager, AppTextureName};
+use crate::misc::texture_manager::{TextureManager, TextureName};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 use egui::{Rect, Pos2, Vec2};
 
 pub struct ImageCollection {
-    pub tex_name: AppTextureName,
+    pub tex_name: TextureName,
     pub asset_id: DataAssetId,
     pub width: u32,
     pub height: u32,
@@ -13,7 +13,7 @@ pub struct ImageCollection {
 impl ImageCollection {
     pub fn from_asset(asset: &impl ImageCollectionAsset) -> Self {
         ImageCollection {
-            tex_name: super::AppTextureName::new(asset.asset_id(), 0),
+            tex_name: TextureName::new(asset.asset_id(), 0),
             asset_id: asset.asset_id(),
             width: asset.width(),
             height: asset.height(),
@@ -21,7 +21,7 @@ impl ImageCollection {
         }
     }
 
-    pub fn load_asset<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut super::AppTextureManager, ctx: &egui::Context, force_load: bool)
+    pub fn load_asset<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context, force_load: bool)
                           -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
         let texture = image.get_asset_texture(tex_man, ctx, asset, force_load);
@@ -44,7 +44,7 @@ impl ImageCollection {
         }
     }
 
-    pub fn get_asset_texture<'a>(&self, man: &'a mut AppTextureManager, ctx: &egui::Context,
+    pub fn get_asset_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
                                  asset: &impl ImageCollectionAsset, force_load: bool) -> &'a egui::TextureHandle {
         if self.asset_id != asset.asset_id() {
             println!("WARNING: get_asset_texture() for wrong asset id: {} vs {}", self.asset_id, asset.asset_id());

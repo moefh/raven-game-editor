@@ -1,4 +1,4 @@
-use crate::image_table::IMAGE_REFS;
+use crate::misc::image_table::IMAGE_REFS;
 use crate::data_asset::DataAssetType;
 
 pub struct AssetDef {
@@ -8,7 +8,7 @@ pub struct AssetDef {
     pub add_menu_item: &'static str,
     pub remove_menu_item: &'static str,
     pub tree_root_item: &'static str,
-    pub image: crate::image_table::ImageRef,
+    pub image: crate::misc::image_table::ImageRef,
 }
 
 pub const ASSET_DEFS : &[AssetDef] = &[

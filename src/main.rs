@@ -1,12 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console on Windows
 
-mod asset_defs;
-mod image_table;
+mod misc;
 mod data_asset;
 mod editors;
 mod app;
 
-use crate::image_table::IMAGES;
+use crate::misc::image_table::IMAGES;
 use crate::app::RavenEditorApp;
 
 fn add_font(ctx: &egui::Context) {

@@ -1,17 +1,14 @@
 mod dialogs;
 mod windows;
 mod editors;
-mod window_context;
-mod texture_manager;
-mod image_collection;
 
-use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
-use crate::image_table::IMAGES;
-use crate::asset_defs::ASSET_DEFS;
 use crate::include_ref_image;
-pub use window_context::WindowContext;
-pub use texture_manager::{AppTextureManager, AppTextureName};
-pub use image_collection::ImageCollection;
+use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
+pub use crate::misc::image_table::IMAGES;
+pub use crate::misc::asset_defs::ASSET_DEFS;
+pub use crate::misc::window_context::WindowContext;
+pub use crate::misc::texture_manager::TextureManager;
+pub use crate::misc::image_collection::ImageCollection;
 
 const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 24.0;
@@ -26,7 +23,7 @@ pub struct RavenEditorApp {
     dialogs: dialogs::AppDialogs,
     windows: windows::AppWindows,
     editors: editors::AssetEditors,
-    tex_manager: AppTextureManager,
+    tex_manager: TextureManager,
 }
 
 impl RavenEditorApp {
@@ -38,7 +35,7 @@ impl RavenEditorApp {
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
             editors: editors::AssetEditors::new(),
-            tex_manager: AppTextureManager::new(),
+            tex_manager: TextureManager::new(),
         }
     }
 
