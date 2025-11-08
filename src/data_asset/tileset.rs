@@ -16,6 +16,8 @@ pub struct CreationData<'a> {
 }
 
 impl Tileset {
+    pub const TILE_SIZE: u32 = TILE_SIZE;
+
     pub fn new(asset: super::DataAsset) -> Self {
         Tileset {
             asset,

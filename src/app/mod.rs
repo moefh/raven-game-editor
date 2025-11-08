@@ -514,7 +514,7 @@ impl eframe::App for RavenEditorApp {
         }
         for map in self.store.assets.maps.iter_mut() {
             if let Some(editor) = self.editors.maps.get_mut(&map.asset.id) {
-                editor.show(&win_ctx, map, &self.store.asset_ids.tilesets, &self.store.assets.tilesets);
+                editor.show(&mut win_ctx, map, &self.store.asset_ids.tilesets, &self.store.assets.tilesets);
             }
         }
         for room in self.store.assets.rooms.iter_mut() {

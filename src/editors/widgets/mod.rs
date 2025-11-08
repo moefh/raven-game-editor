@@ -1,4 +1,5 @@
 mod color_picker;
+mod map_editor;
 
 use crate::app::ImageCollection;
 use crate::data_asset::DataAssetId;
@@ -7,6 +8,7 @@ use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 pub const FULL_UV : Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
 
 pub use color_picker::{*};
+pub use map_editor::{*};
 
 pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egui::TextureHandle,
                          image: &ImageCollection, selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
@@ -19,7 +21,7 @@ pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egu
             |ui| {
                 let image_size = zoom * image.get_item_size();
                 let image_picker_size = zoom * image.get_full_size();
-                let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(15.0, 5.0)).min(Vec2::new(200.0, f32::INFINITY));
+                let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
                 let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
                 let space = response.rect;
                 let canvas_rect = Rect {

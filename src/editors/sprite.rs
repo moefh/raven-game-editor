@@ -58,7 +58,7 @@ impl PropertiesDialog {
         if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Tileset Properties");
+                ui.heading("Sprite Properties");
                 ui.add_space(16.0);
                 ui.horizontal(|ui| {
                     ui.label("Name:");
