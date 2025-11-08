@@ -1,21 +1,14 @@
 mod dialogs;
-mod settings;
-mod log_window;
+mod windows;
+mod editors;
 mod window_context;
 mod texture_manager;
 mod image_collection;
 
-use std::collections::HashMap;
-use std::path;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::image_table::IMAGES;
 use crate::asset_defs::ASSET_DEFS;
 use crate::include_ref_image;
-use crate::editors::{
-    DataAssetEditor, TilesetEditor, MapDataEditor, RoomEditor,
-    SpriteEditor, SpriteAnimationEditor, SfxEditor, ModDataEditor,
-    FontEditor, PropFontEditor,
-};
 pub use window_context::WindowContext;
 pub use texture_manager::{AppTextureManager, AppTextureName};
 pub use image_collection::ImageCollection;
@@ -27,207 +20,12 @@ const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 const IMAGE_MENU_SIZE: f32 = 14.0;
 const IMAGE_TREE_SIZE: f32 = 20.0;
 
-struct AppDialogs {
-    about_open: bool,
-    message_box_open: bool,
-    message_box_title: String,
-    message_box_text: String,
-}
-
-impl AppDialogs {
-
-    fn new() -> Self {
-        AppDialogs {
-            about_open: false,
-            message_box_open: false,
-            message_box_title: "".to_owned(),
-            message_box_text: "".to_owned(),
-        }
-    }
-
-    fn open_message_box(&mut self, title: impl AsRef<str>, text: impl AsRef<str>) {
-        self.message_box_open = true;
-        self.message_box_text = text.as_ref().to_owned();
-        self.message_box_title = title.as_ref().to_owned();
-    }
-
-    fn open_about(&mut self) {
-        self.about_open = true;
-    }
-
-    fn show_about(&mut self, ctx: &egui::Context) {
-        if dialogs::show_about_dialog(ctx).should_close() {
-            self.about_open = false;
-        }
-    }
-
-    fn show_message_box(&mut self, ctx: &egui::Context) {
-        if dialogs::show_message_box(ctx, &self.message_box_title, &self.message_box_text).should_close() {
-            self.message_box_open = false;
-        }
-    }
-
-}
-
-struct AppWindows {
-    settings_open: bool,
-    log_window_open: bool,
-}
-
-impl AppWindows {
-
-    fn new() -> Self {
-        AppWindows {
-            settings_open: false,
-            log_window_open: false,
-        }
-    }
-
-    fn show_settings(&mut self, ctx: &egui::Context, window_space: egui::Rect) {
-        settings::show_editor_settings(ctx, window_space, &mut self.settings_open);
-    }
-
-    fn show_log_window(&mut self, ctx: &egui::Context, window_space: egui::Rect, log_text: &String) {
-        log_window::show_log_window(ctx, window_space, &mut self.log_window_open, log_text);
-    }
-
-}
-
-struct AssetEditors {
-    tilesets: HashMap<DataAssetId, TilesetEditor>,
-    maps: HashMap<DataAssetId, MapDataEditor>,
-    rooms: HashMap<DataAssetId, RoomEditor>,
-    sprites: HashMap<DataAssetId, SpriteEditor>,
-    animations: HashMap<DataAssetId, SpriteAnimationEditor>,
-    sfxs: HashMap<DataAssetId, SfxEditor>,
-    mods: HashMap<DataAssetId, ModDataEditor>,
-    fonts: HashMap<DataAssetId, FontEditor>,
-    prop_fonts: HashMap<DataAssetId, PropFontEditor>,
-}
-
-impl AssetEditors {
-
-    fn new() -> Self {
-        AssetEditors {
-            tilesets: HashMap::new(),
-            maps: HashMap::new(),
-            rooms: HashMap::new(),
-            sprites: HashMap::new(),
-            animations: HashMap::new(),
-            sfxs: HashMap::new(),
-            mods: HashMap::new(),
-            fonts: HashMap::new(),
-            prop_fonts: HashMap::new(),
-        }
-    }
-
-    fn clear(&mut self) {
-        self.tilesets = HashMap::new();
-        self.maps = HashMap::new();
-        self.rooms = HashMap::new();
-        self.sprites = HashMap::new();
-        self.animations = HashMap::new();
-        self.sfxs = HashMap::new();
-        self.mods = HashMap::new();
-        self.fonts = HashMap::new();
-        self.prop_fonts = HashMap::new();
-    }
-
-    fn create_editors_for_new_store(&mut self, store: &DataAssetStore) {
-        for &id in store.asset_ids.tilesets.iter() { self.add_tileset(id); }
-        for &id in store.asset_ids.maps.iter() { self.add_map(id); }
-        for &id in store.asset_ids.rooms.iter() { self.add_room(id); }
-        for &id in store.asset_ids.sprites.iter() { self.add_sprite(id); }
-        for &id in store.asset_ids.animations.iter() { self.add_animation(id); }
-        for &id in store.asset_ids.sfxs.iter() { self.add_sfx(id); }
-        for &id in store.asset_ids.mods.iter() { self.add_mod(id); }
-        for &id in store.asset_ids.fonts.iter() { self.add_font(id); }
-        for &id in store.asset_ids.prop_fonts.iter() { self.add_prop_font(id); }
-    }
-
-    fn get_editor(&self, id: DataAssetId) -> Option<&DataAssetEditor> {
-        if let Some(editor) = self.tilesets.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.maps.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.rooms.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.sprites.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.animations.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.sfxs.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.mods.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.fonts.get(&id) { return Some(&editor.asset); }
-        if let Some(editor) = self.prop_fonts.get(&id) { return Some(&editor.asset); }
-        None
-    }
-
-    fn get_editor_mut(&mut self, id: DataAssetId) -> Option<&mut DataAssetEditor> {
-        if let Some(editor) = self.tilesets.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.maps.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.rooms.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.sprites.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.animations.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.sfxs.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.mods.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.fonts.get_mut(&id) { return Some(&mut editor.asset); }
-        if let Some(editor) = self.prop_fonts.get_mut(&id) { return Some(&mut editor.asset); }
-        None
-    }
-
-    fn remove_editor(&mut self, id: DataAssetId) -> bool {
-        if self.tilesets.remove(&id).is_some() { return true; }
-        if self.maps.remove(&id).is_some() { return true; }
-        if self.rooms.remove(&id).is_some() { return true; }
-        if self.sprites.remove(&id).is_some() { return true; }
-        if self.animations.remove(&id).is_some() { return true; }
-        if self.sfxs.remove(&id).is_some() { return true; }
-        if self.mods.remove(&id).is_some() { return true; }
-        if self.fonts.remove(&id).is_some() { return true; }
-        if self.prop_fonts.remove(&id).is_some() { return true; }
-        false
-    }
-
-    fn add_tileset(&mut self, id: DataAssetId) {
-        self.tilesets.insert(id, TilesetEditor::new(id, false));
-    }
-
-    fn add_map(&mut self, id: DataAssetId) {
-        self.maps.insert(id, MapDataEditor::new(id, false));
-    }
-
-    fn add_room(&mut self, id: DataAssetId) {
-        self.rooms.insert(id, RoomEditor::new(id, false));
-    }
-
-    fn add_sprite(&mut self, id: DataAssetId) {
-        self.sprites.insert(id, SpriteEditor::new(id, false));
-    }
-
-    fn add_animation(&mut self, id: DataAssetId) {
-        self.animations.insert(id, SpriteAnimationEditor::new(id, false));
-    }
-
-    fn add_sfx(&mut self, id: DataAssetId) {
-        self.sfxs.insert(id, SfxEditor::new(id, false));
-    }
-
-    fn add_mod(&mut self, id: DataAssetId) {
-        self.mods.insert(id, ModDataEditor::new(id, false));
-    }
-
-    fn add_font(&mut self, id: DataAssetId) {
-        self.fonts.insert(id, FontEditor::new(id, false));
-    }
-
-    fn add_prop_font(&mut self, id: DataAssetId) {
-        self.prop_fonts.insert(id, PropFontEditor::new(id, false));
-    }
-
-}
-
 pub struct RavenEditorApp {
     store: DataAssetStore,
     logger: StringLogger,
-    dialogs: AppDialogs,
-    windows: AppWindows,
-    editors: AssetEditors,
+    dialogs: dialogs::AppDialogs,
+    windows: windows::AppWindows,
+    editors: editors::AssetEditors,
     tex_manager: AppTextureManager,
 }
 
@@ -237,20 +35,20 @@ impl RavenEditorApp {
         RavenEditorApp {
             store: DataAssetStore::new(),
             logger: StringLogger::new(false),
-            dialogs: AppDialogs::new(),
-            windows: AppWindows::new(),
-            editors: AssetEditors::new(),
+            dialogs: dialogs::AppDialogs::new(),
+            windows: windows::AppWindows::new(),
+            editors: editors::AssetEditors::new(),
             tex_manager: AppTextureManager::new(),
         }
     }
 
-    pub fn from_file<P: AsRef<path::Path> + ?Sized>(cc: &eframe::CreationContext<'_>, path: &P) -> Self {
+    pub fn from_file<P: AsRef<std::path::Path> + ?Sized>(cc: &eframe::CreationContext<'_>, path: &P) -> Self {
         let mut app = Self::new(cc);
         app.open(&path);
         app
     }
 
-    pub fn open<P: AsRef<path::Path> + ?Sized>(&mut self, path: &P) {
+    pub fn open<P: AsRef<std::path::Path> + ?Sized>(&mut self, path: &P) {
         let mut store = crate::data_asset::DataAssetStore::new();
         match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
@@ -354,13 +152,8 @@ impl RavenEditorApp {
             },
         }
     }
-}
 
-impl eframe::App for RavenEditorApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-
-        // ============================================
-        // DIALOGS
+    fn update_dialogs(&mut self, ctx: &egui::Context) {
         if self.dialogs.about_open {
             self.dialogs.show_about(ctx);
         }
@@ -368,9 +161,9 @@ impl eframe::App for RavenEditorApp {
         if self.dialogs.message_box_open {
             self.dialogs.show_message_box(ctx);
         }
+    }
 
-        // ============================================
-        // MAIN MENU
+    fn update_menu(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -420,16 +213,16 @@ impl eframe::App for RavenEditorApp {
                 });
             });
         });
+    }
 
-        // ============================================
-        // FOOTER
+    fn update_footer(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
             ui.add_space(5.0);
             ui.label(format!("{} bytes", self.store.assets.data_size()));
         });
+    }
 
-        // ============================================
-        // ASSET TREE
+    fn update_asset_tree(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
@@ -488,9 +281,9 @@ impl eframe::App for RavenEditorApp {
                 }
             });
         });
+    }
 
-        // ============================================
-        // WINDOWS
+    fn update_windows(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |_ui| {
             // big empty space where project windows will hover
         });
@@ -559,6 +352,15 @@ impl eframe::App for RavenEditorApp {
         if self.windows.log_window_open {
             self.windows.show_log_window(ctx, window_space, self.logger.modify());
         }
+    }
+}
 
+impl eframe::App for RavenEditorApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.update_dialogs(ctx);
+        self.update_menu(ctx);
+        self.update_footer(ctx);
+        self.update_asset_tree(ctx);
+        self.update_windows(ctx);
     }
 }

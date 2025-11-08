@@ -1,5 +1,45 @@
 use crate::image_table::IMAGES;
 
+pub struct AppDialogs {
+    pub about_open: bool,
+    pub message_box_open: bool,
+    pub message_box_title: String,
+    pub message_box_text: String,
+}
+
+impl AppDialogs {
+    pub fn new() -> Self {
+        AppDialogs {
+            about_open: false,
+            message_box_open: false,
+            message_box_title: "".to_owned(),
+            message_box_text: "".to_owned(),
+        }
+    }
+
+    pub fn open_message_box(&mut self, title: impl AsRef<str>, text: impl AsRef<str>) {
+        self.message_box_open = true;
+        self.message_box_text = text.as_ref().to_owned();
+        self.message_box_title = title.as_ref().to_owned();
+    }
+
+    pub fn open_about(&mut self) {
+        self.about_open = true;
+    }
+
+    pub fn show_about(&mut self, ctx: &egui::Context) {
+        if show_about_dialog(ctx).should_close() {
+            self.about_open = false;
+        }
+    }
+
+    pub fn show_message_box(&mut self, ctx: &egui::Context) {
+        if show_message_box(ctx, &self.message_box_title, &self.message_box_text).should_close() {
+            self.message_box_open = false;
+        }
+    }
+}
+
 pub fn show_about_dialog(ctx: &egui::Context) -> egui::ModalResponse<()> {
     egui::Modal::new(egui::Id::new("dlg_about")).show(ctx, |ui| {
         ui.set_width(250.0);
