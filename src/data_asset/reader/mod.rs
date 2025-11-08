@@ -249,7 +249,7 @@ impl<'a> ProjectDataReader<'a> {
         error(format!("expected '-' or number, found '{}'", t), t.pos)?
     }
 
-    fn parse_number(&mut self, source: &str) -> Option<u64> {
+    fn parse_number(source: &str) -> Option<u64> {
         let mut num_tok = Tokenizer::new(source);
         match num_tok.read() {
             Ok(t) => t.get_number(),
@@ -376,7 +376,7 @@ impl<'a> ProjectDataReader<'a> {
                         if let Some(name_prefix) = RE_VGA_SYNC_BITS.captures(name.as_str()) &&
                             let Some(prefix) = name_prefix.get(1) {
                                 // #define <PREFIX>_VGA_SYNC_BITS
-                                match self.parse_number(value.as_str()) {
+                                match Self::parse_number(value.as_str()) {
                                     Some(vga_sync_bits) => {
                                         if vga_sync_bits > 0xff {
                                             return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), t.pos);

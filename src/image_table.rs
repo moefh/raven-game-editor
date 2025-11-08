@@ -40,6 +40,7 @@ macro_rules! image_table {
 
 image_table! {
     pico: "../assets/PicoIcon.png",
+    open: "../assets/OpenIcon.png",
     properties: "../assets/PropertiesIcon.png",
     chicken: "../assets/ChickenIcon.png",
     tileset: "../assets/TilesetIcon.png",

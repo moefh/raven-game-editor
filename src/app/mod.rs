@@ -24,6 +24,9 @@ const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 24.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
+const IMAGE_MENU_SIZE: f32 = 14.0;
+const IMAGE_TREE_SIZE: f32 = 20.0;
+
 struct AppDialogs {
     about_open: bool,
     message_box_open: bool,
@@ -372,21 +375,21 @@ impl eframe::App for RavenEditorApp {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Open...").clicked() && let Some(path) = rfd::FileDialog::new().pick_file() {
                             self.open(&path);
                         }
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Settings...").clicked() {
                             self.windows.settings_open = true;
                         }
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.chicken).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.chicken).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Quit").clicked() {
                             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
@@ -395,7 +398,7 @@ impl eframe::App for RavenEditorApp {
                 ui.menu_button("Project", |ui| {
                     for asset_def in ASSET_DEFS {
                         ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(14.0).max_height(14.0));
+                            ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                             if ui.button(asset_def.add_menu_item).clicked() {
                                 self.add_asset(asset_def.asset_type);
                             }
@@ -403,7 +406,7 @@ impl eframe::App for RavenEditorApp {
                     }
                     ui.separator();
                     ui.horizontal(|ui| {
-                        //ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        //ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         ui.add_space(22.0);
                         if ui.button("Log Window").clicked() {
                             self.windows.log_window_open = true;
@@ -439,7 +442,7 @@ impl eframe::App for RavenEditorApp {
                         let header = ui.add(egui::Label::new(asset_def.tree_root_item).selectable(false).sense(egui::Sense::click()));
                         egui::Popup::context_menu(&header).show(|ui| {
                             ui.horizontal(|ui| {
-                                ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(14.0).max_height(14.0));
+                                ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(16.0).max_height(16.0));
                                 if ui.button(asset_def.add_menu_item).clicked() {
                                     add_asset = true;
                                 }
@@ -449,14 +452,14 @@ impl eframe::App for RavenEditorApp {
                         for &id in self.store.asset_ids.ids_of_type(asset_def.asset_type) {
                             if let Some(asset) = self.store.assets.get_asset_mut(id) {
                                 ui.horizontal(|ui| {
-                                    ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(20.0).max_height(20.0));
+                                    ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_TREE_SIZE)));
                                     let button = ui.button(&asset.name);
                                     if button.clicked() {
                                         toggle_open = Some(id);
                                     }
                                     egui::Popup::context_menu(&button).show(|ui| {
                                         ui.horizontal(|ui| {
-                                            ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(14.0).max_height(14.0));
+                                            ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_width(16.0).max_height(16.0));
                                             if ui.button(asset_def.add_menu_item).clicked() {
                                                 add_asset = true;
                                             }
@@ -465,7 +468,7 @@ impl eframe::App for RavenEditorApp {
                                         ui.horizontal(|ui| {
                                             ui.add_space(22.0);
                                             if ui.button(asset_def.remove_menu_item).clicked() {
-                                                remove_asset = Some(id)
+                                                remove_asset = Some(id);
                                             }
                                         });
                                     });
