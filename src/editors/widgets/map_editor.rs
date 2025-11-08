@@ -1,4 +1,4 @@
-use crate::app::ImageCollection;
+use crate::misc::ImageCollection;
 use crate::data_asset::{MapData, Tileset};
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath::GuiRounding;

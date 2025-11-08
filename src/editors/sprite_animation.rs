@@ -1,5 +1,5 @@
-use crate::app::WindowContext;
 use crate::IMAGES;
+use crate::misc::WindowContext;
 use crate::data_asset::{SpriteAnimation, DataAssetId, GenericAsset};
 
 pub struct SpriteAnimationEditor {

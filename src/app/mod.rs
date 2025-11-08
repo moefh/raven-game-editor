@@ -4,11 +4,10 @@ mod editors;
 
 use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
-pub use crate::misc::image_table::IMAGES;
-pub use crate::misc::asset_defs::ASSET_DEFS;
-pub use crate::misc::window_context::WindowContext;
-pub use crate::misc::texture_manager::TextureManager;
-pub use crate::misc::image_collection::ImageCollection;
+use crate::misc::asset_defs::ASSET_DEFS;
+use crate::misc::IMAGES;
+use crate::misc::WindowContext;
+use crate::misc::TextureManager;
 
 const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 24.0;

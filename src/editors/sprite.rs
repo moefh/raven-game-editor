@@ -1,5 +1,5 @@
 use crate::IMAGES;
-use crate::app::{WindowContext, ImageCollection};
+use crate::misc::{WindowContext, ImageCollection};
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset};
 
 struct PropertiesDialog {

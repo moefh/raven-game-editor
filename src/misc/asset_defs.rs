@@ -1,4 +1,4 @@
-use crate::misc::image_table::IMAGE_REFS;
+use crate::misc::IMAGE_REFS;
 use crate::data_asset::DataAssetType;
 
 pub struct AssetDef {

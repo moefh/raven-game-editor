@@ -2,7 +2,7 @@ mod color_picker;
 mod map_editor;
 mod sfx_display;
 
-use crate::app::ImageCollection;
+use crate::misc::ImageCollection;
 use crate::data_asset::DataAssetId;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 

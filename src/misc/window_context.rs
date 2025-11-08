@@ -1,4 +1,4 @@
-use crate::misc::texture_manager::TextureManager;
+use crate::misc::TextureManager;
 
 pub struct WindowEguiContext<'a> {
     pub ctx: &'a egui::Context,

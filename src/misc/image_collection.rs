@@ -1,4 +1,4 @@
-use crate::misc::texture_manager::{TextureManager, TextureName};
+use crate::misc::{TextureManager, TextureName};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 use egui::{Rect, Pos2, Vec2};
 

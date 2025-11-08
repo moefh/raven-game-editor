@@ -1,5 +1,5 @@
-use crate::app::WindowContext;
-use crate::IMAGES;
+use crate::misc::IMAGES;
+use crate::misc::WindowContext;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
 pub struct ModDataEditor {
