@@ -1,5 +1,5 @@
 use crate::IMAGES;
-use crate::misc::WindowContext;
+use crate::misc::{WindowContext, SoundPlayer};
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
 struct PropertiesDialog {
@@ -63,6 +63,8 @@ pub struct SfxEditor {
     pub asset: super::DataAssetEditor,
     sfx_display_state: super::widgets::SfxDisplayState,
     properties_dialog: PropertiesDialog,
+    play_volume: f32,
+    play_freq: f32,
 }
 
 impl SfxEditor {
@@ -71,10 +73,12 @@ impl SfxEditor {
             asset: super::DataAssetEditor::new(id, open),
             sfx_display_state: super::widgets::SfxDisplayState::new(),
             properties_dialog: PropertiesDialog::new(),
+            play_volume: 0.3,
+            play_freq: 11025.0,
         }
     }
 
-    pub fn show(&mut self, wc: &WindowContext, sfx: &mut Sfx) {
+    pub fn show(&mut self, wc: &WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, sfx);
         }
@@ -85,7 +89,7 @@ impl SfxEditor {
         let mut loop_start = sfx.loop_start as f32;
         let mut loop_end = (sfx.loop_start + sfx.loop_len) as f32;
 
-        window.open(&mut self.asset.open).min_size([300.0, 150.0]).default_size([500.0, 200.0]).show(wc.egui.ctx, |ui| {
+        window.open(&mut self.asset.open).min_size([400.0, 220.0]).default_size([500.0, 220.0]).show(wc.egui.ctx, |ui| {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", sfx.asset.id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
@@ -106,9 +110,10 @@ impl SfxEditor {
                 ui.label(format!("{} bytes", sfx.data_size()));
             });
 
-            // loop start/end
+            // properties
             egui::SidePanel::left(format!("editor_panel_{}_left", sfx.asset.id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
+                ui.label("Properties:");
                 egui::Grid::new(format!("editor_panel_{}_loop_grid", sfx.asset.id)).num_columns(2).show(ui, |ui| {
                     ui.label("Loop start:");
                     ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sfx.samples.len() as f32));
@@ -118,6 +123,25 @@ impl SfxEditor {
                     ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as f32));
                     ui.end_row();
                 });
+                ui.add_space(16.0);
+                ui.label("Test:");
+                if sound_player.is_available() {
+                    egui::Grid::new(format!("editor_panel_{}_play_grid", sfx.asset.id)).num_columns(2).show(ui, |ui| {
+                        ui.label("Volume:");
+                        ui.add(egui::DragValue::new(&mut self.play_volume).speed(0.05).range(0.0..=1.0));
+                        ui.end_row();
+
+                        ui.label("Frequency:");
+                        ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(8000.0..=44100.0));
+                        ui.end_row();
+
+                        ui.horizontal(|_ui| {});
+                        if ui.button("▶ Play ").clicked() {
+                            sound_player.play_s16(&sfx.samples, self.play_freq, self.play_volume);
+                        }
+                        ui.end_row();
+                    });
+                }
             });
 
             // body:

@@ -18,14 +18,13 @@ impl SfxDisplayState {
     }
 
     fn zoom_by(&mut self, delta: f32, center: f32, canvas_width: f32, samples: &[i16]) {
-        let delta = if self.samples_per_point / delta < 0.25 {
-            0.25 / self.samples_per_point
+        let delta = if self.samples_per_point / delta < 0.125 {
+            0.125 / self.samples_per_point
         } else {
             1.0 / delta
         };
-        let old_spp = self.samples_per_point;
-        self.samples_per_point = self.samples_per_point * delta;
-        let center = self.first_sample + center * old_spp;
+        let center = self.first_sample + center * self.samples_per_point;
+        self.samples_per_point *= delta;
         self.first_sample = (center + (self.first_sample - center) * delta).round();
 
         self.clip_scroll(canvas_width, samples);
@@ -54,13 +53,13 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
     };
     painter.hline(canvas_rect.x_range(), canvas_rect.min.y + canvas_rect.height()/2.0, stroke);
 
-    if samples.len() == 0 { return; }  // nothing to do if we have no samples!
+    if samples.is_empty() { return; }  // nothing to do if we have no samples!
 
     if state.samples_per_point == 0.0 {
         // wait until next frame so we have an accurate canvas width
         // before settling on the samples_per_point value:
         state.samples_per_point = 0.1;
-    } else if state.samples_per_point < 0.25 {
+    } else if state.samples_per_point < 0.125 {
         let samples_len = samples.len() as f32;
         state.samples_per_point = if samples_len > canvas_rect.width() {
             (samples_len / canvas_rect.width()).ceil()

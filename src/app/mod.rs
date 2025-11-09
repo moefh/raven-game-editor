@@ -8,6 +8,7 @@ use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
 use crate::misc::WindowContext;
 use crate::misc::TextureManager;
+use crate::misc::SoundPlayer;
 
 const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 24.0;
@@ -23,6 +24,7 @@ pub struct RavenEditorApp {
     windows: windows::AppWindows,
     editors: editors::AssetEditors,
     tex_manager: TextureManager,
+    sound_player: SoundPlayer,
 }
 
 impl RavenEditorApp {
@@ -35,6 +37,7 @@ impl RavenEditorApp {
             windows: windows::AppWindows::new(),
             editors: editors::AssetEditors::new(),
             tex_manager: TextureManager::new(),
+            sound_player: SoundPlayer::new(),
         }
     }
 
@@ -323,7 +326,7 @@ impl RavenEditorApp {
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) {
-                editor.show(&win_ctx, sfx);
+                editor.show(&win_ctx, sfx, &mut self.sound_player);
             }
         }
         for mod_data in self.store.assets.mods.iter_mut() {
