@@ -123,9 +123,9 @@ impl SfxEditor {
                     ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as f32));
                     ui.end_row();
                 });
-                ui.add_space(16.0);
-                ui.label("Test:");
                 if sound_player.is_available() {
+                    ui.add_space(16.0);
+                    ui.label("Test:");
                     egui::Grid::new(format!("editor_panel_{}_play_grid", sfx.asset.id)).num_columns(2).show(ui, |ui| {
                         ui.label("Volume:");
                         ui.add(egui::DragValue::new(&mut self.play_volume).speed(0.05).range(0.0..=1.0));

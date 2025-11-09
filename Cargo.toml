@@ -13,4 +13,8 @@ egui_extras = { version = "0.33.0", features = ["all_loaders"] }
 image = { version = "0.25", features = ["png"] }
 regex = "1.12.2"
 rfd = "0.15.4"
-soloud = "1.1.1"
+soloud = { version = "1.1.1", optional = true }
+
+[features]
+default = ["sound"]
+sound = ["dep:soloud"]
