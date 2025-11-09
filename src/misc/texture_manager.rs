@@ -33,6 +33,10 @@ impl TextureManager {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.textures.clear();
+    }
+
     pub fn get_rgba_texture(&mut self, ctx: &egui::Context, name: TextureName,
                             w: usize, h: usize, data: &[u8], force_load: bool) -> &egui::TextureHandle {
         let load_image = || {

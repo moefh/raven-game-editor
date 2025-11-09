@@ -63,6 +63,7 @@ impl RavenEditorApp {
 
     fn set_store(&mut self, store: DataAssetStore) {
         self.editors.clear();
+        self.tex_manager.clear();
         self.store = store;
         self.editors.create_editors_for_new_store(&self.store);
     }
