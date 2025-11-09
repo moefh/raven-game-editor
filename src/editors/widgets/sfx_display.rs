@@ -40,13 +40,17 @@ impl SfxDisplayState {
     }
 }
 
-pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i16], loop_start: &mut f32, loop_end: &mut f32) {
-    let ask_size = Vec2::new(100.0, 50.0).max(ui.available_size());
+pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i16], loop_start: &mut f32, loop_end: &mut f32, height: f32) {
+    let ask_size = if height <= 0.0 {
+        Vec2::new(100.0, 50.0).max(ui.available_size())
+    } else {
+        Vec2::new(100.0, 50.0).max(Vec2::new(ui.available_size().x, height))
+    };
     let (response, painter) = ui.allocate_painter(ask_size, Sense::drag());
     let canvas_rect = response.rect;
 
     painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, Color32::BLACK);
-    let stroke = if state.samples_per_point > 2.0 {
+    let stroke = if state.samples_per_point > 2.0 || state.samples_per_point <= 0.1 {
         egui::Stroke::new(1.0, Color32::from_rgb(0x3f, 0x3f, 0x3f))
     } else {
         egui::Stroke::new(1.0, Color32::from_rgb(0xc0, 0xc0, 0xc0))
@@ -58,6 +62,7 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
     if state.samples_per_point == 0.0 {
         // wait until next frame so we have an accurate canvas width
         // before settling on the samples_per_point value:
+        ui.ctx().request_discard("calculate sample canvas width");
         state.samples_per_point = 0.1;
     } else if state.samples_per_point < 0.125 {
         let samples_len = samples.len() as f32;

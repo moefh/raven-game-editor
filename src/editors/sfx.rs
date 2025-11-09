@@ -83,15 +83,16 @@ impl SfxEditor {
             self.properties_dialog.show(wc, sfx);
         }
 
+        let asset_id = sfx.asset.id;
         let title = format!("{} - Sfx", sfx.asset.name);
-        let window = super::create_editor_window(sfx.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
 
         let mut loop_start = sfx.loop_start as f32;
         let mut loop_end = (sfx.loop_start + sfx.loop_len) as f32;
 
         window.open(&mut self.asset.open).min_size([400.0, 220.0]).default_size([500.0, 220.0]).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", sfx.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Sfx", |ui| {
                         ui.horizontal(|ui| {
@@ -105,16 +106,16 @@ impl SfxEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", sfx.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", sfx.data_size()));
             });
 
             // properties
-            egui::SidePanel::left(format!("editor_panel_{}_left", sfx.asset.id)).resizable(false).show_inside(ui, |ui| {
+            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label("Properties:");
-                egui::Grid::new(format!("editor_panel_{}_loop_grid", sfx.asset.id)).num_columns(2).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
                     ui.label("Loop start:");
                     ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sfx.samples.len() as f32));
                     ui.end_row();
@@ -126,7 +127,7 @@ impl SfxEditor {
                 if sound_player.is_available() {
                     ui.add_space(16.0);
                     ui.label("Test:");
-                    egui::Grid::new(format!("editor_panel_{}_play_grid", sfx.asset.id)).num_columns(2).show(ui, |ui| {
+                    egui::Grid::new(format!("editor_panel_{}_play_grid", asset_id)).num_columns(2).show(ui, |ui| {
                         ui.label("Volume:");
                         ui.add(egui::DragValue::new(&mut self.play_volume).speed(0.05).range(0.0..=1.0));
                         ui.end_row();
@@ -146,7 +147,7 @@ impl SfxEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                super::widgets::sfx_display(ui, &mut self.sfx_display_state, &sfx.samples, &mut loop_start, &mut loop_end);
+                super::widgets::sfx_display(ui, &mut self.sfx_display_state, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
             });
         });
 

@@ -17,11 +17,12 @@ impl PropFontEditor {
     }
 
     pub fn show(&mut self, wc: &WindowContext, prop_font: &mut PropFont) {
+        let asset_id = prop_font.asset.id;
         let title = format!("{} - Prop Font", prop_font.asset.name);
-        let window = super::create_editor_window(prop_font.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", prop_font.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Proportional Font", |ui| {
                         ui.horizontal(|ui| {
@@ -35,7 +36,7 @@ impl PropFontEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", prop_font.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", prop_font.data_size()));
             });

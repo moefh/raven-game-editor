@@ -162,12 +162,13 @@ impl MapDataEditor {
             dlg.show(wc, map_data, tileset_ids, tilesets);
         }
 
+        let asset_id = map_data.asset.id;
         let title = format!("{} - Map", map_data.asset.name);
-        let window = super::create_editor_window(map_data.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
         let (min_size, default_size) = calc_map_editor_window_size();
         window.min_size(min_size).default_size(default_size).open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", map_data.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Map", |ui| {
                         ui.horizontal(|ui| {
@@ -184,7 +185,7 @@ impl MapDataEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", map_data.data_size()));
             });
@@ -193,10 +194,10 @@ impl MapDataEditor {
                 let (image, texture) = ImageCollection::load_asset(tileset, wc.tex_man, wc.egui.ctx, false);
 
                 // tile picker:
-                egui::SidePanel::left(format!("editor_panel_{}_left", map_data.asset.id)).resizable(false).show_inside(ui, |ui| {
+                egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                     ui.add_space(5.0);
                     let picker_zoom = 4.0;
-                    let scroll = super::widgets::image_item_picker(ui, map_data.asset.id, texture, &image, self.left_tile, picker_zoom);
+                    let scroll = super::widgets::image_item_picker(ui, asset_id, texture, &image, self.left_tile, picker_zoom);
                     if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
                         let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
                         if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {

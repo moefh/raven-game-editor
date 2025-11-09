@@ -8,12 +8,14 @@ mod app;
 use crate::misc::image_table::IMAGES;
 use crate::app::RavenEditorApp;
 
-fn add_font(ctx: &egui::Context) {
+static FONT_BYTES: &[u8] = include_bytes!("../assets/fonts/ComicMono.ttf");
+
+pub fn add_font(ctx: &egui::Context) {
     use eframe::epaint::text::{FontInsert, InsertFontFamily};
 
     ctx.add_font(FontInsert::new(
         "ComicMono",
-        egui::FontData::from_static(include_bytes!("../assets/fonts/ComicMono.ttf")),
+        egui::FontData::from_static(FONT_BYTES),
         vec![
             InsertFontFamily {
                 family: egui::FontFamily::Proportional,
@@ -44,8 +46,6 @@ fn main() -> eframe::Result {
         "Raven Game Editor",
         options,
         Box::new(|cc| {
-            egui_extras::install_image_loaders(&cc.egui_ctx);
-            add_font(&cc.egui_ctx);
             Ok(Box::new(
                 match filename {
                     Some(filename) => RavenEditorApp::from_file(cc, filename),

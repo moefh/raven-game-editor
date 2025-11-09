@@ -17,11 +17,12 @@ impl FontEditor {
     }
 
     pub fn show(&mut self, wc: &WindowContext, font: &mut Font) {
+        let asset_id = font.asset.id;
         let title = format!("{} - Font", font.asset.name);
-        let window = super::create_editor_window(font.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", font.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Font", |ui| {
                         ui.horizontal(|ui| {
@@ -35,7 +36,7 @@ impl FontEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", font.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", font.data_size()));
             });

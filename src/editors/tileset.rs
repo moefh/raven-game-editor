@@ -108,12 +108,13 @@ impl TilesetEditor {
             self.force_reload_image = true;
         }
 
+        let asset_id = tileset.asset.id;
         let title = format!("{} - Tileset", tileset.asset.name);
         let window = super::create_editor_window(self.asset.id, &title, wc);
         let (min_size, default_size) = super::calc_image_editor_window_size(tileset);
         window.min_size(min_size).default_size(default_size).open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", tileset.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Tileset", |ui| {
                         ui.horizontal(|ui| {
@@ -127,7 +128,7 @@ impl TilesetEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", tileset.data_size()));
             });
@@ -136,10 +137,10 @@ impl TilesetEditor {
             self.force_reload_image = false;
 
             // item picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", tileset.asset.id)).resizable(false).show_inside(ui, |ui| {
+            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 let picker_zoom = 4.0;
-                let scroll = super::widgets::image_item_picker(ui, tileset.asset.id, texture, &image, self.selected_tile, picker_zoom);
+                let scroll = super::widgets::image_item_picker(ui, asset_id, texture, &image, self.selected_tile, picker_zoom);
                 if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
                     let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
                     if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
@@ -150,16 +151,16 @@ impl TilesetEditor {
             });
 
             // color picker:
-            egui::SidePanel::right(format!("editor_panel_{}_right", tileset.asset.id)).resizable(false).show_inside(ui, |ui| {
+            egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                super::widgets::color_picker(ui, tileset.asset.id, &mut self.color_picker);
+                super::widgets::color_picker(ui, asset_id, &mut self.color_picker);
             });
 
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.scope_builder(
-                    egui::UiBuilder::new().id_salt(format!("tileset_{}_tiles", tileset.asset.id)), |ui| {
+                    egui::UiBuilder::new().id_salt(format!("tileset_{}_tiles", asset_id)), |ui| {
                         let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile);
                         if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                             canvas_to_image.from().contains(pointer_pos) {

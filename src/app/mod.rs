@@ -52,6 +52,8 @@ impl RavenEditorApp {
     }
 
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
+        egui_extras::install_image_loaders(ctx);
+        crate::add_font(ctx);
         ctx.set_zoom_factor(1.5);
         ctx.options_mut(|opt: &mut egui::Options| {
             opt.zoom_with_keyboard = false;
@@ -345,7 +347,7 @@ impl RavenEditorApp {
         }
         for mod_data in self.store.assets.mods.iter_mut() {
             if let Some(editor) = self.editors.mods.get_mut(&mod_data.asset.id) {
-                editor.show(&win_ctx, mod_data);
+                editor.show(&win_ctx, mod_data, &mut self.sound_player);
             }
         }
         for font in self.store.assets.fonts.iter_mut() {

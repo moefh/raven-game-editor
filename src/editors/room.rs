@@ -33,11 +33,12 @@ impl RoomEditor {
 
     pub fn show(&mut self, wc: &WindowContext, room: &mut Room,
                 asset_ids: &AssetIdCollection, maps: &AssetList<MapData>, animations: &AssetList<SpriteAnimation>) {
+        let asset_id = room.asset.id;
         let title = format!("{} - Room", room.asset.name);
-        let window = super::create_editor_window(room.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", room.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Room", |ui| {
                         ui.horizontal(|ui| {
@@ -51,7 +52,7 @@ impl RoomEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", room.data_size()));
             });
@@ -67,7 +68,7 @@ impl RoomEditor {
                     };
                     ui.horizontal(|ui| {
                         let mut sel_map_id = map_id;
-                        egui::ComboBox::from_id_salt(format!("room_editor_map_combo_{}", room.asset.id))
+                        egui::ComboBox::from_id_salt(format!("room_editor_map_combo_{}", asset_id))
                             .selected_text(map_name)
                             .show_ui(ui, |ui| {
                                 for map_id in asset_ids.maps.iter() {
@@ -99,7 +100,7 @@ impl RoomEditor {
                     };
                     ui.horizontal(|ui| {
                         let mut sel_animation_id = animation_id;
-                        egui::ComboBox::from_id_salt(format!("room_editor_animation_combo_{}", room.asset.id))
+                        egui::ComboBox::from_id_salt(format!("room_editor_animation_combo_{}", asset_id))
                             .selected_text(animation_name)
                             .show_ui(ui, |ui| {
                                 for animation_id in asset_ids.animations.iter() {

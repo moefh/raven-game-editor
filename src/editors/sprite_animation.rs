@@ -17,11 +17,12 @@ impl SpriteAnimationEditor {
     }
 
     pub fn show(&mut self, wc: &WindowContext, animation: &mut SpriteAnimation) {
+        let asset_id = animation.asset.id;
         let title = format!("{} - Animation", animation.asset.name);
-        let window = super::create_editor_window(animation.asset.id, &title, wc);
+        let window = super::create_editor_window(asset_id, &title, wc);
         window.open(&mut self.asset.open).show(wc.egui.ctx, |ui| {
             // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", animation.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Animation", |ui| {
                         ui.horizontal(|ui| {
@@ -35,7 +36,7 @@ impl SpriteAnimationEditor {
             });
 
             // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", animation.asset.id)).show_inside(ui, |ui| {
+            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.label(format!("{} bytes", animation.data_size()));
             });
