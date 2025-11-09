@@ -73,7 +73,7 @@ impl SfxEditor {
             asset: super::DataAssetEditor::new(id, open),
             sfx_display_state: super::widgets::SfxDisplayState::new(),
             properties_dialog: PropertiesDialog::new(),
-            play_volume: 0.3,
+            play_volume: 0.5,
             play_freq: 11025.0,
         }
     }
@@ -114,35 +114,45 @@ impl SfxEditor {
             // properties
             egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                ui.label("Properties:");
-                egui::Grid::new(format!("editor_panel_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
-                    ui.label("Loop start:");
-                    ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sfx.samples.len() as f32));
-                    ui.end_row();
-
-                    ui.label("Loop end:");
-                    ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as f32));
-                    ui.end_row();
-                });
-                if sound_player.is_available() {
-                    ui.add_space(16.0);
-                    ui.label("Test:");
-                    egui::Grid::new(format!("editor_panel_{}_play_grid", asset_id)).num_columns(2).show(ui, |ui| {
-                        ui.label("Volume:");
-                        ui.add(egui::DragValue::new(&mut self.play_volume).speed(0.05).range(0.0..=1.0));
+                egui::CollapsingHeader::new("Properties").default_open(true).show(ui, |ui| {
+                    egui::Grid::new(format!("editor_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
+                        ui.label("Bits/sample:");
+                        egui::ComboBox::from_id_salt(format!("editor_{}_bps_combo", asset_id))
+                            .selected_text(format!("{}", sfx.bits_per_sample))
+                            .width(50.0)
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut sfx.bits_per_sample, 8, "8");
+                                ui.selectable_value(&mut sfx.bits_per_sample, 16, "16");
+                            });
                         ui.end_row();
 
-                        ui.label("Frequency:");
-                        ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(8000.0..=44100.0));
+                        ui.label("Loop start:");
+                        ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sfx.samples.len() as f32));
                         ui.end_row();
 
-                        ui.horizontal(|_ui| {});
-                        if ui.button("▶ Play ").clicked() {
-                            sound_player.play_s16(&sfx.samples, self.play_freq, self.play_volume);
-                        }
+                        ui.label("Loop end:");
+                        ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as f32));
                         ui.end_row();
                     });
-                }
+                });
+                egui::CollapsingHeader::new("Test").default_open(sound_player.is_available()).show(ui, |ui| {
+                    if sound_player.is_available() {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(8000.0..=44100.0));
+                            ui.label("Hz");
+                            ui.add_space(5.0);
+                            if ui.button("▶ Play ").clicked() {
+                                sound_player.play_s16(&sfx.samples, self.play_freq, self.play_volume);
+                            }
+                        });
+                        ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=2.0)).on_hover_ui(|ui| {
+                            ui.style_mut().interaction.selectable_labels = true;
+                            ui.label("Volume");
+                        });
+                    } else {
+                        ui.label("Sound playback not available :(");
+                    }
+                });
             });
 
             // body:
