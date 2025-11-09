@@ -46,11 +46,6 @@ fn main() -> eframe::Result {
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
             add_font(&cc.egui_ctx);
-            cc.egui_ctx.set_zoom_factor(1.5);
-            cc.egui_ctx.options_mut(|opt: &mut egui::Options| {
-                opt.zoom_with_keyboard = false;
-            });
-            cc.egui_ctx.set_theme(egui::ThemePreference::Light);
             Ok(Box::new(
                 match filename {
                     Some(filename) => RavenEditorApp::from_file(cc, filename),

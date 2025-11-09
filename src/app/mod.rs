@@ -18,6 +18,7 @@ const IMAGE_MENU_SIZE: f32 = 14.0;
 const IMAGE_TREE_SIZE: f32 = 20.0;
 
 pub struct RavenEditorApp {
+    reset_egui_context: bool,
     store: DataAssetStore,
     logger: StringLogger,
     dialogs: dialogs::AppDialogs,
@@ -29,8 +30,9 @@ pub struct RavenEditorApp {
 
 impl RavenEditorApp {
 
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        RavenEditorApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let app = RavenEditorApp {
+            reset_egui_context: false,
             store: DataAssetStore::new(),
             logger: StringLogger::new(false),
             dialogs: dialogs::AppDialogs::new(),
@@ -38,7 +40,9 @@ impl RavenEditorApp {
             editors: editors::AssetEditors::new(),
             tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
-        }
+        };
+        app.setup_egui_context(&cc.egui_ctx);
+        app
     }
 
     pub fn from_file<P: AsRef<std::path::Path> + ?Sized>(cc: &eframe::CreationContext<'_>, path: &P) -> Self {
@@ -47,11 +51,19 @@ impl RavenEditorApp {
         app
     }
 
+    pub fn setup_egui_context(&self, ctx: &egui::Context) {
+        ctx.set_zoom_factor(1.5);
+        ctx.options_mut(|opt: &mut egui::Options| {
+            opt.zoom_with_keyboard = false;
+        });
+        ctx.set_theme(egui::ThemePreference::Light);
+    }
+
     pub fn open<P: AsRef<std::path::Path> + ?Sized>(&mut self, path: &P) {
         let mut store = crate::data_asset::DataAssetStore::new();
         match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
-                self.set_store(store);
+                self.load_project(store);
             },
             Err(_) => {
                 self.dialogs.open_message_box("Error Reading Project",
@@ -61,11 +73,12 @@ impl RavenEditorApp {
         }
     }
 
-    fn set_store(&mut self, store: DataAssetStore) {
+    fn load_project(&mut self, store: DataAssetStore) {
         self.editors.clear();
         self.tex_manager.clear();
         self.store = store;
         self.editors.create_editors_for_new_store(&self.store);
+        self.reset_egui_context = true;
     }
 
     fn new_asset_name(&self, asset_type: DataAssetType) -> String {
@@ -357,6 +370,11 @@ impl RavenEditorApp {
 
 impl eframe::App for RavenEditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.reset_egui_context {
+            ctx.memory_mut(|mem| *mem = Default::default());
+            self.setup_egui_context(ctx);
+            self.reset_egui_context = false;
+        }
         self.update_dialogs(ctx);
         self.update_menu(ctx);
         self.update_footer(ctx);
