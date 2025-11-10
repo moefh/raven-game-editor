@@ -1,8 +1,13 @@
+use egui_extras::{TableBuilder, Column};
+
 use crate::misc::IMAGES;
 use crate::misc::{WindowContext, SoundPlayer};
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
+use crate::misc::mod_utils;
 
 use super::widgets::SfxDisplayState;
+
+const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
 
 struct PropertiesDialog {
     open: bool,
@@ -66,11 +71,26 @@ enum EditorTabs {
     Patterns,
 }
 
+fn get_pattern_sample_to_play(cell_index: usize, mod_data: &ModData) -> Option<usize> {
+    let row_stride = mod_data.num_channels as usize;
+    let cell_row = cell_index / row_stride;
+    let first_row = cell_row / (64 * row_stride) * (64 * row_stride);
+    for row in (first_row..=cell_row).rev() {
+        let cell = mod_data.pattern[row * row_stride + cell_index % row_stride];
+        if cell.sample == 0 { continue; }
+        let sample_index = cell.sample as usize - 1;
+        if sample_index >= mod_data.samples.len() { return None; }
+        return Some(sample_index);
+    }
+    None
+}
+
 pub struct ModDataEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     selected_tab: EditorTabs,
     selected_sample: usize,
+    selected_song_position: usize,
     sfx_display_state: SfxDisplayState,
     play_volume: f32,
     play_freq: f32,
@@ -83,15 +103,16 @@ impl ModDataEditor {
             properties_dialog: PropertiesDialog::new(),
             selected_tab: EditorTabs::Samples,
             selected_sample: 0,
+            selected_song_position: 0,
             sfx_display_state: SfxDisplayState::new(),
-            play_volume: 0.3,
+            play_volume: 0.5,
             play_freq: 11025.0,
         }
     }
 
     fn samples_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         let asset_id = mod_data.asset.id;
-        egui::SidePanel::left(format!("editor_panel_{}_samples_left", asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::SidePanel::left(format!("editor_panel_{}_samples_left", asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (sample_index, sample) in mod_data.samples.iter().enumerate() {
@@ -109,42 +130,198 @@ impl ModDataEditor {
             });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        // sample properties
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_sample_properties", asset_id)).show_inside(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
-                let samples = if let Some(data) = &sample.data { &data[..] } else { &[] };
+                let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
                 let mut loop_start = sample.loop_start as f32;
                 let mut loop_end = (sample.loop_start + sample.loop_len) as f32;
-                super::widgets::sfx_display(ui, &mut self.sfx_display_state, samples, &mut loop_start, &mut loop_end, 150.0);
+
+                egui::Grid::new(format!("editor_{}_sample_grid", asset_id)).num_columns(2).show(ui, |ui| {
+                    // properties
+                    egui::CollapsingHeader::new("Properties").default_open(true).show(ui, |ui| {
+                        egui::Grid::new(format!("editor_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
+                            ui.label("Bits/sample:");
+                            egui::ComboBox::from_id_salt(format!("editor_{}_bps_combo", asset_id))
+                                .selected_text(format!("{}", sample.bits_per_sample))
+                                .width(50.0)
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut sample.bits_per_sample, 8, "8");
+                                    ui.selectable_value(&mut sample.bits_per_sample, 16, "16");
+                                });
+                            ui.end_row();
+
+                            ui.label("Loop start:");
+                            ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sample_data.len() as f32));
+                            ui.end_row();
+
+                            ui.label("Loop end:");
+                            ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sample_data.len() as f32));
+                            ui.end_row();
+                        });
+                    });
+
+                    // playback
+                    egui::CollapsingHeader::new("Test").default_open(sound_player.is_available()).show(ui, |ui| {
+                        if sound_player.is_available() {
+                            ui.horizontal(|ui| {
+                                ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(2000.0..=44100.0));
+                                ui.label("Hz");
+                                ui.add_space(5.0);
+                                if ui.button("▶ Play ").clicked() {
+                                    sound_player.play_s16(sample_data, self.play_freq, self.play_volume);
+                                }
+                            });
+                            ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=2.0)).on_hover_ui(|ui| {
+                                ui.style_mut().interaction.selectable_labels = true;
+                                ui.label("Volume");
+                            });
+                        } else {
+                            ui.label("Sound playback not available :(");
+                        }
+                    });
+                });
+
                 sample.loop_start = loop_start as u32;
                 sample.loop_len = (loop_end - loop_start) as u32;
+            }
+        });
 
-                if sound_player.is_available() {
-                    ui.add_space(5.0);
-                    egui::Grid::new(format!("editor_panel_{}_play_grid", asset_id)).num_columns(2).show(ui, |ui| {
-                        ui.label("Volume:");
-                        ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=1.0));
-                        ui.end_row();
+        // wave display
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
+                let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
+                let mut loop_start = sample.loop_start as f32;
+                let mut loop_end = (sample.loop_start + sample.loop_len) as f32;
 
-                        ui.label("Frequency:");
-                        ui.add(egui::Slider::new(&mut self.play_freq, 8000.0..=44100.0));
-                        ui.end_row();
+                super::widgets::sfx_display(ui, &mut self.sfx_display_state, sample_data, &mut loop_start, &mut loop_end, 0.0);
 
-                        ui.horizontal(|_ui| {});
-                        if ui.button("▶ Play ").clicked() {
-                            sound_player.play_s16(samples, self.play_freq, self.play_volume);
-                        }
-                        ui.end_row();
-                    });
-                }
+                sample.loop_start = loop_start as u32;
+                sample.loop_len = (loop_end - loop_start) as u32;
             }
         });
     }
 
-    fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, _sound_player: &mut SoundPlayer) {
-        let _asset_id = mod_data.asset.id;
+    fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+        let asset_id = mod_data.asset.id;
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            ui.add(egui::Image::new(IMAGES.mod_data).max_width(32.0));
-            ui.label("TODO: PATTERNS");
+            let cur_song_position = mod_data.song_positions.get(self.selected_song_position).map_or_else(|| {
+                mod_data.song_positions.first().map_or(0, |&v| v)
+            }, |&v| v);
+            let old_selected_song_position = self.selected_song_position;
+            ui.horizontal(|ui| {
+                ui.label("Pattern:");
+                egui::ComboBox::from_id_salt(format!("editor_{}_song_pos_combo", asset_id))
+                    .selected_text(format!("{}", cur_song_position))
+                    .width(50.0)
+                    .show_ui(ui, |ui| {
+                        for (i, &song_pos) in mod_data.song_positions.iter().enumerate() {
+                            ui.selectable_value(&mut self.selected_song_position, i, format!("{}", song_pos));
+                        }
+                    });
+            });
+            ui.add_space(5.0);
+
+            let num_channels = mod_data.num_channels as usize;
+            ui.style_mut().spacing.item_spacing = egui::Vec2::ZERO;
+            let available_height = ui.available_height();
+            let mut table = TableBuilder::new(ui)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::exact(40.0).clip(true));
+
+            if self.selected_song_position != old_selected_song_position {
+                // song position changed, go back to top
+                table = table.scroll_to_row(0, Some(egui::Align::TOP));
+            }
+
+            for _ in 0..mod_data.num_channels {
+                table = table.columns(Column::exact(45.0).clip(true), MOD_PATTERN_CELL_NAMES.len());
+            }
+
+            let scroll = table.auto_shrink(false)
+                .striped(true)
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+                .min_scrolled_height(0.0)
+                .max_scroll_height(available_height)
+                .header(20.0, |mut header| {
+                    header.col(|_ui| {});
+                    for _ in 0..num_channels {
+                        for h in MOD_PATTERN_CELL_NAMES.iter() {
+                            header.col(|ui| { ui.label(*h); });
+                        }
+                    }
+                })
+                .body(|body| {
+                    body.rows(20.0, 64, |mut row| {
+                        let row_index = row.index();
+                        row.set_overline(row_index.is_multiple_of(4));
+                        row.col(|ui| {
+                            ui.label(format!("{:>2}", row_index));
+                        });
+                        for i in 0..num_channels {
+                            let cell_index_in_pattern = (row_index*num_channels + i) as usize;
+                            let pattern_stride = 64 * num_channels as usize;
+                            let cell_index = if let Some(&pattern_num) = mod_data.song_positions.get(self.selected_song_position) &&
+                                (pattern_stride * pattern_num as usize + cell_index_in_pattern) < mod_data.pattern.len() {
+                                    pattern_stride * pattern_num as usize + cell_index_in_pattern
+                                } else {
+                                    return;
+                                };
+                            let cell = mod_data.pattern[cell_index];
+
+                            // note
+                            row.col(|ui| {
+                                if cell.period != 0 {
+                                    let (note, octave) = ModData::get_period_note(cell.period);
+                                    if note >= 0 {
+                                        if sound_player.is_available() {
+                                            if ui.button(format!("{:2}{}", mod_utils::get_note_name(note), octave)).clicked() &&
+                                                let Some(freq) = mod_utils::get_period_sample_rate(cell.period) &&
+                                                let Some(sample_index) = get_pattern_sample_to_play(cell_index, mod_data) &&
+                                                let Some(sample_data) = &mod_data.samples[sample_index].data {
+                                                    sound_player.play_s16(sample_data, freq, self.play_volume);
+                                                    self.play_freq = freq.round();
+                                                    self.selected_sample = sample_index;
+                                                }
+                                        } else {
+                                            ui.add(egui::Label::new(format!("{:2}{}", mod_utils::get_note_name(note), octave))
+                                                   .selectable(false));
+                                        }
+                                    }
+                                }
+                            });
+                            // sample
+                            row.col(|ui| {
+                                if cell.period != 0 && cell.sample != 0 {
+                                    ui.add(egui::Label::new(cell.sample.to_string()).selectable(false));
+                                }
+                            });
+                            // fx
+                            row.col(|ui| {
+                                if cell.effect != 0 {
+                                    ui.add(egui::Label::new(format!("{:03X}", cell.effect)).selectable(false)).on_hover_ui(|ui| {
+                                        let (note, _) = ModData::get_period_note(cell.period);
+                                        if let Some(tooltip) = mod_utils::get_effect_description(cell.effect, note, &mod_data.song_positions) {
+                                            ui.label(tooltip);
+                                        } else {
+                                            ui.label("unknown effect");
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                });
+
+            // draw column separators between MOD cells
+            let painter = ui.painter();
+            let t_rect = scroll.inner_rect;
+            let origin = t_rect.min;
+            let stroke = ui.style().visuals.window_stroke;
+            for x in 0..5 {
+                let x = x as f32;
+                painter.vline(origin.x + 35.0 + x * 3.0 * 45.0, t_rect.y_range(), stroke);
+            }
         });
     }
 
@@ -157,7 +334,7 @@ impl ModDataEditor {
         let title = format!("{} - MOD", mod_data.asset.name);
         let window = super::create_editor_window(asset_id, &title, wc);
         let mut asset_open = self.asset.open;
-        window.open(&mut asset_open).min_size([400.0, 220.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
+        window.open(&mut asset_open).min_size([600.0, 220.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {

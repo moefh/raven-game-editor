@@ -3,6 +3,7 @@ pub mod image_collection;
 pub mod image_table;
 pub mod texture_manager;
 pub mod window_context;
+pub mod mod_utils;
 
 pub use image_table::{IMAGES, IMAGE_REFS};
 pub use window_context::WindowContext;

@@ -73,6 +73,18 @@ impl ModData {
             MOD_PERIOD_TABLE[index]
         }
     }
+
+    pub fn get_period_note(period: u16) -> (i32, i32) {
+        for octave in 0..MOD_PERIOD_TABLE.len()/12 {
+            for note in 0..12 {
+                let index = octave * 12 + note;
+                if period >= MOD_PERIOD_TABLE[index] {
+                    return (note as i32, octave as i32);
+                }
+            }
+        }
+        (-1,-1)
+    }
 }
 
 impl super::GenericAsset for ModData {
