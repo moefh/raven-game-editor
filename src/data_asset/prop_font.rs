@@ -1,10 +1,10 @@
 #[allow(dead_code)]
 pub struct PropFont {
     pub asset: super::DataAsset,
+    pub max_width: u32,
     pub height: u32,
     pub data: Vec<u8>,
     pub char_widths: Vec<u8>,
-    pub char_offsets: Vec<u16>,
 }
 
 pub struct CreationData<'a> {
@@ -15,23 +15,29 @@ pub struct CreationData<'a> {
 }
 
 impl PropFont {
+    pub const FIRST_CHAR: u32 = 32;
+    pub const NUM_CHARS: u32 = 96;
+
     pub fn new(asset: super::DataAsset) -> Self {
+        let height = 8;
+        let max_width = 2 * height;
         PropFont {
             asset,
-            height: 0,
-            data: Vec::new(),
-            char_widths: Vec::new(),
-            char_offsets: Vec::new(),
+            max_width,
+            height,
+            data: vec![0x0c; (max_width * height * PropFont::NUM_CHARS) as usize],
+            char_widths: vec![6; PropFont::NUM_CHARS as usize],
         }
     }
 
     pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
         PropFont {
             asset,
+            max_width: 2 * data.height,
             height: data.height,
-            data: Vec::from(data.data),
+            data: super::image_pixels_prop_font_to_u8(data.data, &data.char_widths, data.height,
+                                                      PropFont::NUM_CHARS, &data.char_offsets),
             char_widths: data.char_widths,
-            char_offsets: data.char_offsets,
         }
     }
 }
@@ -42,9 +48,17 @@ impl super::GenericAsset for PropFont {
         // header: height(1) + pad(3) + data<ptr>(4) + 96*char_width(1) + 96*char_offset(2)
         let header = 4usize + 4usize + 96usize + 96usize * 2usize;
 
-        // data: TODO
-        let data = self.data.len();
+        // data
+        let data = self.char_widths.iter().fold(0, |acc, v| { acc + self.height as usize * v.div_ceil(8) as usize });
 
         header + data
     }
+}
+
+impl super::ImageCollectionAsset for PropFont {
+    fn asset_id(&self) -> super::DataAssetId { self.asset.id }
+    fn width(&self) -> u32 { self.max_width }
+    fn height(&self) -> u32 { self.height }
+    fn num_items(&self) -> u32 { PropFont::NUM_CHARS }
+    fn data(&self) -> &[u8] { &self.data }
 }

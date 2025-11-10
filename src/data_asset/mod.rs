@@ -120,6 +120,30 @@ pub trait ImageCollectionAsset {
     fn data(&self) -> &[u8];
 }
 
+pub fn image_pixels_prop_font_to_u8(bits: &[u8], widths: &[u8], height: u32, num_items: u32, offsets: &[u16]) -> Vec<u8> {
+    let height = height as usize;
+    let num_items = num_items as usize;
+    let max_width = 2 * height as usize;
+    let mut pixels = vec![0x0c; max_width * height * num_items];
+    if widths.len() != num_items || offsets.len() != widths.len() { return pixels; }
+    for ch in 0..num_items {
+        let offset = offsets[ch] as usize;
+        let width = widths[ch] as usize;
+        let stride = width.div_ceil(8) as usize;
+        for y in 0..height {
+            for x in 0..stride {
+                let block = bits.get(offset + y*stride + x).map_or(0, |&v| v);
+                for ix in 0..8.min(width as i32 - x as i32 * 8) as usize {
+                    if block & (1 << ix) != 0 && (x*8 + ix) < max_width {
+                        pixels[((ch * height) + y) * max_width + x*8 + ix] = 0;
+                    }
+                }
+            }
+        }
+    }
+    pixels
+}
+
 pub fn image_pixels_font_to_u8(bits: &[u8], width: u32, height: u32, num_items: u32) -> Vec<u8> {
     let stride = width.div_ceil(8) as usize;
     let mut pixels = vec![0x0cu8; (width * height * num_items) as usize];

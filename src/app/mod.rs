@@ -357,7 +357,7 @@ impl RavenEditorApp {
         }
         for pfont in self.store.assets.prop_fonts.iter_mut() {
             if let Some(editor) = self.editors.prop_fonts.get_mut(&pfont.asset.id) {
-                editor.show(&win_ctx, pfont);
+                editor.show(&mut win_ctx, pfont);
             }
         }
 
