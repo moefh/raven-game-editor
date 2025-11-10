@@ -66,6 +66,16 @@ pub struct FontEditor {
     selected_char: u32,
 }
 
+fn char_name(ch: char) -> String {
+    if ch == ' ' {
+        "(space)".to_string()
+    } else if ch as u32 >= 127 {
+        "DEL".to_string()
+    } else {
+        ch.to_string()
+    }
+}
+
 impl FontEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         FontEditor {
@@ -113,7 +123,7 @@ impl FontEditor {
                     ui.label("Selected:");
                     ui.add_space(5.0);
                     let cur_char = match char::from_u32(Font::FIRST_CHAR + self.selected_char) {
-                        Some(ch) => format!("{}", ch),
+                        Some(ch) => char_name(ch),
                         None => " ".to_string(),
                     };
                     egui::ComboBox::from_id_salt(format!("editor_{}_sel_char", asset_id))
@@ -122,7 +132,7 @@ impl FontEditor {
                         .show_ui(ui, |ui| {
                             for i in 0..Font::NUM_CHARS {
                                 if let Some(ch) = char::from_u32(Font::FIRST_CHAR + i) {
-                                    ui.selectable_value(&mut self.selected_char, i, format!("{}", ch));
+                                    ui.selectable_value(&mut self.selected_char, i, char_name(ch));
                                 }
                             }
                         });
