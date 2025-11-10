@@ -1,4 +1,3 @@
-
 const MOD_PERIOD_TABLE : &[u16] = &[
     2*1712,2*1616,2*1524,2*1440,2*1356,2*1280,2*1208,2*1140,2*1076,2*1016,2*960,2*906,
     1712,1616,1524,1440,1356,1280,1208,1140,1076,1016,960,907,
@@ -46,12 +45,13 @@ pub struct CreationData<'a> {
 
 impl ModData {
     pub fn new(asset: super::DataAsset) -> Self {
+        let num_channels = 4;
         ModData {
             asset,
-            num_channels: 4,
-            samples: Vec::new(),
-            pattern: Vec::new(),
-            song_positions: Vec::new(),
+            num_channels,
+            samples: Self::gen_samples(),
+            pattern: Self::gen_pattern(num_channels),
+            song_positions: vec![0; 1],
         }
     }
 
@@ -84,6 +84,43 @@ impl ModData {
             }
         }
         (-1,-1)
+    }
+
+    fn gen_samples() -> Vec<ModSample> {
+        let mut samples = Vec::with_capacity(31);
+        let sample_data_len = 5000;
+        samples.push(ModSample {
+            len: sample_data_len,
+            loop_start: 0,
+            loop_len: 0,
+            finetune: 0,
+            volume: 0x40,
+            bits_per_sample: 16,
+            data: Some(super::Sfx::gen_sample_data(sample_data_len as usize)),
+        });
+        for _ in 0..30 {
+            samples.push(ModSample {
+                len: 0,
+                loop_start: 0,
+                loop_len: 0,
+                finetune: 0,
+                volume: 0,
+                bits_per_sample: 8,
+                data: None,
+            });
+        }
+        samples
+    }
+
+    fn gen_pattern(num_channels: u8) -> Vec<ModCell> {
+        let num_cells = 64 * num_channels as usize;
+        let mut pattern = vec![ModCell { sample: 0, period: 0, effect: 0 }; num_cells];
+        pattern[0] = ModCell { sample: 1, period: Self::get_note_period(0, 3), effect: 0 };
+        pattern[1] = ModCell { sample: 1, period: Self::get_note_period(4, 3), effect: 0 };
+        pattern[2] = ModCell { sample: 1, period: Self::get_note_period(7, 3), effect: 0 };
+        pattern[3] = ModCell { sample: 0, period: 0, effect: 0xF78 };
+        pattern[16] = ModCell { sample: 0, period: 0, effect: 0xD00 };
+        pattern
     }
 }
 
