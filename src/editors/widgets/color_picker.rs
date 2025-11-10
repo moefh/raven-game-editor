@@ -1,5 +1,4 @@
 use std::sync;
-use crate::data_asset::DataAssetId;
 use egui::{Vec2, Sense, Rect, Pos2};
 
 const COLOR_PICKER_GRAD_COLORS: [u8; 6] = [
@@ -99,71 +98,67 @@ fn set_color_picker_state_color(state: &mut ColorPickerState, color: u8, respons
     }
 }
 
-pub fn color_picker(ui: &mut egui::Ui, asset_id: DataAssetId, state: &mut ColorPickerState) {
-    ui.scope_builder(
-        egui::UiBuilder::new().id_salt(format!("color_picker_{}", asset_id)),
-        |ui| {
-            let min_size = Vec2::splat(112.0).max(Vec2::new(112.0, ui.available_size().y));
-            let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
-            let full_rect = response.rect;
-            let border = 8.0;
-            let width = 8.0 * ((full_rect.width() - 2.0*border) / 8.0).floor();
-            let left = response.rect.max.x - width - border;
+pub fn color_picker(ui: &mut egui::Ui, state: &mut ColorPickerState) {
+    let min_size = Vec2::splat(112.0).max(Vec2::new(112.0, ui.available_size().y));
+    let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
+    let full_rect = response.rect;
+    let border = 8.0;
+    let width = 8.0 * ((full_rect.width() - 2.0*border) / 8.0).floor();
+    let left = response.rect.max.x - width - border;
 
-            // selected colors
-            //let sel_item_size = Vec2::new(width/2.0, width/4.0);
-            let sel_start = Pos2::new(left, full_rect.min.y + border);
-            let sel_rect = Rect::from_two_pos(sel_start, sel_start + Vec2::new(width, width/4.0));
-            let sel_dims = (2, 1);
+    // selected colors
+    //let sel_item_size = Vec2::new(width/2.0, width/4.0);
+    let sel_start = Pos2::new(left, full_rect.min.y + border);
+    let sel_rect = Rect::from_two_pos(sel_start, sel_start + Vec2::new(width, width/4.0));
+    let sel_dims = (2, 1);
 
-            // all colors palette
-            let all_item_size = Vec2::splat(width / 8.0);
-            let all_start = Pos2::new(left, sel_rect.max.y + border);
-            let all_rect = Rect {
-                min: all_start,
-                max: all_start + 8.0 * all_item_size,
-            };
-            let all_dims = (8, 8);
+    // all colors palette
+    let all_item_size = Vec2::splat(width / 8.0);
+    let all_start = Pos2::new(left, sel_rect.max.y + border);
+    let all_rect = Rect {
+        min: all_start,
+        max: all_start + 8.0 * all_item_size,
+    };
+    let all_dims = (8, 8);
 
-            // grays palette
-            let grays_item_size = Vec2::new(width / 4.0, all_item_size.y);
-            let grays_start = Pos2::new(left, all_rect.max.y + border);
-            let grays_rect = Rect {
-                min: grays_start,
-                max: grays_start + Vec2::new(4.0 * grays_item_size.x, grays_item_size.y),
-            };
-            let grays_dims = (4, 1);
+    // grays palette
+    let grays_item_size = Vec2::new(width / 4.0, all_item_size.y);
+    let grays_start = Pos2::new(left, all_rect.max.y + border);
+    let grays_rect = Rect {
+        min: grays_start,
+        max: grays_start + Vec2::new(4.0 * grays_item_size.x, grays_item_size.y),
+    };
+    let grays_dims = (4, 1);
 
-            // gradients palette
-            let grads_item_size = all_item_size;
-            let grads_start = Pos2::new(left + (width - 5.0*grads_item_size.x) / 2.0, grays_rect.max.y + border);
-            let grads_rect = Rect {
-                min: grads_start,
-                max: grads_start + Vec2::new(5.0 * grads_item_size.x, 6.0 * grads_item_size.y),
-            };
-            let grads_dims = (5, 6);
+    // gradients palette
+    let grads_item_size = all_item_size;
+    let grads_start = Pos2::new(left + (width - 5.0*grads_item_size.x) / 2.0, grays_rect.max.y + border);
+    let grads_rect = Rect {
+        min: grads_start,
+        max: grads_start + Vec2::new(5.0 * grads_item_size.x, 6.0 * grads_item_size.y),
+    };
+    let grads_dims = (5, 6);
 
-            let bg_rect = full_rect.with_max_y(grads_rect.max.y + border);
+    let bg_rect = full_rect.with_max_y(grads_rect.max.y + border);
 
-            painter.rect_filled(bg_rect, egui::CornerRadius::same(8), egui::Color32::from_rgb(224, 224, 224));
-            draw_color_picker_palette(&painter, sel_rect, sel_dims, &[state.left_color, state.right_color]);
-            draw_color_picker_palette(&painter, all_rect, all_dims, &COLOR_PICKER_ALL_PAL);
-            draw_color_picker_palette(&painter, grays_rect, grays_dims, &COLOR_PICKER_GRAY_PAL);
-            draw_color_picker_palette(&painter, grads_rect, grads_dims, &COLOR_PICKER_GRAD_PAL);
+    painter.rect_filled(bg_rect, egui::CornerRadius::same(8), egui::Color32::from_rgb(224, 224, 224));
+    draw_color_picker_palette(&painter, sel_rect, sel_dims, &[state.left_color, state.right_color]);
+    draw_color_picker_palette(&painter, all_rect, all_dims, &COLOR_PICKER_ALL_PAL);
+    draw_color_picker_palette(&painter, grays_rect, grays_dims, &COLOR_PICKER_GRAY_PAL);
+    draw_color_picker_palette(&painter, grads_rect, grads_dims, &COLOR_PICKER_GRAD_PAL);
 
-            if let Some(pointer_pos) = response.interact_pointer_pos() {
-                if let Some(index) = check_color_picker_pick(pointer_pos, all_rect, all_item_size) &&
-                    let Some(&color) = COLOR_PICKER_ALL_PAL.get(index) {
-                        set_color_picker_state_color(state, color, &response);
-                    }
-                if let Some(index) = check_color_picker_pick(pointer_pos, grays_rect, grays_item_size) &&
-                    let Some(&color) = COLOR_PICKER_GRAY_PAL.get(index) {
-                        set_color_picker_state_color(state, color, &response);
-                    }
-                if let Some(index) = check_color_picker_pick(pointer_pos, grads_rect, grads_item_size) &&
-                    let Some(&color) = COLOR_PICKER_GRAD_PAL.get(index) {
-                        set_color_picker_state_color(state, color, &response);
-                    }
+    if let Some(pointer_pos) = response.interact_pointer_pos() {
+        if let Some(index) = check_color_picker_pick(pointer_pos, all_rect, all_item_size) &&
+            let Some(&color) = COLOR_PICKER_ALL_PAL.get(index) {
+                set_color_picker_state_color(state, color, &response);
             }
-        });
+        if let Some(index) = check_color_picker_pick(pointer_pos, grays_rect, grays_item_size) &&
+            let Some(&color) = COLOR_PICKER_GRAY_PAL.get(index) {
+                set_color_picker_state_color(state, color, &response);
+            }
+        if let Some(index) = check_color_picker_pick(pointer_pos, grads_rect, grads_item_size) &&
+            let Some(&color) = COLOR_PICKER_GRAD_PAL.get(index) {
+                set_color_picker_state_color(state, color, &response);
+            }
+    }
 }

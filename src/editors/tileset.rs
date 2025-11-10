@@ -153,31 +153,27 @@ impl TilesetEditor {
             // color picker:
             egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                super::widgets::color_picker(ui, asset_id, &mut self.color_picker);
+                super::widgets::color_picker(ui, &mut self.color_picker);
             });
 
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.scope_builder(
-                    egui::UiBuilder::new().id_salt(format!("tileset_{}_tiles", asset_id)), |ui| {
-                        let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile);
-                        if let Some(pointer_pos) = resp.interact_pointer_pos() &&
-                            canvas_to_image.from().contains(pointer_pos) {
-                                let image_pos = canvas_to_image * pointer_pos;
-                                let x = image_pos.x as i32;
-                                let y = image_pos.y as i32;
-                                if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                                    Some(self.color_picker.left_color)
-                                } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                                    Some(self.color_picker.right_color)
-                                } else {
-                                    None
-                                } {
-                                    self.force_reload_image = image.set_pixel(&mut tileset.data, x, y, self.selected_tile, color);
-                                }
-                            }
-                    });
+                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile);
+                if let Some(pointer_pos) = resp.interact_pointer_pos() &&
+                    canvas_to_image.from().contains(pointer_pos) {
+                        let image_pos = canvas_to_image * pointer_pos;
+                        let x = image_pos.x as i32;
+                        let y = image_pos.y as i32;
+                        if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
+                            Some(self.color_picker.left_color)
+                        } else if resp.dragged_by(egui::PointerButton::Secondary) {
+                            Some(self.color_picker.right_color)
+                        } else {
+                            None
+                        } {
+                            self.force_reload_image = image.set_pixel(&mut tileset.data, x, y, self.selected_tile, color);
+                        }
+                    }
             });
         });
     }
