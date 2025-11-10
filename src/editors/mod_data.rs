@@ -110,6 +110,11 @@ impl ModDataEditor {
         }
     }
 
+    fn select_sample(&mut self, selected_sample: usize) {
+        self.selected_sample = selected_sample;
+        self.sfx_display_state = SfxDisplayState::new();
+    }
+
     fn samples_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         let asset_id = mod_data.asset.id;
         egui::SidePanel::left(format!("editor_panel_{}_samples_left", asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
@@ -123,8 +128,7 @@ impl ModDataEditor {
                         sample_name.push_str(&format!("sample {}", sample_index + 1));
                     };
                     if ui.selectable_label(self.selected_sample == sample_index, &sample_name).clicked() {
-                        self.selected_sample = sample_index;
-                        self.sfx_display_state = SfxDisplayState::new();
+                        self.select_sample(sample_index);
                     }
                 }
             });
@@ -183,7 +187,7 @@ impl ModDataEditor {
                 });
 
                 sample.loop_start = loop_start as u32;
-                sample.loop_len = (loop_end - loop_start) as u32;
+                sample.loop_len = (loop_end - loop_start).max(0.0) as u32;
             }
         });
 
@@ -196,8 +200,8 @@ impl ModDataEditor {
 
                 super::widgets::sfx_display(ui, &mut self.sfx_display_state, sample_data, &mut loop_start, &mut loop_end, 0.0);
 
-                sample.loop_start = loop_start as u32;
-                sample.loop_len = (loop_end - loop_start) as u32;
+                sample.loop_start = loop_start.max(0.0) as u32;
+                sample.loop_len = (loop_end - loop_start).max(0.0) as u32;
             }
         });
     }
@@ -234,7 +238,7 @@ impl ModDataEditor {
                 table = table.scroll_to_row(0, Some(egui::Align::TOP));
             }
 
-            for _ in 0..mod_data.num_channels {
+            for _ in 0..num_channels {
                 table = table.columns(Column::exact(45.0).clip(true), MOD_PATTERN_CELL_NAMES.len());
             }
 
@@ -259,8 +263,8 @@ impl ModDataEditor {
                             ui.label(format!("{:>2}", row_index));
                         });
                         for i in 0..num_channels {
-                            let cell_index_in_pattern = (row_index*num_channels + i) as usize;
-                            let pattern_stride = 64 * num_channels as usize;
+                            let cell_index_in_pattern = row_index * num_channels + i;
+                            let pattern_stride = 64 * num_channels;
                             let cell_index = if let Some(&pattern_num) = mod_data.song_positions.get(self.selected_song_position) &&
                                 (pattern_stride * pattern_num as usize + cell_index_in_pattern) < mod_data.pattern.len() {
                                     pattern_stride * pattern_num as usize + cell_index_in_pattern
@@ -281,7 +285,7 @@ impl ModDataEditor {
                                                 let Some(sample_data) = &mod_data.samples[sample_index].data {
                                                     sound_player.play_s16(sample_data, freq, self.play_volume);
                                                     self.play_freq = freq.round();
-                                                    self.selected_sample = sample_index;
+                                                    self.select_sample(sample_index);
                                                 }
                                         } else {
                                             ui.add(egui::Label::new(format!("{:2}{}", mod_utils::get_note_name(note), octave))

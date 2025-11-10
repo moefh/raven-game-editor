@@ -58,8 +58,8 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
                 Some(format!("tremolo with strength {} and speed {}", y, x))
             }
         },
-        0x8 => Some(format!("raven engine callback with id {}\n\n(some MODs use this as pan {} {})", xy,
-                            if xy < 128 { xy.to_string() } else { (xy-128).to_string() },
+        0x8 => Some(format!("raven fx8 callback with id {}\n\n(some MODs use this as pan {} {})", xy,
+                            if xy < 128 { (128-xy).to_string() } else { (xy-127).to_string() },
                             if xy < 128 { "left" } else { "right" }
         )),
         0x9 => if xy == 0 {
@@ -96,8 +96,8 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
                                     WAVEFORM_NAMES[(y&0x3) as usize],
                                     if (y&0x4) == 0 { "with" } else { "with no" }       // yes, 0 means "on" here too
                 )),
-                0x8 => Some(format!("nonstandard: pan {} {}",
-                                    if y < 8 { y.to_string() } else { (y-8).to_string() },
+                0x8 => Some(format!("raven fxF8 callback with id {}\n\n(some MODs use this as pan {} {})", y,
+                                    if y < 8 { (8-y).to_string() } else { (y-7).to_string() },
                                     if y < 8 { "left" } else { "right" }
                 )),
                 0x9 => Some(format!("retrigger sample every {} ticks", y)),

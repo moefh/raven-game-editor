@@ -161,7 +161,7 @@ impl SfxEditor {
             });
         });
 
-        sfx.loop_start = loop_start as u32;
-        sfx.loop_len = (loop_end - loop_start) as u32;
+        sfx.loop_start = loop_start.max(0.0) as u32;
+        sfx.loop_len = (loop_end - loop_start).max(0.0) as u32;
     }
 }

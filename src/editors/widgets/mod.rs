@@ -70,7 +70,8 @@ pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &Im
     };
 
     // draw background
-    painter.rect_filled(resp.rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+    //painter.rect_filled(resp.rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
 
     // draw image
     let item_uv = image.get_item_uv(selected_image);
@@ -117,7 +118,7 @@ pub fn prop_font_image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, 
     };
 
     // draw background
-    painter.rect_filled(resp.rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
 
     // draw image
     let item_uv = Rect {

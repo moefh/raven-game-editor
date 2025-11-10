@@ -5,10 +5,12 @@ pub struct SfxDisplayState {
     pub first_sample: f32,
 }
 
+const MIN_SAMPLES_PER_POINT: f32 = 0.125;
+
 impl SfxDisplayState {
     pub fn new() -> Self {
         SfxDisplayState {
-            samples_per_point: 0.0,
+            samples_per_point: 100.0,
             first_sample: 0.0,
         }
     }
@@ -18,11 +20,12 @@ impl SfxDisplayState {
     }
 
     fn zoom_by(&mut self, delta: f32, center: f32, canvas_width: f32, samples: &[i16]) {
-        let delta = if self.samples_per_point / delta < 0.125 {
-            0.125 / self.samples_per_point
+        let delta = if self.samples_per_point / delta < MIN_SAMPLES_PER_POINT {
+            MIN_SAMPLES_PER_POINT / self.samples_per_point
         } else {
             1.0 / delta
         };
+
         let center = self.first_sample + center * self.samples_per_point;
         self.samples_per_point *= delta;
         self.first_sample = (center + (self.first_sample - center) * delta).round();
@@ -31,6 +34,14 @@ impl SfxDisplayState {
     }
 
     fn clip_scroll(&mut self, canvas_width: f32, samples: &[i16]) {
+        // don't let samples zoom out so much that they don't cover the whole canvas
+        let samples_len = samples.len() as f32;
+        if canvas_width > 10.0 &&
+            self.samples_per_point > samples_len / canvas_width &&
+            samples_len / canvas_width > MIN_SAMPLES_PER_POINT {
+                self.samples_per_point = samples_len / canvas_width;
+            }
+
         let canvas_width = canvas_width.floor() - 1.0;
         let samples_len = samples.len() as f32;
         if (samples_len - self.first_sample) / self.samples_per_point < canvas_width {
@@ -59,20 +70,6 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
 
     if samples.is_empty() { return; }  // nothing to do if we have no samples!
 
-    if state.samples_per_point == 0.0 {
-        // wait until next frame so we have an accurate canvas width
-        // before settling on the samples_per_point value:
-        ui.ctx().request_discard("calculate sample canvas width");
-        state.samples_per_point = 0.1;
-    } else if state.samples_per_point < 0.125 {
-        let samples_len = samples.len() as f32;
-        state.samples_per_point = if samples_len > canvas_rect.width() {
-            (samples_len / canvas_rect.width()).ceil()
-        } else {
-            1.0
-        };
-    }
-
     // limit scroll in case we've been resized
     state.clip_scroll(canvas_rect.width(), samples);
 
@@ -92,8 +89,8 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
                 let max = if min_max.1 < sample { sample } else { min_max.1 };
                 (min, max)
             });
-            let min = samples_y_start + (min_max.0 as f32) * samples_height / (i16::MAX as f32) * 0.45;
-            let max = samples_y_start + (min_max.1 as f32) * samples_height / (i16::MAX as f32) * 0.45;
+            let min = samples_y_start - (min_max.0 as f32) * samples_height / (i16::MAX as f32) * 0.45;
+            let max = samples_y_start - (min_max.1 as f32) * samples_height / (i16::MAX as f32) * 0.45;
             painter.vline(samples_x_start + i as f32, min..=max, sample_stroke);
         }
     } else {
@@ -107,7 +104,7 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
                 0
             };
             point.x = samples_x_start + (i as f32) / state.samples_per_point;
-            point.y = samples_y_start + (sample as f32) * samples_height / (i16::MAX as f32) * 0.45;
+            point.y = samples_y_start - (sample as f32) * samples_height / (i16::MAX as f32) * 0.45;
         }
         painter.line(points, sample_stroke);
     }
@@ -121,6 +118,17 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
     let loop_end_pos = state.get_marker_pos(*loop_end);
     let loop_end_stroke = egui::Stroke::new(3.0, Color32::RED);
     painter.vline(samples_x_start + loop_end_pos, canvas_rect.y_range(), loop_end_stroke);
+
+    // draw parts of start marker again (in case it's under loop end)
+    if (loop_start_pos - loop_end_pos).abs() < 3.0 {
+        let num_frags = 4;
+        for i in 0..num_frags {
+            let frag = canvas_rect.height() / (2.0 * num_frags as f32);
+            let start = canvas_rect.min.y + frag * (2*i + 1) as f32;
+            let end = canvas_rect.min.y + frag * (2*i + 2) as f32;
+            painter.vline(samples_x_start + loop_start_pos, start..=end, loop_start_stroke);
+        }
+    }
 
     // check zoom
     if let (true, Some(hover_pos)) = (
@@ -144,9 +152,9 @@ pub fn sfx_display(ui: &mut egui::Ui, state: &mut SfxDisplayState, samples: &[i1
     if let Some(pointer_pos) = response.interact_pointer_pos() {
         let pos = ((pointer_pos.x - canvas_rect.min.x) * state.samples_per_point + state.first_sample).floor();
         if response.dragged_by(egui::PointerButton::Primary) {
-            *loop_start = pos;
+            *loop_start = pos.max(0.0).min(samples.len() as f32);
         } else if response.dragged_by(egui::PointerButton::Secondary) {
-            *loop_end = pos;
+            *loop_end = pos.max(0.0).min(samples.len() as f32);
         }
     }
 }
