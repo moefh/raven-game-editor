@@ -34,7 +34,7 @@ impl PropertiesDialog {
     }
 
     fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData) {
-        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(egui::Id::new("dlg_mod_properties")).show(wc.egui.ctx, |ui| {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("MOD Properties");

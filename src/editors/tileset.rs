@@ -41,7 +41,7 @@ impl PropertiesDialog {
     }
 
     fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(egui::Id::new("dlg_tileset_properties")).show(wc.egui.ctx, |ui| {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Tileset Properties");

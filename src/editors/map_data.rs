@@ -67,7 +67,7 @@ impl PropertiesDialog {
     fn show(&mut self, wc: &WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         if ! self.open { return; }
 
-        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(egui::Id::new("dlg_map_data_properties")).show(wc.egui.ctx, |ui| {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Map Properties");

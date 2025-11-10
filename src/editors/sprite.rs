@@ -55,7 +55,7 @@ impl PropertiesDialog {
     fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if ! self.open { return false; }
 
-        if egui::Modal::new(egui::Id::new("dlg_about")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(egui::Id::new("dlg_sprite_properties")).show(wc.egui.ctx, |ui| {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Sprite Properties");
