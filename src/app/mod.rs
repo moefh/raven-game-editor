@@ -11,7 +11,7 @@ use crate::misc::TextureManager;
 use crate::misc::SoundPlayer;
 
 const MENU_HEIGHT: f32 = 22.0;
-const FOOTER_HEIGHT: f32 = 24.0;
+const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
 const IMAGE_MENU_SIZE: f32 = 14.0;
@@ -337,7 +337,7 @@ impl RavenEditorApp {
         }
         for anim in self.store.assets.animations.iter_mut() {
             if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
-                editor.show(&win_ctx, anim);
+                editor.show(&mut win_ctx, anim, &self.store.asset_ids.sprites, &mut self.store.assets.sprites);
             }
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
@@ -373,8 +373,13 @@ impl RavenEditorApp {
 impl eframe::App for RavenEditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.reset_egui_context {
-            ctx.memory_mut(|mem| *mem = Default::default());
-            self.setup_egui_context(ctx);
+            ctx.memory_mut(|mem| {
+                // is this enough?
+                mem.reset_areas();
+                mem.data.clear();
+            });
+            //ctx.memory_mut(|mem| *mem = Default::default()); // is this needed?
+            //self.setup_egui_context(ctx);
             self.reset_egui_context = false;
         }
         self.update_dialogs(ctx);

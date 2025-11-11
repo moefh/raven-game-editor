@@ -10,7 +10,7 @@ use tokenizer::{Tokenizer, Token, TokenData, TokenPosition};
 
 use super::{
     StringLogger, DataAssetStore, DataAssetId,
-    SpriteAnimationLoop, ModData, ModSample, ModCell,
+    ModData, ModSample, ModCell,
     RoomMap, RoomEntity, RoomTrigger,
 };
 
@@ -1254,10 +1254,10 @@ impl<'a> ProjectDataReader<'a> {
         Ok(())
     }
 
-    fn read_sprite_animation_loops(&mut self) -> Result<Vec<SpriteAnimationLoop>> {
+    fn read_sprite_animation_loops(&mut self) -> Result<Vec<super::sprite_animation::LoopCreationData>> {
         self.expect_punct('{')?;
 
-        let mut loops = Vec::<SpriteAnimationLoop>::new();
+        let mut loops = Vec::new();
 
         loop {
             let t = self.expect_token()?;
@@ -1270,8 +1270,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let len = self.read_number()?;
 
-            loops.push(SpriteAnimationLoop {
-                name: String::new(),
+            loops.push(super::sprite_animation::LoopCreationData {
                 offset: offset as u16,
                 len: len as u16,
             });
@@ -1637,6 +1636,11 @@ impl<'a> ProjectDataReader<'a> {
                 anim_loop.name.push_str(name);
             } else {
                 return error(format!("animation '{}' doesn't have loop {}", animation.asset.name, index), pos);
+            }
+        }
+        for (index, aloop) in animation.loops.iter_mut().enumerate() {
+            if aloop.name.is_empty() {
+                aloop.name = format!("loop {}", index);
             }
         }
         Ok(())

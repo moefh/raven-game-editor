@@ -16,7 +16,7 @@ pub use tileset::Tileset;
 pub use map_data::MapData;
 pub use room::{Room, RoomMap, RoomEntity, RoomTrigger};
 pub use sprite::Sprite;
-pub use sprite_animation::{SpriteAnimation, SpriteAnimationLoop};
+pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame};
 pub use sfx::Sfx;
 pub use mod_data::{ModData, ModSample, ModCell};
 pub use font::Font;

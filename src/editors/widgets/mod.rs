@@ -1,6 +1,7 @@
 mod color_picker;
 mod map_editor;
 mod sfx_display;
+mod sprite_frame_list_view;
 
 use crate::misc::ImageCollection;
 use crate::data_asset::DataAssetId;
@@ -11,6 +12,7 @@ pub const FULL_UV : Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
 pub use color_picker::{*};
 pub use map_editor::{*};
 pub use sfx_display::{*};
+pub use sprite_frame_list_view::{*};
 
 pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egui::TextureHandle,
                          image: &ImageCollection, selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
