@@ -136,7 +136,7 @@ pub fn image_pixels_prop_font_to_u8(bits: &[u8], widths: &[u8], height: u32, num
                 let block = bits.get(offset + y*stride + x).map_or(0, |&v| v);
                 for ix in 0..8.min(width as i32 - x as i32 * 8) as usize {
                     if block & (1 << ix) != 0 && (x*8 + ix) < max_width {
-                        pixels[((ch * height) + y) * max_width + x*8 + ix] = 0;
+                        pixels[((ch * height) + y) * max_width + x*8 + ix] = 0x20;
                     }
                 }
             }
@@ -147,13 +147,13 @@ pub fn image_pixels_prop_font_to_u8(bits: &[u8], widths: &[u8], height: u32, num
 
 pub fn image_pixels_font_to_u8(bits: &[u8], width: u32, height: u32, num_items: u32) -> Vec<u8> {
     let stride = width.div_ceil(8) as usize;
-    let mut pixels = vec![0x0cu8; (width * height * num_items) as usize];
+    let mut pixels = vec![0x0c; (width * height * num_items) as usize];
     for y in 0..(height * num_items) as usize {
         for x in 0..stride {
             let block = bits.get(y*stride + x).map_or(0, |&v| v);
             for ix in 0..8.min(width as i32 - x as i32 * 8) as usize {
                 if block & (1 << ix) != 0 {
-                    pixels[y * width as usize + x*8 + ix] = 0;
+                    pixels[y * width as usize + x*8 + ix] = 0x20;
                 }
             }
         }
