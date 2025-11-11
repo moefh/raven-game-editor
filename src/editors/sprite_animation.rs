@@ -210,7 +210,7 @@ impl SpriteAnimationEditor {
         });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            let drop_frame = egui::Frame::default().inner_margin(4.0);
+            let drop_frame = egui::Frame::default().inner_margin(2.0);
             if let Some(aloop) = animation.loops.get_mut(self.selected_loop) {
                 ui.take_available_space();
                 ui.columns_const(|[head_ui, foot_ui]| {

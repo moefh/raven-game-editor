@@ -4,7 +4,6 @@ mod sfx_display;
 mod sprite_frame_list_view;
 
 use crate::misc::ImageCollection;
-use crate::data_asset::DataAssetId;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub const FULL_UV : Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
@@ -14,45 +13,41 @@ pub use map_editor::{*};
 pub use sfx_display::{*};
 pub use sprite_frame_list_view::{*};
 
-pub fn image_item_picker(ui: &mut egui::Ui, asset_id: DataAssetId, texture: &egui::TextureHandle,
-                         image: &ImageCollection, selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
+pub fn image_item_picker(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection,
+                         selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
     let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
     egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
-        ui.scope_builder(
-            egui::UiBuilder::new()
-                .id_salt(format!("image_item_picker_{}", asset_id))
-                .sense(Sense::drag()),
-            |ui| {
-                let image_size = zoom * image.get_item_size();
-                let image_picker_size = zoom * image.get_full_size();
-                let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
-                let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
-                let space = response.rect;
-                let canvas_rect = Rect {
-                    min: space.min,
-                    max: space.min + image_picker_size,
-                };
+        let image_size = zoom * image.get_item_size();
+        let image_picker_size = zoom * image.get_full_size();
+        let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
+        let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
+        let space = response.rect;
+        let canvas_rect = Rect {
+            min: space.min,
+            max: space.min + image_picker_size,
+        };
 
-                // draw background
-                painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+        // draw background
+        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
 
-                // draw items
-                Image::from_texture((texture.id(), image_picker_size)).uv(FULL_UV).paint_at(ui, canvas_rect);
+        // draw items
+        Image::from_texture((texture.id(), image_picker_size)).uv(FULL_UV).paint_at(ui, canvas_rect);
 
-                // draw selection rectangle
-                let stroke = egui::Stroke::new(3.0, egui::Color32::BLACK);
-                let mut sel_rect = Rect {
-                    min: canvas_rect.min,
-                    max: canvas_rect.min + image_size,
-                };
-                sel_rect.min.y += (selected_image as f32) * image_size.y;
-                sel_rect.max.y += (selected_image as f32) * image_size.y;
-                painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
+        // draw selection rectangle
+        let stroke = egui::Stroke::new(3.0, egui::Color32::BLACK);
+        let mut sel_rect = Rect {
+            min: canvas_rect.min,
+            max: canvas_rect.min + image_size,
+        };
+        sel_rect.min.y += (selected_image as f32) * image_size.y;
+        sel_rect.max.y += (selected_image as f32) * image_size.y;
+        painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
 
-                let in_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
-                let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
-                painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
-            }).response
+        let in_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+        let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
+        painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
+
+        response
     })
 }
 

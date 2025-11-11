@@ -162,7 +162,7 @@ impl SpriteEditor {
             egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 let picker_zoom = if sprite.width > 100 { 1.0 } else { 2.0 };
-                let scroll = super::widgets::image_item_picker(ui, asset_id, texture, &image, self.selected_frame, picker_zoom);
+                let scroll = super::widgets::image_item_picker(ui, texture, &image, self.selected_frame, picker_zoom);
                 if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
                     let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
                     if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
