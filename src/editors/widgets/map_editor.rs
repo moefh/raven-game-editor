@@ -5,23 +5,43 @@ use egui::emath::GuiRounding;
 
 const TILE_SIZE: Vec2 = Vec2::splat(Tileset::TILE_SIZE as f32);
 
-const LAYER_MAP_FG: u32 = 0;
-//const LAYER_MAP_CL: u32 = 1;
-//const LAYER_MAP_FX: u32 = 2;
-const LAYER_MAP_BG: u32 = 3;
-const LAYER_GRID: u32 = 4;
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+pub enum MapLayer {
+    Foreground,
+    Clip,
+    Effects,
+    Background,
+}
 
-const LAYER_FLAG_MAP_FG: u32 = 1 << LAYER_MAP_FG;
-//const LAYER_FLAG_MAP_CL: u32 = 1 << LAYER_MAP_CL;
-//const LAYER_FLAG_MAP_FX: u32 = 1 << LAYER_MAP_FX;
-const LAYER_FLAG_MAP_BG: u32 = 1 << LAYER_MAP_BG;
-const LAYER_FLAG_GRID: u32 = 1 << LAYER_GRID;
+#[derive(Clone, Copy)]
+pub struct MapDisplay {
+    bits: u8,
+}
+
+impl MapDisplay {
+    const FOREGROUND: u8  = 1 << 0;
+    const CLIP: u8        = 1 << 1;
+    const EFFECTS: u8     = 1 << 2;
+    const BACKGROUND: u8  = 1 << 3;
+    const GRID: u8        = 1 << 4;
+
+    pub fn new(bits: u8) -> Self {
+        MapDisplay {
+            bits,
+        }
+    }
+
+    pub fn has_bits(&self, bits: u8) -> bool {
+        (self.bits & bits) != 0
+    }
+}
 
 pub struct MapEditorState {
     pub zoom: f32,
     pub scroll: Vec2,
-    pub edit_layer: u32,
-    pub display_layers: u32,
+    pub edit_layer: MapLayer,
+    pub display_layers: MapDisplay,
     pub left_draw_tile: u32,
     pub right_draw_tile: u32,
 }
@@ -31,8 +51,8 @@ impl MapEditorState {
         MapEditorState {
             zoom: 2.0,
             scroll: Vec2::ZERO,
-            edit_layer: LAYER_MAP_BG,
-            display_layers: LAYER_FLAG_MAP_FG | LAYER_FLAG_MAP_BG | LAYER_FLAG_GRID,
+            edit_layer: MapLayer::Background,
+            display_layers: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: 0xff,
         }
@@ -56,30 +76,30 @@ impl MapEditorState {
     }
 }
 
-fn get_layer_tile(map_data: &MapData, layer: u32, x: u32, y: u32) -> u32 {
-    if layer == LAYER_MAP_BG && (x >= map_data.bg_width || y >= map_data.bg_height) { return 0xff; }
+fn get_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u32 {
+    if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return 0xff; }
     if x >= map_data.width || y >= map_data.height { return 0xff; }
 
-    let base = layer * map_data.height * map_data.width;
-    if layer == LAYER_MAP_BG {
-        map_data.tiles[(base + map_data.bg_width * y + x) as usize] as u32
-    } else {
-        map_data.tiles[(base + map_data.width * y + x) as usize] as u32
+    match layer {
+        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
     }
 }
 
-fn set_layer_tile(map_data: &mut MapData, x: i32, y: i32, layer: u32, tile: u32) {
+fn set_layer_tile(map_data: &mut MapData, x: i32, y: i32, layer: MapLayer, tile: u32) {
     if x < 0 || y < 0 { return; }
     let x = x as u32;
     let y = y as u32;
-    if layer == LAYER_MAP_BG && (x >= map_data.bg_width || y >= map_data.bg_height) { return; }
+    if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return; }
     if x >= map_data.width || y >= map_data.height { return; }
 
-    let base = layer * map_data.height * map_data.width;
-    if layer == LAYER_MAP_BG {
-        map_data.tiles[(base + map_data.bg_width * y + x) as usize] = tile as u8;
-    } else {
-        map_data.tiles[(base + map_data.width * y + x) as usize] = tile as u8;
+    match layer {
+        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize] = tile as u8,
+        MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] = tile as u8,
+        MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] = tile as u8,
+        MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] = tile as u8,
     }
 }
 
@@ -96,7 +116,6 @@ fn get_tile_rect(x: u32, y: u32, zoom: f32, canvas_pos: Pos2) -> Rect {
 
 pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::TextureHandle,
                   image: &ImageCollection, state: &mut MapEditorState) {
-    //let tile_size = ;
     let min_size = (state.zoom * TILE_SIZE).max(ui.available_size());
     let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
     let response_rect = response.rect;
@@ -129,10 +148,10 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
     painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0xffu8, 0));
 
     // background
-    if (state.display_layers & LAYER_FLAG_MAP_BG) != 0 {
+    if state.display_layers.has_bits(MapDisplay::BACKGROUND) {
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
-                let tile = get_layer_tile(map_data, LAYER_MAP_BG, x, y);
+                let tile = get_layer_tile(map_data, MapLayer::Background, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
                 let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
                 Image::from_texture((texture.id(), TILE_SIZE)).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
@@ -141,10 +160,10 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
     }
 
     // foreground
-    if (state.display_layers & LAYER_FLAG_MAP_FG) != 0 {
+    if state.display_layers.has_bits(MapDisplay::FOREGROUND) {
         for y in 0..map_data.height {
             for x in 0..map_data.width {
-                let tile = get_layer_tile(map_data, LAYER_MAP_FG, x, y);
+                let tile = get_layer_tile(map_data, MapLayer::Foreground, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
                 let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
                 Image::from_texture((texture.id(), TILE_SIZE)).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
@@ -152,9 +171,19 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
         }
     }
 
+    // collision
+    if state.display_layers.has_bits(MapDisplay::CLIP) {
+        // TODO
+    }
+
+    // effects
+    if state.display_layers.has_bits(MapDisplay::EFFECTS) {
+        // TODO
+    }
+
     // grid and border
     let stroke = egui::Stroke::new(1.0, Color32::BLACK);
-    if (state.display_layers & LAYER_FLAG_GRID) != 0 {
+    if state.display_layers.has_bits(MapDisplay::GRID) {
         for y in 0..map_data.height+1 {
             let cy = (canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y%zoomed_tile_size).round_to_pixels(ui.pixels_per_point());
             painter.hline(bg_rect.x_range(), cy, stroke);

@@ -37,7 +37,6 @@ impl std::fmt::Display for Token {
     }
 }
 
-#[allow(dead_code)]
 impl Token {
     fn eof(line: u32) -> Token {
         Token {
@@ -45,7 +44,7 @@ impl Token {
             pos: TokenPosition { line },
         }
     }
-    
+
     fn punct(ch: char, line: u32) -> Token {
         Token {
             data: TokenData::Punct(ch),
@@ -59,7 +58,7 @@ impl Token {
             pos: TokenPosition { line },
         }
     }
-    
+
     fn new_char(ch: String, line: u32) -> Token {
         Token {
             data: TokenData::Char(ch),
@@ -73,27 +72,23 @@ impl Token {
             pos: TokenPosition { line },
         }
     }
-    
+
     fn ident(s: String, line: u32) -> Token {
         Token {
             data: TokenData::Ident(s),
             pos: TokenPosition { line },
         }
     }
-    
+
     fn pre_processor(s: String, line: u32) -> Token {
         Token {
             data: TokenData::PreProcessor(s),
             pos: TokenPosition { line },
         }
     }
-    
+
     pub fn is_eof(&self) -> bool {
         matches!(self.data, TokenData::Eof())
-    }
-    
-    pub fn is_pre_processor(&self) -> bool {
-        matches!(self.data, TokenData::PreProcessor(_))
     }
 
     pub fn is_any_ident(&self) -> bool {
@@ -106,20 +101,6 @@ impl Token {
 
     pub fn is_any_number(&self) -> bool {
         matches!(self.data, TokenData::Number(_))
-    }
-
-    pub fn is_string(&self, s: &str) -> bool {
-        match &self.data {
-            TokenData::String(self_s) => self_s == s,
-            _ => false,
-        }
-    }
-
-    pub fn is_number(&self, n: u64) -> bool {
-        match self.data {
-            TokenData::Number(self_n) => self_n == n,
-            _ => false,
-        }
     }
 
     pub fn is_punct(&self, ch: char) -> bool {
@@ -150,24 +131,16 @@ impl Token {
             _ => None,
         }
     }
-    
-    pub fn get_punct(&self) -> Option<char> {
-        match self.data {
-            TokenData::Punct(c) => Some(c),
-            _ => None,
-        }
-    }
-    
+
     pub fn get_pre_processor(&self) -> Option<&String> {
         match &self.data {
             TokenData::PreProcessor(s) => Some(s),
             _ => None,
         }
     }
-    
+
 }
 
-#[allow(dead_code)]
 pub struct Tokenizer<'a> {
     input: std::str::Chars<'a>,
     unget_data: Option<char>,
@@ -196,7 +169,7 @@ impl<'a> Tokenizer<'a> {
             _ => self.input.next(),
         }
     }
-    
+
     pub fn read(&mut self) -> Result<Token> {
         loop {
             let ch = match self.next_char() {
@@ -212,7 +185,7 @@ impl<'a> Tokenizer<'a> {
                     Some(c) => c,
                     None => return Ok(Token::punct(ch, self.line)),
                 };
-                
+
                 // single-line comment
                 if next == '/' {
                     loop {
@@ -258,7 +231,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 return Ok(Token::pre_processor(value, self.line));
             }
-            
+
             // string or char
             if ch == '"' || ch == '\'' {
                 let start_line = self.line;
@@ -370,7 +343,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 return Ok(Token::ident(value, self.line));
             }
-            
+
             // anything else is considered punctuation
             return Ok(Token::punct(ch, self.line));
         }

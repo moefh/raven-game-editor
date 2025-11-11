@@ -27,7 +27,6 @@ pub struct StringLogger {
     print: bool,
 }
 
-#[allow(dead_code)]
 impl StringLogger {
     pub fn new(print: bool) -> Self {
         StringLogger {
@@ -44,9 +43,11 @@ impl StringLogger {
         }
     }
 
+    /*
     pub fn read(&self) -> &str {
         &self.log
     }
+    */
 
     pub fn modify(&mut self) -> &mut String {
         &mut self.log

@@ -62,9 +62,9 @@ pub fn show_message_box(ctx: &egui::Context, title: &str, text: &str) -> egui::M
         ui.set_width(350.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading(title);
-            ui.add_space(16.0);
-            ui.label(text);
-            ui.add_space(16.0);
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                ui.label(text);
+            });
             if ui.button("OK").clicked() {
                 ui.close();
             }

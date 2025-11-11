@@ -88,7 +88,6 @@ pub struct ReadData {
     rooms_by_name: HashMap<String, DataAssetId>,
 }
 
-#[allow(dead_code)]
 pub struct ProjectDataReader<'a> {
     logger: &'a mut StringLogger,
     store: &'a mut DataAssetStore,

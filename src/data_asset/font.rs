@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub struct Font {
     pub asset: super::DataAsset,
     pub width: u32,

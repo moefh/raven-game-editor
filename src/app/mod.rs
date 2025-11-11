@@ -10,6 +10,9 @@ use crate::misc::WindowContext;
 use crate::misc::TextureManager;
 use crate::misc::SoundPlayer;
 
+pub use dialogs::AppDialogs;
+pub use windows::AppWindows;
+
 const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
@@ -21,8 +24,8 @@ pub struct RavenEditorApp {
     reset_egui_context: bool,
     store: DataAssetStore,
     logger: StringLogger,
-    dialogs: dialogs::AppDialogs,
-    windows: windows::AppWindows,
+    dialogs: AppDialogs,
+    windows: AppWindows,
     editors: editors::AssetEditors,
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
@@ -313,7 +316,7 @@ impl RavenEditorApp {
                 y: content_rect.max.y - FOOTER_HEIGHT,
             },
         };
-        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager);
+        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager, &mut self.dialogs);
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
