@@ -42,14 +42,19 @@ impl AppDialogs {
 
 pub fn show_about_dialog(ctx: &egui::Context) -> egui::ModalResponse<()> {
     egui::Modal::new(egui::Id::new("dlg_about")).show(ctx, |ui| {
-        ui.set_width(250.0);
+        ui.set_width(400.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading("About Raven Game Editor");
-            ui.add_space(16.0);
+            ui.separator();
+            ui.add_space(12.0);
             ui.add(egui::Image::new(IMAGES.pico).max_width(32.0).max_height(32.0));
             ui.add_space(16.0);
             ui.label("Copyright (C) 2025 MoeFH");
-            ui.add_space(16.0);
+            ui.add_space(8.0);
+            ui.label("Source code released under the MIT license at");
+            ui.add_space(5.0);
+            ui.hyperlink("https://github.com/moefh/raven-game-editor/");
+            ui.add_space(20.0);
             if ui.button("Close").clicked() {
                 ui.close();
             }
@@ -62,6 +67,7 @@ pub fn show_message_box(ctx: &egui::Context, title: &str, text: &str) -> egui::M
         ui.set_width(350.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading(title);
+            ui.separator();
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 ui.label(text);
             });

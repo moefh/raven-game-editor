@@ -17,7 +17,7 @@ pub fn show_log_window(ctx: &egui::Context, window_space: egui::Rect, window_ope
         .max_height(window_space.max.y - window_space.min.y)
         .constrain_to(window_space)
         .open(window_open).show(ctx, |ui| {
-            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).stick_to_bottom(true).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true), |ui| {
                     ui.label(log_text);
                 });
