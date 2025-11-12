@@ -237,10 +237,8 @@ impl PropertiesDialog {
                     if ui.button("Cancel").clicked() {
                         ui.close();
                     }
-                    if ui.button("Ok").clicked() {
-                        if self.confirm(wc, map_data) {
-                            ui.close();
-                        }
+                    if ui.button("Ok").clicked() && self.confirm(wc, map_data) {
+                        ui.close();
                     }
                 });
             });

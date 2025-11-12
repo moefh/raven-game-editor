@@ -2,16 +2,44 @@ mod color_picker;
 mod map_editor;
 mod sfx_display;
 mod sprite_frame_list_view;
+mod room_editor;
+mod map_view;
 
 use crate::misc::ImageCollection;
+use crate::data_asset::MapData;
+
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub const FULL_UV : Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
+pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;
 
 pub use color_picker::{*};
 pub use map_editor::{*};
 pub use sfx_display::{*};
 pub use sprite_frame_list_view::{*};
+pub use room_editor::{*};
+pub use map_view::{*};
+
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+pub enum MapLayer {
+    Foreground,
+    Clip,
+    Effects,
+    Background,
+}
+
+fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u32 {
+    if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return 0xff; }
+    if x >= map_data.width || y >= map_data.height { return 0xff; }
+
+    match layer {
+        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] as u32,
+        MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
+    }
+}
 
 pub fn image_item_picker(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection,
                          selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {

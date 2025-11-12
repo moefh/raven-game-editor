@@ -17,8 +17,9 @@ const MENU_HEIGHT: f32 = 22.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
-const IMAGE_MENU_SIZE: f32 = 14.0;
-const IMAGE_TREE_SIZE: f32 = 20.0;
+pub const IMAGE_MENU_SIZE: f32 = 14.0;
+pub const NO_IMAGE_TREE_SIZE: f32 = 25.0;
+pub const IMAGE_TREE_SIZE: f32 = 20.0;
 
 pub struct RavenEditorApp {
     reset_egui_context: bool,
@@ -218,7 +219,7 @@ impl RavenEditorApp {
                     ui.separator();
                     ui.horizontal(|ui| {
                         //ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        ui.add_space(22.0);
+                        ui.add_space(NO_IMAGE_TREE_SIZE);
                         if ui.button("Log Window").clicked() {
                             self.windows.log_window_open = true;
                         }
@@ -277,7 +278,7 @@ impl RavenEditorApp {
                                         });
                                         ui.separator();
                                         ui.horizontal(|ui| {
-                                            ui.add_space(22.0);
+                                            ui.add_space(NO_IMAGE_TREE_SIZE);
                                             if ui.button(asset_def.remove_menu_item).clicked() {
                                                 remove_asset = Some(id);
                                             }
@@ -329,8 +330,13 @@ impl RavenEditorApp {
             }
         }
         for room in self.store.assets.rooms.iter_mut() {
+            let assets = crate::editors::RoomEditorAssetLists::new(
+                &self.store.assets.maps,
+                &self.store.assets.tilesets,
+                &self.store.assets.animations,
+                &self.store.assets.sprites);
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) {
-                editor.show(&win_ctx, room, &self.store.asset_ids, &self.store.assets.maps, &self.store.assets.animations);
+                editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
             }
         }
         for sprite in self.store.assets.sprites.iter_mut() {

@@ -11,7 +11,7 @@ mod widgets;
 
 pub use tileset::TilesetEditor;
 pub use map_data::MapDataEditor;
-pub use room::RoomEditor;
+pub use room::{RoomEditor, RoomEditorAssetLists};
 pub use sprite::SpriteEditor;
 pub use sprite_animation::SpriteAnimationEditor;
 pub use sfx::SfxEditor;
