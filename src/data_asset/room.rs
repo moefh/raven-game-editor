@@ -1,7 +1,6 @@
 #[allow(unused)]
 #[derive(Clone)]
 pub struct RoomMap {
-    pub name: String,
     pub x: u16,
     pub y: u16,
     pub map_id: super::DataAssetId,
@@ -85,4 +84,35 @@ impl super::GenericAsset for Room {
 
         header + maps + entities + triggers
     }
+}
+
+#[allow(unused)]
+pub trait RoomItem {
+    fn name(&self) -> &str;
+    fn x(&self) -> i16;
+    fn y(&self) -> i16;
+    fn data0(&self) -> u16;
+    fn data1(&self) -> u16;
+    fn data2(&self) -> u16;
+    fn data3(&self) -> u16;
+}
+
+impl RoomItem for RoomEntity {
+    fn name(&self) -> &str { &self.name }
+    fn x(&self) -> i16 { self.x }
+    fn y(&self) -> i16 { self.y }
+    fn data0(&self) -> u16 { self.data0 }
+    fn data1(&self) -> u16 { self.data1 }
+    fn data2(&self) -> u16 { self.data2 }
+    fn data3(&self) -> u16 { self.data3 }
+}
+
+impl RoomItem for RoomTrigger {
+    fn name(&self) -> &str { &self.name }
+    fn x(&self) -> i16 { self.x }
+    fn y(&self) -> i16 { self.y }
+    fn data0(&self) -> u16 { self.data0 }
+    fn data1(&self) -> u16 { self.data1 }
+    fn data2(&self) -> u16 { self.data2 }
+    fn data3(&self) -> u16 { self.data3 }
 }

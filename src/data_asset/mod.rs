@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 pub use tileset::Tileset;
 pub use map_data::MapData;
-pub use room::{Room, RoomMap, RoomEntity, RoomTrigger};
+pub use room::{Room, RoomMap, RoomEntity, RoomTrigger, RoomItem};
 pub use sprite::Sprite;
 pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame};
 pub use sfx::Sfx;
@@ -69,7 +69,7 @@ impl Rect {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct DataAssetId {
     id: u32,
 }

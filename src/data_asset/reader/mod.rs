@@ -1370,7 +1370,6 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
 
             maps.push(RoomMap {
-                name: String::new(),
                 x,
                 y,
                 map_id,
@@ -1683,11 +1682,11 @@ impl<'a> ProjectDataReader<'a> {
         };
         self.logger.log(&format!("-> reading room trigger names for '{}':", room.asset.name));
         for (index, name) in names.iter().enumerate() {
-            if let Some(ent) = room.entities.get_mut(index) {
+            if let Some(trg) = room.triggers.get_mut(index) {
                 self.logger.log(&format!("  -> {}", name));
-                ent.name.push_str(name);
+                trg.name.push_str(name);
             } else {
-                return error(format!("room '{}' doesn't have entity {}", room.asset.name, index), pos);
+                return error(format!("room '{}' doesn't have trigger {}", room.asset.name, index), pos);
             }
         }
         Ok(())
