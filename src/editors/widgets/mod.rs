@@ -29,6 +29,30 @@ pub enum MapLayer {
     Background,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
+pub enum RectBorder {
+    Left,
+    TopLeft,
+    Top,
+    TopRight,
+    Right,
+    BottomRight,
+    Bottom,
+    BottomLeft,
+}
+
+impl RectBorder {
+    pub fn cursor(&self) -> egui::CursorIcon {
+        match self {
+            RectBorder::Left | RectBorder::Right => egui::CursorIcon::ResizeHorizontal,
+            RectBorder::Top | RectBorder::Bottom => egui::CursorIcon::ResizeVertical,
+            RectBorder::TopLeft | RectBorder::BottomRight => egui::CursorIcon::ResizeNwSe,
+            RectBorder::TopRight | RectBorder::BottomLeft => egui::CursorIcon::ResizeNeSw,
+        }
+    }
+}
+
 fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u32 {
     if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return 0xff; }
     if x >= map_data.width || y >= map_data.height { return 0xff; }

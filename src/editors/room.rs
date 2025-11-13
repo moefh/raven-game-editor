@@ -26,12 +26,56 @@ impl<'a> RoomEditorAssetLists<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RoomItemRef {
     None,
     Map(usize),
     Entity(usize),
     Trigger(usize),
+}
+
+#[allow(dead_code)]
+impl RoomItemRef {
+    pub fn is_none(&self) -> bool {
+        matches!(self, RoomItemRef::None)
+    }
+
+    pub fn is_some(&self) -> bool {
+        ! self.is_none()
+    }
+
+    pub fn is_map(&self) -> bool {
+        matches!(self, RoomItemRef::Map(_))
+    }
+
+    pub fn is_entity(&self) -> bool {
+        matches!(self, RoomItemRef::Entity(_))
+    }
+
+    pub fn is_trigger(&self) -> bool {
+        matches!(self, RoomItemRef::Trigger(_))
+    }
+
+    pub fn is_the_map(&self, map_index: usize) -> bool {
+        match self {
+            RoomItemRef::Map(sel_map) => *sel_map == map_index,
+            _ => false,
+        }
+    }
+
+    pub fn is_the_entity(&self, ent_index: usize) -> bool {
+        match self {
+            RoomItemRef::Entity(sel_entity) => *sel_entity == ent_index,
+            _ => false,
+        }
+    }
+
+    pub fn is_the_trigger(&self, trg_index: usize) -> bool {
+        match self {
+            RoomItemRef::Trigger(sel_trigger) => *sel_trigger == trg_index,
+            _ => false,
+        }
+    }
 }
 
 fn edit_prop_i16(ui: &mut egui::Ui, value: &mut i16, min: i16, max: i16) {
@@ -158,8 +202,9 @@ impl RoomEditor {
                 if let Some(map) = maps.get(&room_map.map_id) {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                        let resp = ui.button(&map.asset.name);
-                        if resp.clicked() {
+                        let mut selected = self.room_editor_state.selected_item.is_the_map(map_index);
+                        let resp = ui.toggle_value(&mut selected, &map.asset.name);
+                        if resp.clicked() || resp.secondary_clicked() {
                             sel_map = Some(map_index);
                         }
                         egui::Popup::context_menu(&resp).show(|ui| {
@@ -194,8 +239,9 @@ impl RoomEditor {
             for (ent_index, ent) in room.entities.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let resp = ui.button(&ent.name);
-                    if resp.clicked() {
+                    let mut selected = self.room_editor_state.selected_item.is_the_entity(ent_index);
+                    let resp = ui.toggle_value(&mut selected, &ent.name);
+                    if resp.clicked() || resp.secondary_clicked() {
                         sel_entity = Some(ent_index);
                     }
                     egui::Popup::context_menu(&resp).show(|ui| {
@@ -236,8 +282,9 @@ impl RoomEditor {
             for (trg_index, trg) in room.triggers.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let resp = ui.button(&trg.name);
-                    if resp.clicked() {
+                    let mut selected = self.room_editor_state.selected_item.is_the_trigger(trg_index);
+                    let resp = ui.toggle_value(&mut selected, &trg.name);
+                    if resp.clicked() || resp.secondary_clicked() {
                         sel_trigger = Some(trg_index);
                     }
                     egui::Popup::context_menu(&resp).show(|ui| {
@@ -332,11 +379,11 @@ impl RoomEditor {
                     ui.end_row();
 
                     ui.label("X:");
-                    edit_prop_i16(ui, &mut entity.x, -256, 1024);
+                    edit_prop_i16(ui, &mut entity.x, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Y:");
-                    edit_prop_i16(ui, &mut entity.y, -256, 1024);
+                    edit_prop_i16(ui, &mut entity.y, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Data0:");
@@ -376,19 +423,19 @@ impl RoomEditor {
                     ui.end_row();
 
                     ui.label("X:");
-                    edit_prop_i16(ui, &mut trigger.x, -256, 1024);
+                    edit_prop_i16(ui, &mut trigger.x, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Y:");
-                    edit_prop_i16(ui, &mut trigger.y, -256, 1024);
+                    edit_prop_i16(ui, &mut trigger.y, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Width:");
-                    edit_prop_u16(ui, &mut trigger.width, 0, u16::MAX);
+                    edit_prop_i16(ui, &mut trigger.width, 0, i16::MAX);
                     ui.end_row();
 
                     ui.label("Height:");
-                    edit_prop_u16(ui, &mut trigger.height, 0, u16::MAX);
+                    edit_prop_i16(ui, &mut trigger.height, 0, i16::MAX);
                     ui.end_row();
 
                     ui.label("Data0:");
@@ -425,9 +472,11 @@ impl RoomEditor {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, room);
         }
-        if self.map_selection_dialog.open {
-            self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets);
-        }
+        if self.map_selection_dialog.open &&
+            self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets) &&
+            self.room_editor_state.selected_item.is_map() {
+                self.room_editor_state.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
+            }
 
         let asset_id = room.asset.id;
         let title = format!("{} - Room", room.asset.name);
@@ -570,11 +619,14 @@ impl MapSelectionDialog {
         self.open = true;
     }
 
-    fn confirm(&mut self, room: &mut Room) {
+    fn confirm(&mut self, room: &mut Room) -> bool {
         // remove maps not in selection
+        let size = room.maps.len();
         room.maps.retain(|m| self.sel_map_ids.contains(&m.map_id));
+        let changed = size != room.maps.len();
 
         // add selected maps that are not in the room
+        let size = room.maps.len();
         for &map_id in self.sel_map_ids.iter() {
             if ! room.maps.iter().any(|m| m.map_id == map_id) {
                 room.maps.push(RoomMap {
@@ -584,13 +636,18 @@ impl MapSelectionDialog {
                 });
             }
         }
+        let changed = changed || (size != room.maps.len());
 
-        room.maps.sort_by(|m1, m2| m1.map_id.cmp(&m2.map_id));
+        if changed {
+            room.maps.sort_by(|m1, m2| m1.map_id.cmp(&m2.map_id));
+        }
+        changed
     }
 
     fn show(&mut self, wc: &mut WindowContext, room: &mut Room, all_map_ids: &AssetIdList,
-            maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
-        if egui::Modal::new(egui::Id::new("dlg_room_maps")).show(wc.egui.ctx, |ui| {
+            maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
+        let mut maps_changed = false;
+        let modal_response = egui::Modal::new(egui::Id::new("dlg_room_maps")).show(wc.egui.ctx, |ui| {
             let asset_id = room.asset.id;
             egui::TopBottomPanel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(2.0);
@@ -605,7 +662,7 @@ impl MapSelectionDialog {
                         ui.close();
                     }
                     if ui.button("Ok").clicked() {
-                        self.confirm(room);
+                        maps_changed = self.confirm(room);
                         ui.close();
                     }
                 });
@@ -650,9 +707,12 @@ impl MapSelectionDialog {
                         super::widgets::map_view(ui, wc, map_data, tileset);
                     }
             });
-
-        }).should_close() {
+            maps_changed
+        });
+        if modal_response.should_close() {
             self.open = false;
+            return modal_response.inner;
         }
+        false
     }
 }
