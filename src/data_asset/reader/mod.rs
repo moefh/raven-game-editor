@@ -1449,9 +1449,9 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let y = self.read_number()? as i16;
             self.expect_punct(',')?;
-            let width = self.read_number()? as u16;
+            let width = self.read_number()? as i16;
             self.expect_punct(',')?;
-            let height = self.read_number()? as u16;
+            let height = self.read_number()? as i16;
             self.expect_punct(',')?;
             let data0 = self.read_number()? as u16;
             self.expect_punct(',')?;
