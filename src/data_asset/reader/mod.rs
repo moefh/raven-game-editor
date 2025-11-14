@@ -257,15 +257,15 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn handle_pre_processor_define(&mut self, name: &str, value: &str) {
-        self.logger.log(&format!("-> ignoring define '{}' = '{}'", name, value));
+        self.logger.log(format!("-> ignoring define '{}' = '{}'", name, value));
     }
 
     fn handle_pre_processor_if(&mut self, line: &str) {
-        self.logger.log(&format!("-> ignoring pre-processor if line: {}", line));
+        self.logger.log(format!("-> ignoring pre-processor if line: {}", line));
     }
 
     fn handle_pre_processor_other(&mut self, line: &str) {
-        self.logger.log(&format!("-> ignoring unknown pre-processor line: {}", line));
+        self.logger.log(format!("-> ignoring unknown pre-processor line: {}", line));
     }
 
     fn handle_pre_processor_non_define(&mut self, line: &str) {
@@ -380,8 +380,8 @@ impl<'a> ProjectDataReader<'a> {
                                         if vga_sync_bits > 0xff {
                                             return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), t.pos);
                                         }
-                                        self.logger.log(&format!("-> got project prefix '{}'", prefix.as_str()));
-                                        self.logger.log(&format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
+                                        self.logger.log(format!("-> got project prefix '{}'", prefix.as_str()));
+                                        self.logger.log(format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
                                         self.prefix_upper.push_str(prefix.as_str());
                                         self.prefix_upper.push('_');
                                         self.prefix_upper.make_ascii_uppercase();
@@ -584,7 +584,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got font data '{}'", name));
+        self.logger.log(format!("-> got font data '{}'", name));
         self.read_data.font_data.insert(name.to_string(), data);
 
         Ok(())
@@ -628,7 +628,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_font_from(name.to_string(), data) {
                 self.read_data.fonts.push(id);
                 self.read_data.fonts_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added font '{}' id={}", name, id));
+                self.logger.log(format!("-> added font '{}' id={}", name, id));
             } else {
                 return error(format!("error adding font '{}'", name), ident.pos)?;
             }
@@ -651,7 +651,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got font data '{}'", name));
+        self.logger.log(format!("-> got font data '{}'", name));
         self.read_data.prop_font_data.insert(name.to_string(), data);
 
         Ok(())
@@ -698,7 +698,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_prop_font_from(name.to_string(), data) {
                 self.read_data.prop_fonts.push(id);
                 self.read_data.prop_fonts_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added prop font '{}' id={}", name, id));
+                self.logger.log(format!("-> added prop font '{}' id={}", name, id));
             } else {
                 return error(format!("error adding prop font '{}'", name), data_ident.pos)?;
             }
@@ -721,7 +721,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got mod sample data '{}'", name));
+        self.logger.log(format!("-> got mod sample data '{}'", name));
         self.read_data.mod_sample_data.insert(name.to_string(), data);
         Ok(())
     }
@@ -760,7 +760,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got mod pattern '{}'", name));
+        self.logger.log(format!("-> got mod pattern '{}'", name));
         self.read_data.mod_patterns.insert(name.to_string(), pattern);
         Ok(())
     }
@@ -878,7 +878,7 @@ impl<'a> ProjectDataReader<'a> {
         if let Some(id) = self.store.add_mod_from(name.to_string(), data) {
             self.read_data.mods.push(id);
             self.read_data.mods_by_name.insert(name.to_string(), id);
-            self.logger.log(&format!("-> added mod '{}' id={}", name, id));
+            self.logger.log(format!("-> added mod '{}' id={}", name, id));
         } else {
             return error(format!("error adding mod '{}'", name), pattern_ident.pos)?;
         }
@@ -919,7 +919,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got sfx sample data '{}'", name));
+        self.logger.log(format!("-> got sfx sample data '{}'", name));
         self.read_data.sfx_sample_data.insert(name.to_string(), data);
 
         Ok(())
@@ -980,7 +980,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_sfx_from(name.to_string(), data) {
                 self.read_data.sfxs.push(id);
                 self.read_data.sfxs_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added sfx '{}' id={}", name, id));
+                self.logger.log(format!("-> added sfx '{}' id={}", name, id));
             } else {
                 error(format!("error adding sfx '{}'", full_name), data_ident.pos)?
             }
@@ -1003,7 +1003,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got tileset data '{}'", name));
+        self.logger.log(format!("-> got tileset data '{}'", name));
         self.read_data.tileset_data.insert(name.to_string(), data);
 
         Ok(())
@@ -1066,7 +1066,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_tileset_from(name.to_string(), data) {
                 self.read_data.tilesets.push(id);
                 self.read_data.tilesets_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added tileset '{}' id={}", name, id));
+                self.logger.log(format!("-> added tileset '{}' id={}", name, id));
             } else {
                 return error(format!("error adding tileset '{}'", name), ident.pos)?;
             }
@@ -1089,7 +1089,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got sprite data '{}'", name));
+        self.logger.log(format!("-> got sprite data '{}'", name));
         self.read_data.sprite_data.insert(name.to_string(), data);
 
         Ok(())
@@ -1150,7 +1150,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_sprite_from(name.to_string(), data) {
                 self.read_data.sprites.push(id);
                 self.read_data.sprites_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added sprite '{}' id={}", name, id));
+                self.logger.log(format!("-> added sprite '{}' id={}", name, id));
             } else {
                 return error(format!("error adding sprite '{}'", name), ident.pos)?;
             }
@@ -1173,7 +1173,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got map tiles '{}'", name));
+        self.logger.log(format!("-> got map tiles '{}'", name));
         self.read_data.map_tiles.insert(name.to_string(), data);
         Ok(())
     }
@@ -1225,7 +1225,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_map_from(name.to_string(), data) {
                 self.read_data.maps.push(id);
                 self.read_data.maps_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
+                self.logger.log(format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
             } else {
                 return error(format!("error adding map '{}'", name), ident.pos)?;
             }
@@ -1248,7 +1248,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got sprite animations frames '{}'", name));
+        self.logger.log(format!("-> got sprite animations frames '{}'", name));
         self.read_data.animation_frames.insert(name.to_string(), data);
         Ok(())
     }
@@ -1333,7 +1333,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_animation_from(name.to_string(), data) {
                 self.read_data.animations.push(id);
                 self.read_data.animations_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
+                self.logger.log(format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
             } else {
                 return error(format!("error adding sprite animation '{}' with sprite id '{}'", name, sprite_id), t.pos)?;
             }
@@ -1378,7 +1378,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got room maps '{}'", name));
+        self.logger.log(format!("-> got room maps '{}'", name));
         self.read_data.room_maps.insert(name.to_string(), maps);
         Ok(())
     }
@@ -1426,7 +1426,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got room entities '{}'", name));
+        self.logger.log(format!("-> got room entities '{}'", name));
         self.read_data.room_entities.insert(name.to_string(), entities);
         Ok(())
     }
@@ -1477,7 +1477,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(&format!("-> got room triggers '{}'", name));
+        self.logger.log(format!("-> got room triggers '{}'", name));
         self.read_data.room_triggers.insert(name.to_string(), triggers);
         Ok(())
     }
@@ -1555,7 +1555,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_room_from(name.to_string(), data) {
                 self.read_data.rooms.push(id);
                 self.read_data.rooms_by_name.insert(name.to_string(), id);
-                self.logger.log(&format!("-> added room '{}' id={}", name, id));
+                self.logger.log(format!("-> added room '{}' id={}", name, id));
             } else {
                 return error(format!("error adding room '{}'", name), maps_ident.pos)?;
             }
@@ -1627,10 +1627,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: animation id {} not found", id), pos); }
         };
-        self.logger.log(&format!("-> reading sprite animation loop names for '{}':", animation.asset.name));
+        self.logger.log(format!("-> reading sprite animation loop names for '{}':", animation.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(anim_loop) = animation.loops.get_mut(index) {
-                self.logger.log(&format!("  -> {}", name));
+                self.logger.log(format!("  -> {}", name));
                 anim_loop.name.push_str(name);
             } else {
                 return error(format!("animation '{}' doesn't have loop {}", animation.asset.name, index), pos);
@@ -1660,10 +1660,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(&format!("-> reading room entity names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading room entity names for '{}':", room.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(ent) = room.entities.get_mut(index) {
-                self.logger.log(&format!("  -> {}", name));
+                self.logger.log(format!("  -> {}", name));
                 ent.name.push_str(name);
             } else {
                 return error(format!("room '{}' doesn't have entity {}", room.asset.name, index), pos);
@@ -1680,10 +1680,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(&format!("-> reading room trigger names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading room trigger names for '{}':", room.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(trg) = room.triggers.get_mut(index) {
-                self.logger.log(&format!("  -> {}", name));
+                self.logger.log(format!("  -> {}", name));
                 trg.name.push_str(name);
             } else {
                 return error(format!("room '{}' doesn't have trigger {}", room.asset.name, index), pos);
@@ -1728,7 +1728,7 @@ impl<'a> ProjectDataReader<'a> {
                     if let Some(name) = self.get_global_upper_of_type(ident, name) && name == "COUNT" {
                         got_count = true;
                     } else if let Some(item_name) = self.get_global_upper_of_type(ident, &name_with_id) {
-                        self.logger.log(&format!("-> got {} asset id '{}'", name, item_name));
+                        self.logger.log(format!("-> got {} asset id '{}'", name, item_name));
                     } else {
                         return error(format!("invalid asset ID: {}", ident), pos);
                     }
@@ -1745,7 +1745,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct(';')?;
 
         if ! got_count {
-            self.logger.log(&format!("-> WARNING: asset ids for {} doesn't end with COUNT", ident));
+            self.logger.log(format!("-> WARNING: asset ids for {} doesn't end with COUNT", ident));
         }
 
         Ok(())
@@ -1912,9 +1912,16 @@ impl<'a> ProjectDataReader<'a> {
 }
 
 pub fn read_project<P: AsRef<Path> + ?Sized>(filename: &P, store: &mut DataAssetStore, logger: &mut StringLogger) -> Result<()> {
-    let data = fs::read_to_string(filename)?;
+    logger.log(format!("-> reading file {}", filename.as_ref().display()));
 
-    logger.log(&format!("-> reading file {}", filename.as_ref().display()));
+    let data = match fs::read_to_string(filename) {
+        Ok(data) => data,
+        Err(e) => {
+            logger.log(format!("ERROR: {}", e));
+            return Err(e);
+        }
+    };
+
     let mut reader = ProjectDataReader::new(&data, store, logger);
     match reader.read_project() {
         Ok(()) => {
@@ -1922,7 +1929,7 @@ pub fn read_project<P: AsRef<Path> + ?Sized>(filename: &P, store: &mut DataAsset
             Ok(())
         },
         Err(e) => {
-            logger.log(&format!("ERROR: {}", e));
+            logger.log(format!("ERROR: {}", e));
             Err(e)
         }
     }

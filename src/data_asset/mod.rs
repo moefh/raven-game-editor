@@ -35,11 +35,11 @@ impl StringLogger {
         }
     }
 
-    pub fn log(&mut self, msg: &str) {
-        self.log.push_str(msg);
+    pub fn log<S: AsRef<str>>(&mut self, msg: S) {
+        self.log.push_str(msg.as_ref());
         self.log.push('\n');
         if self.print {
-            println!("{}", msg);
+            println!("{}", msg.as_ref());
         }
     }
 
