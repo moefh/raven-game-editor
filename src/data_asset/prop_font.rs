@@ -16,6 +16,8 @@ pub struct CreationData<'a> {
 impl PropFont {
     pub const FIRST_CHAR: u32 = 32;
     pub const NUM_CHARS: u32 = 96;
+    pub const BG_COLOR: u8 = 0x0c;
+    pub const FG_COLOR: u8 = 0x20;
 
     pub fn new(asset: super::DataAsset) -> Self {
         let height = 8;

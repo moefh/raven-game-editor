@@ -10,7 +10,7 @@ use tokenizer::{Tokenizer, Token, TokenData, TokenPosition};
 
 use super::{
     StringLogger, DataAssetStore, DataAssetId,
-    ModData, ModSample, ModCell,
+    PropFont, ModData, ModSample, ModCell,
     RoomMap, RoomEntity, RoomTrigger,
 };
 
@@ -678,6 +678,13 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
+            if char_widths.len() != PropFont::NUM_CHARS as usize {
+                error(format!("invalid prop font char widths length: expected {}, fount {}", PropFont::NUM_CHARS, char_widths.len()), t.pos)?
+            }
+            if char_offsets.len() != PropFont::NUM_CHARS as usize {
+                error(format!("invalid prop font char offsets length: expected {}, fount {}", PropFont::NUM_CHARS, char_offsets.len()), t.pos)?
+            }
+
             let full_name = match data_ident.get_ident() {
                 Some(ident) => ident,
                 None => { return error_expected("prop_font_data_...", &t)?; },
@@ -1141,11 +1148,12 @@ impl<'a> ProjectDataReader<'a> {
                               data.len(), want_len, stride, height, num_frames), t.pos)?;
             }
 
+            let div_ignore_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
             let data = super::sprite::CreationData {
                 width,
                 height,
-                num_frames: num_frames / 2,    // ignore mirrors frames
-                data: &data[0..data.len()/2],
+                num_frames: num_frames / div_ignore_mirrors,
+                data: &data[0..data.len() / div_ignore_mirrors as usize],
             };
             if let Some(id) = self.store.add_sprite_from(name.to_string(), data) {
                 self.read_data.sprites.push(id);
@@ -1906,12 +1914,22 @@ impl<'a> ProjectDataReader<'a> {
 
             error(format!("unexpected '{}'", t), t.pos)?;
         }
+
+        // name unnamed animation loops
+        for anim in self.store.assets.animations.iter_mut() {
+            for (index, aloop) in anim.loops.iter_mut().enumerate() {
+                if aloop.name == "" {
+                    aloop.name = format!("loop {}", index);
+                }
+            }
+        }
+
         Ok(())
     }
 
 }
 
-pub fn read_project<P: AsRef<Path> + ?Sized>(filename: &P, store: &mut DataAssetStore, logger: &mut StringLogger) -> Result<()> {
+pub fn read_project<P: AsRef<Path>>(filename: P, store: &mut DataAssetStore, logger: &mut StringLogger) -> Result<()> {
     logger.log(format!("-> reading file {}", filename.as_ref().display()));
 
     let data = match fs::read_to_string(filename) {
@@ -1925,7 +1943,7 @@ pub fn read_project<P: AsRef<Path> + ?Sized>(filename: &P, store: &mut DataAsset
     let mut reader = ProjectDataReader::new(&data, store, logger);
     match reader.read_project() {
         Ok(()) => {
-            logger.log("-> DONE: project read");
+            logger.log("DONE: project read");
             Ok(())
         },
         Err(e) => {

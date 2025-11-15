@@ -14,6 +14,8 @@ pub struct CreationData<'a> {
 }
 
 impl Sprite {
+    pub const MIRROR_FRAMES: bool = true;
+
     pub fn new(asset: super::DataAsset) -> Self {
         Sprite {
             asset,

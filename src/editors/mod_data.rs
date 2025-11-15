@@ -155,6 +155,10 @@ impl ModDataEditor {
                                 });
                             ui.end_row();
 
+                            ui.label("Length:");
+                            ui.label(format!("{}", sample.len));
+                            ui.end_row();
+
                             ui.label("Loop start:");
                             ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sample_data.len() as f32));
                             ui.end_row();

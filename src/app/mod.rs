@@ -24,6 +24,7 @@ pub const IMAGE_TREE_SIZE: f32 = 20.0;
 pub struct RavenEditorApp {
     reset_egui_context: bool,
     store: DataAssetStore,
+    filename: Option<std::path::PathBuf>,
     logger: StringLogger,
     dialogs: AppDialogs,
     windows: AppWindows,
@@ -38,6 +39,7 @@ impl RavenEditorApp {
         let app = RavenEditorApp {
             reset_egui_context: false,
             store: DataAssetStore::new(),
+            filename: None,
             logger: StringLogger::new(false),
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
@@ -49,7 +51,7 @@ impl RavenEditorApp {
         app
     }
 
-    pub fn from_file<P: AsRef<std::path::Path> + ?Sized>(cc: &eframe::CreationContext<'_>, path: &P) -> Self {
+    pub fn from_file<P: AsRef<std::path::Path>>(cc: &eframe::CreationContext<'_>, path: P) -> Self {
         let mut app = Self::new(cc);
         app.open(&path);
         app
@@ -65,17 +67,47 @@ impl RavenEditorApp {
         ctx.set_theme(egui::ThemePreference::Light);
     }
 
-    pub fn open<P: AsRef<std::path::Path> + ?Sized>(&mut self, path: &P) {
+    pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
         let mut store = crate::data_asset::DataAssetStore::new();
         match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
                 self.load_project(store);
+                self.filename = Some(path.as_ref().to_path_buf());
             },
             Err(_) => {
                 self.dialogs.open_message_box("Error Reading Project",
                                               "Error reading project.\n\nConsult the log window for details.");
-                self.windows.log_window_open = true;  // show log with detailed error
+                self.windows.log_window_open = true;
             }
+        }
+    }
+
+    fn write_project(&mut self, path: &std::path::Path) -> bool {
+        match crate::data_asset::writer::write_project(path, &self.store, &mut self.logger) {
+            Ok(()) => true,
+            Err(_) => {
+                self.dialogs.open_message_box("Error Writing Project",
+                                              "Error writing project.\n\nConsult the log window for details.");
+                self.windows.log_window_open = true;
+                false
+            }
+        }
+    }
+
+    pub fn save_as(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("Raven project files (*.h)", &["h"])
+            .add_filter("All files (*)", &[""])
+            .save_file() &&
+            self.write_project(&path) {
+                self.filename = Some(path.to_path_buf());
+            }
+    }
+
+    pub fn save(&mut self) {
+        match &self.filename {
+            Some(p) => { self.write_project(&p.clone()); }
+            None => { self.save_as(); }
         }
     }
 
@@ -184,12 +216,46 @@ impl RavenEditorApp {
 
     fn update_menu(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
+            let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
+            if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
+                self.save();
+            }
+            let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
+            if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.new).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        if ui.button("New").clicked() {
+                            // TODO: ask confirmation
+                            self.load_project(crate::data_asset::DataAssetStore::new());
+                        }
+                    });
+                    ui.separator();
+                    ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Open...").clicked() && let Some(path) = rfd::FileDialog::new().pick_file() {
-                            self.open(&path);
+                        if ui.button("Open...").clicked() &&
+                            let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Raven project files (*.h)", &["h"])
+                            .add_filter("All files (*)", &[""])
+                            .pick_file() {
+                                self.open(&path);
+                            }
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        if ui.add(egui::Button::new("Save").shortcut_text(ui.ctx().format_shortcut(&file_save_shortcut))).clicked() {
+                            self.save();
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        if ui.button("Save As...").clicked() {
+                            self.save_as();
                         }
                     });
                     ui.separator();
@@ -218,7 +284,13 @@ impl RavenEditorApp {
                     }
                     ui.separator();
                     ui.horizontal(|ui| {
-                        //ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        if ui.button("Properties...").clicked() {
+                            self.windows.properties_open = true;
+                        }
+                    });
+                    ui.separator();
+                    ui.horizontal(|ui| {
                         ui.add_space(NO_IMAGE_TREE_SIZE);
                         if ui.button("Log Window").clicked() {
                             self.windows.log_window_open = true;
@@ -372,6 +444,9 @@ impl RavenEditorApp {
 
         if self.windows.settings_open {
             self.windows.show_settings(ctx, window_space);
+        }
+        if self.windows.properties_open {
+            self.windows.show_properties(ctx, window_space, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
         }
         if self.windows.log_window_open {
             self.windows.show_log_window(ctx, window_space, self.logger.modify());
