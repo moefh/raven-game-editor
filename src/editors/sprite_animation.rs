@@ -164,7 +164,8 @@ impl SpriteAnimationEditor {
 
                         ui.label("Length:");
                         ui.horizontal(|ui| {
-                            if ui.button("\u{2796}").clicked() && aloop.frame_indices.len() > 1 {
+                            let min_frames = if self.selected_loop == 0 { 1 } else { 0 };
+                            if ui.button("\u{2796}").clicked() && aloop.frame_indices.len() > min_frames {
                                 aloop.frame_indices.pop();
                             }
                             ui.label(format!("{}", aloop.frame_indices.len()));

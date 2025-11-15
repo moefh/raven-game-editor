@@ -706,7 +706,7 @@ impl<'a> ProjectDataWriter<'a> {
         for (loop_index, aloop) in anim.loops.iter().enumerate() {
             let use_loop_name = if aloop.name == "names" { "names0" } else { &aloop.name };
             IdentStore::add_unique_name(loop_index, use_loop_name, &mut loop_names);
-            if aloop.frame_indices.len() == 0 { continue; }
+            if aloop.frame_indices.is_empty() { continue; }
             self.write(format!("  // {}\n  ", aloop.name));
             for frame in aloop.frame_indices.iter() {
                 self.write(format!("{:#04x},", frame.head_index.unwrap_or(0xff)));
@@ -766,7 +766,7 @@ impl<'a> ProjectDataWriter<'a> {
                         Error::other(format!("can't find loop name {} for animation {}", loop_index, id))
                     })?;
                     let loop_offset = info.loop_offsets.get(loop_index).copied().unwrap_or(last_offset);
-                    if aloop.frame_indices.len() > 0 {
+                    if ! aloop.frame_indices.is_empty() {
                         self.write(format!("      {{ {:>5}, {:>5} }}, // {}\n", loop_offset, aloop.frame_indices.len(), loop_name));
                     } else {
                         self.write(format!("      {{ {:>5}, {:>5} }},\n", loop_offset, aloop.frame_indices.len()));
@@ -801,7 +801,7 @@ impl<'a> ProjectDataWriter<'a> {
                     let loop_name = info.loop_names.get(&loop_index).ok_or_else(|| {
                         Error::other(format!("error reading name for loop {} of animation {}", loop_index, id))
                     })?;
-                    if ! RE_UNNAMED_LOOP.is_match(&loop_name) {
+                    if ! RE_UNNAMED_LOOP.is_match(loop_name) {
                         num_named_loops = loop_index + 1;
                         break;
                     }

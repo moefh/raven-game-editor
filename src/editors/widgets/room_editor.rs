@@ -426,6 +426,10 @@ pub fn room_editor(ui: &mut egui::Ui, wc: &mut WindowContext, state: &mut RoomEd
     ui.shrink_clip_rect(canvas_rect);
     draw_outline_rect(&painter, canvas_rect);
 
+    if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
+        return; // nothing to do!
+    }
+
     // limit scroll in case we've been resized
     state.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
 

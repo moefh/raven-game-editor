@@ -10,7 +10,7 @@ use crate::misc::WindowContext;
 use crate::misc::TextureManager;
 use crate::misc::SoundPlayer;
 
-pub use dialogs::AppDialogs;
+pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 
 const MENU_HEIGHT: f32 = 22.0;
@@ -20,6 +20,12 @@ const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 pub const IMAGE_MENU_SIZE: f32 = 14.0;
 pub const NO_IMAGE_TREE_SIZE: f32 = 25.0;
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
+
+#[derive(Clone, Copy)]
+enum ConfirmationDialogAction {
+    None,
+    NewProject,
+}
 
 pub struct RavenEditorApp {
     reset_egui_context: bool,
@@ -31,6 +37,7 @@ pub struct RavenEditorApp {
     editors: editors::AssetEditors,
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
+    confirmation_dialog_action: ConfirmationDialogAction,
 }
 
 impl RavenEditorApp {
@@ -46,6 +53,7 @@ impl RavenEditorApp {
             editors: editors::AssetEditors::new(),
             tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
+            confirmation_dialog_action: ConfirmationDialogAction::None,
         };
         app.setup_egui_context(&cc.egui_ctx);
         app
@@ -75,8 +83,8 @@ impl RavenEditorApp {
                 self.filename = Some(path.as_ref().to_path_buf());
             },
             Err(_) => {
-                self.dialogs.open_message_box("Error Reading Project",
-                                              "Error reading project.\n\nConsult the log window for details.");
+                self.open_message_box("Error Reading Project",
+                                      "Error reading project.\n\nConsult the log window for details.");
                 self.windows.log_window_open = true;
             }
         }
@@ -86,8 +94,8 @@ impl RavenEditorApp {
         match crate::data_asset::writer::write_project(path, &self.store, &mut self.logger) {
             Ok(()) => true,
             Err(_) => {
-                self.dialogs.open_message_box("Error Writing Project",
-                                              "Error writing project.\n\nConsult the log window for details.");
+                self.open_message_box("Error Writing Project",
+                                      "Error writing project.\n\nConsult the log window for details.");
                 self.windows.log_window_open = true;
                 false
             }
@@ -96,6 +104,7 @@ impl RavenEditorApp {
 
     pub fn save_as(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
+            .set_title("Save Project As")
             .add_filter("Raven project files (*.h)", &["h"])
             .add_filter("All files (*)", &[""])
             .save_file() &&
@@ -137,9 +146,9 @@ impl RavenEditorApp {
 
     fn remove_asset(&mut self, id: DataAssetId) {
         if let Some(editor) = self.editors.get_editor(id) && editor.open {
-            self.dialogs.open_message_box("Editor Open", "This asset is open for editing.\n\nClose the editor to delete it.");
+            self.open_message_box("Editor Open", "This asset is open for editing.\n\nClose the editor to delete it.");
         } else if self.store.assets.asset_has_dependents(id) {
-            self.dialogs.open_message_box("Asset Has Dependents", "This asset is being used.");
+            self.open_message_box("Asset Has Dependents", "This asset is being used.");
         } else {
             self.store.remove_asset(id);
             self.editors.remove_editor(id);
@@ -159,7 +168,7 @@ impl RavenEditorApp {
                         self.editors.add_map(id);
                     }
                 } else {
-                    self.dialogs.open_message_box("No Tileset Available", "You must create a tileset first!");
+                    self.open_message_box("No Tileset Available", "You must create a tileset first!");
                 }
             },
             DataAssetType::Room => {
@@ -178,7 +187,7 @@ impl RavenEditorApp {
                         self.editors.add_animation(id);
                     }
                 } else {
-                    self.dialogs.open_message_box("No Sprite Available", "You must create a sprite first!");
+                    self.open_message_box("No Sprite Available", "You must create a sprite first!");
                 }
             },
             DataAssetType::Sfx => {
@@ -204,6 +213,24 @@ impl RavenEditorApp {
         }
     }
 
+    fn open_message_box(&mut self, title: &str, text: &str) {
+        self.dialogs.open_message_box(title, text);
+    }
+
+    fn open_confirmation_dialog_for(&mut self, action: ConfirmationDialogAction) {
+        self.confirmation_dialog_action = action;
+        match action {
+            ConfirmationDialogAction::NewProject => {
+                self.dialogs.open_confirmation_dialog("New Project", "Close current project and start a new one?", "Yes", "No");
+            }
+            ConfirmationDialogAction::None => {}
+        };
+    }
+
+    fn open_about_dialog(&mut self) {
+        self.dialogs.open_about();
+    }
+
     fn update_dialogs(&mut self, ctx: &egui::Context) {
         if self.dialogs.about_open {
             self.dialogs.show_about(ctx);
@@ -212,6 +239,18 @@ impl RavenEditorApp {
         if self.dialogs.message_box_open {
             self.dialogs.show_message_box(ctx);
         }
+
+        if self.dialogs.confirmation_dialog_open &&
+            matches!(self.dialogs.show_confirmation_dialog(ctx), ConfirmationDialogResult::Yes) {
+                match self.confirmation_dialog_action {
+                    ConfirmationDialogAction::NewProject => {
+                        self.load_project(crate::data_asset::DataAssetStore::new());
+                        self.filename = None;
+                    }
+                    ConfirmationDialogAction::None => {}
+                };
+                self.confirmation_dialog_action = ConfirmationDialogAction::None;
+            }
     }
 
     fn update_menu(&mut self, ctx: &egui::Context) {
@@ -220,18 +259,17 @@ impl RavenEditorApp {
             if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
                 self.save();
             }
-            let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
-            if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
+            //let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
+            //if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
+            //    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            //}
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("New").clicked() {
-                            // TODO: ask confirmation
-                            self.load_project(crate::data_asset::DataAssetStore::new());
+                            self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
                         }
                     });
                     ui.separator();
@@ -239,6 +277,7 @@ impl RavenEditorApp {
                         ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Open...").clicked() &&
                             let Some(path) = rfd::FileDialog::new()
+                            .set_title("Open Project")
                             .add_filter("Raven project files (*.h)", &["h"])
                             .add_filter("All files (*)", &[""])
                             .pick_file() {
@@ -299,7 +338,7 @@ impl RavenEditorApp {
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("About").clicked() {
-                        self.dialogs.open_about();
+                        self.open_about_dialog();
                     }
                 });
             });

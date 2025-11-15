@@ -1918,7 +1918,7 @@ impl<'a> ProjectDataReader<'a> {
         // name unnamed animation loops
         for anim in self.store.assets.animations.iter_mut() {
             for (index, aloop) in anim.loops.iter_mut().enumerate() {
-                if aloop.name == "" {
+                if aloop.name.is_empty() {
                     aloop.name = format!("loop {}", index);
                 }
             }
