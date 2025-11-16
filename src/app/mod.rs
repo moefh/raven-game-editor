@@ -470,7 +470,7 @@ impl RavenEditorApp {
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) {
-                editor.show(&win_ctx, sfx, &mut self.sound_player);
+                editor.show(&mut win_ctx, sfx, &mut self.sound_player);
             }
         }
         for mod_data in self.store.assets.mods.iter_mut() {

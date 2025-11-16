@@ -86,7 +86,7 @@ impl ModDataEditor {
 
                 egui::Grid::new(format!("editor_{}_sample_grid", asset_id)).num_columns(2).show(ui, |ui| {
                     // properties
-                    egui::CollapsingHeader::new("Properties").default_open(true).show(ui, |ui| {
+                    egui::CollapsingHeader::new("Sample").default_open(true).show(ui, |ui| {
                         egui::Grid::new(format!("editor_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
                             ui.label("Bits/sample:");
                             egui::ComboBox::from_id_salt(format!("editor_{}_bps_combo", asset_id))

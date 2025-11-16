@@ -22,6 +22,14 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
+    pub fn skip(&mut self, len: usize) -> Result<()> {
+        if self.pos + len > self.data.len() {
+            return Err(Error::other("skip past end of buffer"));
+        }
+        self.pos += len;
+        Ok(())
+    }
+
     pub fn read_u8(&mut self) -> Result<u8> {
         if self.pos+1 > self.data.len() {
             return Err(Error::other("read past end of buffer"));
@@ -29,10 +37,6 @@ impl<'a> Reader<'a> {
         let data = self.data[self.pos];
         self.pos += 1;
         Ok(data)
-    }
-
-    pub fn read_i8(&mut self) -> Result<i8> {
-        Ok(self.read_u8()? as i8)
     }
 
     pub fn read_u16_be(&mut self) -> Result<u16> {
@@ -63,6 +67,11 @@ impl<'a> Reader<'a> {
         Ok((b4 << 24) | (b3 << 16) | (b2 << 8) | b1)
     }
 
+    pub fn read_f32_le(&mut self) -> Result<f32> {
+        let bits = self.read_u32_le()?;
+        Ok(f32::from_bits(bits))
+    }
+
     pub fn read_bytes(&mut self, data: &mut [u8]) -> Result<()> {
         let len = data.len();
         if self.pos+len > self.data.len() {
@@ -83,5 +92,11 @@ impl<'a> Reader<'a> {
         }
         self.pos += len;
         Ok(())
+    }
+
+    pub fn read_byte_vec(&mut self, len: usize) -> Result<Vec<u8>> {
+        let mut v = vec![0; len];
+        self.read_bytes(&mut v)?;
+        Ok(v)
     }
 }

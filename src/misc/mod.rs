@@ -4,6 +4,7 @@ pub mod image_table;
 pub mod texture_manager;
 pub mod window_context;
 pub mod mod_utils;
+pub mod wav_utils;
 pub mod reader;
 
 pub use image_table::{IMAGES, IMAGE_REFS};

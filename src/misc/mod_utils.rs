@@ -46,14 +46,14 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
         } else if y != 0 {
             Some(format!("continue slide to note, sliding volume down by {}", y))
         } else {
-            Some(format!("continue slide to note, sliding volume by the last value"))
+            Some("continue slide to note, sliding volume by the last value".to_owned())
         },
         0x6 => if x != 0 {
             Some(format!("continue vibrato, sliding volume up by {}", x))
         } else if y != 0 {
             Some(format!("continue vibrato, sliding volume down by {}", y))
         } else {
-            Some(format!("continue vibrato, sliding volume by the last value"))
+            Some("continue vibrato, sliding volume by the last value".to_owned())
         },
         0x7 => {
             if x == 0 && y == 0 {
@@ -71,7 +71,7 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
                             if xy < 128 { "left" } else { "right" }
         )),
         0x9 => if xy == 0 {
-            Some("set sample offset (ignored)".to_string())
+            Some("set sample offset (ignored because offset=0)".to_string())
         } else {
             Some(format!("set sample offset (start at offset {})", xy*0x100))
         },
