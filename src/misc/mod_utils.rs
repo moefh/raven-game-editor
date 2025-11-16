@@ -1,3 +1,7 @@
+use std::io::{Result, Error};
+use std::path::Path;
+
+use crate::data_asset::{ModSample, ModCell};
 
 pub const NOTE_NAMES: &[&str] = &[ "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" ];
 pub const WAVEFORM_NAMES: &[&str] = &[ "sine", "ramp down", "square", "random" ];
@@ -39,13 +43,17 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
         },
         0x5 => if x != 0 {
             Some(format!("continue slide to note, sliding volume up by {}", x))
-        } else {
+        } else if y != 0 {
             Some(format!("continue slide to note, sliding volume down by {}", y))
+        } else {
+            Some(format!("continue slide to note, sliding volume by the last value"))
         },
         0x6 => if x != 0 {
             Some(format!("continue vibrato, sliding volume up by {}", x))
-        } else {
+        } else if y != 0 {
             Some(format!("continue vibrato, sliding volume down by {}", y))
+        } else {
+            Some(format!("continue vibrato, sliding volume by the last value"))
         },
         0x7 => {
             if x == 0 && y == 0 {
@@ -116,5 +124,143 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
             Some(format!("set speed to {} BPM", xy))
         },
         _ => None,
+    }
+}
+
+#[allow(dead_code)]
+pub struct ModFile {
+    pub title: String,
+    pub sample_names: Vec<String>,
+    pub id: [u8; 4],
+
+    pub samples: Vec<ModSample>,
+    pub pattern: Vec<ModCell>,
+    pub song_positions: Vec<u8>,
+    pub num_channels: u8,
+}
+
+#[allow(dead_code)]
+impl ModFile {
+
+    fn display_mod_id(id: &[u8]) -> String {
+        let mut s = String::new();
+        for b in id {
+            if (*b as char).is_ascii_alphanumeric() {
+                s.push(*b as char);
+            } else {
+                s.push_str(&format!("\\x{:02x}", *b));
+            }
+        }
+        s
+    }
+
+    pub fn read<P: AsRef<Path>>(filename: P) -> Result<ModFile> {
+        let data = std::fs::read(filename)?;
+
+        let mut r = super::reader::Reader::new(&data);
+
+        // read ID for num channels and num samples
+        r.seek(1080)?;
+        let mut mod_id = [0; 4];
+        r.read_bytes(&mut mod_id)?;
+        let (num_channels, num_samples) = match &mod_id {
+            b"M.K." | b"M!K!" | b"4CHN" | b"FLT4" => {
+                (4, 31)
+            }
+
+            b"6CHN" => {
+                (6, 31)
+            }
+
+            b"8CHN" | b"FLT8" => {
+                (8, 31)
+            }
+
+            _ => {
+                return Err(Error::other(format!("file doesn't look like a MOD file (id='{}')",
+                                                Self::display_mod_id(&mod_id))));
+            }
+        };
+
+        r.seek(0)?;
+
+        // read title, sample names, and sample info
+        let mut title = String::new();
+        r.read_string(&mut title, 20)?;
+
+        let mut samples = Vec::new();
+        let mut sample_names = Vec::new();
+        for _ in 0..num_samples {
+            let mut sample_name = String::new();
+            r.read_string(&mut sample_name, 22)?;
+
+            let len = r.read_u16_be()? as u32 * 2;
+            let finetune = r.read_u8()?;
+            let volume = r.read_u8()?;
+            let loop_start = r.read_u16_be()? as u32 * 2;
+            let loop_len = r.read_u16_be()? as u32 * 2;
+
+            sample_names.push(sample_name);
+            samples.push(ModSample {
+                len,
+                loop_start,
+                loop_len,
+                finetune: if finetune > 7 { finetune as i8 - 16 } else { finetune as i8 },
+                volume,
+                bits_per_sample: 8,
+                data: None,
+            });
+        }
+
+        // read song positions
+        r.seek(950)?;
+        let num_song_positions = r.read_u8()?;
+        r.read_u8()?;  // ignore (restart song position?)
+        let mut song_positions = vec![0; 128];
+        r.read_bytes(&mut song_positions[0..128])?;
+        song_positions.truncate(num_song_positions as usize);
+
+        // read pattern
+        r.seek(1084)?;
+        let num_patterns = song_positions.iter().max().unwrap_or(&0) + 1;
+        let mut pattern = Vec::new();
+        for _pat in 0..num_patterns {
+            for _row in 0..64 {
+                for _ch in 0..num_channels {
+                    let data0 = r.read_u8()? as u16;
+                    let data1 = r.read_u8()? as u16;
+                    let data2 = r.read_u8()? as u16;
+                    let data3 = r.read_u8()? as u16;
+
+                    pattern.push(ModCell {
+                        sample: ((data0 & 0xf0) | (data2 >> 4)) as u8,
+                        period: ((data0 & 0x0f) << 8) | data1,
+                        effect: ((data2 & 0x0f) << 8) | data3,
+                    });
+                }
+            }
+        }
+
+        // read sample data
+        for sample in samples.iter_mut() {
+            if sample.len > 0 {
+                let mut data = vec![0; sample.len as usize];
+                for spl in data.iter_mut() {
+                    let val = r.read_u8()? as u16;
+                    *spl = ((val << 8) | val) as i16;
+                }
+                sample.data = Some(data);
+            }
+        }
+
+        Ok(ModFile {
+            title,
+            sample_names,
+            id: mod_id,
+            samples,
+            song_positions,
+            num_channels,
+            pattern,
+        })
     }
 }

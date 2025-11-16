@@ -428,7 +428,7 @@ impl RavenEditorApp {
                 y: content_rect.max.y - FOOTER_HEIGHT,
             },
         };
-        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager, &mut self.dialogs);
+        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager, &mut self.dialogs, &mut self.logger);
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
@@ -467,7 +467,7 @@ impl RavenEditorApp {
         }
         for mod_data in self.store.assets.mods.iter_mut() {
             if let Some(editor) = self.editors.mods.get_mut(&mod_data.asset.id) {
-                editor.show(&win_ctx, mod_data, &mut self.sound_player);
+                editor.show(&mut win_ctx, mod_data, &mut self.sound_player);
             }
         }
         for font in self.store.assets.fonts.iter_mut() {

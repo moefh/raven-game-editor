@@ -9,63 +9,6 @@ use super::widgets::SfxDisplayState;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
 
-struct PropertiesDialog {
-    open: bool,
-    name: String,
-}
-
-impl PropertiesDialog {
-    fn new() -> Self {
-        PropertiesDialog {
-            open: false,
-            name: String::new(),
-        }
-    }
-
-    fn set_open(&mut self, mod_data: &ModData) {
-        self.name.clear();
-        self.name.push_str(&mod_data.asset.name);
-        self.open = true;
-    }
-
-    fn confirm(&mut self, mod_data: &mut ModData) {
-        mod_data.asset.name.clear();
-        mod_data.asset.name.push_str(&self.name);
-    }
-
-    fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData) {
-        if egui::Modal::new(egui::Id::new("dlg_mod_properties")).show(wc.egui.ctx, |ui| {
-            ui.set_width(250.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("MOD Properties");
-                ui.add_space(16.0);
-
-                egui::Grid::new(format!("editor_panel_{}_prop_grid", mod_data.asset.id))
-                    .num_columns(2)
-                    .spacing([8.0, 8.0])
-                    .show(ui, |ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut self.name);
-                        ui.end_row();
-                    });
-
-                ui.add_space(16.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(mod_data);
-                        ui.close();
-                    }
-                });
-            });
-        }).should_close() {
-            self.open = false;
-        }
-    }
-}
-
 enum EditorTabs {
     Samples,
     Patterns,
@@ -333,7 +276,24 @@ impl ModDataEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+    fn import_mod(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &mut ModData) {
+        match mod_utils::ModFile::read(filename) {
+            Ok(mod_file) => {
+                mod_data.samples = mod_file.samples;
+                mod_data.pattern = mod_file.pattern;
+                mod_data.song_positions = mod_file.song_positions;
+                mod_data.num_channels = mod_file.num_channels;
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading MOD file from {}:", filename.display()));
+                wc.logger.log(format!("{}", e));
+                wc.dialogs.open_message_box("Error importing MOD", "Error importing MOD file.\n\nConsult the log window for more information.");
+            }
+        }
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, mod_data);
         }
@@ -341,12 +301,24 @@ impl ModDataEditor {
         let asset_id = mod_data.asset.id;
         let title = format!("{} - MOD", mod_data.asset.name);
         let window = super::create_editor_window(asset_id, &title, wc);
-        let mut asset_open = self.asset.open;
-        window.open(&mut asset_open).min_size([600.0, 220.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
+        let mut editor_open = self.asset.open;
+        let mut import_mod = None;
+        window.open(&mut editor_open).min_size([600.0, 220.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("MOD", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                            if ui.button("Import...").clicked() {
+                                import_mod = rfd::FileDialog::new()
+                                    .set_title("Import MOD file")
+                                    .add_filter("MOD files (*.mod)", &["mod"])
+                                    .add_filter("All files (*)", &[""])
+                                    .pick_file();
+                            }
+                        });
+                        ui.separator();
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                             if ui.button("Properties...").clicked() {
@@ -380,6 +352,66 @@ impl ModDataEditor {
                 EditorTabs::Patterns => self.patterns_tab(ui, wc, mod_data, sound_player),
             };
         });
-        self.asset.open = asset_open;
+        self.asset.open = editor_open;
+        if let Some(filename) = import_mod {
+            self.import_mod(wc, &filename, mod_data);
+        }
+    }
+}
+
+struct PropertiesDialog {
+    open: bool,
+    name: String,
+}
+
+impl PropertiesDialog {
+    fn new() -> Self {
+        PropertiesDialog {
+            open: false,
+            name: String::new(),
+        }
+    }
+
+    fn set_open(&mut self, mod_data: &ModData) {
+        self.name.clear();
+        self.name.push_str(&mod_data.asset.name);
+        self.open = true;
+    }
+
+    fn confirm(&mut self, mod_data: &mut ModData) {
+        mod_data.asset.name.clear();
+        mod_data.asset.name.push_str(&self.name);
+    }
+
+    fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData) {
+        if egui::Modal::new(egui::Id::new("dlg_mod_properties")).show(wc.egui.ctx, |ui| {
+            ui.set_width(250.0);
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                ui.heading("MOD Properties");
+                ui.add_space(16.0);
+
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", mod_data.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
+                    });
+
+                ui.add_space(16.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui.button("Cancel").clicked() {
+                        ui.close();
+                    }
+                    if ui.button("Ok").clicked() {
+                        self.confirm(mod_data);
+                        ui.close();
+                    }
+                });
+            });
+        }).should_close() {
+            self.open = false;
+        }
     }
 }
