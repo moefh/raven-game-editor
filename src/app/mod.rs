@@ -31,6 +31,7 @@ pub struct RavenEditorApp {
     reset_egui_context: bool,
     store: DataAssetStore,
     filename: Option<std::path::PathBuf>,
+    filename_changed: bool,
     logger: StringLogger,
     dialogs: AppDialogs,
     windows: AppWindows,
@@ -47,6 +48,7 @@ impl RavenEditorApp {
             reset_egui_context: false,
             store: DataAssetStore::new(),
             filename: None,
+            filename_changed: true,
             logger: StringLogger::new(false),
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
@@ -80,7 +82,8 @@ impl RavenEditorApp {
         match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
                 self.load_project(store);
-                self.filename = Some(path.as_ref().to_path_buf());
+                self.set_filename(Some(path.as_ref().to_path_buf()));
+
             },
             Err(_) => {
                 self.open_message_box("Error Reading Project",
@@ -109,7 +112,7 @@ impl RavenEditorApp {
             .add_filter("All files (*)", &[""])
             .save_file() &&
             self.write_project(&path) {
-                self.filename = Some(path.to_path_buf());
+                self.set_filename(Some(path.to_path_buf()));
             }
     }
 
@@ -126,6 +129,11 @@ impl RavenEditorApp {
         self.store = store;
         self.editors.create_editors_for_new_store(&self.store);
         self.reset_egui_context = true;
+    }
+
+    fn set_filename(&mut self, filename: Option<std::path::PathBuf>) {
+        self.filename = filename;
+        self.filename_changed = true;
     }
 
     fn new_asset_name(&self, asset_type: DataAssetType) -> String {
@@ -245,7 +253,7 @@ impl RavenEditorApp {
                 match self.confirmation_dialog_action {
                     ConfirmationDialogAction::NewProject => {
                         self.load_project(crate::data_asset::DataAssetStore::new());
-                        self.filename = None;
+                        self.set_filename(None);
                     }
                     ConfirmationDialogAction::None => {}
                 };
@@ -504,6 +512,17 @@ impl eframe::App for RavenEditorApp {
             //ctx.memory_mut(|mem| *mem = Default::default()); // is this needed?
             //self.setup_egui_context(ctx);
             self.reset_egui_context = false;
+        }
+        if self.filename_changed {
+            let title = match &self.filename {
+                Some(path) => match path.as_path().file_name() {
+                    Some(filename) => format!("[{}] - Raven Game Editor", filename.display()).to_string(),
+                    None => "[???] - Raven Game Editor".to_owned(),
+                }
+                None => "<unnamed> - Raven Game Editor".to_owned()
+            };
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
+            self.filename_changed = false;
         }
         self.update_dialogs(ctx);
         self.update_menu(ctx);
