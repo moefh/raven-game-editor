@@ -6,6 +6,7 @@ pub mod window_context;
 pub mod mod_utils;
 pub mod wav_utils;
 pub mod reader;
+pub mod writer;
 
 pub use image_table::{IMAGES, IMAGE_REFS};
 pub use window_context::WindowContext;

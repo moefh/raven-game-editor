@@ -45,6 +45,7 @@ image_table! {
     save: "../../assets/SaveIcon.png",
     properties: "../../assets/PropertiesIcon.png",
     import: "../../assets/ImportIcon.png",
+    export: "../../assets/ExportIcon.png",
     chicken: "../../assets/ChickenIcon.png",
     tileset: "../../assets/TilesetIcon.png",
     map_data: "../../assets/MapIcon.png",

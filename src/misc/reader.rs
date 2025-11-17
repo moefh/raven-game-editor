@@ -99,4 +99,10 @@ impl<'a> Reader<'a> {
         self.read_bytes(&mut v)?;
         Ok(v)
     }
+
+    pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N]> {
+        let mut v = [0; N];
+        self.read_bytes(&mut v)?;
+        Ok(v)
+    }
 }

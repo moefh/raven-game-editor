@@ -1,7 +1,7 @@
 use std::io::{Result, Error};
 use std::path::Path;
 
-use crate::data_asset::{ModSample, ModCell};
+use crate::data_asset::{ModData, ModSample, ModCell};
 
 pub const NOTE_NAMES: &[&str] = &[ "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" ];
 pub const WAVEFORM_NAMES: &[&str] = &[ "sine", "ramp down", "square", "random" ];
@@ -129,14 +129,24 @@ pub fn get_effect_description(effect: u16, note: i32, song_positions: &[u8]) -> 
 
 #[allow(dead_code)]
 pub struct ModFile {
-    pub title: String,
-    pub sample_names: Vec<String>,
+    pub title: [u8; 20],
+    pub sample_names: Vec<[u8; 22]>,
     pub id: [u8; 4],
 
     pub samples: Vec<ModSample>,
     pub pattern: Vec<ModCell>,
     pub song_positions: Vec<u8>,
     pub num_channels: u8,
+}
+
+struct WriteModFile<'a> {
+    title: &'a [u8],
+    sample_names: &'a [[u8; 22]],
+
+    samples: &'a [ModSample],
+    pattern: &'a [ModCell],
+    song_positions: &'a [u8],
+    num_channels: u8,
 }
 
 #[allow(dead_code)]
@@ -172,7 +182,7 @@ impl ModFile {
                 (6, 31)
             }
 
-            b"8CHN" | b"FLT8" => {
+            b"8CHN" => {
                 (8, 31)
             }
 
@@ -185,15 +195,12 @@ impl ModFile {
         r.seek(0)?;
 
         // read title, sample names, and sample info
-        let mut title = String::new();
-        r.read_string(&mut title, 20)?;
+        let title = r.read_array::<20>()?;
 
         let mut samples = Vec::new();
         let mut sample_names = Vec::new();
         for _ in 0..num_samples {
-            let mut sample_name = String::new();
-            r.read_string(&mut sample_name, 22)?;
-
+            let sample_name = r.read_array::<22>()?;
             let len = r.read_u16_be()? as u32 * 2;
             let finetune = r.read_u8()?;
             let volume = r.read_u8()?;
@@ -262,5 +269,95 @@ impl ModFile {
             num_channels,
             pattern,
         })
+    }
+
+    pub fn write_mod_data<P: AsRef<Path>>(filename: P, mod_data: &ModData) -> Result<()> {
+        let title = filename.as_ref().file_prefix().map(|f| f.as_encoded_bytes()).unwrap_or_else(|| { &[] });
+        Self::write_mod(filename.as_ref(), &WriteModFile {
+            title: &title,
+            sample_names: &[],
+            samples: &mod_data.samples,
+            pattern: &mod_data.pattern,
+            song_positions: &mod_data.song_positions,
+            num_channels: mod_data.num_channels,
+        })
+    }
+
+    pub fn write_mod_file<P: AsRef<Path>>(filename: P, mod_file: &ModFile) -> Result<()> {
+        Self::write_mod(filename.as_ref(), &WriteModFile {
+            title: &mod_file.title,
+            sample_names: &mod_file.sample_names,
+            samples: &mod_file.samples,
+            pattern: &mod_file.pattern,
+            song_positions: &mod_file.song_positions,
+            num_channels: mod_file.num_channels,
+        })
+    }
+
+    fn write_mod(filename: &Path, mod_file: &WriteModFile) -> Result<()> {
+        let mut w = super::writer::Writer::new();
+
+        // title and sample info
+        w.write_n_bytes(&mod_file.title, b' ', 20);
+        for (sample_index, sample) in mod_file.samples.iter().enumerate().take(31) {
+            let sample_name = mod_file.sample_names.get(sample_index).unwrap_or_else(|| { &[b' '; 22] });
+            let has_data = sample.data.is_some();
+
+            w.write_n_bytes(sample_name, b' ', 22);
+            if sample.len.div_ceil(2) > u16::MAX as u32 {
+                return Err(Error::other(format!("sample {} is too long: max len is {}", sample_index+1, u16::MAX as u32 * 2)));
+            }
+            w.write_u16_be(if has_data { sample.len.div_ceil(2) as u16 } else { 0 });
+            w.write_u8(if sample.finetune >= 0 { sample.finetune } else { sample.finetune + 16 } as u8);
+            w.write_u8(if sample.volume > 0x3f { 0x3f } else { sample.volume });
+            w.write_u16_be(if has_data { sample.loop_start.div_ceil(2) as u16 } else { 0 });
+            w.write_u16_be(if has_data { sample.loop_len.div_ceil(2) as u16 } else { 0 });
+        }
+        for _ in mod_file.samples.len()..31 {
+            w.write_n_bytes(&[], b' ', 22);
+            w.write_u16_be(0);  // len
+            w.write_u8(0);      // finetune
+            w.write_u8(0);      // volume
+            w.write_u16_be(0);  // loop_start
+            w.write_u16_be(0);  // loop_len
+        }
+
+        // song positions
+        w.write_u8(mod_file.song_positions.len() as u8);
+        w.write_u8(0);
+        w.write_n_bytes(&mod_file.song_positions, 0, 128);
+
+        // tag
+        match mod_file.num_channels {
+            4 => { w.write_bytes(b"M.K."); }
+            6 => { w.write_bytes(b"6CHN"); }
+            8 => { w.write_bytes(b"8CHN"); }
+            _ => { return Err(Error::other("unsupported number of channels (supported: 4, 6, 8)".to_owned())); }
+        };
+
+        // patterns
+        for cell in mod_file.pattern.iter() {
+            let cell_data = [
+                (((cell.period >> 8) & 0x0f) as u8 | (cell.sample        & 0xf0)) as u8,
+                (cell.period & 0xff) as u8,
+                (((cell.effect >> 8) & 0x0f) as u8 | ((cell.sample << 4) & 0xf0)) as u8,
+                (cell.effect & 0xff) as u8,
+            ];
+            w.write_bytes(&cell_data);
+        }
+
+        // samples
+        for sample in mod_file.samples.iter().take(31) {
+            if let Some(data) = &sample.data {
+                for spl in data.iter() {
+                    w.write_u8((spl >> 8) as u8);
+                }
+                if ! data.len().is_multiple_of(2) {
+                    w.write_u8(0);
+                }
+            }
+        }
+
+        std::fs::write(filename, &w.data)
     }
 }

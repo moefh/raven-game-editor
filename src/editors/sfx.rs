@@ -126,7 +126,6 @@ impl SfxEditor {
                             }
                         });
                         ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=2.0)).on_hover_ui(|ui| {
-                            ui.style_mut().interaction.selectable_labels = true;
                             ui.label("Volume");
                         });
                     } else {
