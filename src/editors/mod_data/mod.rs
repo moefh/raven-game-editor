@@ -1,3 +1,5 @@
+mod properties;
+
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
 
@@ -6,6 +8,7 @@ use crate::misc::{WindowContext, mod_utils, wav_utils};
 use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
+use properties::PropertiesDialog;
 use super::widgets::SfxDisplayState;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
@@ -423,63 +426,6 @@ impl ModDataEditor {
         if let Some(filename) = export_mod { self.export_mod(wc, &filename, mod_data); }
         if let Some((sample_index, filename)) = import_sample {
             self.import_sample(wc, sample_index, &filename, mod_data);
-        }
-    }
-}
-
-struct PropertiesDialog {
-    open: bool,
-    name: String,
-}
-
-impl PropertiesDialog {
-    fn new() -> Self {
-        PropertiesDialog {
-            open: false,
-            name: String::new(),
-        }
-    }
-
-    fn set_open(&mut self, mod_data: &ModData) {
-        self.name.clear();
-        self.name.push_str(&mod_data.asset.name);
-        self.open = true;
-    }
-
-    fn confirm(&mut self, mod_data: &mut ModData) {
-        mod_data.asset.name.clear();
-        mod_data.asset.name.push_str(&self.name);
-    }
-
-    fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData) {
-        if egui::Modal::new(egui::Id::new("dlg_mod_properties")).show(wc.egui.ctx, |ui| {
-            ui.set_width(250.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("MOD Properties");
-                ui.add_space(16.0);
-
-                egui::Grid::new(format!("editor_panel_{}_prop_grid", mod_data.asset.id))
-                    .num_columns(2)
-                    .spacing([8.0, 8.0])
-                    .show(ui, |ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut self.name);
-                        ui.end_row();
-                    });
-
-                ui.add_space(16.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(mod_data);
-                        ui.close();
-                    }
-                });
-            });
-        }).should_close() {
-            self.open = false;
         }
     }
 }
