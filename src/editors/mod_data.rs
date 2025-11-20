@@ -2,9 +2,9 @@ use std::io::Error;
 use egui_extras::{TableBuilder, Column};
 
 use crate::misc::IMAGES;
-use crate::misc::{WindowContext, SoundPlayer};
+use crate::misc::{WindowContext, mod_utils, wav_utils};
+use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
-use crate::misc::{mod_utils, wav_utils};
 
 use super::widgets::SfxDisplayState;
 
@@ -125,15 +125,14 @@ impl ModDataEditor {
                         });
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                            if ui.button("Import WAV...").clicked() {
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .set_title("Import WAVE file")
-                                    .add_filter("WAVE files (*.wav)", &["wav"])
-                                    .add_filter("All files (*)", &[""])
-                                    .pick_file() {
-                                        import_sample = Some((self.selected_sample, path));
-                                    }
-                            }
+                            if ui.button("Import WAV...").clicked() &&
+                                let Some(path) = (rfd::FileDialog::new()
+                                                  .set_title("Import WAVE file")
+                                                  .add_filter("WAVE files (*.wav)", &["wav"])
+                                                  .add_filter("All files (*)", &[""])
+                                                  .pick_file()) {
+                                    import_sample = Some((self.selected_sample, path));
+                                }
                         });
                     });
 
@@ -321,7 +320,7 @@ impl ModDataEditor {
     }
 
     fn export_mod(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &ModData) {
-        if let Err(e) = mod_utils::ModFile::write_mod_data(filename, &mod_data) {
+        if let Err(e) = mod_utils::ModFile::write_mod_data(filename, mod_data) {
             wc.logger.log(format!("ERROR writing MOD file to {}:", filename.display()));
             wc.logger.log(format!("{}", e));
             wc.dialogs.open_message_box("Error exporting MOD", "Error exporting MOD file.\n\nConsult the log window for more information.");

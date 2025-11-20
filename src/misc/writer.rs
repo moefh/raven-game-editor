@@ -58,7 +58,7 @@ impl Writer {
         if data.len() >= len {
             self.data.extend_from_slice(&data[0..len]);
         } else {
-            self.data.extend_from_slice(&data);
+            self.data.extend_from_slice(data);
             for _ in data.len()..len {
                 self.data.push(pad);
             }

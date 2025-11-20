@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console on Windows
 
 mod misc;
+mod sound;
 mod data_asset;
 mod editors;
 mod app;

@@ -274,7 +274,7 @@ impl ModFile {
     pub fn write_mod_data<P: AsRef<Path>>(filename: P, mod_data: &ModData) -> Result<()> {
         let title = filename.as_ref().file_prefix().map(|f| f.as_encoded_bytes()).unwrap_or_else(|| { &[] });
         Self::write_mod(filename.as_ref(), &WriteModFile {
-            title: &title,
+            title,
             sample_names: &[],
             samples: &mod_data.samples,
             pattern: &mod_data.pattern,
@@ -298,9 +298,9 @@ impl ModFile {
         let mut w = super::writer::Writer::new();
 
         // title and sample info
-        w.write_n_bytes(&mod_file.title, b' ', 20);
+        w.write_n_bytes(mod_file.title, b' ', 20);
         for (sample_index, sample) in mod_file.samples.iter().enumerate().take(31) {
-            let sample_name = mod_file.sample_names.get(sample_index).unwrap_or_else(|| { &[b' '; 22] });
+            let sample_name = mod_file.sample_names.get(sample_index).unwrap_or(&[b' '; 22]);
             let has_data = sample.data.is_some();
 
             w.write_n_bytes(sample_name, b' ', 22);
@@ -325,7 +325,7 @@ impl ModFile {
         // song positions
         w.write_u8(mod_file.song_positions.len() as u8);
         w.write_u8(0);
-        w.write_n_bytes(&mod_file.song_positions, 0, 128);
+        w.write_n_bytes(mod_file.song_positions, 0, 128);
 
         // tag
         match mod_file.num_channels {
@@ -338,9 +338,9 @@ impl ModFile {
         // patterns
         for cell in mod_file.pattern.iter() {
             let cell_data = [
-                (((cell.period >> 8) & 0x0f) as u8 | (cell.sample        & 0xf0)) as u8,
+                (((cell.period >> 8) & 0x0f) as u8 | (cell.sample        & 0xf0)),
                 (cell.period & 0xff) as u8,
-                (((cell.effect >> 8) & 0x0f) as u8 | ((cell.sample << 4) & 0xf0)) as u8,
+                (((cell.effect >> 8) & 0x0f) as u8 | ((cell.sample << 4) & 0xf0)),
                 (cell.effect & 0xff) as u8,
             ];
             w.write_bytes(&cell_data);

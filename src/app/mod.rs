@@ -8,7 +8,7 @@ use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
 use crate::misc::WindowContext;
 use crate::misc::TextureManager;
-use crate::misc::SoundPlayer;
+use crate::sound::SoundPlayer;
 
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
@@ -44,7 +44,7 @@ pub struct RavenEditorApp {
 impl RavenEditorApp {
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let app = RavenEditorApp {
+        let mut app = RavenEditorApp {
             reset_egui_context: false,
             store: DataAssetStore::new(),
             filename: None,
@@ -57,6 +57,7 @@ impl RavenEditorApp {
             sound_player: SoundPlayer::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
         };
+        app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
     }
