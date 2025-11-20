@@ -415,8 +415,8 @@ pub fn room_editor(ui: &mut egui::Ui, wc: &mut WindowContext, state: &mut RoomEd
     let bg_rect = Rect {
         min: response_rect.min,
         max: Pos2 {
-            x: response_rect.max.x.min(response_rect.min.x + room_size.x + 2.0),
-            y: response_rect.max.y.min(response_rect.min.y + room_size.y + 2.0),
+            x: response_rect.max.x.min(response_rect.min.x + room_size.x * state.zoom + 2.0 + 2.0*BORDER_SIZE.x),
+            y: response_rect.max.y.min(response_rect.min.y + room_size.y * state.zoom + 2.0 + 2.0*BORDER_SIZE.y),
         },
     };
     painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0, 0));
