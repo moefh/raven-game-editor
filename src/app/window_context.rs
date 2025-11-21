@@ -5,12 +5,14 @@ use crate::data_asset::StringLogger;
 
 pub struct WindowEguiContext<'a> {
     pub ctx: &'a egui::Context,
+    pub window: &'a eframe::Frame,
 }
 
 impl<'a> WindowEguiContext<'a> {
-    pub fn new(ctx: &'a egui::Context) -> Self {
+    pub fn new(ctx: &'a egui::Context, window: &'a eframe::Frame) -> Self {
         WindowEguiContext {
-            ctx
+            ctx,
+            window,
         }
     }
 }

@@ -17,6 +17,7 @@ pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 
 const MENU_HEIGHT: f32 = 22.0;
+const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
@@ -111,8 +112,8 @@ impl RavenEditorApp {
         }
     }
 
-    pub fn save_as(&mut self) {
-        self.sys_dialogs.save_file("save_project_as".to_owned(),
+    pub fn save_as(&mut self, window: &eframe::Frame) {
+        self.sys_dialogs.save_file(Some(window), "save_project_as".to_owned(),
                                    "Save Project As",
                                    &[
                                        ("Raven project files (*.h)", &["h"]),
@@ -120,10 +121,10 @@ impl RavenEditorApp {
                                    ]);
     }
 
-    pub fn save(&mut self) {
+    pub fn save(&mut self, window: &eframe::Frame) {
         match &self.filename {
             Some(p) => { self.write_project(&p.clone()); }
-            None => { self.save_as(); }
+            None => { self.save_as(window); }
         }
     }
 
@@ -243,7 +244,7 @@ impl RavenEditorApp {
         self.dialogs.open_about();
     }
 
-    fn update_dialogs(&mut self, ctx: &egui::Context) {
+    fn update_dialogs(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
         if self.dialogs.about_open {
             self.dialogs.show_about(ctx, &self.sys_dialogs);
         }
@@ -265,13 +266,13 @@ impl RavenEditorApp {
             }
     }
 
-    fn update_menu(&mut self, ctx: &egui::Context) {
+    fn update_menu(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
         egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
 
             let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
             if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
-                self.save();
+                self.save(window);
             }
             let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
             if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
@@ -290,7 +291,7 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Open...").clicked() {
-                            self.sys_dialogs.open_file("open_project".to_owned(),
+                            self.sys_dialogs.open_file(Some(window), "open_project".to_owned(),
                                                        "Open Project",
                                                        &[
                                                            ("Raven project files (*.h)", &["h"]),
@@ -302,13 +303,13 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.add(egui::Button::new("Save").shortcut_text(ui.ctx().format_shortcut(&file_save_shortcut))).clicked() {
-                            self.save();
+                            self.save(window);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Save As...").clicked() {
-                            self.save_as();
+                            self.save_as(window);
                         }
                     });
                     ui.separator();
@@ -344,7 +345,7 @@ impl RavenEditorApp {
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add_space(NO_IMAGE_TREE_SIZE);
+                        ui.add(egui::Image::new(IMAGES.log).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Log Window").clicked() {
                             self.windows.log_window_open = true;
                         }
@@ -359,7 +360,47 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_footer(&mut self, ctx: &egui::Context) {
+    fn update_toolbar(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
+        egui::TopBottomPanel::top("main_toolbar").show(ctx, |ui| {
+            self.sys_dialogs.block_ui(ui);
+
+            ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                if ui.add(egui::Button::image(IMAGES.new).frame_when_inactive(false)).on_hover_text("New Project").clicked() {
+                    self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                }
+                if ui.add(egui::Button::image(IMAGES.open).frame_when_inactive(false)).on_hover_text("Open Project").clicked() {
+                    self.sys_dialogs.open_file(Some(window), "open_project".to_owned(),
+                                               "Open Project",
+                                               &[
+                                                   ("Raven project files (*.h)", &["h"]),
+                                                   ("All files (*.*)", &["*"]),
+                                               ]);
+                }
+                if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text("Save Project").clicked() {
+                    self.save(window);
+                }
+
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
+
+                if ui.add(egui::Button::image_and_text(IMAGES.log, "Log")
+                          .selected(self.windows.log_window_open)
+                          .frame_when_inactive(self.windows.log_window_open)).on_hover_text("Log Window").clicked() {
+                    self.windows.log_window_open = ! self.windows.log_window_open;
+                }
+
+                ui.spacing_mut().item_spacing = spacing;
+            });
+
+            ui.add_space(0.0);
+        });
+    }
+
+    fn update_footer(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
@@ -367,7 +408,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_asset_tree(&mut self, ctx: &egui::Context) {
+    fn update_asset_tree(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
         egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -429,7 +470,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_windows(&mut self, ctx: &egui::Context) {
+    fn update_windows(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will hover
@@ -438,7 +479,7 @@ impl RavenEditorApp {
         let window_space = egui::Rect {
             min: egui::Pos2 {
                 x: content_rect.min.x + ASSET_TREE_PANEL_WIDTH,
-                y: content_rect.min.y + MENU_HEIGHT,
+                y: content_rect.min.y + MENU_HEIGHT + TOOLBAR_HEIGHT,
             },
             max: egui::Pos2 {
                 x: content_rect.max.x,
@@ -447,7 +488,7 @@ impl RavenEditorApp {
         };
         let mut win_ctx = WindowContext {
             window_space,
-            egui: WindowEguiContext::new(ctx),
+            egui: WindowEguiContext::new(ctx, window),
             tex_man: &mut self.tex_manager,
             sys_dialogs: &mut self.sys_dialogs,
             dialogs: &mut self.dialogs,
@@ -518,7 +559,7 @@ impl RavenEditorApp {
 }
 
 impl eframe::App for RavenEditorApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("save_project_as") &&
             self.write_project(&filename) {
                 self.set_filename(Some(filename));
@@ -548,10 +589,11 @@ impl eframe::App for RavenEditorApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
             self.filename_changed = false;
         }
-        self.update_dialogs(ctx);
-        self.update_menu(ctx);
-        self.update_footer(ctx);
-        self.update_asset_tree(ctx);
-        self.update_windows(ctx);
+        self.update_dialogs(ctx, window);
+        self.update_menu(ctx, window);
+        self.update_toolbar(ctx, window);
+        self.update_footer(ctx, window);
+        self.update_asset_tree(ctx, window);
+        self.update_windows(ctx, window);
     }
 }

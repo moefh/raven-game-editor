@@ -62,6 +62,7 @@ image_table! {
     layer_fx: "../../assets/EffectsIcon.png",
     layer_clip: "../../assets/CollisionIcon.png",
     screen: "../../assets/ScreenIcon.png",
+    log: "../../assets/LogIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",

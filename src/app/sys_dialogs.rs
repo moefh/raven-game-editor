@@ -91,13 +91,16 @@ impl SysDialogs {
         response
     }
 
-    pub fn open_file(&mut self, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let request = SysDialogRequest::new(request_id);
 
         let response_data = request.response_data.clone();
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
+        if let Some(window) = window {
+            file_dialog = file_dialog.set_parent(window);
+        }
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
@@ -107,13 +110,16 @@ impl SysDialogs {
         true
     }
 
-    pub fn save_file(&mut self, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let request = SysDialogRequest::new(request_id);
 
         let response_data = request.response_data.clone();
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
+        if let Some(window) = window {
+            file_dialog = file_dialog.set_parent(window);
+        }
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }

@@ -128,7 +128,7 @@ impl ModDataEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import WAV...").clicked() {
-                                wc.sys_dialogs.open_file(format!("editor_{}_import_sample", asset_id),
+                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_sample", asset_id),
                                                          "Import WAVE file",
                                                          &[
                                                              ("WAVE files (*.wav)", &["wav"]),
@@ -375,7 +375,7 @@ impl ModDataEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import...").clicked() {
-                                wc.sys_dialogs.open_file(format!("editor_{}_import_mod", asset_id),
+                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_mod", asset_id),
                                                          "Import MOD file",
                                                          &[
                                                              ("MOD files (*.mod)", &["mod"]),
@@ -386,7 +386,7 @@ impl ModDataEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                             if ui.button("Export...").clicked() {
-                                wc.sys_dialogs.save_file(format!("editor_{}_export_mod", asset_id),
+                                wc.sys_dialogs.save_file(Some(wc.egui.window), format!("editor_{}_export_mod", asset_id),
                                                          "Export MOD file",
                                                          &[
                                                              ("MOD files (*.mod)", &["mod"]),
