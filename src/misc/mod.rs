@@ -8,5 +8,5 @@ pub mod reader;
 pub mod writer;
 
 pub use image_table::{IMAGES, IMAGE_REFS};
-pub use texture_manager::{TextureManager, TextureName};
+pub use texture_manager::{TextureManager, TextureName, TextureSlot};
 pub use image_collection::ImageCollection;

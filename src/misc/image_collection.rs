@@ -1,10 +1,9 @@
 use std::collections::VecDeque;
-use crate::misc::{TextureManager, TextureName};
+use crate::misc::{TextureManager, TextureName, TextureSlot};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 use egui::{Rect, Pos2, Vec2};
 
 pub struct ImageCollection {
-    pub tex_name: TextureName,
     pub asset_id: DataAssetId,
     pub width: u32,
     pub height: u32,
@@ -14,7 +13,6 @@ pub struct ImageCollection {
 impl ImageCollection {
     pub fn from_asset(asset: &impl ImageCollectionAsset) -> Self {
         ImageCollection {
-            tex_name: TextureName::new(asset.asset_id(), 0),
             asset_id: asset.asset_id(),
             width: asset.width(),
             height: asset.height(),
@@ -25,7 +23,14 @@ impl ImageCollection {
     pub fn load_asset<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context, force_load: bool)
                           -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
-        let texture = image.get_asset_texture(tex_man, ctx, asset, force_load);
+        let texture = image.get_asset_texture(tex_man, ctx, asset, TextureSlot::Opaque, force_load);
+        (image, texture)
+    }
+
+    pub fn load_asset_on_slot<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                                  slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
+        let image = Self::from_asset(asset);
+        let texture = image.get_asset_texture(tex_man, ctx, asset, slot, force_load);
         (image, texture)
     }
 
@@ -46,13 +51,17 @@ impl ImageCollection {
     }
 
     pub fn get_asset_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
-                                 asset: &impl ImageCollectionAsset, force_load: bool) -> &'a egui::TextureHandle {
+                                 asset: &impl ImageCollectionAsset, slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
         if self.asset_id != asset.asset_id() {
             println!("WARNING: get_asset_texture() for wrong asset id: {} vs {}", self.asset_id, asset.asset_id());
         }
         let width = self.width as usize;
         let height = (self.height * self.num_items) as usize;
-        man.get_rgba_texture(ctx, self.tex_name, width, height, asset.data(), force_load)
+        let name = TextureName::new(asset.asset_id(), slot);
+        match slot {
+            TextureSlot::Opaque => man.get_rgba_texture(ctx, name, width, height, asset.data(), force_load),
+            TextureSlot::Transparent => man.get_rgba_texture_transparent(ctx, name, width, height, asset.data(), force_load),
+        }
     }
 
     pub fn get_pixel(&self, data: &[u8], x: i32, y: i32, item: u32) -> u8 {
