@@ -12,16 +12,21 @@ pub struct MapDisplay {
 }
 
 impl MapDisplay {
-    const FOREGROUND: u8  = 1 << 0;
-    const CLIP: u8        = 1 << 1;
-    const EFFECTS: u8     = 1 << 2;
-    const BACKGROUND: u8  = 1 << 3;
-    const GRID: u8        = 1 << 4;
+    pub const FOREGROUND: u8  = 1 << 0;
+    pub const CLIP: u8        = 1 << 1;
+    pub const EFFECTS: u8     = 1 << 2;
+    pub const BACKGROUND: u8  = 1 << 3;
+    pub const GRID: u8        = 1 << 4;
+    pub const SCREEN_SIZE: u8 = 1 << 5;
 
     pub fn new(bits: u8) -> Self {
         MapDisplay {
             bits,
         }
+    }
+
+    pub fn toggle(&mut self, bits: u8) {
+        self.bits ^= bits;
     }
 
     pub fn has_bits(&self, bits: u8) -> bool {
@@ -36,6 +41,7 @@ pub struct MapEditorState {
     pub display_layers: MapDisplay,
     pub left_draw_tile: u32,
     pub right_draw_tile: u32,
+    pub hover_pos: Vec2,
 }
 
 impl MapEditorState {
@@ -47,6 +53,7 @@ impl MapEditorState {
             display_layers: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: 0xff,
+            hover_pos: Vec2::ZERO,
         }
     }
 
@@ -178,6 +185,11 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     let border_rect = bg_rect.expand2(Vec2::splat(-ui.pixels_per_point())).round_to_pixels(ui.pixels_per_point());
     painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
 
+    // screen size
+    if state.display_layers.has_bits(MapDisplay::SCREEN_SIZE) {
+        // TODO
+    }
+
     // check zoom
     if let (true, Some(hover_pos)) = (
         response.contains_pointer(),
@@ -187,6 +199,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
         if zoom_delta != 1.0 {
             state.set_zoom(state.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, map_data);
         }
+        state.hover_pos = ((hover_pos - canvas_rect.min - state.scroll) / state.zoom / TILE_SIZE).max(Vec2::ZERO);
     }
 
     // check pan

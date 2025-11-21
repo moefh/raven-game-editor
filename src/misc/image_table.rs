@@ -57,6 +57,11 @@ image_table! {
     h_flip: "../../assets/HFlipIcon.png",
     grid: "../../assets/GridIcon.png",
     transparency: "../../assets/TransparencyIcon.png",
+    layer_fg: "../../assets/TilesFgIcon.png",
+    layer_bg: "../../assets/TilesBgIcon.png",
+    layer_fx: "../../assets/EffectsIcon.png",
+    layer_clip: "../../assets/CollisionIcon.png",
+    screen: "../../assets/ScreenIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",
