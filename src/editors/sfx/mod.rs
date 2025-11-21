@@ -2,7 +2,7 @@ mod properties;
 
 use std::io::Error;
 use crate::IMAGES;
-use crate::misc::WindowContext;
+use crate::app::{WindowContext, SysDialogResponse};
 use crate::sound::SoundPlayer;
 use crate::misc::wav_utils;
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
@@ -48,18 +48,20 @@ impl SfxEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
+        let asset_id = sfx.asset.id;
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}", asset_id)) {
+            self.import_wav(wc, &filename, sfx);
+        }
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, sfx);
         }
 
-        let asset_id = sfx.asset.id;
         let title = format!("{} - Sfx", sfx.asset.name);
         let window = super::create_editor_window(asset_id, &title, wc);
 
         let mut loop_start = sfx.loop_start as f32;
         let mut loop_end = (sfx.loop_start + sfx.loop_len) as f32;
 
-        let mut import_wav = None;
         window.open(&mut self.asset.open).min_size([400.0, 220.0]).default_size([500.0, 220.0]).show(wc.egui.ctx, |ui| {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
@@ -68,11 +70,12 @@ impl SfxEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import...").clicked() {
-                                import_wav = rfd::FileDialog::new()
-                                    .set_title("Import WAVE file")
-                                    .add_filter("WAVE files (*.wav)", &["wav"])
-                                    .add_filter("All files (*)", &[""])
-                                    .pick_file();
+                                wc.sys_dialogs.open_file(format!("editor_{}", asset_id),
+                                                         "Import WAVE file",
+                                                         &[
+                                                             ("WAVE files (*.wav)", &["wav"]),
+                                                             ("All files (*.*)", &["*"]),
+                                                         ]);
                             }
                         });
                         ui.separator();
@@ -147,8 +150,5 @@ impl SfxEditor {
 
         sfx.loop_start = loop_start.max(0.0) as u32;
         sfx.loop_len = (loop_end - loop_start).max(0.0) as u32;
-        if let Some(filename) = import_wav {
-            self.import_wav(wc, &filename, sfx);
-        }
     }
 }

@@ -1,5 +1,6 @@
 use crate::misc::TextureManager;
 use crate::app::AppDialogs;
+use crate::app::SysDialogs;
 use crate::data_asset::StringLogger;
 
 pub struct WindowEguiContext<'a> {
@@ -19,18 +20,6 @@ pub struct WindowContext<'a> {
     pub egui: WindowEguiContext<'a>,
     pub tex_man: &'a mut TextureManager,
     pub dialogs: &'a mut AppDialogs,
+    pub sys_dialogs: &'a mut SysDialogs,
     pub logger: &'a mut StringLogger,
-}
-
-impl<'a> WindowContext<'a> {
-    pub fn new(window_space: egui::Rect, ctx: &'a egui::Context, tex_man: &'a mut TextureManager,
-               dialogs: &'a mut AppDialogs, logger: &'a mut StringLogger) -> Self {
-        WindowContext {
-            window_space,
-            tex_man,
-            dialogs,
-            logger,
-            egui: WindowEguiContext::new(ctx),
-        }
-    }
 }

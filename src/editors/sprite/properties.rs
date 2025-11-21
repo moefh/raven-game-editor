@@ -1,4 +1,5 @@
-use crate::misc::{WindowContext, ImageCollection};
+use crate::app::WindowContext;
+use crate::misc::ImageCollection;
 use crate::data_asset::Sprite;
 
 pub struct PropertiesDialog {

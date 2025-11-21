@@ -2,7 +2,7 @@ mod properties;
 mod map_selection;
 
 use crate::IMAGES;
-use crate::misc::WindowContext;
+use crate::app::WindowContext;
 use crate::data_asset::{
     Room, RoomEntity, RoomTrigger, RoomItem,
     MapData, Tileset, SpriteAnimation, Sprite,

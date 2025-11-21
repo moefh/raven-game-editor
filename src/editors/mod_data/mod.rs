@@ -3,8 +3,9 @@ mod properties;
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
 
-use crate::misc::IMAGES;
-use crate::misc::{WindowContext, mod_utils, wav_utils};
+use crate::IMAGES;
+use crate::app::{WindowContext, SysDialogResponse};
+use crate::misc::{mod_utils, wav_utils};
 use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
@@ -62,10 +63,8 @@ impl ModDataEditor {
         self.sfx_display_state = SfxDisplayState::new();
     }
 
-    fn samples_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer)
-                   -> Option<(usize,std::path::PathBuf)> {
+    fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         let asset_id = mod_data.asset.id;
-        let mut import_sample = None;
         egui::SidePanel::left(format!("editor_panel_{}_samples_left", asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -128,14 +127,14 @@ impl ModDataEditor {
                         });
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                            if ui.button("Import WAV...").clicked() &&
-                                let Some(path) = (rfd::FileDialog::new()
-                                                  .set_title("Import WAVE file")
-                                                  .add_filter("WAVE files (*.wav)", &["wav"])
-                                                  .add_filter("All files (*)", &[""])
-                                                  .pick_file()) {
-                                    import_sample = Some((self.selected_sample, path));
-                                }
+                            if ui.button("Import WAV...").clicked() {
+                                wc.sys_dialogs.open_file(format!("editor_{}_import_sample", asset_id),
+                                                         "Import WAVE file",
+                                                         &[
+                                                             ("WAVE files (*.wav)", &["wav"]),
+                                                             ("All files (*)", &[""]),
+                                                         ]);
+                            }
                         });
                     });
 
@@ -179,7 +178,6 @@ impl ModDataEditor {
                 sample.loop_len = (loop_end - loop_start).max(0.0) as u32;
             }
         });
-        import_sample
     }
 
     fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
@@ -330,11 +328,12 @@ impl ModDataEditor {
         }
     }
 
-    fn import_sample(&mut self, wc: &mut WindowContext, sample_index: usize, filename: &std::path::Path, mod_data: &mut ModData) {
+    fn import_sample(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &mut ModData) {
         let result = wav_utils::WavFile::read(filename).and_then(|mut wav_file| {
             if wav_file.channels.is_empty() { return Err(Error::other("WAV with no channels!?")); }
             let wav_sample = wav_file.channels.remove(0);
-            let sample = mod_data.samples.get_mut(sample_index).ok_or(Error::other(format!("can't find selected sample: {}", sample_index)))?;
+            let sample = mod_data.samples.get_mut(self.selected_sample)
+                .ok_or(Error::other(format!("can't find selected sample: {}", self.selected_sample)))?;
             sample.len = wav_sample.len() as u32;
             sample.data = Some(wav_sample);
             sample.bits_per_sample = wav_file.bits_per_sample;
@@ -351,17 +350,23 @@ impl ModDataEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+        let asset_id = mod_data.asset.id;
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_sample", asset_id)) {
+            self.import_sample(wc, &filename, mod_data);
+        }
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_mod", asset_id)) {
+            self.import_mod(wc, &filename, mod_data);
+        }
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_export_mod", asset_id)) {
+            self.export_mod(wc, &filename, mod_data);
+        }
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, mod_data);
         }
 
-        let asset_id = mod_data.asset.id;
         let title = format!("{} - MOD", mod_data.asset.name);
         let window = super::create_editor_window(asset_id, &title, wc);
         let mut editor_open = self.asset.open;
-        let mut import_mod = None;
-        let mut export_mod = None;
-        let mut import_sample = None;
         window.open(&mut editor_open).min_size([600.0, 300.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
@@ -370,21 +375,23 @@ impl ModDataEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import...").clicked() {
-                                import_mod = rfd::FileDialog::new()
-                                    .set_title("Import MOD file")
-                                    .add_filter("MOD files (*.mod)", &["mod"])
-                                    .add_filter("All files (*)", &[""])
-                                    .pick_file();
+                                wc.sys_dialogs.open_file(format!("editor_{}_import_mod", asset_id),
+                                                         "Import MOD file",
+                                                         &[
+                                                             ("MOD files (*.mod)", &["mod"]),
+                                                             ("All files (*)", &[""]),
+                                                         ]);
                             }
                         });
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                             if ui.button("Export...").clicked() {
-                                export_mod = rfd::FileDialog::new()
-                                    .set_title("Export MOD file")
-                                    .add_filter("MOD files (*.mod)", &["mod"])
-                                    .add_filter("All files (*)", &[""])
-                                    .save_file();
+                                wc.sys_dialogs.save_file(format!("editor_{}_export_mod", asset_id),
+                                                         "Export MOD file",
+                                                         &[
+                                                             ("MOD files (*.mod)", &["mod"]),
+                                                             ("All files (*)", &[""]),
+                                                         ]);
                             }
                         });
                         ui.separator();
@@ -417,15 +424,10 @@ impl ModDataEditor {
             });
 
             match self.selected_tab {
-                EditorTabs::Samples => { import_sample = self.samples_tab(ui, wc, mod_data, sound_player) }
+                EditorTabs::Samples => { self.samples_tab(ui, wc, mod_data, sound_player) }
                 EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data, sound_player); }
             };
         });
         self.asset.open = editor_open;
-        if let Some(filename) = import_mod { self.import_mod(wc, &filename, mod_data); }
-        if let Some(filename) = export_mod { self.export_mod(wc, &filename, mod_data); }
-        if let Some((sample_index, filename)) = import_sample {
-            self.import_sample(wc, sample_index, &filename, mod_data);
-        }
     }
 }

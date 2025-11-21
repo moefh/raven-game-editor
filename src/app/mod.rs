@@ -1,3 +1,5 @@
+mod window_context;
+mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
@@ -6,10 +8,11 @@ use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
-use crate::misc::WindowContext;
 use crate::misc::TextureManager;
 use crate::sound::SoundPlayer;
 
+pub use window_context::{WindowContext, WindowEguiContext};
+pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 
@@ -33,6 +36,7 @@ pub struct RavenEditorApp {
     filename: Option<std::path::PathBuf>,
     filename_changed: bool,
     logger: StringLogger,
+    sys_dialogs: SysDialogs,
     dialogs: AppDialogs,
     windows: AppWindows,
     editors: editors::AssetEditors,
@@ -50,6 +54,7 @@ impl RavenEditorApp {
             filename: None,
             filename_changed: true,
             logger: StringLogger::new(false),
+            sys_dialogs: sys_dialogs::SysDialogs::new(),
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
             editors: editors::AssetEditors::new(),
@@ -107,14 +112,12 @@ impl RavenEditorApp {
     }
 
     pub fn save_as(&mut self) {
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("Save Project As")
-            .add_filter("Raven project files (*.h)", &["h"])
-            .add_filter("All files (*)", &[""])
-            .save_file() &&
-            self.write_project(&path) {
-                self.set_filename(Some(path.to_path_buf()));
-            }
+        self.sys_dialogs.save_file("save_project_as".to_owned(),
+                                   "Save Project As",
+                                   &[
+                                       ("Raven project files (*.h)", &["h"]),
+                                       ("All files (*.*)", &["*"]),
+                                   ]);
     }
 
     pub fn save(&mut self) {
@@ -242,15 +245,15 @@ impl RavenEditorApp {
 
     fn update_dialogs(&mut self, ctx: &egui::Context) {
         if self.dialogs.about_open {
-            self.dialogs.show_about(ctx);
+            self.dialogs.show_about(ctx, &self.sys_dialogs);
         }
 
         if self.dialogs.message_box_open {
-            self.dialogs.show_message_box(ctx);
+            self.dialogs.show_message_box(ctx, &self.sys_dialogs);
         }
 
         if self.dialogs.confirmation_dialog_open &&
-            matches!(self.dialogs.show_confirmation_dialog(ctx), ConfirmationDialogResult::Yes) {
+            matches!(self.dialogs.show_confirmation_dialog(ctx, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
                 match self.confirmation_dialog_action {
                     ConfirmationDialogAction::NewProject => {
                         self.load_project(crate::data_asset::DataAssetStore::new());
@@ -264,14 +267,16 @@ impl RavenEditorApp {
 
     fn update_menu(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
+            self.sys_dialogs.block_ui(ui);
+
             let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
             if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
                 self.save();
             }
-            //let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
-            //if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
-            //    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            //}
+            let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
+            if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -284,14 +289,14 @@ impl RavenEditorApp {
                     ui.separator();
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Open...").clicked() &&
-                            let Some(path) = rfd::FileDialog::new()
-                            .set_title("Open Project")
-                            .add_filter("Raven project files (*.h)", &["h"])
-                            .add_filter("All files (*)", &[""])
-                            .pick_file() {
-                                self.open(&path);
-                            }
+                        if ui.button("Open...").clicked() {
+                            self.sys_dialogs.open_file("open_project".to_owned(),
+                                                       "Open Project",
+                                                       &[
+                                                           ("Raven project files (*.h)", &["h"]),
+                                                           ("All files (*.*)", &["*"]),
+                                                       ]);
+                        }
                     });
 
                     ui.horizontal(|ui| {
@@ -356,6 +361,7 @@ impl RavenEditorApp {
 
     fn update_footer(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
+            self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
             ui.label(format!("{} bytes", self.store.assets.data_size()));
         });
@@ -363,6 +369,7 @@ impl RavenEditorApp {
 
     fn update_asset_tree(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
+            self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
                     let mut remove_asset: Option<DataAssetId> = None;
@@ -423,7 +430,8 @@ impl RavenEditorApp {
     }
 
     fn update_windows(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |_ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will hover
         });
         let content_rect = ctx.content_rect();
@@ -437,7 +445,14 @@ impl RavenEditorApp {
                 y: content_rect.max.y - FOOTER_HEIGHT,
             },
         };
-        let mut win_ctx = WindowContext::new(window_space, ctx, &mut self.tex_manager, &mut self.dialogs, &mut self.logger);
+        let mut win_ctx = WindowContext {
+            window_space,
+            egui: WindowEguiContext::new(ctx),
+            tex_man: &mut self.tex_manager,
+            sys_dialogs: &mut self.sys_dialogs,
+            dialogs: &mut self.dialogs,
+            logger: &mut self.logger,
+        };
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
@@ -504,6 +519,14 @@ impl RavenEditorApp {
 
 impl eframe::App for RavenEditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("save_project_as") &&
+            self.write_project(&filename) {
+                self.set_filename(Some(filename));
+            }
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("open_project") {
+            self.open(&filename);
+        }
+
         if self.reset_egui_context {
             ctx.memory_mut(|mem| {
                 // is this enough?

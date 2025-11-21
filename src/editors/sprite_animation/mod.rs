@@ -1,7 +1,8 @@
 mod properties;
 
 use crate::IMAGES;
-use crate::misc::{WindowContext, ImageCollection};
+use crate::app::WindowContext;
+use crate::misc::ImageCollection;
 use crate::data_asset::{
     SpriteAnimation, SpriteAnimationFrame, Sprite,
     DataAssetId, GenericAsset, AssetList, AssetIdList,

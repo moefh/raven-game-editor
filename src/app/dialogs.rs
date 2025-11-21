@@ -59,20 +59,20 @@ impl AppDialogs {
         self.about_open = true;
     }
 
-    pub fn show_about(&mut self, ctx: &egui::Context) {
-        if show_about_dialog(ctx).should_close() {
+    pub fn show_about(&mut self, ctx: &egui::Context, sys_dialogs: &super::SysDialogs) {
+        if show_about_dialog(ctx, sys_dialogs).should_close() {
             self.about_open = false;
         }
     }
 
-    pub fn show_message_box(&mut self, ctx: &egui::Context) {
-        if show_message_box(ctx, &self.message_box_title, &self.message_box_text).should_close() {
+    pub fn show_message_box(&mut self, ctx: &egui::Context, sys_dialogs: &super::SysDialogs) {
+        if show_message_box(ctx, sys_dialogs, &self.message_box_title, &self.message_box_text).should_close() {
             self.message_box_open = false;
         }
     }
 
-    pub fn show_confirmation_dialog(&mut self, ctx: &egui::Context) -> ConfirmationDialogResult {
-        let response = show_confirmation_dialog(ctx, &self.confirmation_dialog_title, &self.confirmation_dialog_text,
+    pub fn show_confirmation_dialog(&mut self, ctx: &egui::Context, sys_dialogs: &super::SysDialogs) -> ConfirmationDialogResult {
+        let response = show_confirmation_dialog(ctx, sys_dialogs, &self.confirmation_dialog_title, &self.confirmation_dialog_text,
                                                 &self.confirmation_dialog_yes, &self.confirmation_dialog_no);
         if response.should_close() {
             self.confirmation_dialog_open = false;
@@ -81,8 +81,9 @@ impl AppDialogs {
     }
 }
 
-pub fn show_about_dialog(ctx: &egui::Context) -> egui::ModalResponse<()> {
+pub fn show_about_dialog(ctx: &egui::Context, sys_dialogs: &super::SysDialogs) -> egui::ModalResponse<()> {
     egui::Modal::new(egui::Id::new("dlg_about")).show(ctx, |ui| {
+        sys_dialogs.block_ui(ui);
         ui.set_width(400.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading("About Raven Game Editor");
@@ -103,8 +104,9 @@ pub fn show_about_dialog(ctx: &egui::Context) -> egui::ModalResponse<()> {
     })
 }
 
-pub fn show_message_box(ctx: &egui::Context, title: &str, text: &str) -> egui::ModalResponse<()> {
+pub fn show_message_box(ctx: &egui::Context, sys_dialogs: &super::SysDialogs, title: &str, text: &str) -> egui::ModalResponse<()> {
     egui::Modal::new(egui::Id::new("dlg_message_box")).show(ctx, |ui| {
+        sys_dialogs.block_ui(ui);
         ui.set_width(350.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading(title);
@@ -119,9 +121,10 @@ pub fn show_message_box(ctx: &egui::Context, title: &str, text: &str) -> egui::M
     })
 }
 
-pub fn show_confirmation_dialog(ctx: &egui::Context, title: &str, text: &str, yes_button: &str, no_button: &str)
-                                -> egui::ModalResponse<ConfirmationDialogResult> {
+pub fn show_confirmation_dialog(ctx: &egui::Context, sys_dialogs: &super::SysDialogs, title: &str, text: &str,
+                                yes_button: &str, no_button: &str) -> egui::ModalResponse<ConfirmationDialogResult> {
     egui::Modal::new(egui::Id::new("dlg_message_box")).show(ctx, |ui| {
+        sys_dialogs.block_ui(ui);
         ui.set_width(350.0);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             ui.heading(title);

@@ -1,4 +1,4 @@
-use crate::misc::WindowContext;
+use crate::app::WindowContext;
 use crate::data_asset::Sfx;
 
 pub struct PropertiesDialog {
