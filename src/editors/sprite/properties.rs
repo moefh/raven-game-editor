@@ -6,9 +6,9 @@ pub struct PropertiesDialog {
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
-    pub width: f32,
-    pub height: f32,
-    pub num_frames: f32,
+    pub width: u32,
+    pub height: u32,
+    pub num_frames: u32,
     pub sel_color: u8,
 }
 
@@ -18,9 +18,9 @@ impl PropertiesDialog {
             image_changed: false,
             open: false,
             name: String::new(),
-            width: 0.0,
-            height: 0.0,
-            num_frames: 0.0,
+            width: 0,
+            height: 0,
+            num_frames: 0,
             sel_color: 0,
         }
     }
@@ -28,9 +28,9 @@ impl PropertiesDialog {
     pub fn set_open(&mut self, sprite: &Sprite, sel_color: u8) {
         self.name.clear();
         self.name.push_str(&sprite.asset.name);
-        self.width = sprite.width as f32;
-        self.height = sprite.height as f32;
-        self.num_frames = sprite.num_frames as f32;
+        self.width = sprite.width;
+        self.height = sprite.height;
+        self.num_frames = sprite.num_frames;
         self.sel_color = sel_color;
         self.open = true;
     }
@@ -39,9 +39,9 @@ impl PropertiesDialog {
         sprite.asset.name.clear();
         sprite.asset.name.push_str(&self.name);
 
-        let width = self.width as u32;
-        let height = self.height as u32;
-        let num_frames = self.num_frames as u32;
+        let width = self.width;
+        let height = self.height;
+        let num_frames = self.num_frames;
         if num_frames != sprite.num_frames || width != sprite.width || height != sprite.height {
             let image = ImageCollection::from_asset(sprite);
             image.resize(width, height, num_frames, &mut sprite.data, self.sel_color);
@@ -70,15 +70,15 @@ impl PropertiesDialog {
                         ui.end_row();
 
                         ui.label("Width:");
-                        ui.add(egui::Slider::new(&mut self.width, 1.0..=512.0).step_by(1.0));
+                        ui.add(egui::Slider::new(&mut self.width, 1..=512));
                         ui.end_row();
 
                         ui.label("Height:");
-                        ui.add(egui::Slider::new(&mut self.height, 1.0..=512.0).step_by(1.0));
+                        ui.add(egui::Slider::new(&mut self.height, 1..=512));
                         ui.end_row();
 
                         ui.label("Num frames:");
-                        ui.add(egui::Slider::new(&mut self.num_frames, 1.0..=255.0).step_by(1.0));
+                        ui.add(egui::Slider::new(&mut self.num_frames, 1..=255));
                         ui.end_row();
                     });
 

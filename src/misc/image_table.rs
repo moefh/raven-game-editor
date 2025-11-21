@@ -39,6 +39,7 @@ macro_rules! image_table {
 }
 
 image_table! {
+    // menu
     pico: "../../assets/PicoIcon.png",
     new: "../../assets/NewIcon.png",
     open: "../../assets/OpenIcon.png",
@@ -47,6 +48,17 @@ image_table! {
     import: "../../assets/ImportIcon.png",
     export: "../../assets/ExportIcon.png",
     chicken: "../../assets/ChickenIcon.png",
+
+    // buttons
+    pen: "../../assets/PenIcon.png",
+    fill: "../../assets/FillIcon.png",
+    select: "../../assets/SelRectIcon.png",
+    v_flip: "../../assets/VFlipIcon.png",
+    h_flip: "../../assets/HFlipIcon.png",
+    grid: "../../assets/GridIcon.png",
+    transparency: "../../assets/TransparencyIcon.png",
+
+    // assets
     tileset: "../../assets/TilesetIcon.png",
     map_data: "../../assets/MapIcon.png",
     room: "../../assets/RoomIcon.png",

@@ -6,6 +6,7 @@ use crate::misc::ImageCollection;
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use super::ImageDisplay;
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
@@ -13,6 +14,7 @@ pub struct TilesetEditor {
     properties_dialog: PropertiesDialog,
     selected_tile: u32,
     color_picker: super::widgets::ColorPickerState,
+    display: u32,
 }
 
 impl TilesetEditor {
@@ -23,6 +25,7 @@ impl TilesetEditor {
             properties_dialog: PropertiesDialog::new(),
             selected_tile: 0,
             color_picker: super::widgets::ColorPickerState::new(0b000011, 0b110000),
+            display: ImageDisplay::TRANSPARENT | ImageDisplay::GRID,
         }
     }
 
@@ -82,7 +85,7 @@ impl TilesetEditor {
 
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile);
+                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile, self.display);
                 if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                     canvas_to_image.from().contains(pointer_pos) {
                         let image_pos = canvas_to_image * pointer_pos;

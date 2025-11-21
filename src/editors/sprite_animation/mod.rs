@@ -9,6 +9,7 @@ use crate::data_asset::{
 };
 
 use properties::PropertiesDialog;
+use super::ImageDisplay;
 use super::widgets::SpriteFrameListView;
 
 enum EditorTabs {
@@ -39,6 +40,7 @@ pub struct SpriteAnimationEditor {
     sprite_frames: Vec<SpriteAnimationFrame>,
     selected_sprite_frame: usize,
     color_picker: super::widgets::ColorPickerState,
+    display_flags: u32,
 }
 
 fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
@@ -60,6 +62,7 @@ impl SpriteAnimationEditor {
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
             color_picker: super::widgets::ColorPickerState::new(0b000011, 0b001100),
+            display_flags: ImageDisplay::TRANSPARENT | ImageDisplay::GRID,
         }
     }
 
@@ -110,7 +113,7 @@ impl SpriteAnimationEditor {
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
                     let image_item = image_item as u32;
-                    let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, image_item);
+                    let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, image_item, self.display_flags);
                     if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                         canvas_to_image.from().contains(pointer_pos) {
                             let image_pos = canvas_to_image * pointer_pos;

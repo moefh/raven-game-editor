@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use crate::misc::{TextureManager, TextureName};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 use egui::{Rect, Pos2, Vec2};
@@ -54,6 +55,13 @@ impl ImageCollection {
         man.get_rgba_texture(ctx, self.tex_name, width, height, asset.data(), force_load)
     }
 
+    pub fn get_pixel(&self, data: &[u8], x: i32, y: i32, item: u32) -> u8 {
+        if x < 0 || x as u32 >= self.width { return 0; }
+        if y < 0 || y as u32 >= self.height { return 0; }
+        if item > self.num_items { return 0; }
+        data[((item * self.height + y as u32) * self.width + x as u32) as usize]
+    }
+
     pub fn set_pixel(&self, data: &mut [u8], x: i32, y: i32, item: u32, color: u8) -> bool {
         if x < 0 || x as u32 >= self.width { return false; }
         if y < 0 || y as u32 >= self.height { return false; }
@@ -96,5 +104,87 @@ impl ImageCollection {
         }
         data.clear();
         data.append(&mut new_data);
+    }
+
+    fn flood_fill_scan(&self, data: &mut [u8], item: u32, work: &mut VecDeque<(i32,i32)>, fill_over: u8,
+                       range: std::ops::RangeInclusive<i32>, y: i32) {
+        let mut span_added = false;
+        for x in range {
+            if fill_over != self.get_pixel(data, x, y, item) {
+                span_added = false;
+            } else if ! span_added {
+                work.push_back((x, y));
+                span_added = true;
+            }
+        }
+    }
+
+    pub fn flood_fill(&self, data: &mut [u8], x: i32, y: i32, item: u32, color: u8) -> bool {
+        if x < 0 || x as u32 >= self.width { return false; }
+        if y < 0 || y as u32 >= self.height { return false; }
+        if item > self.num_items { return false; }
+        let fill_over = self.get_pixel(data, x, y, item);
+        if fill_over == color { return false; }
+
+        let width = self.width as i32;
+        let height = self.height as i32;
+
+        let mut work = VecDeque::new();
+        work.push_back((x, y));
+        while let Some((x, y)) = work.pop_front() {
+            // left
+            let mut lx = x;
+            while lx > 0 && fill_over == self.get_pixel(data, lx-1, y, item) {
+                lx -= 1;
+                self.set_pixel(data, lx, y, item, color);
+            }
+
+            // right
+            let mut rx = x;
+            while rx < width && fill_over == self.get_pixel(data, rx, y, item) {
+                self.set_pixel(data, rx, y, item, color);
+                rx += 1;
+            }
+
+            if y < height - 1 { self.flood_fill_scan(data, item, &mut work, fill_over, lx..=rx-1, y+1); }
+            if y > 0 { self.flood_fill_scan(data, item, &mut work, fill_over, lx..=rx-1, y-1); }
+        }
+        true
+    }
+
+    pub fn h_flip(&self, data: &mut [u8], item: u32) {
+        if item > self.num_items { return; }
+
+        let item = item as usize;
+        let width = self.width as usize;
+        let height = self.height as usize;
+
+        let mut line = vec![0; width];
+        for y in 0..height {
+            let left = (item * height + y) * width;
+            line[..].clone_from_slice(&data[left..left+width]);
+            for x in 0..width {
+                data[left+x] = line[width-1-x];
+            }
+        }
+    }
+
+    pub fn v_flip(&self, data: &mut [u8], item: u32) {
+        if item > self.num_items { return; }
+
+        let item = item as usize;
+        let width = self.width as usize;
+        let height = self.height as usize;
+
+        let mut top_line = vec![0; width];
+        let mut bot_line = vec![0; width];
+        for y in 0..height/2 {
+            let top = (item * height + y) * width;
+            let bot = (item * height + height - 1 - y) * width;
+            top_line[..].clone_from_slice(&data[top..top+width]);
+            bot_line[..].clone_from_slice(&data[bot..bot+width]);
+            data[top..top+width].clone_from_slice(&bot_line);
+            data[bot..bot+width].clone_from_slice(&top_line);
+        }
     }
 }

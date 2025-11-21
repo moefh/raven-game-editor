@@ -63,7 +63,7 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         default_name_prefix: "sfx",
         add_menu_item: "Add Sound Effect",
         remove_menu_item: "Delete Sound Effect",
-        tree_root_item: "Sound Effects",
+        tree_root_item: "Sfx",
         image: IMAGE_REFS.sfx,
     },
     AssetDef {

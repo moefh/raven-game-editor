@@ -21,6 +21,19 @@ pub use prop_font::PropFontEditor;
 
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 
+#[derive(Clone, Copy, PartialEq)]
+enum DrawingTool {
+    Pencil,
+    Fill,
+    Select,
+}
+
+pub struct ImageDisplay;
+impl ImageDisplay {
+    pub const GRID: u32 = 1;
+    pub const TRANSPARENT: u32 = 1<<1;
+}
+
 pub struct DataAssetEditor {
     pub id: DataAssetId,
     pub open: bool,

@@ -6,12 +6,14 @@ use crate::misc::ImageCollection;
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use super::ImageDisplay;
 
 pub struct FontEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     force_reload_image: bool,
     selected_char: u32,
+    display_flags: u32,
 }
 
 fn char_name(ch: char) -> String {
@@ -31,6 +33,7 @@ impl FontEditor {
             properties_dialog: PropertiesDialog::new(),
             force_reload_image: false,
             selected_char: 1,
+            display_flags: ImageDisplay::TRANSPARENT | ImageDisplay::GRID,
         }
     }
 
@@ -87,7 +90,7 @@ impl FontEditor {
                 });
                 ui.add_space(5.0);
 
-                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_char);
+                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_char, self.display_flags);
                 if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                     canvas_to_image.from().contains(pointer_pos) {
                         let image_pos = canvas_to_image * pointer_pos;
