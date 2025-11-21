@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -65,7 +65,8 @@ impl PropFontEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (image, texture) = ImageCollection::load_asset(prop_font, wc.tex_man, wc.egui.ctx, self.force_reload_image);
+                let (image, texture) = ImageCollection::load_asset_texture(prop_font, wc.tex_man, wc.egui.ctx,
+                                                                           TextureSlot::Transparent, self.force_reload_image);
 
                 let sel_char_width = prop_font.char_widths.get(self.selected_char as usize).map_or(1, |&v| v) as u32;
 
@@ -112,9 +113,9 @@ impl PropFontEditor {
                         let x = image_pos.x as i32;
                         let y = image_pos.y as i32;
                         if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                            Some(0x00)
+                            Some(PropFont::FG_COLOR)
                         } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                            Some(0x0c)
+                            Some(PropFont::BG_COLOR)
                         } else {
                             None
                         } {

@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -68,7 +68,8 @@ impl FontEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (image, texture) = ImageCollection::load_asset(font, wc.tex_man, wc.egui.ctx, self.force_reload_image);
+                let (image, texture) = ImageCollection::load_asset_texture(font, wc.tex_man, wc.egui.ctx,
+                                                                           TextureSlot::Transparent, self.force_reload_image);
 
                 ui.horizontal(|ui| {
                     ui.label("Selected:");
@@ -97,9 +98,9 @@ impl FontEditor {
                         let x = image_pos.x as i32;
                         let y = image_pos.y as i32;
                         if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                            Some(0x00)
+                            Some(Font::FG_COLOR)
                         } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                            Some(0x0c)
+                            Some(Font::BG_COLOR)
                         } else {
                             None
                         } {

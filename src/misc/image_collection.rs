@@ -20,18 +20,23 @@ impl ImageCollection {
         }
     }
 
-    pub fn load_asset<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context, force_load: bool)
-                          -> (Self, &'a egui::TextureHandle) {
+    pub fn load_asset_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                                  slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
-        let texture = image.get_asset_texture(tex_man, ctx, asset, TextureSlot::Opaque, force_load);
+        let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, force_load);
         (image, texture)
     }
 
-    pub fn load_asset_on_slot<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
-                                  slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
+    pub fn get_asset_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                                 slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
-        let texture = image.get_asset_texture(tex_man, ctx, asset, slot, force_load);
+        let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, false);
         (image, texture)
+    }
+
+    pub fn get_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
+                           asset: &impl ImageCollectionAsset, slot: TextureSlot) -> &'a egui::TextureHandle {
+        self.get_or_load_texture(man, ctx, asset, slot, false)
     }
 
     pub fn get_item_size(&self) -> Vec2 {
@@ -50,8 +55,8 @@ impl ImageCollection {
         }
     }
 
-    pub fn get_asset_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
-                                 asset: &impl ImageCollectionAsset, slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
+    fn get_or_load_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
+                               asset: &impl ImageCollectionAsset, slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
         if self.asset_id != asset.asset_id() {
             println!("WARNING: get_asset_texture() for wrong asset id: {} vs {}", self.asset_id, asset.asset_id());
         }

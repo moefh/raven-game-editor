@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{
     SpriteAnimation, SpriteAnimationFrame, Sprite,
     DataAssetId, GenericAsset, AssetList, AssetIdList,
@@ -62,7 +62,7 @@ impl SpriteAnimationEditor {
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
             color_picker: super::widgets::ColorPickerState::new(0b000011, 0b001100),
-            display_flags: ImageDisplay::TRANSPARENT | ImageDisplay::GRID,
+            display_flags: ImageDisplay::TRANSPARENT,
         }
     }
 
@@ -80,7 +80,8 @@ impl SpriteAnimationEditor {
 
         let asset_id = animation.asset.id;
         let mut force_reload_image = self.force_reload_image;
-        let (image, texture) = ImageCollection::load_asset(sprite, wc.tex_man, wc.egui.ctx, self.force_reload_image);
+        let slot = if (self.display_flags & ImageDisplay::TRANSPARENT) == 0 { TextureSlot::Opaque } else { TextureSlot::Transparent };
+        let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
         self.force_reload_image = false;
 
         // color picker:
@@ -142,7 +143,8 @@ impl SpriteAnimationEditor {
         };
 
         let asset_id = animation.asset.id;
-        let (image, texture) = ImageCollection::load_asset(sprite, wc.tex_man, wc.egui.ctx, self.force_reload_image);
+        let slot = if (self.display_flags & ImageDisplay::TRANSPARENT) == 0 { TextureSlot::Opaque } else { TextureSlot::Transparent };
+        let (image, texture) = ImageCollection::get_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot);
 
         egui::TopBottomPanel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);

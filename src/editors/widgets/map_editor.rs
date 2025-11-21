@@ -1,5 +1,6 @@
-use crate::misc::ImageCollection;
-use crate::data_asset::MapData;
+use crate::app::WindowContext;
+use crate::misc::{ImageCollection, TextureSlot};
+use crate::data_asset::{MapData, Tileset};
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath::GuiRounding;
 
@@ -93,7 +94,7 @@ fn get_tile_rect(x: u32, y: u32, zoom: f32, canvas_pos: Pos2) -> Rect {
     }
 }
 
-pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::TextureHandle,
+pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData, tileset: &Tileset,
                   image: &ImageCollection, state: &mut MapEditorState) {
     let min_size = (state.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
     let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
@@ -128,6 +129,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
 
     // background
     if state.display_layers.has_bits(MapDisplay::BACKGROUND) {
+        let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
@@ -140,6 +142,7 @@ pub fn map_editor(ui: &mut egui::Ui, map_data: &mut MapData, texture: &egui::Tex
 
     // foreground
     if state.display_layers.has_bits(MapDisplay::FOREGROUND) {
+        let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);

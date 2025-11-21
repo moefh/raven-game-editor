@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -162,7 +162,8 @@ impl SpriteEditor {
                 ui.label(format!("{} bytes", sprite.data_size()));
             });
 
-            let (image, texture) = ImageCollection::load_asset(sprite, wc.tex_man, wc.egui.ctx, self.force_reload_image);
+            let slot = if (self.display & ImageDisplay::TRANSPARENT) == 0 { TextureSlot::Opaque } else { TextureSlot::Transparent };
+            let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
             self.force_reload_image = false;
 
             // item picker:

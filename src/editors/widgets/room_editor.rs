@@ -3,7 +3,7 @@ use egui::emath::RectTransform;
 
 use crate::data_asset::{Room, RoomMap, RoomEntity, RoomTrigger, MapData, Tileset, Sprite, AssetList};
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 
 use super::{MapLayer, RectBorder, TILE_SIZE, get_map_layer_tile};
 use super::super::room::{RoomEditorAssetLists, RoomItemRef};
@@ -371,9 +371,10 @@ fn draw_outline_rect(painter: &egui::Painter, rect: Rect) {
 }
 
 fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
-    let (image, texture) = ImageCollection::load_asset(tileset, wc.tex_man, wc.egui.ctx, false);
+    let image = ImageCollection::from_asset(tileset);
     for y in 0..map_data.bg_height {
         for x in 0..map_data.bg_width {
+            let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
             let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
             if tile == 0xff || tile >= image.num_items { continue; }
             let draw_rect = to_canvas.transform_rect(get_tile_rect(x, y, map_pos));
@@ -383,6 +384,7 @@ fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform
 
     for y in 0..map_data.height {
         for x in 0..map_data.width {
+            let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
             let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
             if tile == 0xff || tile >= image.num_items { continue; }
             let draw_rect = to_canvas.transform_rect(get_tile_rect(x, y, map_pos));
@@ -393,7 +395,7 @@ fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform
 
 fn draw_entity(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, entity_rect: Rect, sprite: &Sprite, frame: u32) {
     let draw_rect = to_canvas.transform_rect(entity_rect);
-    let (image, texture) = ImageCollection::load_asset(sprite, wc.tex_man, wc.egui.ctx, false);
+    let (image, texture) = ImageCollection::get_asset_texture(sprite, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
     Image::from_texture((texture.id(), image.get_item_size())).uv(image.get_item_uv(frame)).paint_at(ui, draw_rect);
 }
 

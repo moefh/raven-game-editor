@@ -2,7 +2,7 @@ use egui::{Vec2, Sense, Rect, Pos2, Image};
 
 use crate::data_asset::{MapData, Tileset};
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::misc::{ImageCollection, TextureSlot};
 
 use super::{MapLayer, TILE_SIZE, get_map_layer_tile};
 
@@ -36,8 +36,9 @@ pub fn map_view(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &MapData, t
     };
     painter.rect_filled(map_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0,0,0));
 
-    let (image, texture) = ImageCollection::load_asset(tileset, wc.tex_man, wc.egui.ctx, false);
+    let image = ImageCollection::from_asset(tileset);
 
+    let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
     for y in 0..map_data.bg_height {
         for x in 0..map_data.bg_width {
             let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
@@ -47,6 +48,7 @@ pub fn map_view(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &MapData, t
         }
     }
 
+    let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
     for y in 0..map_data.height {
         for x in 0..map_data.width {
             let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
