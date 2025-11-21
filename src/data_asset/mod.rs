@@ -422,8 +422,8 @@ impl DataAssetStore {
     pub fn new() -> Self {
         DataAssetStore {
             next_id: 0,
-            vga_sync_bits: 0,
-            project_prefix: String::new(),
+            vga_sync_bits: 0xc0,
+            project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),
             asset_ids: AssetIdCollection::new(),
         }
