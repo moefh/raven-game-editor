@@ -506,13 +506,13 @@ impl RavenEditorApp {
         }
 
         if self.windows.settings_open {
-            self.windows.show_settings(ctx, window_space);
+            self.windows.show_settings(&win_ctx);
         }
         if self.windows.properties_open {
-            self.windows.show_properties(ctx, window_space, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
+            self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
         }
         if self.windows.log_window_open {
-            self.windows.show_log_window(ctx, window_space, self.logger.modify());
+            self.windows.show_log_window(&win_ctx);
         }
     }
 }

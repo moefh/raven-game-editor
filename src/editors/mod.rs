@@ -71,7 +71,7 @@ pub fn create_editor_window<'a>(id: DataAssetId, title: &'a str, wc: &crate::app
     egui::Window::new(title)
         .id(editor_id)
         .frame(frame)
-        .enabled(! wc.sys_dialogs.has_pending_request())
+        .enabled(! wc.sys_dialogs.has_open_dialog())
         .default_rect(default_rect)
         .max_size(wc.window_space.size())
         .constrain_to(wc.window_space)

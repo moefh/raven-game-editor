@@ -57,7 +57,7 @@ impl SysDialogs {
         }
     }
 
-    pub fn has_pending_request(&self) -> bool {
+    pub fn has_open_dialog(&self) -> bool {
         match &self.request {
             None => false,
             Some(req) => req.is_pending(),
@@ -65,7 +65,7 @@ impl SysDialogs {
     }
 
     pub fn block_ui(&self, ui: &mut egui::Ui) -> bool {
-        if self.has_pending_request() {
+        if self.has_open_dialog() {
             ui.disable();
             true
         } else {

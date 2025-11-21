@@ -44,15 +44,15 @@ impl StringLogger {
         }
     }
 
-    /*
     pub fn read(&self) -> &str {
         &self.log
     }
-    */
 
+    /*
     pub fn modify(&mut self) -> &mut String {
         &mut self.log
     }
+    */
 }
 
 #[allow(unused)]
