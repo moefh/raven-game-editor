@@ -271,10 +271,8 @@ impl<'a> ProjectDataWriter<'a> {
         for mod_id in mod_ids.iter() {
             if let Some(mod_data) = self.store.assets.mods.get(mod_id) {
                 let mut mod_samples = Vec::new();
-                for (sample_index, sample) in mod_data.samples.iter().enumerate() {
-                    if sample.len != 0 && sample.data.is_some() {
-                        mod_samples.push(ModSampleRef { mod_id: *mod_id, sample_index });
-                    }
+                for sample_index in 0..mod_data.samples.len() {
+                    mod_samples.push(ModSampleRef { mod_id: *mod_id, sample_index });
                 }
                 all_samples.insert(*mod_id, mod_samples);
             }
@@ -755,7 +753,7 @@ impl<'a> ProjectDataWriter<'a> {
                 })?;
                 self.write("  {\n");
                 self.write(format!("    {}_sprite_animation_frames_{},\n", self.ident.prefix_lower, name));
-                self.write(format!("    &raven_sprites[{}],\n", sprite_index));
+                self.write(format!("    &{}_sprites[{}],\n", self.ident.prefix_lower, sprite_index));
                 self.write(format!("    {{ {}, {}, {}, {} }},\n", anim.clip_rect.x, anim.clip_rect.y, anim.clip_rect.w, anim.clip_rect.h));
                 self.write(format!("    {},\n", if info.add_foot { 1 } else { 0 }));
                 self.write(format!("    {},\n", anim.foot_overlap));

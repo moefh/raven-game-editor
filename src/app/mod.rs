@@ -16,6 +16,8 @@ pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 
+const SEND_LOG_TO_STDOUT: bool = false;
+
 const MENU_HEIGHT: f32 = 22.0;
 const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
@@ -54,7 +56,7 @@ impl RavenEditorApp {
             store: DataAssetStore::new(),
             filename: None,
             filename_changed: true,
-            logger: StringLogger::new(false),
+            logger: StringLogger::new(SEND_LOG_TO_STDOUT),
             sys_dialogs: sys_dialogs::SysDialogs::new(),
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
