@@ -119,7 +119,7 @@ impl SpriteAnimationEditor {
                 .and_then(|frame| frame.head_index)  {
                     self.image_editor.selected_image = image_item as u32;
                     let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                    super::widgets::image_editor(ui, wc.tex_man, sprite, &mut self.image_editor, colors);
+                    super::widgets::image_editor(ui, wc, sprite, &mut self.image_editor, colors);
                 }
         });
     }

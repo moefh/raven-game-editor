@@ -1,4 +1,4 @@
-mod tokenizer;
+pub mod tokenizer;
 
 use std::fs;
 use std::collections::HashMap;

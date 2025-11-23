@@ -171,7 +171,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     }
 
     // grid and border
-    let stroke = egui::Stroke::new(1.0, Color32::BLACK);
+    let stroke = egui::Stroke::new(1.0, wc.settings.map_grid_color);
     if state.display_layers.has_bits(MapDisplay::GRID) {
         for y in 0..map_data.height+1 {
             let cy = (canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y%zoomed_tile_size).round_to_pixels(ui.pixels_per_point());

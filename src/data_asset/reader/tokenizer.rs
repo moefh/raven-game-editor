@@ -124,6 +124,12 @@ impl Token {
         }
     }
 
+    pub fn get_string(&self) -> Option<&str> {
+        match &self.data {
+            TokenData::String(s) => Some(s),
+            _ => None,
+        }
+    }
 
     pub fn get_ident(&self) -> Option<&str> {
         match &self.data {

@@ -162,7 +162,7 @@ impl TilesetEditor {
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                super::widgets::image_editor(ui, wc.tex_man, tileset, &mut self.image_editor, colors);
+                super::widgets::image_editor(ui, wc, tileset, &mut self.image_editor, colors);
             });
         });
         self.asset.open = asset_open;

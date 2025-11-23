@@ -90,7 +90,7 @@ impl FontEditor {
                 ui.add_space(5.0);
 
                 let colors = (Font::FG_COLOR, Font::BG_COLOR);
-                super::widgets::image_editor(ui, wc.tex_man, font, &mut self.image_editor, colors);
+                super::widgets::image_editor(ui, wc, font, &mut self.image_editor, colors);
             });
         });
     }

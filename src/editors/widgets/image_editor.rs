@@ -1,5 +1,6 @@
-use crate::misc::{TextureManager, TextureSlot, ImageCollection, ImageFragment, ImageRect};
+use crate::misc::{TextureSlot, ImageCollection, ImageFragment, ImageRect};
 use crate::data_asset::ImageCollectionAsset;
+use crate::app::WindowContext;
 
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
@@ -266,10 +267,10 @@ impl ImageEditorState {
     }
 }
 
-pub fn image_editor(ui: &mut egui::Ui, tex_man: &mut TextureManager, asset: &mut impl ImageCollectionAsset,
+pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset,
                     state: &mut ImageEditorState, colors: (u8, u8)) {
     let slot = state.display.texture_slot();
-    let (image, texture) = ImageCollection::load_asset_texture(asset, tex_man, ui.ctx(), slot, state.image_changed);
+    let (image, texture) = ImageCollection::load_asset_texture(asset, wc.tex_man, ui.ctx(), slot, state.image_changed);
     if state.image_changed { state.image_changed = false; }
 
     let image_size = image.get_item_size();
@@ -300,7 +301,7 @@ pub fn image_editor(ui: &mut egui::Ui, tex_man: &mut TextureManager, asset: &mut
     // draw floating selection
     if let ImageSelection::Fragment(pos, frag) = &mut state.selection {
         let slot = state.display.texture_slot();
-        let (frag_image, frag_texture) = ImageCollection::load_asset_texture(frag, tex_man, ui.ctx(), slot, frag.changed);
+        let (frag_image, frag_texture) = ImageCollection::load_asset_texture(frag, wc.tex_man, ui.ctx(), slot, frag.changed);
         if frag.changed { frag.changed = false; }
         let uv = frag_image.get_item_uv(0);
         let frag_size = frag_image.get_item_size();
@@ -321,7 +322,7 @@ pub fn image_editor(ui: &mut egui::Ui, tex_man: &mut TextureManager, asset: &mut
         state.display.has_bits(ImageDisplay::GRID) &&
         (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 2.0);
     if display_grid {
-        let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
+        let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
         for y in 0..=image.height {
             let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / image.height as f32;
             painter.hline(canvas_rect.x_range(), py, stroke);

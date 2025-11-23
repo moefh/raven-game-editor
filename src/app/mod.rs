@@ -3,6 +3,7 @@ mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
+mod settings;
 
 use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
@@ -15,6 +16,7 @@ pub use window_context::{WindowContext, WindowEguiContext};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
+pub use settings::AppSettings;
 
 const SEND_LOG_TO_STDOUT: bool = false;
 
@@ -45,6 +47,7 @@ pub struct RavenEditorApp {
     editors: editors::AssetEditors,
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
+    settings: AppSettings,
     confirmation_dialog_action: ConfirmationDialogAction,
 }
 
@@ -63,8 +66,10 @@ impl RavenEditorApp {
             editors: editors::AssetEditors::new(),
             tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
+            settings: AppSettings::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
         };
+        app.settings.load(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
@@ -79,11 +84,16 @@ impl RavenEditorApp {
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
         egui_extras::install_image_loaders(ctx);
         crate::add_font(ctx);
-        ctx.set_zoom_factor(1.5);
         ctx.options_mut(|opt: &mut egui::Options| {
             opt.zoom_with_keyboard = false;
         });
-        ctx.set_theme(egui::ThemePreference::Light);
+        ctx.set_zoom_factor(self.settings.zoom as f32 / 100.0);
+        match self.settings.theme.as_str() {
+            "light" => ctx.set_theme(egui::ThemePreference::Light),
+            "dark" => ctx.set_theme(egui::ThemePreference::Dark),
+            "system" => ctx.set_theme(egui::ThemePreference::System),
+            _ => {}
+        }
     }
 
     pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
@@ -354,7 +364,7 @@ impl RavenEditorApp {
                     ui.separator();
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Settings...").clicked() {
+                        if ui.button("Settings").clicked() {
                             self.windows.settings_open = true;
                         }
                     });
@@ -378,7 +388,7 @@ impl RavenEditorApp {
                     ui.separator();
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Properties...").clicked() {
+                        if ui.button("Properties").clicked() {
                             self.windows.properties_open = true;
                         }
                     });
@@ -391,9 +401,19 @@ impl RavenEditorApp {
                     });
                 });
                 ui.menu_button("Help", |ui| {
-                    if ui.button("About").clicked() {
-                        self.open_about_dialog();
-                    }
+                    ui.horizontal(|ui| {
+                        ui.add_space(NO_IMAGE_TREE_SIZE);
+                        if ui.button("Status").clicked() {
+                            self.windows.status_open = true;
+                        }
+                    });
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.add_space(NO_IMAGE_TREE_SIZE);
+                        if ui.button("About").clicked() {
+                            self.open_about_dialog();
+                        }
+                    });
                 });
             });
         });
@@ -532,6 +552,7 @@ impl RavenEditorApp {
             sys_dialogs: &mut self.sys_dialogs,
             dialogs: &mut self.dialogs,
             logger: &mut self.logger,
+            settings: &mut self.settings,
         };
 
         for tileset in self.store.assets.tilesets.iter_mut() {
@@ -586,7 +607,10 @@ impl RavenEditorApp {
         }
 
         if self.windows.settings_open {
-            self.windows.show_settings(&win_ctx);
+            self.windows.show_settings(&mut win_ctx);
+        }
+        if self.windows.status_open {
+            self.windows.show_status(&win_ctx);
         }
         if self.windows.properties_open {
             self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
