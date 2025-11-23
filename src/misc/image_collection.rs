@@ -280,19 +280,21 @@ impl ImageCollection {
         if (x > 0 &&   x  as u32 >= self.width) || (y > 0 &&   y  as u32 >= self.height) { return; }
         if (x < 0 && (-x) as u32 >= self.width) || (y < 0 && (-y) as u32 >= self.height) { return; }
 
-        let mut x = x;
-        let mut y = y;
+        let mut src_x = 0;
+        let mut src_y = 0;
         let mut width = frag.width;
         let mut height = frag.height;
-        if x < 0 { width -= (-x) as u32; x = 0; }
-        if y < 0 { height -= (-y) as u32; y = 0; }
+        let mut x = x;
+        let mut y = y;
+        if x < 0 { src_x = (-x) as u32; width -= src_x; x = 0; }
+        if y < 0 { src_y = (-y) as u32; height -= src_y; y = 0; }
         let x = x as u32;
         let y = y as u32;
         if width > self.width - x { width = self.width - x; }
-        if height > self.height - y { width = self.height - y; }
+        if height > self.height - y { height = self.height - y; }
 
         for iy in 0..height {
-            let src = (iy * frag.width) as usize;
+            let src = ((iy + src_y) * frag.width + src_x) as usize;
             let dest = ((item * self.height + y + iy) * self.width + x) as usize;
             if transparent {
                 for ix in 0..width as usize {
