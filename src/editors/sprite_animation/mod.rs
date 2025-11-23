@@ -2,15 +2,14 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+use crate::misc::ImageCollection;
 use crate::data_asset::{
     SpriteAnimation, SpriteAnimationFrame, Sprite,
     DataAssetId, GenericAsset, AssetList, AssetIdList,
 };
 
 use properties::PropertiesDialog;
-use super::ImageDisplay;
-use super::widgets::SpriteFrameListView;
+use super::widgets::{ColorPickerState, ImageEditorState, SpriteFrameListView};
 
 enum EditorTabs {
     Sprite,
@@ -39,8 +38,8 @@ pub struct SpriteAnimationEditor {
     selected_loop_frame: usize,
     sprite_frames: Vec<SpriteAnimationFrame>,
     selected_sprite_frame: usize,
-    color_picker: super::widgets::ColorPickerState,
-    display_flags: u32,
+    color_picker: ColorPickerState,
+    image_editor: ImageEditorState,
 }
 
 fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
@@ -61,12 +60,15 @@ impl SpriteAnimationEditor {
             selected_loop_frame: 0,
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
-            color_picker: super::widgets::ColorPickerState::new(0b000011, 0b001100),
-            display_flags: ImageDisplay::TRANSPARENT,
+            color_picker: ColorPickerState::new(0b000011, 0b001100),
+            image_editor: ImageEditorState::new(),
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    pub fn prepare_for_saving(&mut self, animation: &mut SpriteAnimation, sprites: &mut AssetList<Sprite>) {
+        if let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
+            self.image_editor.drop_selection(sprite);
+        }
     }
 
     fn select_loop(&mut self, selected_loop: usize) {
@@ -82,10 +84,6 @@ impl SpriteAnimationEditor {
         };
 
         let asset_id = animation.asset.id;
-        let mut force_reload_image = self.force_reload_image;
-        let slot = if (self.display_flags & ImageDisplay::TRANSPARENT) == 0 { TextureSlot::Opaque } else { TextureSlot::Transparent };
-        let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
-        self.force_reload_image = false;
 
         // color picker:
         egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
@@ -97,6 +95,9 @@ impl SpriteAnimationEditor {
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
+                let slot = self.image_editor.display.texture_slot();
+                let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
+                if self.force_reload_image { self.force_reload_image = false; }
                 let view = SpriteFrameListView::new(texture, &image, &aloop.frame_indices,
                                                     animation.foot_overlap, self.selected_loop_frame);
                 let scroll = view.show(ui);
@@ -116,26 +117,11 @@ impl SpriteAnimationEditor {
             if let Some(image_item) = animation.loops.get(self.selected_loop)
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
-                    let image_item = image_item as u32;
-                    let (resp, canvas_to_image) = super::widgets::old_image_editor(ui, texture, &image, image_item, self.display_flags);
-                    if let Some(pointer_pos) = resp.interact_pointer_pos() &&
-                        canvas_to_image.from().contains(pointer_pos) {
-                            let image_pos = canvas_to_image * pointer_pos;
-                            let x = image_pos.x as i32;
-                            let y = image_pos.y as i32;
-                            if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                                Some(self.color_picker.left_color)
-                            } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                                Some(self.color_picker.right_color)
-                            } else {
-                                None
-                            } {
-                                force_reload_image = image.set_pixel(&mut sprite.data, x, y, image_item, color);
-                            }
-                        }
+                    self.image_editor.selected_image = image_item as u32;
+                    let colors = (self.color_picker.left_color, self.color_picker.right_color);
+                    super::widgets::image_editor(ui, wc.tex_man, sprite, &mut self.image_editor, colors);
                 }
         });
-        self.force_reload_image = force_reload_image;
     }
 
     fn frames_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, animation: &mut SpriteAnimation,
@@ -146,7 +132,7 @@ impl SpriteAnimationEditor {
         };
 
         let asset_id = animation.asset.id;
-        let slot = if (self.display_flags & ImageDisplay::TRANSPARENT) == 0 { TextureSlot::Opaque } else { TextureSlot::Transparent };
+        let slot = self.image_editor.display.texture_slot();
         let (image, texture) = ImageCollection::get_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot);
 
         egui::TopBottomPanel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {

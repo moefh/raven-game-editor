@@ -2,18 +2,16 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::ImageDisplay;
+use super::widgets::ImageEditorState;
 
 pub struct FontEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     force_reload_image: bool,
-    selected_char: u32,
-    display_flags: u32,
+    image_editor: ImageEditorState,
 }
 
 fn char_name(ch: char) -> String {
@@ -32,12 +30,12 @@ impl FontEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
             force_reload_image: false,
-            selected_char: 1,
-            display_flags: ImageDisplay::TRANSPARENT | ImageDisplay::GRID,
+            image_editor: ImageEditorState::new(),
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    pub fn prepare_for_saving(&mut self, font: &mut Font) {
+        self.image_editor.drop_selection(font);
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
@@ -71,13 +69,10 @@ impl FontEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (image, texture) = ImageCollection::load_asset_texture(font, wc.tex_man, wc.egui.ctx,
-                                                                           TextureSlot::Transparent, self.force_reload_image);
-
                 ui.horizontal(|ui| {
                     ui.label("Selected:");
                     ui.add_space(5.0);
-                    let cur_char = match char::from_u32(Font::FIRST_CHAR + self.selected_char) {
+                    let cur_char = match char::from_u32(Font::FIRST_CHAR + self.image_editor.selected_image) {
                         Some(ch) => char_name(ch),
                         None => " ".to_string(),
                     };
@@ -87,29 +82,15 @@ impl FontEditor {
                         .show_ui(ui, |ui| {
                             for i in 0..Font::NUM_CHARS {
                                 if let Some(ch) = char::from_u32(Font::FIRST_CHAR + i) {
-                                    ui.selectable_value(&mut self.selected_char, i, char_name(ch));
+                                    ui.selectable_value(&mut self.image_editor.selected_image, i, char_name(ch));
                                 }
                             }
                         });
                 });
                 ui.add_space(5.0);
 
-                let (resp, canvas_to_image) = super::widgets::old_image_editor(ui, texture, &image, self.selected_char, self.display_flags);
-                if let Some(pointer_pos) = resp.interact_pointer_pos() &&
-                    canvas_to_image.from().contains(pointer_pos) {
-                        let image_pos = canvas_to_image * pointer_pos;
-                        let x = image_pos.x as i32;
-                        let y = image_pos.y as i32;
-                        if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                            Some(Font::FG_COLOR)
-                        } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                            Some(Font::BG_COLOR)
-                        } else {
-                            None
-                        } {
-                            self.force_reload_image = image.set_pixel(&mut font.data, x, y, self.selected_char, color);
-                        }
-                    }
+                let colors = (Font::FG_COLOR, Font::BG_COLOR);
+                super::widgets::image_editor(ui, wc.tex_man, font, &mut self.image_editor, colors);
             });
         });
     }

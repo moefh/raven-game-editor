@@ -4,7 +4,6 @@ mod sfx_display;
 mod sprite_frame_list_view;
 mod room_editor;
 mod map_view;
-mod old_image_editor;
 mod image_editor;
 
 use crate::misc::ImageCollection;
@@ -21,7 +20,6 @@ pub use sfx_display::{*};
 pub use sprite_frame_list_view::{*};
 pub use room_editor::{*};
 pub use map_view::{*};
-pub use old_image_editor::{*};
 pub use image_editor::{*};
 
 #[allow(dead_code)]

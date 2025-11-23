@@ -120,7 +120,9 @@ impl RavenEditorApp {
             if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) { editor.prepare_for_saving(sprite); }
         }
         for anim in self.store.assets.animations.iter_mut() {
-            if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) { editor.prepare_for_saving(anim); }
+            if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
+                editor.prepare_for_saving(anim, &mut self.store.assets.sprites);
+            }
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) { editor.prepare_for_saving(sfx); }
