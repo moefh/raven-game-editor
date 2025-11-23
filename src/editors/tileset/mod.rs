@@ -31,6 +31,9 @@ impl TilesetEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn get_selected_color_for_click(&self, resp: &egui::Response) -> Option<u8> {
         if resp.dragged_by(egui::PointerButton::Primary) {
             Some(self.color_picker.left_color)
@@ -188,7 +191,7 @@ impl TilesetEditor {
 
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_tile, self.display);
+                let (resp, canvas_to_image) = super::widgets::old_image_editor(ui, texture, &image, self.selected_tile, self.display);
                 if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                     canvas_to_image.from().contains(pointer_pos) {
                         let image_pos = canvas_to_image * pointer_pos;

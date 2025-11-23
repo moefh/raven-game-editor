@@ -58,6 +58,9 @@ impl ModDataEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn select_sample(&mut self, selected_sample: usize) {
         self.selected_sample = selected_sample;
         self.sfx_display_state = SfxDisplayState::new();

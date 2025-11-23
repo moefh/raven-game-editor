@@ -102,7 +102,42 @@ impl RavenEditorApp {
         }
     }
 
+    fn prepare_for_saving(&mut self) {
+        // Some editors may have assets in a transient state that must
+        // be resolved before saving state (e.g. images can have
+        // detached floating selections).
+
+        for tileset in self.store.assets.tilesets.iter_mut() {
+            if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) { editor.prepare_for_saving(tileset); }
+        }
+        for map in self.store.assets.maps.iter_mut() {
+            if let Some(editor) = self.editors.maps.get_mut(&map.asset.id) { editor.prepare_for_saving(map); }
+        }
+        for room in self.store.assets.rooms.iter_mut() {
+            if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) { editor.prepare_for_saving(room); }
+        }
+        for sprite in self.store.assets.sprites.iter_mut() {
+            if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) { editor.prepare_for_saving(sprite); }
+        }
+        for anim in self.store.assets.animations.iter_mut() {
+            if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) { editor.prepare_for_saving(anim); }
+        }
+        for sfx in self.store.assets.sfxs.iter_mut() {
+            if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) { editor.prepare_for_saving(sfx); }
+        }
+        for mod_data in self.store.assets.mods.iter_mut() {
+            if let Some(editor) = self.editors.mods.get_mut(&mod_data.asset.id) { editor.prepare_for_saving(mod_data); }
+        }
+        for font in self.store.assets.fonts.iter_mut() {
+            if let Some(editor) = self.editors.fonts.get_mut(&font.asset.id) { editor.prepare_for_saving(font); }
+        }
+        for pfont in self.store.assets.prop_fonts.iter_mut() {
+            if let Some(editor) = self.editors.prop_fonts.get_mut(&pfont.asset.id) { editor.prepare_for_saving(pfont); }
+        }
+    }
+
     fn write_project(&mut self, path: &std::path::Path) -> bool {
+        self.prepare_for_saving();
         match crate::data_asset::writer::write_project(path, &self.store, &mut self.logger) {
             Ok(()) => true,
             Err(_) => {
@@ -508,12 +543,12 @@ impl RavenEditorApp {
             }
         }
         for room in self.store.assets.rooms.iter_mut() {
-            let assets = crate::editors::RoomEditorAssetLists::new(
-                &self.store.assets.maps,
-                &self.store.assets.tilesets,
-                &self.store.assets.animations,
-                &self.store.assets.sprites);
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) {
+                let assets = crate::editors::RoomEditorAssetLists::new(
+                    &self.store.assets.maps,
+                    &self.store.assets.tilesets,
+                    &self.store.assets.animations,
+                    &self.store.assets.sprites);
                 editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
             }
         }

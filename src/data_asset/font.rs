@@ -57,4 +57,5 @@ impl super::ImageCollectionAsset for Font {
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { Font::NUM_CHARS }
     fn data(&self) -> &[u8] { &self.data }
+    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
 }

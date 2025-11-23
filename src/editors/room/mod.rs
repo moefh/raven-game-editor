@@ -116,6 +116,9 @@ impl RoomEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn get_new_item_name(items: &[impl RoomItem], base: &str) -> String {
         use std::fmt::Write;
 

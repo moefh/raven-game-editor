@@ -21,17 +21,17 @@ pub use prop_font::PropFontEditor;
 
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 
+pub struct ImageDisplay;
+impl ImageDisplay {
+    pub const GRID: u32 = 1<<0;
+    pub const TRANSPARENT: u32 = 1<<1;
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum DrawingTool {
     Pencil,
     Fill,
     Select,
-}
-
-pub struct ImageDisplay;
-impl ImageDisplay {
-    pub const GRID: u32 = 1;
-    pub const TRANSPARENT: u32 = 1<<1;
 }
 
 pub struct DataAssetEditor {
@@ -46,6 +46,13 @@ impl DataAssetEditor {
             open,
         }
     }
+}
+
+pub fn current_time_as_millis() -> u64 {
+    use std::time::{SystemTime, Duration, UNIX_EPOCH};
+    let start = SystemTime::now();
+    let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO);
+    since_the_epoch.as_millis() as u64
 }
 
 pub fn raven_color_to_rgb(raven_color: u8) -> egui::Color32 {

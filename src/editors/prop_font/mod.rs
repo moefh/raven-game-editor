@@ -34,6 +34,9 @@ impl PropFontEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, prop_font: &mut PropFont) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, prop_font) {
             self.force_reload_image = true;

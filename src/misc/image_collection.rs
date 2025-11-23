@@ -1,7 +1,56 @@
 use std::collections::VecDeque;
 use crate::misc::{TextureManager, TextureName, TextureSlot};
-use crate::data_asset::{DataAssetId, ImageCollectionAsset};
+use crate::data_asset::{DataAssetId, ImageCollectionAsset, DataAssetStore};
 use egui::{Rect, Pos2, Vec2};
+
+#[derive(Copy, Clone)]
+pub struct ImageRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl ImageRect {
+    pub fn from_rect(rect: Rect, image: &ImageCollection) -> Self {
+        let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(image.width as f32, image.height as f32)));
+        ImageRect {
+            x: rect.min.x as u32,
+            y: rect.min.y as u32,
+            width: rect.width().max(0.0) as u32,
+            height: rect.height().max(0.0) as u32,
+        }
+    }
+}
+
+pub struct ImageFragment {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+    pub changed: bool,
+}
+
+impl ImageFragment {
+    pub const EMPTY: ImageFragment = ImageFragment { width: 0, height: 0, data: Vec::new(), changed: false, };
+
+    pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
+        ImageFragment {
+            width,
+            height,
+            data,
+            changed: true,
+        }
+    }
+}
+
+impl ImageCollectionAsset for ImageFragment {
+    fn asset_id(&self) -> DataAssetId { DataAssetStore::USER_ASSET_ID }
+    fn width(&self) -> u32 { self.width }
+    fn height(&self) -> u32 { self.height }
+    fn num_items(&self) -> u32 { 1 }
+    fn data(&self) -> &[u8] { &self.data }
+    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
+}
 
 pub struct ImageCollection {
     pub asset_id: DataAssetId,
@@ -200,5 +249,62 @@ impl ImageCollection {
             data[top..top+width].clone_from_slice(&bot_line);
             data[bot..bot+width].clone_from_slice(&top_line);
         }
+    }
+
+    pub fn copy_fragment(&self, data: &[u8], item: u32, rect: ImageRect) -> ImageFragment {
+        if rect.width == 0 || rect.height == 0 || rect.x + rect.width > self.width || rect.y + rect.height > self.height {
+            return ImageFragment::EMPTY;
+        }
+
+        let mut copy = vec![0; (rect.width * rect.height) as usize];
+        let width = rect.width as usize;
+        for y in 0..rect.height {
+            let src = ((item * self.height + y + rect.y) * self.width + rect.x) as usize;
+            let dest = (y * rect.width) as usize;
+            copy[dest..dest + width].clone_from_slice(&data[src..src + width]);
+        }
+        ImageFragment::new(width as u32, rect.height, copy)
+    }
+
+    pub fn cut_fragment(&self, data: &mut [u8], item: u32, rect: ImageRect, color: u8) -> ImageFragment {
+        let frag = self.copy_fragment(data, item, rect);
+        let width = frag.width as usize;
+        for y in rect.y..rect.y+frag.height {
+            let index = ((item * self.height + y) * self.width + rect.x) as usize;
+            data[index..index+width].fill(color);
+        }
+        frag
+    }
+
+    pub fn paste_fragment(&self, data: &mut [u8], item: u32, x: i32, y: i32, frag: &ImageFragment, transparent: bool) {
+        if (x > 0 &&   x  as u32 >= self.width) || (y > 0 &&   y  as u32 >= self.height) { return; }
+        if (x < 0 && (-x) as u32 >= self.width) || (y < 0 && (-y) as u32 >= self.height) { return; }
+
+        let mut x = x;
+        let mut y = y;
+        let mut width = frag.width;
+        let mut height = frag.height;
+        if x < 0 { width -= (-x) as u32; x = 0; }
+        if y < 0 { height -= (-y) as u32; y = 0; }
+        let x = x as u32;
+        let y = y as u32;
+        if width > self.width - x { width = self.width - x; }
+        if height > self.height - y { width = self.height - y; }
+
+        for iy in 0..height {
+            let src = (iy * frag.width) as usize;
+            let dest = ((item * self.height + y + iy) * self.width + x) as usize;
+            if transparent {
+                for ix in 0..width as usize {
+                    let pixel = frag.data[src+ix];
+                    if pixel != ImageFragment::TRANSPARENT_COLOR {
+                        data[dest+ix] = pixel;
+                    }
+                }
+            } else {
+                data[dest .. dest + width as usize].clone_from_slice(&frag.data[src .. src + width as usize]);
+            }
+        }
+
     }
 }

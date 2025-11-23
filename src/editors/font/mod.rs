@@ -37,6 +37,9 @@ impl FontEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, font) {
             self.force_reload_image = true;
@@ -91,7 +94,7 @@ impl FontEditor {
                 });
                 ui.add_space(5.0);
 
-                let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, self.selected_char, self.display_flags);
+                let (resp, canvas_to_image) = super::widgets::old_image_editor(ui, texture, &image, self.selected_char, self.display_flags);
                 if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                     canvas_to_image.from().contains(pointer_pos) {
                         let image_pos = canvas_to_image * pointer_pos;

@@ -66,6 +66,9 @@ impl SpriteAnimationEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn select_loop(&mut self, selected_loop: usize) {
         self.selected_loop = selected_loop;
         self.selected_loop_frame = 0;
@@ -114,7 +117,7 @@ impl SpriteAnimationEditor {
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
                     let image_item = image_item as u32;
-                    let (resp, canvas_to_image) = super::widgets::image_editor(ui, texture, &image, image_item, self.display_flags);
+                    let (resp, canvas_to_image) = super::widgets::old_image_editor(ui, texture, &image, image_item, self.display_flags);
                     if let Some(pointer_pos) = resp.interact_pointer_pos() &&
                         canvas_to_image.from().contains(pointer_pos) {
                             let image_pos = canvas_to_image * pointer_pos;

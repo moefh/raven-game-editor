@@ -28,6 +28,9 @@ impl SfxEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn import_wav(&mut self, wc: &mut WindowContext, filename: &std::path::Path, sfx: &mut Sfx) {
         let result = wav_utils::WavFile::read(filename).and_then(|mut wav_file| {
             if wav_file.channels.is_empty() { return Err(Error::other("WAV with no channels!?")); }

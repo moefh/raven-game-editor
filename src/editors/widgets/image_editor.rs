@@ -1,11 +1,277 @@
-use crate::misc::ImageCollection;
+use crate::misc::{TextureManager, TextureSlot, ImageCollection, ImageFragment, ImageRect};
+use crate::data_asset::ImageCollectionAsset;
 
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
-use super::super::ImageDisplay;
+pub enum ImageSelection {
+    None,
+    Rect(Pos2, Pos2),
+    Fragment(Pos2, ImageFragment),
+}
 
-pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection, selected_image: u32, display_flags: u32)
-                    -> (egui::Response, emath::RectTransform) {
+impl ImageSelection {
+
+    pub fn set_changed(&mut self) {
+        if let ImageSelection::Fragment(_, frag) = self {
+            frag.changed = true;
+        }
+    }
+
+    pub fn take_fragment(&mut self) -> Option<(Pos2, ImageFragment)> {
+        match self {
+            ImageSelection::Fragment(..) => {
+                let mut ret = ImageSelection::None;
+                std::mem::swap(self, &mut ret);
+                match ret {
+                    ImageSelection::Fragment(pos, frag) => Some((pos, frag)),
+                    _ => panic!("error taking image fragment")  // we had a fragment, but not after swapping!?
+                }
+            }
+            _ => None
+        }
+    }
+
+    pub fn get_rect(&self) -> Option<Rect> {
+        match self {
+            ImageSelection::Rect(origin, end) => {
+                Some(Rect {
+                    min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
+                    max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
+                })
+            }
+            ImageSelection::Fragment(pos, frag) => {
+                Some(Rect {
+                    min: *pos,
+                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
+                })
+            }
+            ImageSelection::None => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum ImageDrawingTool {
+    Pencil,
+    Fill,
+    Select,
+}
+
+pub struct ImageDisplay {
+    pub bits: u8,
+}
+
+impl ImageDisplay {
+    pub const GRID: u8        = 1 << 0;
+    pub const TRANSPARENT: u8 = 1 << 1;
+
+    pub fn new(bits: u8) -> Self {
+        ImageDisplay {
+            bits,
+        }
+    }
+
+    pub fn toggle(&mut self, bits: u8) {
+        self.bits ^= bits;
+    }
+
+    pub fn has_bits(&self, bits: u8) -> bool {
+        (self.bits & bits) != 0
+    }
+
+    pub fn is_transparent(&self) -> bool {
+        self.has_bits(Self::TRANSPARENT)
+    }
+
+    pub fn texture_slot(&self) -> TextureSlot {
+        if self.is_transparent() {
+            TextureSlot::Transparent
+        } else {
+            TextureSlot::Opaque
+        }
+    }
+}
+
+pub struct ImageEditorState {
+    pub selected_image: u32,
+    pub display: ImageDisplay,
+    pub tool: ImageDrawingTool,
+    pub selection: ImageSelection,
+    image_changed: bool,
+    tool_changed: bool,
+    drag_mouse_origin: Pos2,
+    drag_frag_origin: Pos2,
+}
+
+impl ImageEditorState {
+    pub fn new() -> Self {
+        ImageEditorState {
+            selected_image: 0,
+            display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
+            tool: ImageDrawingTool::Pencil,
+            selection: ImageSelection::None,
+            drag_mouse_origin: Pos2::ZERO,
+            drag_frag_origin: Pos2::ZERO,
+            image_changed: false,
+            tool_changed: false,
+        }
+    }
+
+    pub fn toggle_display(&mut self, bits: u8) {
+        self.display.toggle(bits);
+        if (bits & ImageDisplay::TRANSPARENT) != 0 {
+            self.image_changed = true;
+            self.selection.set_changed();
+        }
+    }
+
+    pub fn vflip(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
+        if matches!(self.selection, ImageSelection::Rect(..)) {
+            self.lift_selection(asset, bg_color);
+        }
+
+        if let ImageSelection::Fragment(_, frag) = &mut self.selection {
+            let image = ImageCollection::from_asset(frag);
+            image.v_flip(&mut frag.data, 0);
+            frag.changed = true;
+        } else {
+            let image = ImageCollection::from_asset(asset);
+            image.v_flip(asset.data_mut(), self.selected_image);
+            self.image_changed = true;
+        }
+    }
+
+    pub fn hflip(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
+        if matches!(self.selection, ImageSelection::Rect(..)) {
+            self.lift_selection(asset, bg_color);
+        }
+
+        if let ImageSelection::Fragment(_, frag) = &mut self.selection {
+            let image = ImageCollection::from_asset(frag);
+            image.h_flip(&mut frag.data, 0);
+            frag.changed = true;
+        } else {
+            let image = ImageCollection::from_asset(asset);
+            image.h_flip(asset.data_mut(), self.selected_image);
+            self.image_changed = true;
+        }
+    }
+
+    pub fn set_tool(&mut self, tool: ImageDrawingTool) {
+        self.tool = tool;
+        self.tool_changed = true;
+    }
+
+    pub fn drop_selection(&mut self, asset: &mut impl ImageCollectionAsset) {
+        let image = ImageCollection::from_asset(asset);
+        if let ImageSelection::Fragment(pos, frag) = &self.selection {
+            let transparent = self.display.is_transparent();
+            image.paste_fragment(asset.data_mut(), self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
+            self.image_changed = true;
+        }
+        self.selection = ImageSelection::None;
+    }
+
+    fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
+        if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
+            let image = ImageCollection::from_asset(asset);
+            let image_rect = ImageRect::from_rect(sel_rect, &image);
+            let frag = image.cut_fragment(asset.data_mut(), self.selected_image, image_rect, bg_color);
+            self.selection = ImageSelection::Fragment(sel_rect.min, frag);
+            self.image_changed = true;
+        }
+    }
+
+    fn get_selected_color_for_click(&self, resp: &egui::Response, colors: (u8, u8)) -> Option<u8> {
+        if resp.dragged_by(egui::PointerButton::Primary) {
+            Some(colors.0)
+        } else if resp.dragged_by(egui::PointerButton::Secondary) {
+            Some(colors.1)
+        } else {
+            None
+        }
+    }
+
+    fn handle_selection_mouse(&mut self, image: &ImageCollection, mouse_pos: Pos2, asset: &mut impl ImageCollectionAsset,
+                              resp: &egui::Response, colors: (u8, u8)) {
+        if ! resp.dragged_by(egui::PointerButton::Primary) {
+            self.drag_mouse_origin = mouse_pos;
+            self.drag_frag_origin = mouse_pos;
+            return;
+        }
+
+        let orig_mouse_pos = mouse_pos;
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
+        if resp.drag_started() {
+            self.drag_mouse_origin = mouse_pos;
+            match self.selection {
+                ImageSelection::Rect(..) => {
+                    if let Some(sel_rect) = self.selection.get_rect() && sel_rect.contains(orig_mouse_pos) {
+                        // lift fragment for the selected rectangle
+                        self.lift_selection(asset, colors.1);
+
+                        // prepare to move it
+                        self.drag_frag_origin = sel_rect.min;
+                    } else {
+                        self.selection = ImageSelection::None;
+                    }
+                }
+                ImageSelection::Fragment(..) => {
+                    if let Some(sel_rect) = self.selection.get_rect() {
+                        if sel_rect.contains(orig_mouse_pos) {
+                            // prepare to move fragment
+                            self.drag_frag_origin = sel_rect.min;
+                        } else {
+                            // drop fragment because the click was outside it
+                            self.drop_selection(asset);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        } else if ! resp.drag_stopped() {
+            self.selection = if let Some((_, frag)) = self.selection.take_fragment() {
+                let pos = (self.drag_frag_origin + (mouse_pos - self.drag_mouse_origin)).round();
+                ImageSelection::Fragment(pos, frag)
+            } else {
+                ImageSelection::Rect(self.drag_mouse_origin.round(), mouse_pos.round())
+            };
+        }
+    }
+
+    fn handle_mouse(&mut self, image: &ImageCollection, mouse_pos: Pos2, asset: &mut impl ImageCollectionAsset,
+                    resp: &egui::Response, colors: (u8, u8)) {
+        let x = mouse_pos.x.floor() as i32;
+        let y = mouse_pos.y.floor() as i32;
+
+        match self.tool {
+            ImageDrawingTool::Pencil => {
+                if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
+                    image.set_pixel(asset.data_mut(), x, y, self.selected_image, color) {
+                        self.image_changed = true;
+                    }
+            }
+
+            ImageDrawingTool::Fill => {
+                if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
+                    image.flood_fill(asset.data_mut(), x, y, self.selected_image, color) {
+                        self.image_changed = true;
+                    }
+            }
+
+            ImageDrawingTool::Select => {
+                self.handle_selection_mouse(image, mouse_pos, asset, resp, colors);
+            }
+        }
+    }
+}
+
+pub fn image_editor(ui: &mut egui::Ui, tex_man: &mut TextureManager, asset: &mut impl ImageCollectionAsset,
+                    state: &mut ImageEditorState, colors: (u8, u8)) {
+    let slot = state.display.texture_slot();
+    let (image, texture) = ImageCollection::load_asset_texture(asset, tex_man, ui.ctx(), slot, state.image_changed);
+    if state.image_changed { state.image_changed = false; }
+
     let image_size = image.get_item_size();
     let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
     let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
@@ -18,14 +284,32 @@ pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &Im
         min: center - image_zoom * image_size / 2.0,
         max: center + image_zoom * image_size / 2.0,
     };
+    let canvas_to_image = emath::RectTransform::from_to(
+        canvas_rect,
+        Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
+    );
 
     // draw background
     //painter.rect_filled(resp.rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
     painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
 
     // draw image
-    let item_uv = image.get_item_uv(selected_image);
+    let item_uv = image.get_item_uv(state.selected_image);
     Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
+
+    // draw floating selection
+    if let ImageSelection::Fragment(pos, frag) = &mut state.selection {
+        let slot = state.display.texture_slot();
+        let (frag_image, frag_texture) = ImageCollection::load_asset_texture(frag, tex_man, ui.ctx(), slot, frag.changed);
+        if frag.changed { frag.changed = false; }
+        let uv = frag_image.get_item_uv(0);
+        let frag_size = frag_image.get_item_size();
+        let frag_canvas_rect = Rect {
+            min: canvas_rect.min + image_zoom * pos.to_vec2(),
+            max: canvas_rect.min + image_zoom * (*pos + frag_size).to_vec2(),
+        };
+        Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
+    }
 
     // draw border
     let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
@@ -34,7 +318,7 @@ pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &Im
     // draw grid
     let canvas_size = canvas_rect.size();
     let display_grid =
-        ((display_flags & ImageDisplay::GRID) != 0) &&
+        state.display.has_bits(ImageDisplay::GRID) &&
         (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 2.0);
     if display_grid {
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
@@ -47,9 +331,30 @@ pub fn image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &Im
             painter.vline(px, canvas_rect.y_range(), stroke);
         }
     }
-    let canvas_to_image = emath::RectTransform::from_to(
-        canvas_rect,
-        Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
-    );
-    (resp, canvas_to_image)
+
+    if state.tool_changed {
+        state.tool_changed = false;
+        state.drop_selection(asset);
+    }
+
+    // handle click
+    if let Some(pointer_pos) = resp.interact_pointer_pos() {
+        let image_pos = canvas_to_image * pointer_pos;
+        state.handle_mouse(&image, image_pos, asset, &resp, colors);
+    }
+
+    // draw selection rectangle
+    if let Some(sel_rect) = state.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
+        let image_to_canvas = canvas_to_image.inverse();
+        let sel_rect = Rect {
+            min: image_to_canvas * sel_rect.min,
+            max: image_to_canvas * sel_rect.max,
+        };
+        if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
+            let stroke1 = egui::Stroke::new(3.0, egui::Color32::BLACK);
+            let stroke2 = egui::Stroke::new(3.0, egui::Color32::WHITE);
+            ui.ctx().request_repaint();
+            super::paint_marching_ants(&painter, sel_rect, stroke1, stroke2, 5);
+        }
+    }
 }

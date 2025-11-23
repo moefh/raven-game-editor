@@ -31,6 +31,9 @@ impl MapDataEditor {
         }
     }
 
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
     fn show_menubar(&mut self, ui: &mut egui::Ui, map_data: &MapData) {
         let asset_id = map_data.asset.id;
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {

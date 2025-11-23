@@ -115,11 +115,14 @@ pub trait GenericAsset {
 }
 
 pub trait ImageCollectionAsset {
+    const TRANSPARENT_COLOR: u8 = 0b001100;
+
     fn asset_id(&self) -> DataAssetId;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
     fn num_items(&self) -> u32;
     fn data(&self) -> &[u8];
+    fn data_mut(&mut self) -> &mut [u8];
 }
 
 pub fn image_pixels_prop_font_to_u8(bits: &[u8], widths: &[u8], height: u32, num_items: u32, offsets: &[u16]) -> Vec<u8> {
@@ -163,29 +166,31 @@ pub fn image_pixels_font_to_u8(bits: &[u8], width: u32, height: u32, num_items: 
 }
 
 pub fn image_pixels_u32_to_u8(data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
+    const COLOR_BITS: u32 = 0b0011_1111;
+
     let stride = width.div_ceil(4) as usize;
     let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
     for y in 0 .. (height * num_items) as usize {
         for x in 0..stride {
             let quad = data[y*stride + x];
             if x < stride-1 || width.is_multiple_of(4) {
-                pixels.push((quad         & 0xff) as u8);
-                pixels.push(((quad >>  8) & 0xff) as u8);
-                pixels.push(((quad >> 16) & 0xff) as u8);
-                pixels.push(((quad >> 24) & 0xff) as u8);
+                pixels.push((quad         & COLOR_BITS) as u8);
+                pixels.push(((quad >>  8) & COLOR_BITS) as u8);
+                pixels.push(((quad >> 16) & COLOR_BITS) as u8);
+                pixels.push(((quad >> 24) & COLOR_BITS) as u8);
             } else {
                 match width % 4 {
                     1 => {
-                        pixels.push((quad         & 0xff) as u8);
+                        pixels.push((quad         & COLOR_BITS) as u8);
                     },
                     2 => {
-                        pixels.push((quad         & 0xff) as u8);
-                        pixels.push(((quad >>  8) & 0xff) as u8);
+                        pixels.push((quad         & COLOR_BITS) as u8);
+                        pixels.push(((quad >>  8) & COLOR_BITS) as u8);
                     },
                     3 => {
-                        pixels.push((quad         & 0xff) as u8);
-                        pixels.push(((quad >>  8) & 0xff) as u8);
-                        pixels.push(((quad >> 16) & 0xff) as u8);
+                        pixels.push((quad         & COLOR_BITS) as u8);
+                        pixels.push(((quad >>  8) & COLOR_BITS) as u8);
+                        pixels.push(((quad >> 16) & COLOR_BITS) as u8);
                     },
                     _ => {},
                 }
@@ -418,10 +423,11 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
+    pub const USER_ASSET_ID: DataAssetId = DataAssetId { id: 0 };
 
     pub fn new() -> Self {
         DataAssetStore {
-            next_id: 0,
+            next_id: 1,
             vga_sync_bits: 0xc0,
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),

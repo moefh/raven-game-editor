@@ -4,6 +4,7 @@ mod sfx_display;
 mod sprite_frame_list_view;
 mod room_editor;
 mod map_view;
+mod old_image_editor;
 mod image_editor;
 
 use crate::misc::ImageCollection;
@@ -20,6 +21,7 @@ pub use sfx_display::{*};
 pub use sprite_frame_list_view::{*};
 pub use room_editor::{*};
 pub use map_view::{*};
+pub use old_image_editor::{*};
 pub use image_editor::{*};
 
 #[allow(dead_code)]
@@ -51,6 +53,54 @@ impl RectBorder {
             RectBorder::Top | RectBorder::Bottom => egui::CursorIcon::ResizeVertical,
             RectBorder::TopLeft | RectBorder::BottomRight => egui::CursorIcon::ResizeNwSe,
             RectBorder::TopRight | RectBorder::BottomLeft => egui::CursorIcon::ResizeNeSw,
+        }
+    }
+}
+
+pub fn paint_marching_ants(painter: &egui::Painter, rect: egui::Rect, stroke1: egui::Stroke, stroke2: egui::Stroke, dash_size: i32) {
+    let rect = rect.expand2(Vec2::splat(1.5));
+    painter.rect_stroke(rect, egui::CornerRadius::ZERO, stroke1, egui::StrokeKind::Middle);
+
+    let t = ((super::current_time_as_millis() / 100) & (i32::MAX as u64)) as i32;
+    let n = t % (2 * dash_size) - dash_size;
+
+    let width = rect.width().floor();
+    if width >= 0.0 {
+        let width = width as u32;
+        for i in 0..width.div_ceil(2 * dash_size as u32) as i32 + 2 {
+            let top_end = i * 2 * dash_size + n;
+            if top_end > 0 {
+                let x_start = (rect.min.x + (top_end - dash_size) as f32).clamp(rect.min.x, rect.max.x);
+                let x_end   = (rect.min.x + top_end as f32).min(rect.max.x);
+                painter.hline(x_start..=x_end, rect.min.y, stroke2);
+            }
+
+            let bot_end = i * 2 * dash_size - n;
+            if bot_end > 0 {
+                let x_start = (rect.min.x + (bot_end - dash_size) as f32).clamp(rect.min.x, rect.max.x);
+                let x_end   = (rect.min.x + bot_end as f32).min(rect.max.x);
+                painter.hline(x_start..=x_end, rect.max.y, stroke2);
+            }
+        }
+    }
+
+    let height = rect.height().floor();
+    if height >= 0.0 {
+        let height = height as u32;
+        for i in 0..height.div_ceil(2 * dash_size as u32) as i32 + 2 {
+            let left_end = i * 2 * dash_size - n;
+            if left_end > 0 {
+                let y_start = (rect.min.y + (left_end - dash_size) as f32).clamp(rect.min.y, rect.max.y);
+                let y_end   = (rect.min.y + left_end as f32).min(rect.max.y);
+                painter.vline(rect.min.x, y_start..=y_end, stroke2);
+            }
+
+            let right_end = i * 2 * dash_size + n;
+            if right_end > 0 {
+                let y_start = (rect.min.y + (right_end - dash_size) as f32).clamp(rect.min.y, rect.max.y);
+                let y_end   = (rect.min.y + right_end as f32).min(rect.max.y);
+                painter.vline(rect.max.x, y_start..=y_end, stroke2);
+            }
         }
     }
 }
