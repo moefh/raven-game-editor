@@ -13,8 +13,9 @@ use crate::app::AppSettings;
 
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
-pub const FULL_UV : Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
+pub const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
 pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;
+pub const SCREEN_SIZE: Vec2 = Vec2::new(320.0, 240.0);
 
 pub use color_picker::{*};
 pub use map_editor::{*};
@@ -25,13 +26,13 @@ pub use map_view::{*};
 pub use image_editor::{*};
 pub use image_picker::{*};
 
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {
     Foreground,
     Clip,
     Effects,
     Background,
+    Screen,
 }
 
 #[allow(dead_code)]
@@ -120,6 +121,7 @@ fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u3
         MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] as u32,
         MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] as u32,
         MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
+        _ => 0xff,
     }
 }
 

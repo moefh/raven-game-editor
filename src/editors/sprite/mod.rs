@@ -143,6 +143,7 @@ impl SpriteEditor {
             egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 80.0 / sprite.width as f32;
+                self.image_picker.display = self.image_editor.display;
                 super::widgets::image_picker(ui, wc, sprite, &mut self.image_picker);
                 self.image_editor.selected_image = self.image_picker.selected_image;
             });

@@ -51,6 +51,8 @@ image_table! {
 
     // buttons
     pen: "../../assets/PenIcon.png",
+    pencil_fg: "../../assets/PencilFgIcon.png",
+    pencil_bg: "../../assets/PencilBgIcon.png",
     fill: "../../assets/FillIcon.png",
     select: "../../assets/SelRectIcon.png",
     v_flip: "../../assets/VFlipIcon.png",

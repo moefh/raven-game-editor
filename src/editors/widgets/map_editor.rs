@@ -2,9 +2,9 @@ use crate::app::WindowContext;
 use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset};
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
-use egui::emath::GuiRounding;
+use egui::emath;
 
-use super::{MapLayer, TILE_SIZE, get_map_layer_tile};
+use super::{MapLayer, TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
 
 #[derive(Clone, Copy)]
 pub struct MapDisplay {
@@ -17,7 +17,7 @@ impl MapDisplay {
     pub const EFFECTS: u8     = 1 << 2;
     pub const BACKGROUND: u8  = 1 << 3;
     pub const GRID: u8        = 1 << 4;
-    pub const SCREEN_SIZE: u8 = 1 << 5;
+    pub const SCREEN: u8      = 1 << 5;
 
     pub fn new(bits: u8) -> Self {
         MapDisplay {
@@ -29,20 +29,32 @@ impl MapDisplay {
         self.bits ^= bits;
     }
 
+    pub fn set(&mut self, bits: u8) {
+        self.bits |= bits;
+    }
+
     pub fn has_bits(&self, bits: u8) -> bool {
         (self.bits & bits) != 0
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum MapTool {
+    Pencil,
+    Select,
 }
 
 pub struct MapEditorState {
     pub zoom: f32,
     pub scroll: Vec2,
     pub edit_layer: MapLayer,
-    pub display_layers: MapDisplay,
+    pub display: MapDisplay,
+    pub tool: MapTool,
     pub left_draw_tile: u32,
     pub right_draw_tile: u32,
     pub hover_pos: Vec2,
     pub custom_grid_color: Option<Color32>,
+    pub screen_display_pos: Vec2,
 }
 
 impl MapEditorState {
@@ -51,12 +63,22 @@ impl MapEditorState {
             zoom: 2.0,
             scroll: Vec2::ZERO,
             edit_layer: MapLayer::Background,
-            display_layers: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
+            tool: MapTool::Pencil,
+            display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: 0xff,
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
+            screen_display_pos: Vec2::splat(TILE_SIZE/2.0),
         }
+    }
+
+    pub fn set_edit_layer(&mut self, layer: MapLayer) {
+        self.edit_layer = layer;
+    }
+
+    pub fn set_tool(&mut self, tool: MapTool) {
+        self.tool = tool;
     }
 
     pub fn set_zoom(&mut self, zoom: f32, canvas_size: Vec2, zoom_center: Vec2, map_data: &MapData) {
@@ -75,20 +97,63 @@ impl MapEditorState {
     pub fn clip_scroll(&mut self, canvas_size: Vec2, map_size: Vec2) {
         self.scroll = self.scroll.max(canvas_size - map_size).min(Vec2::ZERO);
     }
-}
 
-fn set_layer_tile(map_data: &mut MapData, x: i32, y: i32, layer: MapLayer, tile: u32) {
-    if x < 0 || y < 0 { return; }
-    let x = x as u32;
-    let y = y as u32;
-    if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return; }
-    if x >= map_data.width || y >= map_data.height { return; }
+    fn get_selected_tile_for_click(&self, response: &egui::Response) -> Option<u32> {
+        if response.dragged_by(egui::PointerButton::Primary) {
+            Some(self.left_draw_tile)
+        } else if response.dragged_by(egui::PointerButton::Secondary) {
+            Some(self.right_draw_tile)
+        } else {
+            None
+        }
+    }
 
-    match layer {
-        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize] = tile as u8,
-        MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] = tile as u8,
-        MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] = tile as u8,
-        MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] = tile as u8,
+    fn handle_mouse_select(&mut self, _pointer_pos: Pos2, _response: &egui::Response, _map_data: &mut MapData,
+                           _canvas_to_map_fg: &emath::RectTransform, _canvas_to_map_bg: &emath::RectTransform) {
+    }
+
+    fn set_fg_layer_tile(&self, layer: MapLayer, pos: Pos2, tile: u32, map_data: &mut MapData) {
+        if pos.x < 0.0 || pos.y < 0.0 { return; }
+        let x = pos.x.floor() as u32;
+        let y = pos.y.floor() as u32;
+        if x >= map_data.width || y >= map_data.height { return; }
+        match layer {
+            MapLayer::Foreground => { map_data.fg_tiles[(map_data.width * y + x) as usize] = tile as u8; }
+            MapLayer::Clip => { map_data.clip_tiles[(map_data.width * y + x) as usize] = tile as u8; }
+            MapLayer::Effects => { map_data.fx_tiles[(map_data.width * y + x) as usize] = tile as u8; }
+            _ => {}
+        }
+    }
+
+    fn set_bg_layer_tile(&self, pos: Pos2, tile: u32, map_data: &mut MapData) {
+        if pos.x < 0.0 || pos.y < 0.0 { return; }
+        let x = pos.x.floor() as u32;
+        let y = pos.y.floor() as u32;
+        if x >= map_data.bg_width || y >= map_data.bg_height { return; }
+        map_data.bg_tiles[(map_data.bg_width * y + x) as usize] = tile as u8;
+    }
+
+    fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
+                    canvas_to_map_fg: &emath::RectTransform, canvas_to_map_bg: &emath::RectTransform) {
+        match self.tool {
+            MapTool::Pencil => {
+                if let Some(tile) = self.get_selected_tile_for_click(response) {
+                    match self.edit_layer {
+                        MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => {
+                            self.set_fg_layer_tile(self.edit_layer, canvas_to_map_fg * pointer_pos, tile, map_data);
+                        }
+                        MapLayer::Background => {
+                            self.set_bg_layer_tile(canvas_to_map_bg * pointer_pos, tile, map_data);
+                        }
+                        MapLayer::Screen => {
+                            self.screen_display_pos = (canvas_to_map_fg * pointer_pos * TILE_SIZE - 0.5 * SCREEN_SIZE).to_vec2();
+                        }
+                    }
+                }
+            }
+
+            MapTool::Select => { self.handle_mouse_select(pointer_pos, response, map_data, canvas_to_map_fg, canvas_to_map_bg); }
+        }
     }
 }
 
@@ -112,11 +177,15 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     let canvas_rect = Rect {
         min: response_rect.min.floor(),
         max: response_rect.max.floor(),
-    }.round_to_pixels(ui.pixels_per_point());
+    };
     let zoomed_tile_size = state.zoom * TILE_SIZE;
     let map_size = Vec2 {
         x: map_data.width as f32 * zoomed_tile_size,
         y: map_data.height as f32 * zoomed_tile_size,
+    };
+    let map_bg_size = Vec2 {
+        x: map_data.bg_width as f32 * zoomed_tile_size,
+        y: map_data.bg_height as f32 * zoomed_tile_size,
     };
     let bg_rect = if map_size.x >= canvas_rect.width() && map_size.y >= canvas_rect.height() {
         canvas_rect
@@ -124,8 +193,16 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
         Rect {
             min: canvas_rect.min,
             max: canvas_rect.min + map_size.min(canvas_rect.size()),
-        }.round_to_pixels(ui.pixels_per_point())
+        }
     };
+    let canvas_to_map_fg = emath::RectTransform::from_to(
+        Rect { min: canvas_rect.min + state.scroll, max: canvas_rect.min + map_size + state.scroll },
+        Rect { min: Pos2::ZERO, max: Pos2::new(map_data.width as f32, map_data.height as f32) }
+    );
+    let canvas_to_map_bg = emath::RectTransform::from_to(
+        Rect { min: canvas_rect.min + state.scroll, max: canvas_rect.min + map_bg_size + state.scroll },
+        Rect { min: Pos2::ZERO, max: Pos2::new(map_data.bg_width as f32, map_data.bg_height as f32) }
+    );
 
     // limit scroll in case we've been resized
     state.clip_scroll(canvas_rect.size(), map_size);
@@ -137,46 +214,56 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0xffu8, 0));
 
     // background
-    if state.display_layers.has_bits(MapDisplay::BACKGROUND) {
+    if state.display.has_bits(MapDisplay::BACKGROUND) {
         let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
-                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                if state.edit_layer == MapLayer::Foreground {
+                    image.tint(Color32::BLACK).paint_at(ui, tile_rect);
+                } else {
+                    image.paint_at(ui, tile_rect);
+                }
             }
         }
     }
 
     // foreground
-    if state.display_layers.has_bits(MapDisplay::FOREGROUND) {
+    if state.display.has_bits(MapDisplay::FOREGROUND) {
         let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
                 if tile == 0xff || tile >= image.num_items { continue; }
-                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll).round_to_pixels(ui.pixels_per_point());
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                if state.edit_layer == MapLayer::Background {
+                    image.tint(Color32::BLACK).paint_at(ui, tile_rect);
+                } else {
+                    image.paint_at(ui, tile_rect);
+                }
             }
         }
     }
 
     // collision
-    if state.display_layers.has_bits(MapDisplay::CLIP) {
+    if state.display.has_bits(MapDisplay::CLIP) {
         // TODO
     }
 
     // effects
-    if state.display_layers.has_bits(MapDisplay::EFFECTS) {
+    if state.display.has_bits(MapDisplay::EFFECTS) {
         // TODO
     }
 
     // grid and border
     let stroke = egui::Stroke::new(1.0, state.custom_grid_color.unwrap_or(wc.settings.map_grid_color));
-    if state.display_layers.has_bits(MapDisplay::GRID) {
+    if state.display.has_bits(MapDisplay::GRID) {
         for y in 0..map_data.height+1 {
-            let cy = (canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y%zoomed_tile_size).round_to_pixels(ui.pixels_per_point());
+            let cy = canvas_rect.min.y + y as f32 * zoomed_tile_size + state.scroll.y%zoomed_tile_size;
             painter.hline(bg_rect.x_range(), cy, stroke);
         }
         for x in 0..map_data.width+1 {
@@ -184,12 +271,20 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
             painter.vline(cx, bg_rect.y_range(), stroke);
         }
     }
-    let border_rect = bg_rect.expand2(Vec2::splat(-ui.pixels_per_point())).round_to_pixels(ui.pixels_per_point());
+    let border_rect = bg_rect.expand2(Vec2::splat(-ui.pixels_per_point()));
     painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
 
     // screen size
-    if state.display_layers.has_bits(MapDisplay::SCREEN_SIZE) {
-        // TODO
+    if state.display.has_bits(MapDisplay::SCREEN) {
+        let stroke1 = egui::Stroke::new(3.0, Color32::PURPLE);
+        let stroke2 = egui::Stroke::new(1.0, Color32::YELLOW);
+        let pos = canvas_rect.min + state.zoom * state.screen_display_pos + state.scroll;
+        let screen_rect = Rect {
+            min: pos,
+            max: pos + state.zoom * SCREEN_SIZE,
+        };
+        painter.rect_stroke(screen_rect, egui::CornerRadius::ZERO, stroke1, egui::StrokeKind::Middle);
+        painter.rect_stroke(screen_rect, egui::CornerRadius::ZERO, stroke2, egui::StrokeKind::Middle);
     }
 
     // check zoom
@@ -212,16 +307,6 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
 
     // check click
     if let Some(pointer_pos) = response.interact_pointer_pos() {
-        let tile = if response.dragged_by(egui::PointerButton::Primary) {
-            state.left_draw_tile
-        } else if response.dragged_by(egui::PointerButton::Secondary) {
-            state.right_draw_tile
-        } else {
-            0xffffffff
-        };
-        if tile != 0xffffffff && canvas_rect.contains(pointer_pos) {
-            let tile_pos = ((pointer_pos - state.scroll - canvas_rect.min) / zoomed_tile_size).floor();
-            set_layer_tile(map_data, tile_pos.x as i32, tile_pos.y as i32, state.edit_layer, tile);
-        }
+        state.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_fg, &canvas_to_map_bg);
     }
 }

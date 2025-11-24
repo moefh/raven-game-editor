@@ -352,7 +352,7 @@ pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl 
             max: image_to_canvas * sel_rect.max,
         };
         if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
-            super::paint_marching_ants(&painter, sel_rect, &wc.settings);
+            super::paint_marching_ants(&painter, sel_rect, wc.settings);
             wc.request_marching_ants_repaint();
         }
     }

@@ -6,7 +6,7 @@ use crate::app::WindowContext;
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::widgets::{MapEditorState, MapDisplay, ImagePickerState};
+use super::widgets::{MapEditorState, MapDisplay, MapLayer, MapTool, ImagePickerState};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
@@ -59,9 +59,9 @@ impl MapDataEditor {
         });
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
+    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
         let asset_id = map_data.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_display_toolbar", asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -71,45 +71,38 @@ impl MapDataEditor {
                 ui.add_space(1.0);
 
                 if ui.add(egui::Button::image(IMAGES.layer_fg)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::FOREGROUND))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::FOREGROUND)))
-                    .on_hover_text("Foreground").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::FOREGROUND);
+                          .selected(self.map_editor.display.has_bits(MapDisplay::FOREGROUND))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::FOREGROUND)))
+                    .on_hover_text("Show foreground").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::FOREGROUND);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_bg)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::BACKGROUND))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::BACKGROUND)))
-                    .on_hover_text("Background").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::BACKGROUND);
+                          .selected(self.map_editor.display.has_bits(MapDisplay::BACKGROUND))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::BACKGROUND)))
+                    .on_hover_text("Show background").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::BACKGROUND);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_clip)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::CLIP))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::CLIP)))
-                    .on_hover_text("Collision").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::CLIP);
+                          .selected(self.map_editor.display.has_bits(MapDisplay::CLIP))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::CLIP)))
+                    .on_hover_text("Show collision").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::CLIP);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_fx)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::EFFECTS))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::EFFECTS)))
-                    .on_hover_text("Effects").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::EFFECTS);
-                    }
-
-                if ui.add(egui::Button::image(IMAGES.grid)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::GRID))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::GRID)))
-                    .on_hover_text("Grid").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::GRID);
+                          .selected(self.map_editor.display.has_bits(MapDisplay::EFFECTS))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::EFFECTS)))
+                    .on_hover_text("Show effects").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::EFFECTS);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.screen)
-                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::SCREEN_SIZE))
-                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::SCREEN_SIZE)))
-                    .on_hover_text("Screen").clicked() {
-                        self.map_editor.display_layers.toggle(MapDisplay::SCREEN_SIZE);
+                          .selected(self.map_editor.display.has_bits(MapDisplay::SCREEN))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::SCREEN)))
+                    .on_hover_text("Show screen size").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::SCREEN);
                     }
 
                 ui.add_space(5.0);
@@ -136,8 +129,14 @@ impl MapDataEditor {
                 ui.separator();
                 ui.add_space(5.0);
 
+                if ui.add(egui::Button::image(IMAGES.grid)
+                          .selected(self.map_editor.display.has_bits(MapDisplay::GRID))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::GRID)))
+                    .on_hover_text("Show grid").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::GRID);
+                    }
 
-                if ui.add(egui::Button::new("Grid Color").selected(self.use_custom_grid_color)/*.frame_when_inactive(true)*/).clicked() {
+                if ui.add(egui::Button::new("Color").selected(self.use_custom_grid_color)).on_hover_text("Use custom grid color").clicked() {
                     self.use_custom_grid_color = ! self.use_custom_grid_color;
                 }
                 ui.add_space(2.0);
@@ -150,6 +149,82 @@ impl MapDataEditor {
                     ui.add_space(2.0);
                     ui.label("default");
                     self.map_editor.custom_grid_color = None;
+                }
+
+                ui.spacing_mut().item_spacing = spacing;
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_edit_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
+        let asset_id = map_data.asset.id;
+        egui::TopBottomPanel::top(format!("editor_panel_{}_edit_toolbar", asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.label("Edit:");
+                ui.add_space(23.0);
+
+                if ui.add(egui::Button::image(IMAGES.pencil_fg)
+                          .selected(self.map_editor.edit_layer == MapLayer::Foreground)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Foreground))
+                    .on_hover_text("Edit foreground").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Foreground);
+                        self.map_editor.display.set(MapDisplay::FOREGROUND);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.pencil_bg)
+                          .selected(self.map_editor.edit_layer == MapLayer::Background)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Background))
+                    .on_hover_text("Edit background").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Background);
+                        self.map_editor.display.set(MapDisplay::BACKGROUND);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.layer_clip)
+                          .selected(self.map_editor.edit_layer == MapLayer::Clip)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Clip))
+                    .on_hover_text("Edit collision").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Clip);
+                        self.map_editor.display.set(MapDisplay::CLIP);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.layer_fx)
+                          .selected(self.map_editor.edit_layer == MapLayer::Effects)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Effects))
+                    .on_hover_text("Edit effects").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Effects);
+                        self.map_editor.display.set(MapDisplay::EFFECTS);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.screen)
+                          .selected(self.map_editor.edit_layer == MapLayer::Screen)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Screen))
+                    .on_hover_text("Move screen size").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Screen);
+                        self.map_editor.display.set(MapDisplay::SCREEN);
+                    }
+
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
+                ui.label("Tool:");
+                ui.add_space(1.0);
+
+                if ui.add(egui::Button::image(IMAGES.pen)
+                          .selected(self.map_editor.tool == MapTool::Pencil)
+                          .frame_when_inactive(self.map_editor.tool == MapTool::Pencil)).on_hover_text("Place Tiles").clicked() {
+                    self.map_editor.set_tool(MapTool::Pencil);
+                }
+
+                if ui.add(egui::Button::image(IMAGES.select)
+                          .selected(self.map_editor.tool == MapTool::Select)
+                          .frame_when_inactive(self.map_editor.tool == MapTool::Select)).on_hover_text("Select").clicked() {
+                    self.map_editor.set_tool(MapTool::Select);
                 }
 
                 ui.spacing_mut().item_spacing = spacing;
@@ -189,7 +264,8 @@ impl MapDataEditor {
         let mut asset_open = self.asset.open;
         window.min_size(min_size).default_size(default_size).open(&mut asset_open).show(wc.egui.ctx, |ui| {
             self.show_menubar(ui, map_data);
-            self.show_toolbar(ui, wc, map_data);
+            self.show_display_toolbar(ui, wc, map_data);
+            self.show_edit_toolbar(ui, wc, map_data);
             self.show_footer(ui, wc, map_data);
 
             if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
