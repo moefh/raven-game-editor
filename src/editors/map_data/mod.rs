@@ -10,17 +10,19 @@ use super::widgets::{MapEditorState, MapDisplay, ImagePickerState};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
+fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
+    let min_size = egui::Vec2::new(500.0, 200.0);
+    let default_size = egui::Vec2::new(630.0, 380.0);
+    (min_size, default_size)
+}
+
 pub struct MapDataEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: Option<PropertiesDialog>,
     map_editor: MapEditorState,
     image_picker: ImagePickerState,
-}
-
-fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
-    let min_size = egui::Vec2::new(130.0 + 160.0, 80.0 + 100.0);
-    let default_size = egui::Vec2::new(130.0 + 500.0, 80.0 + 300.0);
-    (min_size, default_size)
+    use_custom_grid_color: bool,
+    custom_grid_color: egui::Color32,
 }
 
 impl MapDataEditor {
@@ -30,6 +32,8 @@ impl MapDataEditor {
             properties_dialog: None,
             map_editor: MapEditorState::new(),
             image_picker: ImagePickerState::new().use_as_palette(true),
+            use_custom_grid_color: false,
+            custom_grid_color: egui::Color32::RED,
         }
     }
 
@@ -128,8 +132,37 @@ impl MapDataEditor {
                         }
                     });
 
-                ui.spacing_mut().item_spacing = spacing;
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
 
+
+                if ui.add(egui::Button::new("Grid Color").selected(self.use_custom_grid_color)/*.frame_when_inactive(true)*/).clicked() {
+                    self.use_custom_grid_color = ! self.use_custom_grid_color;
+                }
+                ui.add_space(2.0);
+                if self.use_custom_grid_color {
+                    let mut rgba = self.custom_grid_color.into();
+                    egui::color_picker::color_edit_button_rgba(ui, &mut rgba, egui::color_picker::Alpha::Opaque);
+                    self.custom_grid_color = rgba.into();
+                    self.map_editor.custom_grid_color = Some(self.custom_grid_color);
+                } else {
+                    ui.label("default");
+                    self.map_editor.custom_grid_color = None;
+                }
+
+                ui.spacing_mut().item_spacing = spacing;
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_footer(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
+        let asset_id = map_data.asset.id;
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.horizontal(|ui| {
+                ui.label(format!("{} bytes", map_data.data_size()));
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         let spacing = ui.spacing().item_spacing;
@@ -140,7 +173,6 @@ impl MapDataEditor {
                     });
                 });
             });
-            ui.add_space(0.0);  // don't remove this, it's necessary
         });
     }
 
@@ -157,12 +189,7 @@ impl MapDataEditor {
         window.min_size(min_size).default_size(default_size).open(&mut asset_open).show(wc.egui.ctx, |ui| {
             self.show_menubar(ui, map_data);
             self.show_toolbar(ui, wc, map_data);
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", map_data.data_size()));
-            });
+            self.show_footer(ui, wc, map_data);
 
             if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
                 let (image, texture) = ImageCollection::get_asset_texture(tileset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
