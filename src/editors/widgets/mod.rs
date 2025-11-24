@@ -9,6 +9,7 @@ mod image_picker;
 
 use crate::misc::ImageCollection;
 use crate::data_asset::MapData;
+use crate::app::AppSettings;
 
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
@@ -57,11 +58,16 @@ impl RectBorder {
     }
 }
 
-pub fn paint_marching_ants(painter: &egui::Painter, rect: egui::Rect, stroke1: egui::Stroke, stroke2: egui::Stroke, dash_size: i32) {
+pub fn paint_marching_ants(painter: &egui::Painter, rect: egui::Rect, settings: &AppSettings) {
+    let stroke1 = egui::Stroke::new(settings.marching_ants_thickness as f32, settings.marching_ants_color1);
+    let stroke2 = egui::Stroke::new(settings.marching_ants_thickness as f32, settings.marching_ants_color2);
+    let delay = settings.marching_ants_delay.max(10) as u64;
+    let dash_size = settings.marching_ants_dash_size.clamp(2, 16) as i32;
+
     let rect = rect.expand2(Vec2::splat(1.5));
     painter.rect_stroke(rect, egui::CornerRadius::ZERO, stroke1, egui::StrokeKind::Middle);
 
-    let t = ((super::current_time_as_millis() / 100) & (i32::MAX as u64)) as i32;
+    let t = ((super::current_time_as_millis() / delay) & (i32::MAX as u64)) as i32;
     let n = t % (2 * dash_size) - dash_size;
 
     let width = rect.width().floor();

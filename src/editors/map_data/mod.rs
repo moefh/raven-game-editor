@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+//use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -147,6 +147,7 @@ impl MapDataEditor {
                     self.custom_grid_color = rgba.into();
                     self.map_editor.custom_grid_color = Some(self.custom_grid_color);
                 } else {
+                    ui.add_space(2.0);
                     ui.label("default");
                     self.map_editor.custom_grid_color = None;
                 }
@@ -192,20 +193,18 @@ impl MapDataEditor {
             self.show_footer(ui, wc, map_data);
 
             if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
-                let (image, texture) = ImageCollection::get_asset_texture(tileset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-
                 // tile picker:
                 egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                     ui.add_space(5.0);
                     self.image_picker.zoom = 4.0;
-                    super::widgets::image_picker(ui, texture, &image, &mut self.image_picker);
+                    super::widgets::image_picker(ui, wc, tileset, &mut self.image_picker);
                     self.map_editor.left_draw_tile = self.image_picker.selected_image;
                     self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
                 });
 
                 // body:
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    super::widgets::map_editor(ui, wc, map_data, tileset, &image, &mut self.map_editor);
+                    super::widgets::map_editor(ui, wc, map_data, tileset, &mut self.map_editor);
                 });
             }
         });

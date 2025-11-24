@@ -1,6 +1,8 @@
 use std::sync;
 use egui::{Vec2, Sense, Rect, Pos2};
 
+use crate::app::WindowContext;
+
 const COLOR_PICKER_GRAD_COLORS: [u8; 6] = [
     0b110000,
     0b001100,
@@ -98,7 +100,7 @@ fn set_color_picker_state_color(state: &mut ColorPickerState, color: u8, respons
     }
 }
 
-pub fn color_picker(ui: &mut egui::Ui, state: &mut ColorPickerState) {
+pub fn color_picker(ui: &mut egui::Ui, wc: &WindowContext, state: &mut ColorPickerState) {
     let min_size = Vec2::splat(112.0).max(Vec2::new(112.0, ui.available_size().y));
     let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
     let full_rect = response.rect;
@@ -141,7 +143,7 @@ pub fn color_picker(ui: &mut egui::Ui, state: &mut ColorPickerState) {
 
     let bg_rect = full_rect.with_max_y(grads_rect.max.y + border);
 
-    painter.rect_filled(bg_rect, egui::CornerRadius::same(8), egui::Color32::from_rgb(224, 224, 224));
+    painter.rect_filled(bg_rect, egui::CornerRadius::same(8), wc.settings.color_picker_bg_color);
     draw_color_picker_palette(&painter, sel_rect, sel_dims, &[state.left_color, state.right_color]);
     draw_color_picker_palette(&painter, all_rect, all_dims, &COLOR_PICKER_ALL_PAL);
     draw_color_picker_palette(&painter, grays_rect, grays_dims, &COLOR_PICKER_GRAY_PAL);

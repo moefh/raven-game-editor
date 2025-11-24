@@ -2,15 +2,14 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
-use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
+use crate::misc::{ImageCollection, TextureSlot};
+use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
 use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
-    force_reload_image: bool,
     properties_dialog: PropertiesDialog,
     color_picker: ColorPickerState,
     image_picker: ImagePickerState,
@@ -21,7 +20,6 @@ impl TilesetEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         TilesetEditor {
             asset: super::DataAssetEditor::new(id, open),
-            force_reload_image: false,
             properties_dialog: PropertiesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b110000),
             image_picker: ImagePickerState::new(),
@@ -83,11 +81,9 @@ impl TilesetEditor {
 
                 if ui.add(egui::Button::image(IMAGES.v_flip)).on_hover_text("Vertical Flip").clicked() {
                     self.image_editor.vflip(tileset, self.color_picker.right_color);
-                    self.force_reload_image = true;
                 }
                 if ui.add(egui::Button::image(IMAGES.h_flip)).on_hover_text("Horizontal Flip").clicked() {
                     self.image_editor.hflip(tileset, self.color_picker.right_color);
-                    self.force_reload_image = true;
                 }
                 ui.spacing_mut().item_spacing = spacing;
 
@@ -117,10 +113,15 @@ impl TilesetEditor {
         });
     }
 
+    pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
+        ImageCollection::load_asset_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
+        ImageCollection::load_asset_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             self.image_editor.selected_image = self.image_editor.selected_image.min(tileset.num_tiles-1);
-            self.force_reload_image = true;
+            Self::reload_images(wc, tileset);
         }
 
         let asset_id = tileset.asset.id;
@@ -141,19 +142,16 @@ impl TilesetEditor {
             // item picker:
             egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                let slot = self.image_editor.display.texture_slot();
-                let (image, texture) = ImageCollection::load_asset_texture(tileset, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
-                if self.force_reload_image {self.force_reload_image = false; }
-
                 self.image_picker.zoom = 4.0;
-                super::widgets::image_picker(ui, texture, &image, &mut self.image_picker);
+                self.image_picker.display = self.image_editor.display;
+                super::widgets::image_picker(ui, wc, tileset, &mut self.image_picker);
                 self.image_editor.selected_image = self.image_picker.selected_image;
             });
 
             // color picker:
             egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                super::widgets::color_picker(ui, &mut self.color_picker);
+                super::widgets::color_picker(ui, wc, &mut self.color_picker);
             });
 
             // image:

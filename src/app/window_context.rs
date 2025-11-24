@@ -25,3 +25,9 @@ pub struct WindowContext<'a> {
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
 }
+
+impl<'a> WindowContext<'a> {
+    pub fn request_marching_ants_repaint(&self) {
+        self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.marching_ants_delay as u64));
+    }
+}

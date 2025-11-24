@@ -58,6 +58,7 @@ pub enum ImageDrawingTool {
     Select,
 }
 
+#[derive(Clone, Copy)]
 pub struct ImageDisplay {
     pub bits: u8,
 }
@@ -291,8 +292,7 @@ pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl 
     );
 
     // draw background
-    //painter.rect_filled(resp.rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
-    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
 
     // draw image
     let item_uv = image.get_item_uv(state.selected_image);
@@ -352,10 +352,8 @@ pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl 
             max: image_to_canvas * sel_rect.max,
         };
         if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
-            let stroke1 = egui::Stroke::new(3.0, egui::Color32::BLACK);
-            let stroke2 = egui::Stroke::new(3.0, egui::Color32::WHITE);
-            ui.ctx().request_repaint();
-            super::paint_marching_ants(&painter, sel_rect, stroke1, stroke2, 5);
+            super::paint_marching_ants(&painter, sel_rect, &wc.settings);
+            wc.request_marching_ants_repaint();
         }
     }
 }

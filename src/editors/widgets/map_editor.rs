@@ -103,8 +103,8 @@ fn get_tile_rect(x: u32, y: u32, zoom: f32, canvas_pos: Pos2) -> Rect {
     }
 }
 
-pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData, tileset: &Tileset,
-                  image: &ImageCollection, state: &mut MapEditorState) {
+pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData, tileset: &Tileset, state: &mut MapEditorState) {
+    let image = ImageCollection::from_asset(tileset);
     let min_size = (state.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
     let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
     let response_rect = response.rect;

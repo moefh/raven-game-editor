@@ -1,8 +1,12 @@
-fn color_setting(ui: &mut egui::Ui, label: &'static str, color: &mut egui::Color32) {
+fn color_setting(ui: &mut egui::Ui, label: &'static str, colors: &mut [&mut egui::Color32]) {
     ui.label(label);
-    let mut rgba = (*color).into();
-    egui::color_picker::color_edit_button_rgba(ui, &mut rgba, egui::color_picker::Alpha::Opaque);
-    *color = rgba.into();
+    ui.horizontal(|ui| {
+        for color in colors {
+            let mut rgba = (**color).into();
+            egui::color_picker::color_edit_button_rgba(ui, &mut rgba, egui::color_picker::Alpha::Opaque);
+            **color = rgba.into();
+        }
+    });
     ui.end_row();
 }
 
@@ -26,9 +30,11 @@ pub fn show_editor_settings(wc: &mut super::super::WindowContext, window_open: &
         .max_width(window_space.max.x - window_space.min.x)
         .max_height(window_space.max.y - window_space.min.y)
         .constrain_to(window_space)
+        .vscroll(true)
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
         .open(window_open).show(wc.egui.ctx, |ui| {
-            egui::ScrollArea::vertical().auto_shrink([false, true]).show(ui, |ui| {
-                egui::Grid::new("editor_settings_grid")
+            egui::CollapsingHeader::new("Main Settings").default_open(true).show(ui, |ui| {
+                egui::Grid::new("editor_settings_main")
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
@@ -48,12 +54,44 @@ pub fn show_editor_settings(wc: &mut super::super::WindowContext, window_open: &
                             wc.settings.zoom = (ui.ctx().zoom_factor() * 100.0).round() as u32;
                         }
                         ui.end_row();
-
-                        color_setting(ui, "Image grid:", &mut wc.settings.image_grid_color);
-                        color_setting(ui, "Map grid:", &mut wc.settings.map_grid_color);
                     });
             });
-            ui.add_space(10.0);
+
+            egui::CollapsingHeader::new("Editor Colors").default_open(true).show(ui, |ui| {
+                egui::Grid::new("editor_settings_grid_colors")
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        color_setting(ui, "Image BG:", &mut [&mut wc.settings.image_bg_color]);
+                        color_setting(ui, "Color Picker BG:", &mut [&mut wc.settings.color_picker_bg_color]);
+                        color_setting(ui, "Image Grid:", &mut [&mut wc.settings.image_grid_color]);
+                        color_setting(ui, "Map Grid:", &mut [&mut wc.settings.map_grid_color]);
+                    });
+            });
+
+
+            egui::CollapsingHeader::new("Marching Ants").default_open(true).show(ui, |ui| {
+                egui::Grid::new("editor_settings_marching_ants")
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Delay:");
+                        ui.add(egui::Slider::new(&mut wc.settings.marching_ants_delay, 50..=500));
+                        ui.end_row();
+
+                        ui.label("Dash size:");
+                        ui.add(egui::Slider::new(&mut wc.settings.marching_ants_dash_size, 2..=16));
+                        ui.end_row();
+
+                        ui.label("Thickness:");
+                        ui.add(egui::Slider::new(&mut wc.settings.marching_ants_thickness, 1..=5));
+                        ui.end_row();
+
+                        color_setting(ui, "Colors:", &mut [&mut wc.settings.marching_ants_color1, &mut wc.settings.marching_ants_color2]);
+                    });
+            });
+
+            ui.add_space(20.0);
             if ui.button("Save").clicked() {
                 wc.settings.save(wc.logger);
             }

@@ -88,7 +88,7 @@ impl SpriteAnimationEditor {
         // color picker:
         egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            super::widgets::color_picker(ui, &mut self.color_picker);
+            super::widgets::color_picker(ui, wc, &mut self.color_picker);
         });
 
         // loop frames:
