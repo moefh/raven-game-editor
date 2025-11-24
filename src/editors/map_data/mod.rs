@@ -6,14 +6,15 @@ use crate::misc::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::widgets::{MapEditorState, MapDisplay};
+use super::widgets::{MapEditorState, MapDisplay, ImagePickerState};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 pub struct MapDataEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: Option<PropertiesDialog>,
-    state: MapEditorState,
+    map_editor: MapEditorState,
+    image_picker: ImagePickerState,
 }
 
 fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
@@ -27,7 +28,8 @@ impl MapDataEditor {
         MapDataEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: None,
-            state: MapEditorState::new(),
+            map_editor: MapEditorState::new(),
+            image_picker: ImagePickerState::new().use_as_palette(true),
         }
     }
 
@@ -45,7 +47,7 @@ impl MapDataEditor {
                             let dlg = self.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
-                            dlg.set_open(map_data, self.state.right_draw_tile as u8);
+                            dlg.set_open(map_data, self.image_picker.selected_image_right as u8);
                         }
                     });
                 });
@@ -65,45 +67,45 @@ impl MapDataEditor {
                 ui.add_space(1.0);
 
                 if ui.add(egui::Button::image(IMAGES.layer_fg)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::FOREGROUND))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::FOREGROUND)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::FOREGROUND))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::FOREGROUND)))
                     .on_hover_text("Foreground").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::FOREGROUND);
+                        self.map_editor.display_layers.toggle(MapDisplay::FOREGROUND);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_bg)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::BACKGROUND))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::BACKGROUND)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::BACKGROUND))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::BACKGROUND)))
                     .on_hover_text("Background").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::BACKGROUND);
+                        self.map_editor.display_layers.toggle(MapDisplay::BACKGROUND);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_clip)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::CLIP))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::CLIP)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::CLIP))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::CLIP)))
                     .on_hover_text("Collision").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::CLIP);
+                        self.map_editor.display_layers.toggle(MapDisplay::CLIP);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.layer_fx)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::EFFECTS))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::EFFECTS)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::EFFECTS))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::EFFECTS)))
                     .on_hover_text("Effects").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::EFFECTS);
+                        self.map_editor.display_layers.toggle(MapDisplay::EFFECTS);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.grid)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::GRID))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::GRID)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::GRID))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::GRID)))
                     .on_hover_text("Grid").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::GRID);
+                        self.map_editor.display_layers.toggle(MapDisplay::GRID);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.screen)
-                          .selected(self.state.display_layers.has_bits(MapDisplay::SCREEN_SIZE))
-                          .frame_when_inactive(self.state.display_layers.has_bits(MapDisplay::SCREEN_SIZE)))
+                          .selected(self.map_editor.display_layers.has_bits(MapDisplay::SCREEN_SIZE))
+                          .frame_when_inactive(self.map_editor.display_layers.has_bits(MapDisplay::SCREEN_SIZE)))
                     .on_hover_text("Screen").clicked() {
-                        self.state.display_layers.toggle(MapDisplay::SCREEN_SIZE);
+                        self.map_editor.display_layers.toggle(MapDisplay::SCREEN_SIZE);
                     }
 
                 ui.add_space(5.0);
@@ -112,7 +114,7 @@ impl MapDataEditor {
 
                 ui.label("Zoom:");
                 ui.add_space(1.0);
-                let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|z| **z == self.state.zoom) {
+                let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|z| **z == self.map_editor.zoom) {
                     &format!("{:3.1}x", zoom)
                 } else {
                     "custom"
@@ -122,7 +124,7 @@ impl MapDataEditor {
                     .width(75.0)
                     .show_ui(ui, |ui| {
                         for zoom in ZOOM_OPTIONS {
-                            ui.selectable_value(&mut self.state.zoom, *zoom, format!("{:3.1}x", zoom));
+                            ui.selectable_value(&mut self.map_editor.zoom, *zoom, format!("{:3.1}x", zoom));
                         }
                     });
 
@@ -133,7 +135,7 @@ impl MapDataEditor {
                         let spacing = ui.spacing().item_spacing;
                         ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                         ui.add_space(1.0);
-                        ui.label(format!("({}, {})", self.state.hover_pos.x.floor(), self.state.hover_pos.y.floor()));
+                        ui.label(format!("({}, {})", self.map_editor.hover_pos.x.floor(), self.map_editor.hover_pos.y.floor()));
                         ui.spacing_mut().item_spacing = spacing;
                     });
                 });
@@ -168,25 +170,15 @@ impl MapDataEditor {
                 // tile picker:
                 egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                     ui.add_space(5.0);
-                    let picker_zoom = 4.0;
-                    let scroll = super::widgets::image_item_picker(ui, texture, &image, self.state.left_draw_tile, picker_zoom);
-                    if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
-                        let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                        if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
-                            let frame_size = picker_zoom * image.get_item_size();
-                            let sel_tile = u32::min((pos.y / frame_size.y).floor() as u32, image.num_items-1);
-                            if scroll.inner.dragged_by(egui::PointerButton::Primary) {
-                                self.state.left_draw_tile = sel_tile;
-                            } else if scroll.inner.dragged_by(egui::PointerButton::Secondary) {
-                                self.state.right_draw_tile = sel_tile;
-                            }
-                        }
-                    };
+                    self.image_picker.zoom = 4.0;
+                    super::widgets::image_picker(ui, texture, &image, &mut self.image_picker);
+                    self.map_editor.left_draw_tile = self.image_picker.selected_image;
+                    self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
                 });
 
                 // body:
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    super::widgets::map_editor(ui, wc, map_data, tileset, &image, &mut self.state);
+                    super::widgets::map_editor(ui, wc, map_data, tileset, &image, &mut self.map_editor);
                 });
             }
         });

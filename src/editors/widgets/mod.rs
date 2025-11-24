@@ -5,6 +5,7 @@ mod sprite_frame_list_view;
 mod room_editor;
 mod map_view;
 mod image_editor;
+mod image_picker;
 
 use crate::misc::ImageCollection;
 use crate::data_asset::MapData;
@@ -21,6 +22,7 @@ pub use sprite_frame_list_view::{*};
 pub use room_editor::{*};
 pub use map_view::{*};
 pub use image_editor::{*};
+pub use image_picker::{*};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
@@ -113,44 +115,6 @@ fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u3
         MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] as u32,
         MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
     }
-}
-
-pub fn image_item_picker(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection,
-                         selected_image: u32, zoom: f32) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
-    let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
-    egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
-        let image_size = zoom * image.get_item_size();
-        let image_picker_size = zoom * image.get_full_size();
-        let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
-        let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
-        let space = response.rect;
-        let canvas_rect = Rect {
-            min: space.min,
-            max: space.min + image_picker_size,
-        };
-
-        // draw background
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
-
-        // draw items
-        Image::from_texture((texture.id(), image_picker_size)).uv(FULL_UV).paint_at(ui, canvas_rect);
-
-        // draw selection rectangle
-        let stroke = egui::Stroke::new(3.0, egui::Color32::BLACK);
-        let mut sel_rect = Rect {
-            min: canvas_rect.min,
-            max: canvas_rect.min + image_size,
-        };
-        sel_rect.min.y += (selected_image as f32) * image_size.y;
-        sel_rect.max.y += (selected_image as f32) * image_size.y;
-        painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
-
-        let in_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
-        let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
-        painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
-
-        response
-    })
 }
 
 pub fn prop_font_image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection,

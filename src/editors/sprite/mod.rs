@@ -6,13 +6,14 @@ use crate::misc::ImageCollection;
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::widgets::{ColorPickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
+use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
 pub struct SpriteEditor {
     pub asset: super::DataAssetEditor,
     force_reload_image: bool,
     properties_dialog: PropertiesDialog,
     color_picker: ColorPickerState,
+    image_picker: ImagePickerState,
     image_editor: ImageEditorState,
 }
 
@@ -23,6 +24,7 @@ impl SpriteEditor {
             force_reload_image: false,
             properties_dialog: PropertiesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b001100),
+            image_picker: ImagePickerState::new(),
             image_editor: ImageEditorState::new(),
         }
     }
@@ -139,18 +141,13 @@ impl SpriteEditor {
             // item picker:
             egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                let picker_zoom = if sprite.width > 100 { 1.0 } else { 2.0 };
                 let slot = self.image_editor.display.texture_slot();
                 let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
-                self.force_reload_image = false;
-                let scroll = super::widgets::image_item_picker(ui, texture, &image, self.image_editor.selected_image, picker_zoom);
-                if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
-                    let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                    if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
-                        let frame_size = picker_zoom * image.get_item_size();
-                        self.image_editor.selected_image = u32::min((pos.y / frame_size.y).floor() as u32, image.num_items-1);
-                    }
-                };
+                if self.force_reload_image { self.force_reload_image = false; }
+
+                self.image_picker.zoom = 80.0 / sprite.width as f32;
+                super::widgets::image_picker(ui, texture, &image, &mut self.image_picker);
+                self.image_editor.selected_image = self.image_picker.selected_image;
             });
 
             // color picker:
