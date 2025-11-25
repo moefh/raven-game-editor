@@ -284,7 +284,7 @@ impl MapDataEditor {
                             ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
                         }
                     };
-                    super::widgets::image_picker(ui, &wc.settings, &image, texture, &mut self.image_picker);
+                    super::widgets::image_picker(ui, wc.settings, &image, texture, &mut self.image_picker);
                     self.map_editor.left_draw_tile = self.image_picker.selected_image;
                     self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
                 });

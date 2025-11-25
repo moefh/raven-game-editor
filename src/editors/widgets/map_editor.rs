@@ -253,7 +253,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     // collision
     if state.display.has_bits(MapDisplay::CLIP) {
         let clip_tiles = STATIC_IMAGES.clip_tiles();
-        let (image, texture) = ImageCollection::plus_static_texture(&clip_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let (image, texture) = ImageCollection::plus_static_texture(clip_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Clip, x, y);
@@ -267,7 +267,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     // effects
     if state.display.has_bits(MapDisplay::EFFECTS) {
         let fx_tiles = STATIC_IMAGES.fx_tiles();
-        let (image, texture) = ImageCollection::plus_static_texture(&fx_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let (image, texture) = ImageCollection::plus_static_texture(fx_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
