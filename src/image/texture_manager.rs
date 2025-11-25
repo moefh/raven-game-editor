@@ -1,45 +1,6 @@
 use std::collections::HashMap;
-use crate::data_asset::DataAssetId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum TextureSlot {
-    Opaque,
-    Transparent,
-    FloatOpaque,
-    FloatTransparent,
-}
-
-impl std::fmt::Display for TextureSlot {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            TextureSlot::Opaque => write!(f, "op"),
-            TextureSlot::Transparent => write!(f, "tr"),
-            TextureSlot::FloatOpaque => write!(f, "fl_op"),
-            TextureSlot::FloatTransparent => write!(f, "fl_tr"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct TextureName {
-    pub asset_id: DataAssetId,
-    pub slot: TextureSlot,
-}
-
-impl TextureName {
-    pub fn new(asset_id: DataAssetId, slot: TextureSlot) -> Self {
-        TextureName {
-            asset_id,
-            slot,
-        }
-    }
-}
-
-impl std::fmt::Display for TextureName {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "raven://asset/{}/{}", self.asset_id, self.slot)
-    }
-}
+use super::TextureName;
 
 pub struct TextureManager {
     textures: HashMap<TextureName, egui::TextureHandle>,

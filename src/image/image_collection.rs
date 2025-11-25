@@ -1,57 +1,8 @@
 use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
-use super::{TextureManager, TextureName, TextureSlot};
+use super::{TextureManager, TextureName, TextureSlot, ImageRect, ImageFragment, StaticImageData};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset};
-
-#[derive(Copy, Clone)]
-pub struct ImageRect {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl ImageRect {
-    pub fn from_rect(rect: Rect, image: &ImageCollection) -> Self {
-        let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(image.width as f32, image.height as f32)));
-        ImageRect {
-            x: rect.min.x as u32,
-            y: rect.min.y as u32,
-            width: rect.width().max(0.0) as u32,
-            height: rect.height().max(0.0) as u32,
-        }
-    }
-}
-
-pub struct ImageFragment {
-    pub id: DataAssetId,
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u8>,
-    pub changed: bool,
-}
-
-impl ImageFragment {
-    pub fn new(id: DataAssetId, width: u32, height: u32, data: Vec<u8>) -> Self {
-        ImageFragment {
-            id,
-            width,
-            height,
-            data,
-            changed: true,
-        }
-    }
-}
-
-impl ImageCollectionAsset for ImageFragment {
-    fn asset_id(&self) -> DataAssetId { self.id }
-    fn width(&self) -> u32 { self.width }
-    fn height(&self) -> u32 { self.height }
-    fn num_items(&self) -> u32 { 1 }
-    fn data(&self) -> &[u8] { &self.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
-}
 
 pub struct ImageCollection {
     pub width: u32,
@@ -68,23 +19,42 @@ impl ImageCollection {
         }
     }
 
+    pub fn from_static_image(image: &StaticImageData) -> Self {
+        ImageCollection {
+            width: image.width,
+            height: image.height,
+            num_items: image.num_items,
+        }
+    }
+
     pub fn plus_loaded_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
                                    slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
-        let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, force_load);
+        let tex_name = TextureName::from_asset_id(asset.asset_id(), slot);
+        let texture = image.get_or_load_texture(tex_man, ctx, tex_name, asset.data(), force_load);
         (image, texture)
     }
 
     pub fn plus_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
                             slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
-        let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, false);
+        let tex_name = TextureName::from_asset_id(asset.asset_id(), slot);
+        let texture = image.get_or_load_texture(tex_man, ctx, tex_name, asset.data(), false);
+        (image, texture)
+    }
+
+    pub fn plus_static_texture<'a>(static_image: &StaticImageData, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                                   slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
+        let image = Self::from_static_image(static_image);
+        let tex_name = TextureName::from_static_image_id(static_image.id, slot);
+        let texture = image.get_or_load_texture(tex_man, ctx, tex_name, &static_image.data, false);
         (image, texture)
     }
 
     pub fn texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
                        asset: &impl ImageCollectionAsset, slot: TextureSlot) -> &'a egui::TextureHandle {
-        self.get_or_load_texture(man, ctx, asset, slot, false)
+        let tex_name = TextureName::from_asset_id(asset.asset_id(), slot);
+        self.get_or_load_texture(man, ctx, tex_name, asset.data(), false)
     }
 
     pub fn get_item_size(&self) -> Vec2 {
@@ -103,17 +73,16 @@ impl ImageCollection {
         }
     }
 
-    fn get_or_load_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context, asset: &impl ImageCollectionAsset,
-                               slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
+    fn get_or_load_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context, tex_name: TextureName,
+                               data: &[u8], force_load: bool) -> &'a egui::TextureHandle {
         let width = self.width as usize;
         let height = (self.height * self.num_items) as usize;
-        let tex_name = TextureName::new(asset.asset_id(), slot);
         match tex_name.slot {
             TextureSlot::Opaque | TextureSlot::FloatOpaque => {
-                man.get_rgba_texture(ctx, tex_name, width, height, asset.data(), force_load)
+                man.get_rgba_texture(ctx, tex_name, width, height, data, force_load)
             }
             TextureSlot::Transparent | TextureSlot::FloatTransparent => {
-                man.get_rgba_texture_transparent(ctx, tex_name, width, height, asset.data(), force_load)
+                man.get_rgba_texture_transparent(ctx, tex_name, width, height, data, force_load)
             }
         }
     }

@@ -1,9 +1,8 @@
 use egui::{Vec2, Pos2, Color32, Rect};
 
-use crate::app::WindowContext;
+use crate::app::AppSettings;
 use crate::image::ImageCollection;
 use super::image_editor::ImageDisplay;
-use crate::data_asset::ImageCollectionAsset;
 
 pub struct ImagePickerState {
     pub allow_empty_selection: bool,
@@ -67,8 +66,8 @@ impl ImagePickerState {
     }
 }
 
-pub fn image_picker(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &impl ImageCollectionAsset, state: &mut ImagePickerState) {
-    let (image, texture) = ImageCollection::plus_texture(asset, wc.tex_man, wc.egui.ctx, state.display.texture_slot());
+pub fn image_picker(ui: &mut egui::Ui, settings: &AppSettings, image: &ImageCollection,
+                    texture: &egui::TextureHandle, state: &mut ImagePickerState) {
     let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
     let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
         let image_size = state.zoom * image.get_item_size();
@@ -87,7 +86,7 @@ pub fn image_picker(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &impl Imag
         };
 
         // draw background
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, state.background_color.unwrap_or(wc.settings.image_bg_color));
+        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, state.background_color.unwrap_or(settings.image_bg_color));
 
         // draw items
         egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);

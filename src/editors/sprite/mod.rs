@@ -144,7 +144,8 @@ impl SpriteEditor {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 80.0 / sprite.width as f32;
                 self.image_picker.display = self.image_editor.display;
-                super::widgets::image_picker(ui, wc, sprite, &mut self.image_picker);
+                let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+                super::widgets::image_picker(ui, &wc.settings, &image, texture, &mut self.image_picker);
                 self.image_editor.selected_image = self.image_picker.selected_image;
             });
 

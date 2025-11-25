@@ -144,7 +144,8 @@ impl TilesetEditor {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 4.0;
                 self.image_picker.display = self.image_editor.display;
-                super::widgets::image_picker(ui, wc, tileset, &mut self.image_picker);
+                let (image, texture) = ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+                super::widgets::image_picker(ui, &wc.settings, &image, texture, &mut self.image_picker);
                 self.image_editor.selected_image = self.image_picker.selected_image;
             });
 

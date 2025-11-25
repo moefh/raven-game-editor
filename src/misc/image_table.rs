@@ -1,3 +1,34 @@
+use std::sync::LazyLock;
+
+use crate::data_asset::tileset::TILE_SIZE;
+use crate::image::{StaticImageId, StaticImageData, StaticImageStore};
+
+pub struct StaticImages {
+    clip_tiles_id: StaticImageId,
+    fx_tiles_id: StaticImageId,
+    store: StaticImageStore,
+}
+
+impl StaticImages {
+    pub fn clip_tiles(&self) -> &StaticImageData { self.image(self.clip_tiles_id) }
+    pub fn fx_tiles(&self) -> &StaticImageData { self.image(self.fx_tiles_id) }
+
+    fn image(&self, id: StaticImageId) -> &StaticImageData {
+        self.store.get(id).unwrap()
+    }
+}
+
+pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
+    let mut store = StaticImageStore::new();
+    let clip_tiles_id = store.load_image("clip tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/CollisionBitmap.png"));
+    let fx_tiles_id = store.load_image("clip tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
+    StaticImages {
+        store,
+        clip_tiles_id,
+        fx_tiles_id,
+    }
+});
+
 #[macro_export]
 macro_rules! include_ref_image {
     ($image_ref:expr $(,)?) => {

@@ -2,8 +2,9 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-//use crate::misc::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
+use crate::misc::STATIC_IMAGES;
 
 use properties::PropertiesDialog;
 use super::widgets::{MapEditorState, MapDisplay, MapLayer, MapTool, ImagePickerState};
@@ -109,26 +110,6 @@ impl MapDataEditor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                ui.label("Zoom:");
-                ui.add_space(1.0);
-                let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|z| **z == self.map_editor.zoom) {
-                    &format!("{:3.1}x", zoom)
-                } else {
-                    "custom"
-                };
-                egui::ComboBox::from_id_salt(format!("map_editor_{}_zoom_combo", asset_id))
-                    .selected_text(cur_zoom_name)
-                    .width(75.0)
-                    .show_ui(ui, |ui| {
-                        for zoom in ZOOM_OPTIONS {
-                            ui.selectable_value(&mut self.map_editor.zoom, *zoom, format!("{:3.1}x", zoom));
-                        }
-                    });
-
-                ui.add_space(5.0);
-                ui.separator();
-                ui.add_space(5.0);
-
                 if ui.add(egui::Button::image(IMAGES.grid)
                           .selected(self.map_editor.display.has_bits(MapDisplay::GRID))
                           .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::GRID)))
@@ -150,6 +131,26 @@ impl MapDataEditor {
                     ui.label("default");
                     self.map_editor.custom_grid_color = None;
                 }
+
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|z| **z == self.map_editor.zoom) {
+                            &format!("{:3.1}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("map_editor_{}_zoom_combo", asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.map_editor.zoom, *zoom, format!("{:3.1}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
 
                 ui.spacing_mut().item_spacing = spacing;
             });
@@ -206,7 +207,6 @@ impl MapDataEditor {
                           .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Screen))
                     .on_hover_text("Move screen size").clicked() {
                         self.map_editor.set_edit_layer(MapLayer::Screen);
-                        self.map_editor.display.set(MapDisplay::SCREEN);
                     }
 
                 ui.add_space(5.0);
@@ -273,7 +273,18 @@ impl MapDataEditor {
                 egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
                     ui.add_space(5.0);
                     self.image_picker.zoom = 4.0;
-                    super::widgets::image_picker(ui, wc, tileset, &mut self.image_picker);
+                    let (image, texture) = match self.map_editor.edit_layer {
+                        MapLayer::Clip => {
+                            ImageCollection::plus_static_texture(STATIC_IMAGES.clip_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                        }
+                        MapLayer::Effects => {
+                            ImageCollection::plus_static_texture(STATIC_IMAGES.fx_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                        }
+                        _ => {
+                            ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
+                        }
+                    };
+                    super::widgets::image_picker(ui, &wc.settings, &image, texture, &mut self.image_picker);
                     self.map_editor.left_draw_tile = self.image_picker.selected_image;
                     self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
                 });

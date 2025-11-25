@@ -1,6 +1,7 @@
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset};
+use crate::misc::STATIC_IMAGES;
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath;
 
@@ -251,12 +252,30 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
 
     // collision
     if state.display.has_bits(MapDisplay::CLIP) {
-        // TODO
+        let clip_tiles = STATIC_IMAGES.clip_tiles();
+        let (image, texture) = ImageCollection::plus_static_texture(&clip_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        for y in 0..map_data.height {
+            for x in 0..map_data.width {
+                let tile = get_map_layer_tile(map_data, MapLayer::Clip, x, y);
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+            }
+        }
     }
 
     // effects
     if state.display.has_bits(MapDisplay::EFFECTS) {
-        // TODO
+        let fx_tiles = STATIC_IMAGES.fx_tiles();
+        let (image, texture) = ImageCollection::plus_static_texture(&fx_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        for y in 0..map_data.height {
+            for x in 0..map_data.width {
+                let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+            }
+        }
     }
 
     // grid and border

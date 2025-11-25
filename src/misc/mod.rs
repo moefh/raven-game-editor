@@ -5,4 +5,4 @@ pub mod wav_utils;
 pub mod reader;
 pub mod writer;
 
-pub use image_table::{IMAGES, IMAGE_REFS};
+pub use image_table::{IMAGES, IMAGE_REFS, STATIC_IMAGES};
