@@ -628,7 +628,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_font_from(name.to_string(), data) {
                 self.read_data.fonts.push(id);
                 self.read_data.fonts_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added font '{}' id={}", name, id));
+                self.logger.log(format!("  -> added FONT '{}' id={}", name, id));
             } else {
                 return error(format!("error adding font '{}'", name), ident.pos)?;
             }
@@ -705,7 +705,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_prop_font_from(name.to_string(), data) {
                 self.read_data.prop_fonts.push(id);
                 self.read_data.prop_fonts_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added prop font '{}' id={}", name, id));
+                self.logger.log(format!("  -> added PROP_FONT '{}' id={}", name, id));
             } else {
                 return error(format!("error adding prop font '{}'", name), data_ident.pos)?;
             }
@@ -885,7 +885,7 @@ impl<'a> ProjectDataReader<'a> {
         if let Some(id) = self.store.add_mod_from(name.to_string(), data) {
             self.read_data.mods.push(id);
             self.read_data.mods_by_name.insert(name.to_string(), id);
-            self.logger.log(format!("-> added mod '{}' id={}", name, id));
+            self.logger.log(format!("  -> added MOD '{}' id={}", name, id));
         } else {
             return error(format!("error adding mod '{}'", name), pattern_ident.pos)?;
         }
@@ -987,7 +987,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_sfx_from(name.to_string(), data) {
                 self.read_data.sfxs.push(id);
                 self.read_data.sfxs_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added sfx '{}' id={}", name, id));
+                self.logger.log(format!("  -> added SFX '{}' id={}", name, id));
             } else {
                 error(format!("error adding sfx '{}'", full_name), data_ident.pos)?
             }
@@ -1073,7 +1073,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_tileset_from(name.to_string(), data) {
                 self.read_data.tilesets.push(id);
                 self.read_data.tilesets_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added tileset '{}' id={}", name, id));
+                self.logger.log(format!("  -> added TILESET '{}' id={}", name, id));
             } else {
                 return error(format!("error adding tileset '{}'", name), ident.pos)?;
             }
@@ -1158,7 +1158,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_sprite_from(name.to_string(), data) {
                 self.read_data.sprites.push(id);
                 self.read_data.sprites_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added sprite '{}' id={}", name, id));
+                self.logger.log(format!("  -> added SPRITE '{}' id={}", name, id));
             } else {
                 return error(format!("error adding sprite '{}'", name), ident.pos)?;
             }
@@ -1233,7 +1233,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_map_from(name.to_string(), data) {
                 self.read_data.maps.push(id);
                 self.read_data.maps_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added map '{}' id={} with tileset_id={}", name, id, tileset_id));
+                self.logger.log(format!("  -> added MAP '{}' id={} with tileset_id={}", name, id, tileset_id));
             } else {
                 return error(format!("error adding map '{}'", name), ident.pos)?;
             }
@@ -1341,7 +1341,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_animation_from(name.to_string(), data) {
                 self.read_data.animations.push(id);
                 self.read_data.animations_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added sprite animation '{}' id={} with sprite_id={}", name, id, sprite_id));
+                self.logger.log(format!("  -> added SPRITE_ANIMATION '{}' id={} with sprite_id={}", name, id, sprite_id));
             } else {
                 return error(format!("error adding sprite animation '{}' with sprite id '{}'", name, sprite_id), t.pos)?;
             }
@@ -1563,7 +1563,7 @@ impl<'a> ProjectDataReader<'a> {
             if let Some(id) = self.store.add_room_from(name.to_string(), data) {
                 self.read_data.rooms.push(id);
                 self.read_data.rooms_by_name.insert(name.to_string(), id);
-                self.logger.log(format!("-> added room '{}' id={}", name, id));
+                self.logger.log(format!("  -> added ROOM '{}' id={}", name, id));
             } else {
                 return error(format!("error adding room '{}'", name), maps_ident.pos)?;
             }
@@ -1635,7 +1635,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: animation id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading sprite animation loop names for '{}':", animation.asset.name));
+        self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}':", animation.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(anim_loop) = animation.loops.get_mut(index) {
                 self.logger.log(format!("  -> {}", name));
@@ -1668,7 +1668,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading room entity names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading ROOM ENTITY names for '{}':", room.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(ent) = room.entities.get_mut(index) {
                 self.logger.log(format!("  -> {}", name));
@@ -1688,7 +1688,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading room trigger names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading ROOM TRIGGER names for '{}':", room.asset.name));
         for (index, name) in names.iter().enumerate() {
             if let Some(trg) = room.triggers.get_mut(index) {
                 self.logger.log(format!("  -> {}", name));
@@ -1726,6 +1726,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct('{')?;
 
+        self.logger.log(format!("-> reading {} asset ids", name));
         let mut got_count = false;
         loop {
             let t = self.expect_token()?;
@@ -1736,7 +1737,7 @@ impl<'a> ProjectDataReader<'a> {
                     if let Some(name) = self.get_global_upper_of_type(ident, name) && name == "COUNT" {
                         got_count = true;
                     } else if let Some(item_name) = self.get_global_upper_of_type(ident, &name_with_id) {
-                        self.logger.log(format!("-> got {} asset id '{}'", name, item_name));
+                        self.logger.log(format!("  -> got asset id '{}'", item_name));
                     } else {
                         return error(format!("invalid asset ID: {}", ident), pos);
                     }
