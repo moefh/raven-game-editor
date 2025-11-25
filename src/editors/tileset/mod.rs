@@ -53,14 +53,14 @@ impl TilesetEditor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
                             self.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
                                                            self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
                             self.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
                                                            self.color_picker.right_color);

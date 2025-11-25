@@ -25,6 +25,7 @@ const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
+pub const NO_IMAGE_MENU_SIZE: f32 = 19.0;
 pub const IMAGE_MENU_SIZE: f32 = 14.0;
 pub const NO_IMAGE_TREE_SIZE: f32 = 25.0;
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
@@ -402,14 +403,14 @@ impl RavenEditorApp {
                 });
                 ui.menu_button("Help", |ui| {
                     ui.horizontal(|ui| {
-                        ui.add_space(NO_IMAGE_TREE_SIZE);
+                        ui.add_space(NO_IMAGE_MENU_SIZE);
                         if ui.button("Status").clicked() {
                             self.windows.status_open = true;
                         }
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add_space(NO_IMAGE_TREE_SIZE);
+                        ui.add(egui::Image::new(IMAGES.pico).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("About").clicked() {
                             self.open_about_dialog();
                         }

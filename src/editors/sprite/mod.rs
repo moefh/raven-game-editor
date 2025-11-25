@@ -53,14 +53,14 @@ impl SpriteEditor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Insert frames...").clicked() {
                             self.add_frames_dialog.set_open(AddFramesAction::Insert, self.image_picker.selected_image,
                                                             self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Append frames...").clicked() {
                             self.add_frames_dialog.set_open(AddFramesAction::Append, self.image_picker.selected_image,
                                                             self.color_picker.right_color);

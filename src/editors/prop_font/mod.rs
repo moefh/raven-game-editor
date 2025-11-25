@@ -49,7 +49,7 @@ impl PropFontEditor {
             // header:
             egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
-                    ui.menu_button("Proportional Font", |ui| {
+                    ui.menu_button("Prop Font", |ui| {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                             if ui.button("Properties...").clicked() {

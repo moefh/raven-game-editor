@@ -50,22 +50,23 @@ impl PropertiesDialog {
             ui.set_width(250.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Prop Font Properties");
-                ui.add_space(16.0);
+                ui.separator();
 
-                egui::Grid::new(format!("editor_panel_{}_prop_grid", prop_font.asset.id))
-                    .num_columns(2)
-                    .spacing([8.0, 8.0])
-                    .show(ui, |ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut self.name);
-                        ui.end_row();
+                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                    egui::Grid::new(format!("editor_panel_{}_prop_grid", prop_font.asset.id))
+                        .num_columns(2)
+                        .spacing([8.0, 8.0])
+                        .show(ui, |ui| {
+                            ui.label("Name:");
+                            ui.text_edit_singleline(&mut self.name);
+                            ui.end_row();
 
-                        ui.label("Height:");
-                        ui.add(egui::Slider::new(&mut self.height, 4.0..=48.0).step_by(1.0));
-                        ui.end_row();
-                    });
+                            ui.label("Height:");
+                            ui.add(egui::Slider::new(&mut self.height, 4.0..=48.0).step_by(1.0));
+                            ui.end_row();
+                        });
+                });
 
-                ui.add_space(16.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {
                         ui.close();
