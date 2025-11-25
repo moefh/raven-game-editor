@@ -9,7 +9,7 @@ use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
-use crate::misc::TextureManager;
+use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
 pub use window_context::{WindowContext, WindowEguiContext};

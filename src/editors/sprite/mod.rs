@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;

@@ -1,7 +1,7 @@
 use egui::{Vec2, Pos2, Color32, Rect};
 
 use crate::app::WindowContext;
-use crate::misc::ImageCollection;
+use crate::image::ImageCollection;
 use super::image_editor::ImageDisplay;
 use crate::data_asset::ImageCollectionAsset;
 

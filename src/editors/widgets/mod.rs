@@ -7,7 +7,7 @@ mod map_view;
 mod image_editor;
 mod image_picker;
 
-use crate::misc::ImageCollection;
+use crate::image::ImageCollection;
 use crate::data_asset::MapData;
 use crate::app::AppSettings;
 

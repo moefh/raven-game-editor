@@ -1,4 +1,4 @@
-use crate::misc::{TextureSlot, ImageCollection, ImageFragment, ImageRect};
+use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImageRect};
 use crate::data_asset::ImageCollectionAsset;
 use crate::app::WindowContext;
 

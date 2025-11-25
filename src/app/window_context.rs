@@ -1,4 +1,4 @@
-use crate::misc::TextureManager;
+use crate::image::TextureManager;
 use crate::app::{AppDialogs, SysDialogs, AppSettings};
 use crate::data_asset::StringLogger;
 

@@ -3,7 +3,7 @@ use egui::emath::RectTransform;
 
 use crate::data_asset::{Room, RoomMap, RoomEntity, RoomTrigger, MapData, Tileset, Sprite, AssetList};
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, TextureSlot};
 
 use super::{MapLayer, RectBorder, TILE_SIZE, get_map_layer_tile};
 use super::super::room::{RoomEditorAssetLists, RoomItemRef};

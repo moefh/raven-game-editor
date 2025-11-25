@@ -1,5 +1,5 @@
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset};
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath;

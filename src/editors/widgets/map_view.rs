@@ -2,7 +2,7 @@ use egui::{Vec2, Sense, Rect, Pos2, Image};
 
 use crate::data_asset::{MapData, Tileset};
 use crate::app::WindowContext;
-use crate::misc::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, TextureSlot};
 
 use super::{MapLayer, TILE_SIZE, get_map_layer_tile};
 

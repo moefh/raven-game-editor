@@ -1,8 +1,7 @@
-use crate::misc::ImageCollection;
-
 use egui::{Vec2, Sense, Image, Rect, Pos2};
 
 use crate::data_asset::sprite_animation::SpriteAnimationFrame;
+use crate::image::ImageCollection;
 
 pub struct SpriteFrameListView<'a> {
     texture: &'a egui::TextureHandle,

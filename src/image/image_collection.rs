@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
-use crate::misc::{TextureManager, TextureName, TextureSlot};
-use crate::data_asset::{DataAssetId, ImageCollectionAsset, DataAssetStore};
 use egui::{Rect, Pos2, Vec2};
+
+use super::{TextureManager, TextureName, TextureSlot};
+use crate::data_asset::{DataAssetId, ImageCollectionAsset, DataAssetStore};
 
 #[derive(Copy, Clone)]
 pub struct ImageRect {

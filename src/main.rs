@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console on Windows
 
 mod misc;
+mod image;
 mod sound;
 mod data_asset;
 mod editors;
@@ -32,7 +33,7 @@ pub fn add_font(ctx: &egui::Context) {
 
 fn load_icon() -> Option<egui::IconData> {
     let data = include_bytes!("../assets/PicoIcon.png");
-    let image = match image::load_from_memory(data) {
+    let image = match ::image::load_from_memory(data) {
         Ok(img) => img,
         Err(e) => {
             println!("Warning: failed to load icon: {}", e);
