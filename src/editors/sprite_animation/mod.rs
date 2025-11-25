@@ -177,9 +177,9 @@ impl SpriteAnimationEditor {
             }
         });
 
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_loop_all_frames", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label("Sprite frames (drag to the lists above):");
+            ui.label("Sprite frames (drag to the lists below):");
             let view = SpriteFrameListView::new(texture, &image, &self.sprite_frames, 0, self.selected_sprite_frame);
             let scroll = view.show(ui);
             let num_frames = self.sprite_frames.len();
