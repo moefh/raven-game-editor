@@ -2,51 +2,42 @@ use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::Sprite;
 
-pub enum AddFramesAction {
-    Insert,
-    Append,
-}
-
-pub struct AddFramesDialog {
+pub struct RemoveFramesDialog {
     pub image_changed: bool,
     pub open: bool,
-    pub action: AddFramesAction,
     pub num_frames: u32,
+    pub max_frames: u32,
     pub sel_frame: u32,
-    pub sel_color: u8,
 }
 
-impl AddFramesDialog {
+impl RemoveFramesDialog {
     pub fn new() -> Self {
-        AddFramesDialog {
+        RemoveFramesDialog {
             image_changed: false,
             open: false,
-            action: AddFramesAction::Insert,
             num_frames: 0,
+            max_frames: 0,
             sel_frame: 0,
-            sel_color: 0,
         }
     }
 
-    pub fn set_open(&mut self, action: AddFramesAction, sel_frame: u32, sel_color: u8) {
-        self.action = action;
+    pub fn set_open(&mut self, sprite: &Sprite, sel_frame: u32) {
+        if sprite.num_frames <= 1 || sprite.num_frames <= sel_frame { return; }
+        self.max_frames = (sprite.num_frames - sel_frame).min(sprite.num_frames - 1);
         self.num_frames = 1;
         self.sel_frame = sel_frame;
-        self.sel_color = sel_color;
         self.open = true;
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
-        let image = ImageCollection::from_asset(sprite);
-        image.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, &mut sprite.data, self.sel_color);
-        if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < sprite.num_frames {
-            let src_top = self.sel_frame * sprite.height;
-            let dst_top = (self.sel_frame + self.num_frames) * sprite.height;
+        if self.sel_frame + self.num_frames < sprite.num_frames {
+            let src_top = (self.sel_frame + self.num_frames) * sprite.height;
+            let dst_top = self.sel_frame * sprite.height;
             let row_len = sprite.width as usize;
             let mut src_row = vec![0; row_len];
             let mut dst_row = vec![0; row_len];
-            let num_copy_rows = (sprite.num_frames - self.sel_frame) * sprite.height;
-            for y in (0..num_copy_rows).rev() {
+            let num_copy_rows = (sprite.num_frames - (self.sel_frame + self.num_frames)) * sprite.height;
+            for y in 0..num_copy_rows {
                 let src = ((src_top + y) * sprite.width) as usize;
                 let dst = ((dst_top + y) * sprite.width) as usize;
                 src_row.copy_from_slice(&sprite.data[src..src+row_len]);
@@ -55,7 +46,9 @@ impl AddFramesDialog {
                 sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
         }
-        sprite.num_frames += self.num_frames;
+        let image = ImageCollection::from_asset(sprite);
+        image.resize(sprite.width, sprite.height, sprite.num_frames - self.num_frames, &mut sprite.data, 0);
+        sprite.num_frames -= self.num_frames;
         self.image_changed = true;
     }
 
@@ -63,10 +56,7 @@ impl AddFramesDialog {
         if egui::Modal::new(egui::Id::new("dlg_sprite_add_frames")).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                match self.action {
-                    AddFramesAction::Insert => { ui.heading("Insert Frames"); }
-                    AddFramesAction::Append => { ui.heading("Append Frames"); }
-                }
+                ui.heading("Remove Frames");
                 ui.separator();
 
                 egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
@@ -75,7 +65,7 @@ impl AddFramesDialog {
                         .spacing([8.0, 8.0])
                         .show(ui, |ui| {
                             ui.label("Num frames:");
-                            ui.add(egui::Slider::new(&mut self.num_frames, 1..=16));
+                            ui.add(egui::Slider::new(&mut self.num_frames, 1..=16.min(self.max_frames)));
                             ui.end_row();
                         });
                 });

@@ -1,5 +1,6 @@
 mod properties;
 mod add_frames;
+mod remove_frames;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
@@ -7,6 +8,7 @@ use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
+use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
 use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
@@ -14,6 +16,7 @@ pub struct SpriteEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     add_frames_dialog: AddFramesDialog,
+    rm_frames_dialog: RemoveFramesDialog,
     color_picker: ColorPickerState,
     image_picker: ImagePickerState,
     image_editor: ImageEditorState,
@@ -25,6 +28,7 @@ impl SpriteEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
+            rm_frames_dialog: RemoveFramesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b001100),
             image_picker: ImagePickerState::new(),
             image_editor: ImageEditorState::new(),
@@ -64,8 +68,8 @@ impl SpriteEditor {
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
-                        if ui.button("Remove frame").clicked() {
-                            // TODO
+                        if ui.button("Remove frames...").clicked() {
+                            self.rm_frames_dialog.set_open(sprite, self.image_picker.selected_image);
                         }
                     });
                 });
@@ -146,10 +150,16 @@ impl SpriteEditor {
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
-            self.image_editor.selected_image = self.image_editor.selected_image.min(sprite.num_frames-1);
+            self.image_picker.selected_image = self.image_picker.selected_image.min(sprite.num_frames-1);
+            self.image_editor.selected_image = self.image_picker.selected_image;
             Self::reload_images(wc, sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
+            Self::reload_images(wc, sprite);
+        }
+        if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
+            self.image_picker.selected_image = self.image_picker.selected_image.min(sprite.num_frames-1);
+            self.image_editor.selected_image = self.image_picker.selected_image;
             Self::reload_images(wc, sprite);
         }
 

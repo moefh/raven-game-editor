@@ -1,5 +1,6 @@
 mod properties;
 mod add_tiles;
+mod remove_tiles;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
@@ -7,6 +8,7 @@ use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
+use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
 use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
@@ -14,6 +16,7 @@ pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
+    rm_tiles_dialog: RemoveTilesDialog,
     color_picker: ColorPickerState,
     image_picker: ImagePickerState,
     image_editor: ImageEditorState,
@@ -25,6 +28,7 @@ impl TilesetEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
+            rm_tiles_dialog: RemoveTilesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b110000),
             image_picker: ImagePickerState::new(),
             image_editor: ImageEditorState::new(),
@@ -64,8 +68,8 @@ impl TilesetEditor {
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
-                        if ui.button("Remove tile").clicked() {
-                            // TODO
+                        if ui.button("Remove tiles...").clicked() {
+                            self.rm_tiles_dialog.set_open(tileset, self.image_picker.selected_image);
                         }
                     });
                 });
@@ -146,10 +150,16 @@ impl TilesetEditor {
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
-            self.image_editor.selected_image = self.image_editor.selected_image.min(tileset.num_tiles-1);
+            self.image_picker.selected_image = self.image_picker.selected_image.min(tileset.num_tiles-1);
+            self.image_editor.selected_image = self.image_picker.selected_image;
             Self::reload_images(wc, tileset);
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
+            Self::reload_images(wc, tileset);
+        }
+        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
+            self.image_picker.selected_image = self.image_picker.selected_image.min(tileset.num_tiles-1);
+            self.image_editor.selected_image = self.image_picker.selected_image;
             Self::reload_images(wc, tileset);
         }
 
