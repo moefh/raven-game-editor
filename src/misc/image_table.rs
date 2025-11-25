@@ -96,6 +96,7 @@ image_table! {
     layer_clip: "../../assets/CollisionIcon.png",
     screen: "../../assets/ScreenIcon.png",
     log: "../../assets/LogIcon.png",
+    trash: "../../assets/TrashIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",

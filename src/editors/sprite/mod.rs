@@ -1,4 +1,5 @@
 mod properties;
+mod add_frames;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
@@ -6,11 +7,13 @@ use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Sprite, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
+use add_frames::{AddFramesDialog, AddFramesAction};
 use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
 pub struct SpriteEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
+    add_frames_dialog: AddFramesDialog,
     color_picker: ColorPickerState,
     image_picker: ImagePickerState,
     image_editor: ImageEditorState,
@@ -21,6 +24,7 @@ impl SpriteEditor {
         SpriteEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
+            add_frames_dialog: AddFramesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b001100),
             image_picker: ImagePickerState::new(),
             image_editor: ImageEditorState::new(),
@@ -40,6 +44,28 @@ impl SpriteEditor {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
                             self.properties_dialog.set_open(sprite, self.color_picker.right_color);
+                        }
+                    });
+                });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        if ui.button("Insert frames...").clicked() {
+                            self.add_frames_dialog.set_open(AddFramesAction::Insert, self.image_picker.selected_image,
+                                                            self.color_picker.right_color);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        if ui.button("Append frames...").clicked() {
+                            self.add_frames_dialog.set_open(AddFramesAction::Append, self.image_picker.selected_image,
+                                                            self.color_picker.right_color);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        if ui.button("Remove frame").clicked() {
+                            // TODO
                         }
                     });
                 });
@@ -121,6 +147,9 @@ impl SpriteEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
             self.image_editor.selected_image = self.image_editor.selected_image.min(sprite.num_frames-1);
+            Self::reload_images(wc, sprite);
+        }
+        if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
             Self::reload_images(wc, sprite);
         }
 

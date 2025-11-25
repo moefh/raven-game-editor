@@ -1,4 +1,5 @@
 mod properties;
+mod add_tiles;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
@@ -6,11 +7,13 @@ use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
+use add_tiles::{AddTilesDialog, AddTilesAction};
 use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
+    add_tiles_dialog: AddTilesDialog,
     color_picker: ColorPickerState,
     image_picker: ImagePickerState,
     image_editor: ImageEditorState,
@@ -21,6 +24,7 @@ impl TilesetEditor {
         TilesetEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
+            add_tiles_dialog: AddTilesDialog::new(),
             color_picker: ColorPickerState::new(0b000011, 0b110000),
             image_picker: ImagePickerState::new(),
             image_editor: ImageEditorState::new(),
@@ -31,15 +35,37 @@ impl TilesetEditor {
         self.image_editor.drop_selection(tileset);
     }
 
-    fn show_menu_bar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, tile: &mut Tileset) {
-        let asset_id = tile.asset.id;
+    fn show_menu_bar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, tileset: &mut Tileset) {
+        let asset_id = tileset.asset.id;
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button("Tile", |ui| {
+                ui.menu_button("Tileset", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            self.properties_dialog.set_open(tile, self.color_picker.right_color);
+                            self.properties_dialog.set_open(tileset, self.color_picker.right_color);
+                        }
+                    });
+                });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        if ui.button("Insert tiles...").clicked() {
+                            self.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
+                                                           self.color_picker.right_color);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.tileset).max_width(14.0).max_height(14.0));
+                        if ui.button("Append tiles...").clicked() {
+                            self.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
+                                                           self.color_picker.right_color);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        if ui.button("Remove tile").clicked() {
+                            // TODO
                         }
                     });
                 });
@@ -121,6 +147,9 @@ impl TilesetEditor {
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             self.image_editor.selected_image = self.image_editor.selected_image.min(tileset.num_tiles-1);
+            Self::reload_images(wc, tileset);
+        }
+        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
             Self::reload_images(wc, tileset);
         }
 
