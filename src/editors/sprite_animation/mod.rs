@@ -96,7 +96,7 @@ impl SpriteAnimationEditor {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
                 let slot = self.image_editor.display.texture_slot();
-                let (image, texture) = ImageCollection::load_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
+                let (image, texture) = ImageCollection::plus_loaded_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
                 if self.force_reload_image { self.force_reload_image = false; }
                 let view = SpriteFrameListView::new(texture, &image, &aloop.frame_indices,
                                                     animation.foot_overlap, self.selected_loop_frame);
@@ -133,7 +133,7 @@ impl SpriteAnimationEditor {
 
         let asset_id = animation.asset.id;
         let slot = self.image_editor.display.texture_slot();
-        let (image, texture) = ImageCollection::get_asset_texture(sprite, wc.tex_man, wc.egui.ctx, slot);
+        let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, slot);
 
         egui::TopBottomPanel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);

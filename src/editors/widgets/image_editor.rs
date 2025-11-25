@@ -92,6 +92,14 @@ impl ImageDisplay {
             TextureSlot::Opaque
         }
     }
+
+    pub fn float_texture_slot(&self) -> TextureSlot {
+        if self.is_transparent() {
+            TextureSlot::FloatTransparent
+        } else {
+            TextureSlot::FloatOpaque
+        }
+    }
 }
 
 pub struct ImageEditorState {
@@ -178,9 +186,13 @@ impl ImageEditorState {
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
             let image = ImageCollection::from_asset(asset);
             let image_rect = ImageRect::from_rect(sel_rect, &image);
-            let frag = image.cut_fragment(asset.data_mut(), self.selected_image, image_rect, bg_color);
-            self.selection = ImageSelection::Fragment(sel_rect.min, frag);
-            self.image_changed = true;
+            let bg_color = if self.display.is_transparent() { ImageFragment::TRANSPARENT_COLOR } else { bg_color };
+            if let Some(frag) = image.cut_fragment(asset.asset_id(), asset.data_mut(), self.selected_image, image_rect, bg_color) {
+                self.selection = ImageSelection::Fragment(sel_rect.min, frag);
+                self.image_changed = true;
+            } else {
+                self.selection = ImageSelection::None;
+            }
         }
     }
 
@@ -271,7 +283,7 @@ impl ImageEditorState {
 pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset,
                     state: &mut ImageEditorState, colors: (u8, u8)) {
     let slot = state.display.texture_slot();
-    let (image, texture) = ImageCollection::load_asset_texture(asset, wc.tex_man, ui.ctx(), slot, state.image_changed);
+    let (image, texture) = ImageCollection::plus_loaded_texture(asset, wc.tex_man, ui.ctx(), slot, state.image_changed);
     if state.image_changed { state.image_changed = false; }
 
     let image_size = image.get_item_size();
@@ -300,8 +312,8 @@ pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl 
 
     // draw floating selection
     if let ImageSelection::Fragment(pos, frag) = &mut state.selection {
-        let slot = state.display.texture_slot();
-        let (frag_image, frag_texture) = ImageCollection::load_asset_texture(frag, wc.tex_man, ui.ctx(), slot, frag.changed);
+        let slot = state.display.float_texture_slot();
+        let (frag_image, frag_texture) = ImageCollection::plus_loaded_texture(frag, wc.tex_man, ui.ctx(), slot, frag.changed);
         if frag.changed { frag.changed = false; }
         let uv = frag_image.get_item_uv(0);
         let frag_size = frag_image.get_item_size();

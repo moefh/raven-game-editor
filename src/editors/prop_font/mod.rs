@@ -68,8 +68,8 @@ impl PropFontEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (image, texture) = ImageCollection::load_asset_texture(prop_font, wc.tex_man, wc.egui.ctx,
-                                                                           TextureSlot::Transparent, self.force_reload_image);
+                let (image, texture) = ImageCollection::plus_loaded_texture(prop_font, wc.tex_man, wc.egui.ctx,
+                                                                            TextureSlot::Transparent, self.force_reload_image);
 
                 let sel_char_width = prop_font.char_widths.get(self.selected_char as usize).map_or(1, |&v| v) as u32;
 

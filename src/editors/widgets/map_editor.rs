@@ -215,7 +215,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
 
     // background
     if state.display.has_bits(MapDisplay::BACKGROUND) {
-        let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
+        let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
@@ -233,7 +233,7 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
 
     // foreground
     if state.display.has_bits(MapDisplay::FOREGROUND) {
-        let texture = image.get_texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
+        let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);

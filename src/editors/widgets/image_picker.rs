@@ -68,7 +68,7 @@ impl ImagePickerState {
 }
 
 pub fn image_picker(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &impl ImageCollectionAsset, state: &mut ImagePickerState) {
-    let (image, texture) = ImageCollection::load_asset_texture(asset, wc.tex_man, wc.egui.ctx, state.display.texture_slot(), false);
+    let (image, texture) = ImageCollection::plus_texture(asset, wc.tex_man, wc.egui.ctx, state.display.texture_slot());
     let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
     let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
         let image_size = state.zoom * image.get_item_size();

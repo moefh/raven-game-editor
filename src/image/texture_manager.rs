@@ -5,6 +5,8 @@ use crate::data_asset::DataAssetId;
 pub enum TextureSlot {
     Opaque,
     Transparent,
+    FloatOpaque,
+    FloatTransparent,
 }
 
 impl std::fmt::Display for TextureSlot {
@@ -12,6 +14,8 @@ impl std::fmt::Display for TextureSlot {
         match self {
             TextureSlot::Opaque => write!(f, "op"),
             TextureSlot::Transparent => write!(f, "tr"),
+            TextureSlot::FloatOpaque => write!(f, "fl_op"),
+            TextureSlot::FloatTransparent => write!(f, "fl_tr"),
         }
     }
 }

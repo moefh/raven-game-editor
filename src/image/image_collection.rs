@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
 use super::{TextureManager, TextureName, TextureSlot};
-use crate::data_asset::{DataAssetId, ImageCollectionAsset, DataAssetStore};
+use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 
 #[derive(Copy, Clone)]
 pub struct ImageRect {
@@ -25,6 +25,7 @@ impl ImageRect {
 }
 
 pub struct ImageFragment {
+    pub id: DataAssetId,
     pub width: u32,
     pub height: u32,
     pub data: Vec<u8>,
@@ -32,10 +33,9 @@ pub struct ImageFragment {
 }
 
 impl ImageFragment {
-    pub const EMPTY: ImageFragment = ImageFragment { width: 0, height: 0, data: Vec::new(), changed: false, };
-
-    pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
+    pub fn new(id: DataAssetId, width: u32, height: u32, data: Vec<u8>) -> Self {
         ImageFragment {
+            id,
             width,
             height,
             data,
@@ -45,7 +45,7 @@ impl ImageFragment {
 }
 
 impl ImageCollectionAsset for ImageFragment {
-    fn asset_id(&self) -> DataAssetId { DataAssetStore::USER_ASSET_ID }
+    fn asset_id(&self) -> DataAssetId { self.id }
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { 1 }
@@ -54,7 +54,6 @@ impl ImageCollectionAsset for ImageFragment {
 }
 
 pub struct ImageCollection {
-    pub asset_id: DataAssetId,
     pub width: u32,
     pub height: u32,
     pub num_items: u32,
@@ -63,29 +62,28 @@ pub struct ImageCollection {
 impl ImageCollection {
     pub fn from_asset(asset: &impl ImageCollectionAsset) -> Self {
         ImageCollection {
-            asset_id: asset.asset_id(),
             width: asset.width(),
             height: asset.height(),
             num_items: asset.num_items(),
         }
     }
 
-    pub fn load_asset_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
-                                  slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
+    pub fn plus_loaded_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                                   slot: TextureSlot, force_load: bool) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
         let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, force_load);
         (image, texture)
     }
 
-    pub fn get_asset_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
-                                 slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
+    pub fn plus_texture<'a>(asset: &impl ImageCollectionAsset, tex_man: &'a mut TextureManager, ctx: &egui::Context,
+                            slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_asset(asset);
         let texture = image.get_or_load_texture(tex_man, ctx, asset, slot, false);
         (image, texture)
     }
 
-    pub fn get_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
-                           asset: &impl ImageCollectionAsset, slot: TextureSlot) -> &'a egui::TextureHandle {
+    pub fn texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
+                       asset: &impl ImageCollectionAsset, slot: TextureSlot) -> &'a egui::TextureHandle {
         self.get_or_load_texture(man, ctx, asset, slot, false)
     }
 
@@ -105,17 +103,18 @@ impl ImageCollection {
         }
     }
 
-    fn get_or_load_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context,
-                               asset: &impl ImageCollectionAsset, slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
-        if self.asset_id != asset.asset_id() {
-            println!("WARNING: get_asset_texture() for wrong asset id: {} vs {}", self.asset_id, asset.asset_id());
-        }
+    fn get_or_load_texture<'a>(&self, man: &'a mut TextureManager, ctx: &egui::Context, asset: &impl ImageCollectionAsset,
+                               slot: TextureSlot, force_load: bool) -> &'a egui::TextureHandle {
         let width = self.width as usize;
         let height = (self.height * self.num_items) as usize;
-        let name = TextureName::new(asset.asset_id(), slot);
-        match slot {
-            TextureSlot::Opaque => man.get_rgba_texture(ctx, name, width, height, asset.data(), force_load),
-            TextureSlot::Transparent => man.get_rgba_texture_transparent(ctx, name, width, height, asset.data(), force_load),
+        let tex_name = TextureName::new(asset.asset_id(), slot);
+        match tex_name.slot {
+            TextureSlot::Opaque | TextureSlot::FloatOpaque => {
+                man.get_rgba_texture(ctx, tex_name, width, height, asset.data(), force_load)
+            }
+            TextureSlot::Transparent | TextureSlot::FloatTransparent => {
+                man.get_rgba_texture_transparent(ctx, tex_name, width, height, asset.data(), force_load)
+            }
         }
     }
 
@@ -252,9 +251,9 @@ impl ImageCollection {
         }
     }
 
-    pub fn copy_fragment(&self, data: &[u8], item: u32, rect: ImageRect) -> ImageFragment {
+    pub fn copy_fragment(&self, id: DataAssetId, data: &[u8], item: u32, rect: ImageRect) -> Option<ImageFragment> {
         if rect.width == 0 || rect.height == 0 || rect.x + rect.width > self.width || rect.y + rect.height > self.height {
-            return ImageFragment::EMPTY;
+            return None;
         }
 
         let mut copy = vec![0; (rect.width * rect.height) as usize];
@@ -264,17 +263,17 @@ impl ImageCollection {
             let dest = (y * rect.width) as usize;
             copy[dest..dest + width].clone_from_slice(&data[src..src + width]);
         }
-        ImageFragment::new(width as u32, rect.height, copy)
+        Some(ImageFragment::new(id, width as u32, rect.height, copy))
     }
 
-    pub fn cut_fragment(&self, data: &mut [u8], item: u32, rect: ImageRect, color: u8) -> ImageFragment {
-        let frag = self.copy_fragment(data, item, rect);
+    pub fn cut_fragment(&self, id: DataAssetId, data: &mut [u8], item: u32, rect: ImageRect, color: u8) -> Option<ImageFragment> {
+        let frag = self.copy_fragment(id, data, item, rect)?;
         let width = frag.width as usize;
         for y in rect.y..rect.y+frag.height {
             let index = ((item * self.height + y) * self.width + rect.x) as usize;
             data[index..index+width].fill(color);
         }
-        frag
+        Some(frag)
     }
 
     pub fn paste_fragment(&self, data: &mut [u8], item: u32, x: i32, y: i32, frag: &ImageFragment, transparent: bool) {

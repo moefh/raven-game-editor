@@ -423,11 +423,9 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const USER_ASSET_ID: DataAssetId = DataAssetId { id: 0 };
-
     pub fn new() -> Self {
         DataAssetStore {
-            next_id: 1,
+            next_id: 0,
             vga_sync_bits: 0xc0,
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),

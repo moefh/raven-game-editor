@@ -114,8 +114,8 @@ impl TilesetEditor {
     }
 
     pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
-        ImageCollection::load_asset_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        ImageCollection::load_asset_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
+        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
