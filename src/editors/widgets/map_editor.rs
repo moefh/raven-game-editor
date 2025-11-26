@@ -5,7 +5,69 @@ use crate::misc::STATIC_IMAGES;
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath;
 
-use super::{MapLayer, TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
+use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
+use super::{MapFullFragment, MapLayerFragment, MapRect, MapLayer};
+
+pub enum MapSelection {
+    None,
+    Rect(Pos2, Pos2),
+    LayerFragment(Pos2, MapLayerFragment),
+    FullFragment(Pos2, MapFullFragment),
+}
+
+impl MapSelection {
+    pub fn take_layer_fragment(&mut self) -> Option<(Pos2, MapLayerFragment)> {
+        match self {
+            MapSelection::LayerFragment(..) => {
+                let mut ret = MapSelection::None;
+                std::mem::swap(self, &mut ret);
+                match ret {
+                    MapSelection::LayerFragment(pos, frag) => Some((pos, frag)),
+                    _ => panic!("error taking map fragment")  // we had a fragment, but not after swapping!?
+                }
+            }
+            _ => None
+        }
+    }
+
+    pub fn take_full_fragment(&mut self) -> Option<(Pos2, MapFullFragment)> {
+        match self {
+            MapSelection::FullFragment(..) => {
+                let mut ret = MapSelection::None;
+                std::mem::swap(self, &mut ret);
+                match ret {
+                    MapSelection::FullFragment(pos, frag) => Some((pos, frag)),
+                    _ => panic!("error taking map fragment")  // we had a fragment, but not after swapping!?
+                }
+            }
+            _ => None
+        }
+    }
+
+    pub fn get_rect(&self) -> Option<Rect> {
+        match self {
+            MapSelection::Rect(origin, end) => {
+                Some(Rect {
+                    min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
+                    max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
+                })
+            }
+            MapSelection::LayerFragment(pos, frag) => {
+                Some(Rect {
+                    min: *pos,
+                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
+                })
+            }
+            MapSelection::FullFragment(pos, frag) => {
+                Some(Rect {
+                    min: *pos,
+                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
+                })
+            }
+            MapSelection::None => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct MapDisplay {
@@ -42,7 +104,9 @@ impl MapDisplay {
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapTool {
     Pencil,
-    Select,
+    SelectLayer,
+    SelectFgLayers,
+    SelectAllLayers,
 }
 
 pub struct MapEditorState {
@@ -56,6 +120,11 @@ pub struct MapEditorState {
     pub hover_pos: Vec2,
     pub custom_grid_color: Option<Color32>,
     pub screen_display_pos: Vec2,
+    pub selection: MapSelection,
+    drag_mouse_origin: Pos2,
+    drag_frag_origin: Pos2,
+    tool_changed: bool,
+    edit_layer_changed: bool,
 }
 
 impl MapEditorState {
@@ -71,15 +140,22 @@ impl MapEditorState {
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
             screen_display_pos: Vec2::splat(TILE_SIZE/2.0),
+            selection: MapSelection::None,
+            drag_mouse_origin: Pos2::ZERO,
+            drag_frag_origin: Pos2::ZERO,
+            tool_changed: false,
+            edit_layer_changed: false,
         }
     }
 
     pub fn set_edit_layer(&mut self, layer: MapLayer) {
         self.edit_layer = layer;
+        self.edit_layer_changed = true;
     }
 
     pub fn set_tool(&mut self, tool: MapTool) {
         self.tool = tool;
+        self.tool_changed = true;
     }
 
     pub fn set_zoom(&mut self, zoom: f32, canvas_size: Vec2, zoom_center: Vec2, map_data: &MapData) {
@@ -99,6 +175,47 @@ impl MapEditorState {
         self.scroll = self.scroll.max(canvas_size - map_size).min(Vec2::ZERO);
     }
 
+    pub fn lift_selection(&mut self, map_data: &mut MapData) {
+        let fill_tile = self.get_fill_bg_tile_for_layer();
+        if let Some(sel_rect) = self.selection.get_rect() &&
+            sel_rect.is_positive() &&
+            let Some(map_rect) = MapRect::from_rect(sel_rect, map_data, self.edit_layer) {
+                self.selection = match self.tool {
+                    MapTool::SelectLayer => {
+                        if let Some(frag) = MapLayerFragment::cut_map(map_data, self.edit_layer, map_rect, fill_tile) {
+                            MapSelection::LayerFragment(sel_rect.min, frag)
+                        } else {
+                            MapSelection::None
+                        }
+                    }
+
+                    MapTool::SelectAllLayers | MapTool::SelectFgLayers => {
+                        let include_bg_layer = self.tool == MapTool::SelectAllLayers;
+                        if let Some(frag) = MapFullFragment::cut_map(map_data, map_rect, fill_tile, include_bg_layer) {
+                            MapSelection::FullFragment(sel_rect.min, frag)
+                        } else {
+                            MapSelection::None
+                        }
+                    }
+
+                    _ => MapSelection::None
+                }
+            }
+    }
+
+    pub fn drop_selection(&mut self, map_data: &mut MapData) {
+        match &self.selection {
+            MapSelection::LayerFragment(pos, frag) => {
+                frag.paste_in_map(pos.x as i32, pos.y as i32, map_data, self.edit_layer);
+            }
+            MapSelection::FullFragment(pos, frag) => {
+                frag.paste_in_map(pos.x as i32, pos.y as i32, map_data);
+            }
+            _ => {}
+        }
+        self.selection = MapSelection::None;
+    }
+
     fn get_selected_tile_for_click(&self, response: &egui::Response) -> Option<u32> {
         if response.dragged_by(egui::PointerButton::Primary) {
             Some(self.left_draw_tile)
@@ -109,8 +226,98 @@ impl MapEditorState {
         }
     }
 
-    fn handle_mouse_select(&mut self, _pointer_pos: Pos2, _response: &egui::Response, _map_data: &mut MapData,
-                           _canvas_to_map_fg: &emath::RectTransform, _canvas_to_map_bg: &emath::RectTransform) {
+    fn get_fill_bg_tile_for_layer(&self) -> u8 {
+        match self.edit_layer {
+            MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => 0xff,
+            MapLayer::Background => self.right_draw_tile as u8,
+            _ => 0xff,
+        }
+    }
+
+    fn paint_layer_fragment(&self, ui: &mut egui::Ui, frag: &MapLayerFragment, pos: Pos2,
+                            image: &ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect) {
+        let frag_x = pos.x as i32;
+        let frag_y = pos.y as i32;
+        for y in 0..frag.height as u32 {
+            let tile_y = { let tile_y = frag_y + y as i32; if tile_y < 0 { continue; } tile_y as u32 };
+            for x in 0..frag.width as u32 {
+                let tile_x = { let tile_x = frag_x + x as i32; if tile_x < 0 { continue; } tile_x as u32 };
+                let tile = frag.get_tile(x, y) as u32;
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let tile_rect = get_tile_rect(tile_x, tile_y, self.zoom, canvas_rect.min + self.scroll);
+                let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                image.paint_at(ui, tile_rect);
+            }
+        }
+    }
+
+    fn paint_full_fragment_layer(&self, ui: &mut egui::Ui, frag: &MapFullFragment, pos: Pos2,
+                                 image: &ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect, layer: MapLayer) {
+        let frag_x = pos.x as i32;
+        let frag_y = pos.y as i32;
+        for y in 0..frag.height as u32 {
+            let tile_y = { let tile_y = frag_y + y as i32; if tile_y < 0 { continue; } tile_y as u32 };
+            for x in 0..frag.width as u32 {
+                let tile_x = { let tile_x = frag_x + x as i32; if tile_x < 0 { continue; } tile_x as u32 };
+                let tile = frag.get_layer_tile(x, y, layer) as u32;
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let tile_rect = get_tile_rect(tile_x, tile_y, self.zoom, canvas_rect.min + self.scroll);
+                let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                image.paint_at(ui, tile_rect);
+            }
+        }
+    }
+
+    fn handle_selection_mouse(&mut self, pointer_pos: Pos2, resp: &egui::Response, map_data: &mut MapData,
+                              canvas_to_map_fg: &emath::RectTransform, canvas_to_map_bg: &emath::RectTransform) {
+        let (mouse_pos, map_size) = match self.edit_layer {
+            MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => (canvas_to_map_fg * pointer_pos, canvas_to_map_fg.to().size()),
+            MapLayer::Background => (canvas_to_map_bg * pointer_pos, canvas_to_map_bg.to().size()),
+            _ => { return; }
+        };
+        if ! resp.dragged_by(egui::PointerButton::Primary) {
+            if ! resp.dragged_by(egui::PointerButton::Secondary) && ! resp.dragged_by(egui::PointerButton::Middle) {
+                self.drag_mouse_origin = mouse_pos;
+                self.drag_frag_origin = mouse_pos;
+            }
+            return;
+        }
+
+        let orig_mouse_pos = mouse_pos;
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, map_size).clamp(mouse_pos);
+        if resp.drag_started() {
+            self.drag_mouse_origin = mouse_pos;
+            match self.selection {
+                MapSelection::Rect(..) => {
+                    if let Some(sel_rect) = self.selection.get_rect() && sel_rect.contains(orig_mouse_pos) {
+                        self.lift_selection(map_data);
+                        self.drag_frag_origin = sel_rect.min;
+                    } else {
+                        self.selection = MapSelection::None;
+                    }
+                }
+                MapSelection::LayerFragment(..) | MapSelection::FullFragment(..) => {
+                    if let Some(sel_rect) = self.selection.get_rect() {
+                        if sel_rect.contains(orig_mouse_pos) {
+                            self.drag_frag_origin = sel_rect.min;
+                        } else {
+                            self.drop_selection(map_data);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        } else if ! resp.drag_stopped() {
+            self.selection = if let Some((_, frag)) = self.selection.take_layer_fragment() {
+                let pos = (self.drag_frag_origin + (mouse_pos - self.drag_mouse_origin)).round();
+                MapSelection::LayerFragment(pos, frag)
+            } else if let Some((_, frag)) = self.selection.take_full_fragment() {
+                let pos = (self.drag_frag_origin + (mouse_pos - self.drag_mouse_origin)).round();
+                MapSelection::FullFragment(pos, frag)
+            } else {
+                MapSelection::Rect(self.drag_mouse_origin.round(), mouse_pos.round())
+            };
+        }
     }
 
     fn set_fg_layer_tile(&self, layer: MapLayer, pos: Pos2, tile: u32, map_data: &mut MapData) {
@@ -153,7 +360,9 @@ impl MapEditorState {
                 }
             }
 
-            MapTool::Select => { self.handle_mouse_select(pointer_pos, response, map_data, canvas_to_map_fg, canvas_to_map_bg); }
+            MapTool::SelectLayer | MapTool::SelectFgLayers | MapTool::SelectAllLayers => {
+                self.handle_selection_mouse(pointer_pos, response, map_data, canvas_to_map_fg, canvas_to_map_bg);
+            }
         }
     }
 }
@@ -211,6 +420,12 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     // ensure we don't draw outside the map area
     ui.shrink_clip_rect(canvas_rect);
 
+    if state.tool_changed || state.edit_layer_changed {
+        state.tool_changed = false;
+        state.edit_layer_changed = false;
+        state.drop_selection(map_data);
+    }
+
     // draw background green
     painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0xffu8, 0));
 
@@ -230,6 +445,12 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
                 }
             }
         }
+
+        if state.edit_layer == MapLayer::Background && let MapSelection::LayerFragment(pos, frag) = &state.selection {
+            state.paint_layer_fragment(ui, frag, *pos, &image, texture, canvas_rect);
+        } else if let MapSelection::FullFragment(pos, frag) = &state.selection && ! frag.bg_data.is_empty() {
+            state.paint_full_fragment_layer(ui, frag, *pos, &image, texture, canvas_rect, MapLayer::Background);
+        }
     }
 
     // foreground
@@ -248,6 +469,12 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
                 }
             }
         }
+
+        if state.edit_layer == MapLayer::Foreground && let MapSelection::LayerFragment(pos, frag) = &state.selection {
+            state.paint_layer_fragment(ui, frag, *pos, &image, texture, canvas_rect);
+        } else if let MapSelection::FullFragment(pos, frag) = &state.selection {
+            state.paint_full_fragment_layer(ui, frag, *pos, &image, texture, canvas_rect, MapLayer::Foreground);
+        }
     }
 
     // collision
@@ -262,6 +489,12 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
         }
+
+        if state.edit_layer == MapLayer::Clip && let MapSelection::LayerFragment(pos, frag) = &state.selection {
+            state.paint_layer_fragment(ui, frag, *pos, &image, texture, canvas_rect);
+        } else if let MapSelection::FullFragment(pos, frag) = &state.selection {
+            state.paint_full_fragment_layer(ui, frag, *pos, &image, texture, canvas_rect, MapLayer::Clip);
+        }
     }
 
     // effects
@@ -275,6 +508,12 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
                 let tile_rect = get_tile_rect(x, y, state.zoom, canvas_rect.min + state.scroll);
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
+        }
+
+        if state.edit_layer == MapLayer::Effects && let MapSelection::LayerFragment(pos, frag) = &state.selection {
+            state.paint_layer_fragment(ui, frag, *pos, &image, texture, canvas_rect);
+        } else if let MapSelection::FullFragment(pos, frag) = &state.selection {
+            state.paint_full_fragment_layer(ui, frag, *pos, &image, texture, canvas_rect, MapLayer::Effects);
         }
     }
 
@@ -327,5 +566,23 @@ pub fn map_editor(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapD
     // check click
     if let Some(pointer_pos) = response.interact_pointer_pos() {
         state.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_fg, &canvas_to_map_bg);
+    }
+
+    // draw selection rectangle
+    if let Some(sel_rect) = state.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
+        if let Some(map_to_canvas) = match state.edit_layer {
+            MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => Some(canvas_to_map_fg.inverse()),
+            MapLayer::Background => Some(canvas_to_map_bg.inverse()),
+            _ => None,
+        } {
+            let sel_rect = Rect {
+                min: map_to_canvas * sel_rect.min,
+                max: map_to_canvas * sel_rect.max,
+            };
+            if sel_rect.is_positive() || response.dragged_by(egui::PointerButton::Primary) {
+                super::paint_marching_ants(&painter, sel_rect, wc.settings);
+                wc.request_marching_ants_repaint();
+            }
+        }
     }
 }

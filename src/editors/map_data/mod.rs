@@ -38,7 +38,8 @@ impl MapDataEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    pub fn prepare_for_saving(&mut self, map_data: &mut MapData) {
+        self.map_editor.drop_selection(map_data);
     }
 
     fn show_menubar(&mut self, ui: &mut egui::Ui, map_data: &MapData) {
@@ -217,14 +218,32 @@ impl MapDataEditor {
 
                 if ui.add(egui::Button::image(IMAGES.pen)
                           .selected(self.map_editor.tool == MapTool::Pencil)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::Pencil)).on_hover_text("Place Tiles").clicked() {
-                    self.map_editor.set_tool(MapTool::Pencil);
-                }
+                          .frame_when_inactive(self.map_editor.tool == MapTool::Pencil))
+                    .on_hover_text("Place Tiles").clicked() {
+                        self.map_editor.set_tool(MapTool::Pencil);
+                    }
 
                 if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.map_editor.tool == MapTool::Select)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::Select)).on_hover_text("Select").clicked() {
-                    self.map_editor.set_tool(MapTool::Select);
+                          .selected(self.map_editor.tool == MapTool::SelectLayer)
+                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectLayer))
+                    .on_hover_text("Select current layer").clicked() {
+                        self.map_editor.set_tool(MapTool::SelectLayer);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.select)
+                          .selected(self.map_editor.tool == MapTool::SelectFgLayers)
+                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectFgLayers))
+                    .on_hover_text("Select foreground layers").clicked() {
+                        self.map_editor.set_tool(MapTool::SelectFgLayers);
+                    }
+
+                if map_data.width == map_data.bg_width && map_data.height == map_data.bg_height {
+                    if ui.add(egui::Button::image(IMAGES.select)
+                              .selected(self.map_editor.tool == MapTool::SelectAllLayers)
+                              .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
+                        .on_hover_text("Select all layers").clicked() {
+                            self.map_editor.set_tool(MapTool::SelectAllLayers);
+                        }
                 }
 
                 ui.spacing_mut().item_spacing = spacing;
