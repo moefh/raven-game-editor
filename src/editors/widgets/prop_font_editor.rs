@@ -26,6 +26,16 @@ impl PropFontEditorWidget {
         prop_font.char_widths.get(self.selected_char as usize).map_or(1, |&v| v) as u32
     }
 
+    fn get_click_color(resp: &egui::Response) -> Option<u8> {
+        if resp.dragged_by(egui::PointerButton::Primary) {
+            Some(PropFont::FG_COLOR)
+        } else if resp.dragged_by(egui::PointerButton::Secondary) {
+            Some(PropFont::BG_COLOR)
+        } else {
+            None
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) {
         let (image, texture) = ImageCollection::plus_loaded_texture(prop_font, wc.tex_man, wc.egui.ctx,
                                                                     TextureSlot::Transparent, self.image_changed);
@@ -81,16 +91,8 @@ impl PropFontEditorWidget {
             let image_pos = canvas_to_image * pointer_pos;
             let x = image_pos.x as i32;
             let y = image_pos.y as i32;
-            if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                Some(PropFont::FG_COLOR)
-            } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                Some(PropFont::BG_COLOR)
-            } else {
-                None
-            } {
-                if image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color) {
-                    self.image_changed = true;
-                }
+            if let Some(color) = Self::get_click_color(&resp) && image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color) {
+                self.image_changed = true;
             }
         }
     }

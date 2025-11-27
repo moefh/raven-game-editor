@@ -15,14 +15,14 @@ impl FontPainter for PropFont {
     fn measure(&self, height: f32, text: &str) -> f32 {
         let zoom = height / self.height as f32;
         text.chars().fold(0.0, |size, ch| {
-            let char_index = if (ch as u32) >= PropFont::FIRST_CHAR { (ch as u32) - PropFont::FIRST_CHAR } else { 0 };
+            let char_index = (ch as u32).saturating_sub(PropFont::FIRST_CHAR);
             size + zoom * (self.char_widths.get(char_index as usize).copied().unwrap_or(0) as f32 + 1.0)
         })
     }
 
     fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: egui::Pos2, height: f32) -> f32 {
         if (ch as u32) < PropFont::FIRST_CHAR { return 0.0; }
-        let char_index = if (ch as u32) >= PropFont::FIRST_CHAR { (ch as u32) - PropFont::FIRST_CHAR } else { 0 };
+        let char_index = (ch as u32).saturating_sub(PropFont::FIRST_CHAR);
         let char_width = self.char_widths.get(char_index as usize).copied().unwrap_or(0) as f32;
         let zoom = height / self.height as f32;
         let width = zoom * char_width;
@@ -35,7 +35,7 @@ impl FontPainter for PropFont {
         };
         let uv = Rect {
             min: Pos2::new(0.0, char_index as f32 / image.num_items as f32),
-            max: Pos2::new(char_width as f32 / image.width as f32, (char_index+1) as f32 / image.num_items as f32),
+            max: Pos2::new(char_width / image.width as f32, (char_index+1) as f32 / image.num_items as f32),
         };
         egui::Image::from_texture((texture.id(), image_size)).uv(uv).paint_at(ui, rect);
         width + zoom

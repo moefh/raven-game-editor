@@ -2,6 +2,7 @@ use std::sync;
 use egui::{Vec2, Sense, Rect, Pos2};
 
 use crate::app::WindowContext;
+use crate::misc::raven_color_to_rgb;
 
 const GRAD_COLORS: [u8; 6] = [
     0b110000,
@@ -78,7 +79,7 @@ impl ColorPickerWidget {
                     max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
                 };
                 let color_index = (y*dims.0+x) as usize;
-                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, crate::editors::raven_color_to_rgb(palette[color_index]));
+                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, raven_color_to_rgb(palette[color_index]));
             }
         }
     }

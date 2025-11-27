@@ -237,8 +237,8 @@ impl ImageCollection {
 
     pub fn cut_fragment(&self, id: DataAssetId, data: &mut [u8], item: u32, rect: ImageRect, color: u8) -> Option<ImageFragment> {
         let frag = self.copy_fragment(id, data, item, rect)?;
-        let width = frag.width as usize;
-        for y in rect.y..rect.y+frag.height {
+        let width = frag.width() as usize;
+        for y in rect.y..rect.y+frag.height() {
             let index = ((item * self.height + y) * self.width + rect.x) as usize;
             data[index..index+width].fill(color);
         }
@@ -251,8 +251,8 @@ impl ImageCollection {
 
         let mut src_x = 0;
         let mut src_y = 0;
-        let mut width = frag.width;
-        let mut height = frag.height;
+        let mut width = frag.width();
+        let mut height = frag.height();
         let mut x = x;
         let mut y = y;
         if x < 0 { src_x = (-x) as u32; width -= src_x; x = 0; }
@@ -263,17 +263,18 @@ impl ImageCollection {
         if height > self.height - y { height = self.height - y; }
 
         for iy in 0..height {
-            let src = ((iy + src_y) * frag.width + src_x) as usize;
+            let src = ((iy + src_y) * frag.width() + src_x) as usize;
             let dest = ((item * self.height + y + iy) * self.width + x) as usize;
+            let frag_data = frag.data();
             if transparent {
                 for ix in 0..width as usize {
-                    let pixel = frag.data[src+ix];
+                    let pixel = frag_data[src+ix];
                     if pixel != ImageFragment::TRANSPARENT_COLOR {
                         data[dest+ix] = pixel;
                     }
                 }
             } else {
-                data[dest .. dest + width as usize].clone_from_slice(&frag.data[src .. src + width as usize]);
+                data[dest .. dest + width as usize].clone_from_slice(&frag_data[src .. src + width as usize]);
             }
         }
 

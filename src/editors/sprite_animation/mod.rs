@@ -355,7 +355,7 @@ impl Editor {
 
         // keyboard:
         if wc.is_editor_on_top(self.asset_id) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
-            self.image_editor.handle_keyboard(ui, sprite, self.color_picker.right_color);
+            self.image_editor.handle_keyboard(ui, wc, sprite, self.color_picker.right_color);
         }
     }
 }

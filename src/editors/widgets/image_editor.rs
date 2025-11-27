@@ -1,7 +1,8 @@
 use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImageRect};
 use crate::data_asset::ImageCollectionAsset;
-use crate::app::WindowContext;
+use crate::app::{WindowContext, KeyboardPressed};
 
+use super::super::ClipboardData;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub enum ImageSelection {
@@ -11,6 +12,9 @@ pub enum ImageSelection {
 }
 
 impl ImageSelection {
+    pub fn is_floating(&self) -> bool {
+        matches!(self, ImageSelection::Fragment(..))
+    }
 
     pub fn set_changed(&mut self) {
         if let ImageSelection::Fragment(_, frag) = self {
@@ -43,7 +47,7 @@ impl ImageSelection {
             ImageSelection::Fragment(pos, frag) => {
                 Some(Rect {
                     min: *pos,
-                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
+                    max: *pos + Vec2::new(frag.width() as f32, frag.height() as f32),
                 })
             }
             ImageSelection::None => None,
@@ -148,6 +152,8 @@ impl ImageEditorWidget {
     }
 
     fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
+        if self.selection.is_floating() { return; } // already lifted
+
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
             self.set_undo_target(asset);
             let image = ImageCollection::from_asset(asset);
@@ -193,7 +199,7 @@ impl ImageEditorWidget {
 
         if let ImageSelection::Fragment(_, frag) = &mut self.selection {
             let image = ImageCollection::from_asset(frag);
-            image.v_flip(&mut frag.data, 0);
+            image.v_flip(frag.data_mut(), 0);
             frag.changed = true;
         } else {
             let image = ImageCollection::from_asset(asset);
@@ -209,7 +215,7 @@ impl ImageEditorWidget {
 
         if let ImageSelection::Fragment(_, frag) = &mut self.selection {
             let image = ImageCollection::from_asset(frag);
-            image.h_flip(&mut frag.data, 0);
+            image.h_flip(frag.data_mut(), 0);
             frag.changed = true;
         } else {
             let image = ImageCollection::from_asset(asset);
@@ -323,14 +329,70 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
+    pub fn copy(&mut self, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset) {
+        match &self.selection {
+            ImageSelection::Rect(origin, end) => {
+                let sel_rect = Rect {
+                    min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
+                    max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
+                };
+                let image = ImageCollection::from_asset(asset);
+                let image_rect = ImageRect::from_rect(sel_rect, &image);
+                if let Some(frag) = image.copy_fragment(asset.asset_id(), asset.data_mut(), self.selected_image, image_rect) {
+                    wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
+                } else {
+                    wc.clipboard = None;
+                }
+            }
+            ImageSelection::Fragment(_, frag) => {
+                wc.clipboard = Some(ClipboardData::Image(frag.pixels.clone()));
+            }
+            _ => {}
+        }
+    }
+
+    pub fn cut(&mut self, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
+        self.lift_selection(asset, fill_color);
+        if let Some((_, frag)) = self.selection.take_fragment() {
+            wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
+        }
+    }
+
+    pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset) {
+        if let Some(ClipboardData::Image(pixels)) = &wc.clipboard {
+            self.drop_selection(asset);
+            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset_id(), pixels.clone()));
+        }
+    }
+
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(asset);
+            return;
         }
+
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
+            self.set_undo_target(asset);
             self.delete_selection(asset, fill_color);
+            return;
+        }
+
+        match wc.keyboard_pressed.take() {
+            Some(KeyboardPressed::CtrlC) => {
+                self.copy(wc, asset);
+            }
+            Some(KeyboardPressed::CtrlX) => {
+                self.set_undo_target(asset);
+                self.cut(wc, asset, fill_color);
+            }
+            Some(KeyboardPressed::CtrlV) => {
+                self.tool = ImageDrawingTool::Select;
+                self.set_undo_target(asset);
+                self.paste(wc, asset);
+            }
+            None => {}
         }
     }
 

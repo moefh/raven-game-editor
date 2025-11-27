@@ -9,10 +9,11 @@ use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
+use crate::editors::ClipboardData;
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
-pub use context::{WindowContext, WindowEguiContext};
+pub use context::{WindowContext, WindowEguiContext, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
@@ -46,10 +47,12 @@ pub struct RavenEditorApp {
     dialogs: AppDialogs,
     windows: AppWindows,
     editors: editors::AssetEditors,
+    editors_clipboard: Option<ClipboardData>,
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
     settings: AppSettings,
     confirmation_dialog_action: ConfirmationDialogAction,
+    keyboard_pressed: Option<KeyboardPressed>,
 }
 
 impl RavenEditorApp {
@@ -65,10 +68,12 @@ impl RavenEditorApp {
             dialogs: dialogs::AppDialogs::new(),
             windows: windows::AppWindows::new(),
             editors: editors::AssetEditors::new(),
+            editors_clipboard: None,
             tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
             settings: AppSettings::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
+            keyboard_pressed: None,
         };
         app.settings.load(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
@@ -555,6 +560,8 @@ impl RavenEditorApp {
             logger: &mut self.logger,
             settings: &mut self.settings,
             top_editor_asset_id: self.editors.get_top_editor_asset_id(ctx),
+            clipboard: self.editors_clipboard.take(),
+            keyboard_pressed: self.keyboard_pressed.take(),
         };
 
         for tileset in self.store.assets.tilesets.iter_mut() {
@@ -620,10 +627,40 @@ impl RavenEditorApp {
         if self.windows.log_window_open {
             self.windows.show_log_window(&win_ctx);
         }
+
+        self.editors_clipboard = win_ctx.clipboard.take();
     }
 }
 
 impl eframe::App for RavenEditorApp {
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        // This is a hack.  Egui eats copy/cut/paste keyboard
+        // shortcuts (ctrl+c/ctrl+x/ctrl+v) and transforms them into
+        // events (Copy/Cut/Paste), so we check for these and store
+        // the info away to be used in the WindowContext. Annoyingly,
+        // ctrl+v doesn't generate a Paste event if the clipboard is
+        // empty, so we check for a ctrl+v key RELEASE instead, which
+        // is less than optimal because if ctrl is released before v,
+        // we won't catch it.
+
+        for event in &raw_input.events {
+            match event {
+                egui::Event::Copy => {
+                    self.keyboard_pressed = Some(KeyboardPressed::CtrlC);
+                }
+                egui::Event::Cut => {
+                    self.keyboard_pressed = Some(KeyboardPressed::CtrlX);
+                }
+                // we have to handle the key release event (pressed: false) because egui doesn't
+                // send a paste event when Ctrl+V is pressed when there's nothing in the clipboard
+                egui::Event::Key { key: egui::Key::V, pressed: false, modifiers: egui::Modifiers { ctrl: true, .. }, .. } => {
+                    self.keyboard_pressed = Some(KeyboardPressed::CtrlV);
+                }
+                _ => { /* println!("{:?}", event); */ }
+            };
+        }
+    }
+
     fn update(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("save_project_as") &&
             self.write_project(&filename) {

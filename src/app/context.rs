@@ -1,6 +1,13 @@
 use crate::image::TextureManager;
 use crate::app::{AppDialogs, SysDialogs, AppSettings};
 use crate::data_asset::{DataAssetId, StringLogger};
+use crate::editors::ClipboardData;
+
+pub enum KeyboardPressed {
+    CtrlC,
+    CtrlV,
+    CtrlX,
+}
 
 pub struct WindowEguiContext<'a> {
     pub ctx: &'a egui::Context,
@@ -25,6 +32,8 @@ pub struct WindowContext<'a> {
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
     pub top_editor_asset_id: Option<DataAssetId>,
+    pub clipboard: Option<ClipboardData>,
+    pub keyboard_pressed: Option<KeyboardPressed>,
 }
 
 impl<'a> WindowContext<'a> {

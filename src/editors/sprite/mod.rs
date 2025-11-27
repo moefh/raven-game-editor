@@ -10,10 +10,11 @@ use crate::data_asset::{DataAssetId, Sprite, GenericAsset, ImageCollectionAsset}
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
+use super::DataAssetEditor;
 use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
 pub struct SpriteEditor {
-    pub asset: super::DataAssetEditor,
+    pub asset: DataAssetEditor,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -21,7 +22,7 @@ pub struct SpriteEditor {
 impl SpriteEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SpriteEditor {
-            asset: super::DataAssetEditor::new(id, open),
+            asset: DataAssetEditor::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -36,7 +37,7 @@ impl SpriteEditor {
 
         let title = format!("{} - Sprite", sprite.asset.name);
         let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        let (min_size, default_size) = super::calc_image_editor_window_size(sprite);
+        let (min_size, default_size) = DataAssetEditor::calc_image_editor_window_size(sprite);
         window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sprite);
         });
@@ -248,7 +249,7 @@ impl Editor {
 
         // keyboard shortcuts
         if wc.is_editor_on_top(self.asset_id) {
-            self.image_editor.handle_keyboard(ui, sprite, self.color_picker.right_color);
+            self.image_editor.handle_keyboard(ui, wc, sprite, self.color_picker.right_color);
         }
     }
 }

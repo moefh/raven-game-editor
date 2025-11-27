@@ -5,7 +5,8 @@ use crate::data_asset::{Room, RoomMap, RoomEntity, RoomTrigger, MapData, Tileset
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 
-use super::{MapLayer, RectBorder, TILE_SIZE, get_map_layer_tile};
+use super::{TILE_SIZE, get_map_layer_tile};
+use super::super::{MapLayer, RectBorder};
 use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);

@@ -40,11 +40,26 @@ impl ImageRect {
     }
 }
 
+#[derive(Clone)]
+pub struct ImagePixels {
+    width: u32,
+    height: u32,
+    data: Vec<u8>,
+}
+
+impl ImagePixels {
+    pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
+        ImagePixels {
+            width,
+            height,
+            data,
+        }
+    }
+}
+
 pub struct ImageFragment {
     pub id: DataAssetId,
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u8>,
+    pub pixels: ImagePixels,
     pub changed: bool,
 }
 
@@ -52,21 +67,31 @@ impl ImageFragment {
     pub fn new(id: DataAssetId, width: u32, height: u32, data: Vec<u8>) -> Self {
         ImageFragment {
             id,
-            width,
-            height,
-            data,
+            pixels: ImagePixels::new(width, height, data),
             changed: true,
         }
+    }
+
+    pub fn from_pixels(id: DataAssetId, pixels: ImagePixels) -> Self {
+        ImageFragment {
+            id,
+            pixels,
+            changed: true,
+        }
+    }
+
+    pub fn take_pixels(self) -> ImagePixels {
+        self.pixels
     }
 }
 
 impl ImageCollectionAsset for ImageFragment {
     fn asset_id(&self) -> DataAssetId { self.id }
-    fn width(&self) -> u32 { self.width }
-    fn height(&self) -> u32 { self.height }
+    fn width(&self) -> u32 { self.pixels.width }
+    fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { 1 }
-    fn data(&self) -> &[u8] { &self.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
+    fn data(&self) -> &[u8] { &self.pixels.data }
+    fn data_mut(&mut self) -> &mut [u8] { &mut self.pixels.data }
 }
 
 pub struct StaticImageData {

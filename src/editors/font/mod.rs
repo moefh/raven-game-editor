@@ -170,7 +170,7 @@ impl Editor {
 
         // keyboard:
         if wc.is_editor_on_top(self.asset_id) {
-            self.image_editor.handle_keyboard(ui, font, Font::BG_COLOR);
+            self.image_editor.handle_keyboard(ui, wc, font, Font::BG_COLOR);
         }
     }
 }

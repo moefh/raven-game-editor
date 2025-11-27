@@ -4,7 +4,8 @@ use crate::data_asset::{MapData, Tileset};
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 
-use super::{MapLayer, TILE_SIZE, get_map_layer_tile};
+use super::super::MapLayer;
+use super::{TILE_SIZE, get_map_layer_tile};
 
 pub struct MapViewWidget;
 

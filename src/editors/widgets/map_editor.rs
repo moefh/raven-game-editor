@@ -6,7 +6,7 @@ use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath;
 
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::{MapFullFragment, MapLayerFragment, MapRect, MapLayer};
+use super::super::{MapFullFragment, MapLayerFragment, MapRect, MapLayer};
 
 pub enum MapSelection {
     None,

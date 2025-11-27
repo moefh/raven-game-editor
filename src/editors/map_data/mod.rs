@@ -7,8 +7,8 @@ use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, G
 use crate::misc::STATIC_IMAGES;
 
 use properties::PropertiesDialog;
-use super::DataAssetEditor;
-use super::widgets::{MapEditorWidget, MapDisplay, MapLayer, MapTool, ImagePickerWidget};
+use super::{DataAssetEditor, MapLayer};
+use super::widgets::{MapEditorWidget, MapDisplay, MapTool, ImagePickerWidget};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
