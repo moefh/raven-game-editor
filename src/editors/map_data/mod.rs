@@ -7,6 +7,7 @@ use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, G
 use crate::misc::STATIC_IMAGES;
 
 use properties::PropertiesDialog;
+use super::DataAssetEditor;
 use super::widgets::{MapEditorWidget, MapDisplay, MapLayer, MapTool, ImagePickerWidget};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
@@ -18,19 +19,66 @@ fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
 }
 
 pub struct MapDataEditor {
-    pub asset: super::DataAssetEditor,
+    pub asset: DataAssetEditor,
+    editor: Editor,
+    dialogs: Dialogs,
+}
+
+impl MapDataEditor {
+    pub fn new(id: DataAssetId, open: bool) -> Self {
+        MapDataEditor {
+            asset: DataAssetEditor::new(id, open),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, map_data: &mut MapData) {
+        self.editor.map_editor.drop_selection(map_data);
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+        self.dialogs.show(wc, map_data, tileset_ids, tilesets);
+
+        let title = format!("{} - Map", map_data.asset.name);
+        let window = DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let (min_size, default_size) = calc_map_editor_window_size();
+        window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
+        });
+    }
+}
+
+struct Dialogs {
     properties_dialog: Option<PropertiesDialog>,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
+            properties_dialog: None,
+        }
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+        if let Some(dlg) = &mut self.properties_dialog && dlg.open {
+            dlg.show(wc, map_data, tileset_ids, tilesets);
+        }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
     map_editor: MapEditorWidget,
     image_picker: ImagePickerWidget,
     use_custom_grid_color: bool,
     custom_grid_color: egui::Color32,
 }
 
-impl MapDataEditor {
-    pub fn new(id: DataAssetId, open: bool) -> Self {
-        MapDataEditor {
-            asset: super::DataAssetEditor::new(id, open),
-            properties_dialog: None,
+impl Editor {
+    pub fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
             use_custom_grid_color: false,
@@ -38,22 +86,32 @@ impl MapDataEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, map_data: &mut MapData) {
-        self.map_editor.drop_selection(map_data);
+    fn is_on_top(&self, wc: &WindowContext) -> bool {
+        match wc.top_editor_asset_id {
+            Some(top_id) => top_id == self.asset_id,
+            None => false,
+        }
     }
 
-    fn show_menubar(&mut self, ui: &mut egui::Ui, map_data: &MapData) {
-        let asset_id = map_data.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
+    fn show_menubar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, map_data: &mut MapData) {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Map", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            let dlg = self.properties_dialog.get_or_insert_with(|| {
+                            let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
                             dlg.set_open(map_data, self.image_picker.selected_image_right as u8);
+                        }
+                    });
+                });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        if ui.button("Delete selection").clicked() {
+                            self.map_editor.delete_selection(map_data);
                         }
                     });
                 });
@@ -61,9 +119,8 @@ impl MapDataEditor {
         });
     }
 
-    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        let asset_id = map_data.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_display_toolbar", asset_id)).show_inside(ui, |ui| {
+    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext) {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -140,7 +197,7 @@ impl MapDataEditor {
                         } else {
                             "custom"
                         };
-                        egui::ComboBox::from_id_salt(format!("map_editor_{}_zoom_combo", asset_id))
+                        egui::ComboBox::from_id_salt(format!("map_editor_{}_zoom_combo", self.asset_id))
                             .selected_text(cur_zoom_name)
                             .width(60.0)
                             .show_ui(ui, |ui| {
@@ -160,8 +217,7 @@ impl MapDataEditor {
     }
 
     fn show_edit_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        let asset_id = map_data.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_edit_toolbar", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_edit_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -252,8 +308,7 @@ impl MapDataEditor {
     }
 
     fn show_footer(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        let asset_id = map_data.asset.id;
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 ui.label(format!("{} bytes", map_data.data_size()));
@@ -270,49 +325,43 @@ impl MapDataEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
-        if let Some(dlg) = &mut self.properties_dialog && dlg.open {
-            dlg.show(wc, map_data, tileset_ids, tilesets);
-        }
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                map_data: &mut MapData, tilesets: &AssetList<Tileset>) {
+        self.show_menubar(ui, dialogs, map_data);
+        self.show_display_toolbar(ui, wc);
+        self.show_edit_toolbar(ui, wc, map_data);
+        self.show_footer(ui, wc, map_data);
 
-        let asset_id = map_data.asset.id;
-        let title = format!("{} - Map", map_data.asset.name);
-        let window = super::create_editor_window(asset_id, &title, wc);
-        let (min_size, default_size) = calc_map_editor_window_size();
-        let mut asset_open = self.asset.open;
-        window.min_size(min_size).default_size(default_size).open(&mut asset_open).show(wc.egui.ctx, |ui| {
-            self.show_menubar(ui, map_data);
-            self.show_display_toolbar(ui, wc, map_data);
-            self.show_edit_toolbar(ui, wc, map_data);
-            self.show_footer(ui, wc, map_data);
+        if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
+            // tile picker:
+            egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+                ui.add_space(5.0);
+                self.image_picker.zoom = 4.0;
+                let (image, texture) = match self.map_editor.edit_layer {
+                    MapLayer::Clip => {
+                        ImageCollection::plus_static_texture(STATIC_IMAGES.clip_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                    }
+                    MapLayer::Effects => {
+                        ImageCollection::plus_static_texture(STATIC_IMAGES.fx_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                    }
+                    _ => {
+                        ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
+                    }
+                };
+                self.image_picker.show(ui, wc.settings, &image, texture);
+                self.map_editor.left_draw_tile = self.image_picker.selected_image;
+                self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
+            });
 
-            if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
-                // tile picker:
-                egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
-                    ui.add_space(5.0);
-                    self.image_picker.zoom = 4.0;
-                    let (image, texture) = match self.map_editor.edit_layer {
-                        MapLayer::Clip => {
-                            ImageCollection::plus_static_texture(STATIC_IMAGES.clip_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
-                        }
-                        MapLayer::Effects => {
-                            ImageCollection::plus_static_texture(STATIC_IMAGES.fx_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
-                        }
-                        _ => {
-                            ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
-                        }
-                    };
-                    self.image_picker.show(ui, wc.settings, &image, texture);
-                    self.map_editor.left_draw_tile = self.image_picker.selected_image;
-                    self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
-                });
+            // body:
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                self.map_editor.show(ui, wc, map_data, tileset);
+            });
 
-                // body:
-                egui::CentralPanel::default().show_inside(ui, |ui| {
-                    self.map_editor.show(ui, wc, map_data, tileset);
-                });
+            // keyboard:
+            if self.is_on_top(wc) {
+                self.map_editor.handle_keyboard(ui, map_data);
             }
-        });
-        self.asset.open = asset_open;
+        }
     }
 }

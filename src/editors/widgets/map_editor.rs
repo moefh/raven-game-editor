@@ -203,6 +203,11 @@ impl MapEditorWidget {
             }
     }
 
+    pub fn delete_selection(&mut self, map_data: &mut MapData) {
+        self.lift_selection(map_data);
+        self.selection = MapSelection::None;
+    }
+
     pub fn drop_selection(&mut self, map_data: &mut MapData) {
         match &self.selection {
             MapSelection::LayerFragment(pos, frag) => {
@@ -373,6 +378,13 @@ impl MapEditorWidget {
         Rect {
             min: canvas_pos + pos,
             max: canvas_pos + pos + zoom * Vec2::splat(TILE_SIZE),
+        }
+    }
+
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, map_data: &mut MapData) {
+        let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
+        if ui.input_mut(|i| i.consume_shortcut(&del)) {
+            self.delete_selection(map_data);
         }
     }
 
