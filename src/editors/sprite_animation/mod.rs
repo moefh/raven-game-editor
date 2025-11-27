@@ -362,7 +362,7 @@ impl Editor {
 
         // keyboard:
         if self.is_on_top(wc) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
-            self.image_editor.handle_keyboard(ui, sprite);
+            self.image_editor.handle_keyboard(ui, sprite, self.color_picker.right_color);
         }
     }
 }

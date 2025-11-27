@@ -112,14 +112,29 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
+                        if ui.button("Undo").clicked() {
+                            self.image_editor.undo(tileset);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        if ui.button("Delete selection").clicked() {
+                            self.image_editor.delete_selection(tileset, self.color_picker.right_color);
+                        }
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
                             dialogs.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
                                                               self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
                             dialogs.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
                                                               self.color_picker.right_color);
@@ -240,7 +255,7 @@ impl Editor {
 
         // keyboard shortcuts
         if self.is_on_top(wc) {
-            self.image_editor.handle_keyboard(ui, tileset);
+            self.image_editor.handle_keyboard(ui, tileset, self.color_picker.right_color);
         }
     }
 }

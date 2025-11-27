@@ -147,15 +147,6 @@ impl ImageEditorWidget {
         self.undo_target = image.copy_fragment(asset.asset_id(), asset.data(), self.selected_image, ImageRect::from_image_item(&image));
     }
 
-    pub fn undo(&mut self, asset: &mut impl ImageCollectionAsset) {
-        if let Some(frag) = self.undo_target.take() {
-            let image = ImageCollection::from_asset(asset);
-            image.paste_fragment(asset.data_mut(), self.selected_image, 0, 0, &frag, false);
-            self.image_changed = true;
-            self.selection = ImageSelection::None;
-        }
-    }
-
     fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
             self.set_undo_target(asset);
@@ -169,6 +160,20 @@ impl ImageEditorWidget {
                 self.selection = ImageSelection::None;
             }
         }
+    }
+
+    pub fn undo(&mut self, asset: &mut impl ImageCollectionAsset) {
+        if let Some(frag) = self.undo_target.take() {
+            let image = ImageCollection::from_asset(asset);
+            image.paste_fragment(asset.data_mut(), self.selected_image, 0, 0, &frag, false);
+            self.image_changed = true;
+            self.selection = ImageSelection::None;
+        }
+    }
+
+    pub fn delete_selection(&mut self, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
+        self.lift_selection(asset, fill_color);
+        self.selection = ImageSelection::None;
     }
 
     pub fn drop_selection(&mut self, asset: &mut impl ImageCollectionAsset) {
@@ -318,10 +323,14 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, asset: &mut impl ImageCollectionAsset) {
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(asset);
+        }
+        let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
+        if ui.input_mut(|i| i.consume_shortcut(&del)) {
+            self.delete_selection(asset, fill_color);
         }
     }
 

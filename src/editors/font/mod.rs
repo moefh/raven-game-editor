@@ -140,7 +140,7 @@ impl Editor {
 
         // keyboard:
         if self.is_on_top(wc) {
-            self.image_editor.handle_keyboard(ui, font);
+            self.image_editor.handle_keyboard(ui, font, Font::BG_COLOR);
         }
     }
 }

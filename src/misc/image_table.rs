@@ -97,6 +97,8 @@ image_table! {
     screen: "../../assets/ScreenIcon.png",
     log: "../../assets/LogIcon.png",
     trash: "../../assets/TrashIcon.png",
+    add: "../../assets/AddIcon.png",
+    undo: "../../assets/UndoIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",
