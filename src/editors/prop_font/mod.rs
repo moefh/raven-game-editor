@@ -2,11 +2,45 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
+use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use super::DataAssetEditor;
-use super::widgets::PropFontEditorWidget;
+use super::widgets::{PropFontEditorWidget, FontViewWidget, FontPainter};
+
+use egui::{Pos2, Rect};
+
+impl FontPainter for PropFont {
+    fn measure(&self, height: f32, text: &str) -> f32 {
+        let zoom = height / self.height as f32;
+        text.chars().fold(0.0, |size, ch| {
+            let char_index = if (ch as u32) >= PropFont::FIRST_CHAR { (ch as u32) - PropFont::FIRST_CHAR } else { 0 };
+            size + zoom * (self.char_widths.get(char_index as usize).copied().unwrap_or(0) as f32 + 1.0)
+        })
+    }
+
+    fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: egui::Pos2, height: f32) -> f32 {
+        if (ch as u32) < PropFont::FIRST_CHAR { return 0.0; }
+        let char_index = if (ch as u32) >= PropFont::FIRST_CHAR { (ch as u32) - PropFont::FIRST_CHAR } else { 0 };
+        let char_width = self.char_widths.get(char_index as usize).copied().unwrap_or(0) as f32;
+        let zoom = height / self.height as f32;
+        let width = zoom * char_width;
+
+        let (image, texture) = ImageCollection::plus_texture(self, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let image_size = image.get_item_size();
+        let rect = egui::Rect {
+            min: pos,
+            max: pos + egui::Vec2::new(width, height),
+        };
+        let uv = Rect {
+            min: Pos2::new(0.0, char_index as f32 / image.num_items as f32),
+            max: Pos2::new(char_width as f32 / image.width as f32, (char_index+1) as f32 / image.num_items as f32),
+        };
+        egui::Image::from_texture((texture.id(), image_size)).uv(uv).paint_at(ui, rect);
+        width + zoom
+    }
+}
 
 pub struct PropFontEditor {
     pub asset: DataAssetEditor,
@@ -31,7 +65,7 @@ impl PropFontEditor {
 
         let title = format!("{} - Prop Font", prop_font.asset.name);
         let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        window.show(wc.egui.ctx, |ui| {
+        window.min_size([350.0, 250.0]).default_size([400.0, 350.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });
     }
@@ -59,6 +93,7 @@ struct Editor {
     asset_id: DataAssetId,
     prop_font_editor: PropFontEditorWidget,
     force_reload_image: bool,
+    font_view: FontViewWidget,
 }
 
 impl Editor {
@@ -67,6 +102,7 @@ impl Editor {
             asset_id,
             prop_font_editor: PropFontEditorWidget::new().with_selected_char('@' as u32 - PropFont::FIRST_CHAR),
             force_reload_image: false,
+            font_view: FontViewWidget::new(),
         }
     }
 
@@ -95,16 +131,11 @@ impl Editor {
             });
         });
 
-        // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!("{} bytes", prop_font.data_size()));
-        });
-
-        // body:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        // font test:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.label("Selected:");
+                ui.label("Edit:");
                 ui.add_space(5.0);
                 let cur_char = match char::from_u32(PropFont::FIRST_CHAR + self.prop_font_editor.selected_char) {
                     Some(ch) => Self::char_name(ch),
@@ -136,9 +167,26 @@ impl Editor {
                     *v < prop_font.max_width as u8 {
                         *v += 1;
                     }
-            });
-            ui.add_space(5.0);
 
+                ui.separator();
+
+                ui.label("Sample:");
+                ui.text_edit_singleline(&mut self.font_view.text);
+            });
+
+            ui.add_space(8.0);
+            self.font_view.show(ui, wc, prop_font);
+            ui.add_space(2.0);
+        });
+
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", prop_font.data_size()));
+        });
+
+        // body:
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if self.prop_font_editor.show(ui, wc, prop_font) {
                 self.force_reload_image = true;
             }

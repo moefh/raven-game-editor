@@ -2,11 +2,36 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
+use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, ImageCollectionAsset, GenericAsset};
 
 use properties::PropertiesDialog;
 use super::DataAssetEditor;
-use super::widgets::ImageEditorWidget;
+use super::widgets::{ImageEditorWidget, FontViewWidget, FontPainter};
+
+impl FontPainter for Font {
+    fn measure(&self, height: f32, text: &str) -> f32 {
+        let zoom = height / self.height as f32;
+        text.chars().fold(0.0, |size, _ch| {
+            size + zoom * self.width as f32
+        })
+    }
+
+    fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: egui::Pos2, height: f32) -> f32 {
+        if (ch as u32) < Font::FIRST_CHAR { return 0.0; }
+
+        let zoom = height / self.height as f32;
+        let width = zoom * self.width as f32;
+        let (image, texture) = ImageCollection::plus_texture(self, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let image_size = image.get_item_size();
+        let rect = egui::Rect {
+            min: pos,
+            max: pos + egui::Vec2::new(width, height),
+        };
+        egui::Image::from_texture((texture.id(), image_size)).uv(image.get_item_uv(ch as u32 - Font::FIRST_CHAR)).paint_at(ui, rect);
+        width
+    }
+}
 
 pub struct FontEditor {
     pub asset: DataAssetEditor,
@@ -32,8 +57,7 @@ impl FontEditor {
 
         let title = format!("{} - Font", font.asset.name);
         let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        let (min_size, default_size) = super::calc_image_editor_window_size(font);
-        window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
+        window.min_size([300.0, 250.0]).default_size([400.0, 350.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });
     }
@@ -61,6 +85,7 @@ struct Editor {
     asset_id: DataAssetId,
     force_reload_image: bool,
     image_editor: ImageEditorWidget,
+    font_view: FontViewWidget,
 }
 
 impl Editor {
@@ -69,6 +94,7 @@ impl Editor {
             asset_id,
             force_reload_image: false,
             image_editor: ImageEditorWidget::new().with_selected_image('@' as u32 - Font::FIRST_CHAR),
+            font_view: FontViewWidget::new(),
         }
     }
 
@@ -97,17 +123,11 @@ impl Editor {
             });
         });
 
-        // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!("{} bytes", font.data_size()));
-        });
-
-        // body:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        // font test:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.label("Selected:");
-                ui.add_space(5.0);
+                ui.label("Edit:");
                 let cur_char = match char::from_u32(Font::FIRST_CHAR + self.image_editor.get_selected_image()) {
                     Some(ch) => Self::char_name(ch),
                     None => " ".to_string(),
@@ -124,9 +144,26 @@ impl Editor {
                             }
                         }
                     });
-            });
-            ui.add_space(5.0);
 
+                ui.separator();
+
+                ui.label("Sample:");
+                ui.text_edit_singleline(&mut self.font_view.text);
+            });
+
+            ui.add_space(8.0);
+            self.font_view.show(ui, wc, font);
+            ui.add_space(2.0);
+        });
+
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", font.data_size()));
+        });
+
+        // body:
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             let colors = (Font::FG_COLOR, Font::BG_COLOR);
             self.image_editor.show(ui, wc, font, colors);
         });

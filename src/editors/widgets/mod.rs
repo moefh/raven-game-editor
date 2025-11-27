@@ -7,6 +7,7 @@ mod map_view;
 mod image_editor;
 mod image_picker;
 mod prop_font_editor;
+mod font_view;
 
 use crate::data_asset::MapData;
 use crate::app::AppSettings;
@@ -26,6 +27,7 @@ pub use map_view::{*};
 pub use image_editor::{*};
 pub use image_picker::{*};
 pub use prop_font_editor::{*};
+pub use font_view::{*};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {

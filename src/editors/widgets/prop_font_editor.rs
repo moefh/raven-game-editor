@@ -45,7 +45,7 @@ impl PropFontEditorWidget {
         };
 
         // draw background
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
 
         // draw image
         let item_uv = Rect {
