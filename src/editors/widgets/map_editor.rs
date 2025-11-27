@@ -129,17 +129,18 @@ pub struct MapEditorWidget {
 
 impl MapEditorWidget {
     pub fn new() -> Self {
+        let zoom = 1.0;
         MapEditorWidget {
-            zoom: 2.0,
+            zoom,
             scroll: Vec2::ZERO,
-            edit_layer: MapLayer::Background,
+            edit_layer: MapLayer::Screen,
             tool: MapTool::Pencil,
             display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: 0xff,
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
-            screen_display_pos: Vec2::splat(TILE_SIZE/2.0),
+            screen_display_pos: Vec2::splat(TILE_SIZE/zoom),
             selection: MapSelection::None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,

@@ -10,7 +10,7 @@ use properties::PropertiesDialog;
 use super::DataAssetEditor;
 use super::widgets::{MapEditorWidget, MapDisplay, MapLayer, MapTool, ImagePickerWidget};
 
-const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
+const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
     let min_size = egui::Vec2::new(500.0, 200.0);
