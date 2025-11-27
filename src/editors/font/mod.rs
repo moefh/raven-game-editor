@@ -72,13 +72,6 @@ impl Editor {
         }
     }
 
-    pub fn is_on_top(&self, wc: &WindowContext) -> bool {
-        match wc.top_editor_asset_id {
-            Some(top_id) => top_id == self.asset_id,
-            None => false,
-        }
-    }
-
     fn char_name(ch: char) -> String {
         if ch == ' ' {
             "(space)".to_string()
@@ -139,7 +132,7 @@ impl Editor {
         });
 
         // keyboard:
-        if self.is_on_top(wc) {
+        if wc.is_editor_on_top(self.asset_id) {
             self.image_editor.handle_keyboard(ui, font, Font::BG_COLOR);
         }
     }

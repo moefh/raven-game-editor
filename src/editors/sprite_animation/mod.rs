@@ -112,13 +112,6 @@ impl Editor {
         }
     }
 
-    pub fn is_on_top(&self, wc: &WindowContext) -> bool {
-        match wc.top_editor_asset_id {
-            Some(top_id) => top_id == self.asset_id,
-            None => false,
-        }
-    }
-
     fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
         frames.clear();
         for index in 0..num_frames as u8 {
@@ -361,7 +354,7 @@ impl Editor {
         };
 
         // keyboard:
-        if self.is_on_top(wc) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
+        if wc.is_editor_on_top(self.asset_id) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
             self.image_editor.handle_keyboard(ui, sprite, self.color_picker.right_color);
         }
     }

@@ -86,13 +86,6 @@ impl Editor {
         }
     }
 
-    fn is_on_top(&self, wc: &WindowContext) -> bool {
-        match wc.top_editor_asset_id {
-            Some(top_id) => top_id == self.asset_id,
-            None => false,
-        }
-    }
-
     fn show_menubar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, map_data: &mut MapData) {
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -359,7 +352,7 @@ impl Editor {
             });
 
             // keyboard:
-            if self.is_on_top(wc) {
+            if wc.is_editor_on_top(self.asset_id) {
                 self.map_editor.handle_keyboard(ui, map_data);
             }
         }

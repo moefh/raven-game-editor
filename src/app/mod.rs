@@ -1,4 +1,4 @@
-mod window_context;
+mod context;
 mod sys_dialogs;
 mod dialogs;
 mod windows;
@@ -12,7 +12,7 @@ use crate::misc::IMAGES;
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
-pub use window_context::{WindowContext, WindowEguiContext};
+pub use context::{WindowContext, WindowEguiContext};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;

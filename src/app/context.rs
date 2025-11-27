@@ -31,4 +31,11 @@ impl<'a> WindowContext<'a> {
     pub fn request_marching_ants_repaint(&self) {
         self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.marching_ants_delay as u64));
     }
+
+    pub fn is_editor_on_top(&self, id: DataAssetId) -> bool {
+        match self.top_editor_asset_id {
+            Some(top_id) => top_id == id,
+            None => false,
+        }
+    }
 }

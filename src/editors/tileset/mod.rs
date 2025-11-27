@@ -92,13 +92,6 @@ impl Editor {
         }
     }
 
-    fn is_on_top(&self, wc: &WindowContext) -> bool {
-        match wc.top_editor_asset_id {
-            Some(top_id) => top_id == self.asset_id,
-            None => false,
-        }
-    }
-
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -254,7 +247,7 @@ impl Editor {
         });
 
         // keyboard shortcuts
-        if self.is_on_top(wc) {
+        if wc.is_editor_on_top(self.asset_id) {
             self.image_editor.handle_keyboard(ui, tileset, self.color_picker.right_color);
         }
     }

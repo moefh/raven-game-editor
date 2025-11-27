@@ -19,23 +19,55 @@ enum EditorTabs {
     Patterns,
 }
 
-fn get_pattern_sample_to_play(cell_index: usize, mod_data: &ModData) -> Option<usize> {
-    let row_stride = mod_data.num_channels as usize;
-    let cell_row = cell_index / row_stride;
-    let first_row = cell_row / (64 * row_stride) * (64 * row_stride);
-    for row in (first_row..=cell_row).rev() {
-        let cell = mod_data.pattern[row * row_stride + cell_index % row_stride];
-        if cell.sample == 0 { continue; }
-        let sample_index = cell.sample as usize - 1;
-        if sample_index >= mod_data.samples.len() { return None; }
-        return Some(sample_index);
-    }
-    None
-}
-
 pub struct ModDataEditor {
     pub asset: super::DataAssetEditor,
+    editor: Editor,
+    dialogs: Dialogs,
+}
+
+impl ModDataEditor {
+    pub fn new(id: DataAssetId, open: bool) -> Self {
+        ModDataEditor {
+            asset: super::DataAssetEditor::new(id, open),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, _mod_data: &mut ModData) {
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+        self.dialogs.show(wc, &mut self.editor, mod_data, sound_player);
+
+        let title = format!("{} - MOD", mod_data.asset.name);
+        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        window.min_size([600.0, 300.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
+        });
+    }
+}
+
+struct Dialogs {
     properties_dialog: PropertiesDialog,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
+            properties_dialog: PropertiesDialog::new(),
+        }
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, mod_data: &mut ModData, _sound_player: &mut SoundPlayer) {
+        if self.properties_dialog.open {
+            self.properties_dialog.show(wc, mod_data);
+        }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
     selected_tab: EditorTabs,
     selected_sample: usize,
     selected_song_position: usize,
@@ -44,11 +76,10 @@ pub struct ModDataEditor {
     play_freq: f32,
 }
 
-impl ModDataEditor {
-    pub fn new(id: DataAssetId, open: bool) -> Self {
-        ModDataEditor {
-            asset: super::DataAssetEditor::new(id, open),
-            properties_dialog: PropertiesDialog::new(),
+impl Editor {
+    pub fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
             selected_tab: EditorTabs::Samples,
             selected_sample: 0,
             selected_song_position: 0,
@@ -58,7 +89,18 @@ impl ModDataEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    fn get_pattern_sample_to_play(cell_index: usize, mod_data: &ModData) -> Option<usize> {
+        let row_stride = mod_data.num_channels as usize;
+        let cell_row = cell_index / row_stride;
+        let first_row = cell_row / (64 * row_stride) * (64 * row_stride);
+        for row in (first_row..=cell_row).rev() {
+            let cell = mod_data.pattern[row * row_stride + cell_index % row_stride];
+            if cell.sample == 0 { continue; }
+            let sample_index = cell.sample as usize - 1;
+            if sample_index >= mod_data.samples.len() { return None; }
+            return Some(sample_index);
+        }
+        None
     }
 
     fn select_sample(&mut self, selected_sample: usize) {
@@ -67,8 +109,7 @@ impl ModDataEditor {
     }
 
     fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        let asset_id = mod_data.asset.id;
-        egui::SidePanel::left(format!("editor_panel_{}_samples_left", asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
+        egui::SidePanel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (sample_index, sample) in mod_data.samples.iter().enumerate() {
@@ -86,7 +127,7 @@ impl ModDataEditor {
         });
 
         // sample properties
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_sample_properties", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show_inside(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
                 let mut loop_start = sample.loop_start as f32;
@@ -94,12 +135,12 @@ impl ModDataEditor {
                 let mut volume = sample.volume as f32;
                 let mut finetune = sample.finetune as f32;
 
-                egui::Grid::new(format!("editor_{}_sample_grid", asset_id)).num_columns(2).show(ui, |ui| {
+                egui::Grid::new(format!("editor_{}_sample_grid", self.asset_id)).num_columns(2).show(ui, |ui| {
                     // properties
                     egui::CollapsingHeader::new("Sample").default_open(true).show(ui, |ui| {
-                        egui::Grid::new(format!("editor_{}_loop_grid", asset_id)).num_columns(2).show(ui, |ui| {
+                        egui::Grid::new(format!("editor_{}_loop_grid", self.asset_id)).num_columns(2).show(ui, |ui| {
                             ui.label("Bits/sample:");
-                            egui::ComboBox::from_id_salt(format!("editor_{}_bps_combo", asset_id))
+                            egui::ComboBox::from_id_salt(format!("editor_{}_bps_combo", self.asset_id))
                                 .selected_text(format!("{}", sample.bits_per_sample))
                                 .width(50.0)
                                 .show_ui(ui, |ui| {
@@ -131,7 +172,7 @@ impl ModDataEditor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import WAV...").clicked() {
-                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_sample", asset_id),
+                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_sample", self.asset_id),
                                                          "Import WAVE file",
                                                          &[
                                                              ("WAVE files (*.wav)", &["wav"]),
@@ -184,7 +225,6 @@ impl ModDataEditor {
     }
 
     fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        let asset_id = mod_data.asset.id;
         egui::CentralPanel::default().show_inside(ui, |ui| {
             let cur_song_position = mod_data.song_positions.get(self.selected_song_position).map_or_else(|| {
                 mod_data.song_positions.first().map_or(0, |&v| v)
@@ -192,7 +232,7 @@ impl ModDataEditor {
             let old_selected_song_position = self.selected_song_position;
             ui.horizontal(|ui| {
                 ui.label("Pattern:");
-                egui::ComboBox::from_id_salt(format!("editor_{}_song_pos_combo", asset_id))
+                egui::ComboBox::from_id_salt(format!("editor_{}_song_pos_combo", self.asset_id))
                     .selected_text(format!("{}", cur_song_position))
                     .width(50.0)
                     .show_ui(ui, |ui| {
@@ -258,7 +298,7 @@ impl ModDataEditor {
                                         if sound_player.is_available() {
                                             if ui.button(format!("{:2}{}", mod_utils::get_note_name(note), octave)).clicked() &&
                                                 let Some(freq) = mod_utils::get_period_sample_rate(cell.period) &&
-                                                let Some(sample_index) = get_pattern_sample_to_play(cell_index, mod_data) &&
+                                                let Some(sample_index) = Self::get_pattern_sample_to_play(cell_index, mod_data) &&
                                                 let Some(sample_data) = &mod_data.samples[sample_index].data {
                                                     sound_player.play_s16(sample_data, freq, self.play_volume);
                                                     self.play_freq = freq.round();
@@ -352,85 +392,76 @@ impl ModDataEditor {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        let asset_id = mod_data.asset.id;
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_sample", asset_id)) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_sample", self.asset_id)) {
             self.import_sample(wc, &filename, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_mod", asset_id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_mod", self.asset_id)) {
             self.import_mod(wc, &filename, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_export_mod", asset_id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_export_mod", self.asset_id)) {
             self.export_mod(wc, &filename, mod_data);
         }
-        if self.properties_dialog.open {
-            self.properties_dialog.show(wc, mod_data);
-        }
 
-        let title = format!("{} - MOD", mod_data.asset.name);
-        let window = super::create_editor_window(asset_id, &title, wc);
-        let mut editor_open = self.asset.open;
-        window.open(&mut editor_open).min_size([600.0, 300.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
-            // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
-                egui::MenuBar::new().ui(ui, |ui| {
-                    ui.menu_button("MOD", |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                            if ui.button("Import...").clicked() {
-                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_mod", asset_id),
-                                                         "Import MOD file",
-                                                         &[
-                                                             ("MOD files (*.mod)", &["mod"]),
-                                                             ("All files (*)", &[""]),
-                                                         ]);
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                            if ui.button("Export...").clicked() {
-                                wc.sys_dialogs.save_file(Some(wc.egui.window), format!("editor_{}_export_mod", asset_id),
-                                                         "Export MOD file",
-                                                         &[
-                                                             ("MOD files (*.mod)", &["mod"]),
-                                                             ("All files (*)", &[""]),
-                                                         ]);
-                            }
-                        });
-                        ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                            if ui.button("Properties...").clicked() {
-                                self.properties_dialog.set_open(mod_data);
-                            }
-                        });
+        // header:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("MOD", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Import...").clicked() {
+                            wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_mod", self.asset_id),
+                                                     "Import MOD file",
+                                                     &[
+                                                         ("MOD files (*.mod)", &["mod"]),
+                                                         ("All files (*)", &[""]),
+                                                     ]);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
+                        if ui.button("Export...").clicked() {
+                            wc.sys_dialogs.save_file(Some(wc.egui.window), format!("editor_{}_export_mod", self.asset_id),
+                                                     "Export MOD file",
+                                                     &[
+                                                         ("MOD files (*.mod)", &["mod"]),
+                                                         ("All files (*)", &[""]),
+                                                     ]);
+                        }
+                    });
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        if ui.button("Properties...").clicked() {
+                            dialogs.properties_dialog.set_open(mod_data);
+                        }
                     });
                 });
             });
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", mod_data.data_size()));
-            });
-
-            // tabs:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", asset_id)).show_inside(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Samples), "Samples").clicked() {
-                        self.selected_tab = EditorTabs::Samples;
-                    }
-                    if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Patterns), "Patterns").clicked() {
-                        self.selected_tab = EditorTabs::Patterns;
-                    }
-                });
-            });
-
-            match self.selected_tab {
-                EditorTabs::Samples => { self.samples_tab(ui, wc, mod_data, sound_player) }
-                EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data, sound_player); }
-            };
         });
-        self.asset.open = editor_open;
+
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", mod_data.data_size()));
+        });
+
+        // tabs:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Samples), "Samples").clicked() {
+                    self.selected_tab = EditorTabs::Samples;
+                }
+                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Patterns), "Patterns").clicked() {
+                    self.selected_tab = EditorTabs::Patterns;
+                }
+            });
+        });
+
+        match self.selected_tab {
+            EditorTabs::Samples => { self.samples_tab(ui, wc, mod_data, sound_player) }
+            EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data, sound_player); }
+        };
     }
 }

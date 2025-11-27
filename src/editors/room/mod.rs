@@ -84,40 +84,88 @@ impl RoomItemRef {
     }
 }
 
-fn edit_prop_i16(ui: &mut egui::Ui, value: &mut i16, min: i16, max: i16) {
-    let min = min as f32;
-    let max = max as f32;
-    let mut value_f = *value as f32;
-    ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
-    *value = value_f.clamp(min, max) as i16;
-}
-
-fn edit_prop_u16(ui: &mut egui::Ui, value: &mut u16, min: u16, max: u16) {
-    let min = min as f32;
-    let max = max as f32;
-    let mut value_f = *value as f32;
-    ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
-    *value = value_f.clamp(min, max) as u16;
-}
-
 pub struct RoomEditor {
     pub asset: super::DataAssetEditor,
-    room_editor: RoomEditorWidget,
-    properties_dialog: PropertiesDialog,
-    map_selection_dialog: MapSelectionDialog,
+    editor: Editor,
+    dialogs: Dialogs,
 }
 
 impl RoomEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         RoomEditor {
             asset: super::DataAssetEditor::new(id, open),
-            room_editor: RoomEditorWidget::new(),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
+
+        let title = format!("{} - Room", room.asset.name);
+        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        window.min_size([400.0, 300.0]).default_size([600.0, 400.0]).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
+        });
+    }
+}
+
+struct Dialogs {
+    properties_dialog: PropertiesDialog,
+    map_selection_dialog: MapSelectionDialog,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
             properties_dialog: PropertiesDialog::new(),
             map_selection_dialog: MapSelectionDialog::new(),
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, room: &mut Room,
+            asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        if self.properties_dialog.open {
+            self.properties_dialog.show(wc, room);
+        }
+        if self.map_selection_dialog.open &&
+            self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets) &&
+            editor.room_editor.selected_item.is_map() {
+                editor.room_editor.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
+            }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
+    room_editor: RoomEditorWidget,
+}
+
+impl Editor {
+    fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
+            room_editor: RoomEditorWidget::new(),
+        }
+    }
+
+    fn edit_prop_i16(ui: &mut egui::Ui, value: &mut i16, min: i16, max: i16) {
+        let min = min as f32;
+        let max = max as f32;
+        let mut value_f = *value as f32;
+        ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
+        *value = value_f.clamp(min, max) as i16;
+    }
+
+    fn edit_prop_u16(ui: &mut egui::Ui, value: &mut u16, min: u16, max: u16) {
+        let min = min as f32;
+        let max = max as f32;
+        let mut value_f = *value as f32;
+        ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
+        *value = value_f.clamp(min, max) as u16;
     }
 
     fn get_new_item_name(items: &[impl RoomItem], base: &str) -> String {
@@ -319,9 +367,8 @@ impl RoomEditor {
 
     fn show_map_properties(&self, ui: &mut egui::Ui, map_index: usize, room: &mut Room,
                            maps: &AssetList<MapData>) -> Option<()> {
-        let asset_id = room.asset.id;
         let room_map = room.maps.get_mut(map_index)?;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_prop_tree", asset_id));
+        let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_prop_tree", self.asset_id));
 
         let map_name = if let Some(map_data) = maps.get(&room_map.map_id) {
             &map_data.asset.name
@@ -333,7 +380,7 @@ impl RoomEditor {
             ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
             ui.add(egui::Label::new("Map").selectable(false));
         }).body(|ui| {
-            egui::Grid::new(format!("editor_{}_map_prop_grid", asset_id))
+            egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
@@ -342,11 +389,11 @@ impl RoomEditor {
                     ui.end_row();
 
                     ui.label("X:");
-                    edit_prop_u16(ui, &mut room_map.x, 0, 1024);
+                    Self::edit_prop_u16(ui, &mut room_map.x, 0, 1024);
                     ui.end_row();
 
                     ui.label("Y:");
-                    edit_prop_u16(ui, &mut room_map.y, 0, 1024);
+                    Self::edit_prop_u16(ui, &mut room_map.y, 0, 1024);
                     ui.end_row();
                 });
         });
@@ -355,14 +402,13 @@ impl RoomEditor {
 
     fn show_entity_properties(&self, ui: &mut egui::Ui, ent_index: usize, room: &mut Room,
                               animations: &AssetList<SpriteAnimation>, animation_ids: &AssetIdList) -> Option<()> {
-        let asset_id = room.asset.id;
         let entity = room.entities.get_mut(ent_index)?;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_ent_prop_tree", asset_id));
+        let tree_node_id = ui.make_persistent_id(format!("editor_{}_ent_prop_tree", self.asset_id));
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
             ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
             ui.add(egui::Label::new("Entity").selectable(false));
         }).body(|ui| {
-            egui::Grid::new(format!("editor_{}_ent_prop_grid", asset_id))
+            egui::Grid::new(format!("editor_{}_ent_prop_grid", self.asset_id))
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
@@ -376,7 +422,7 @@ impl RoomEditor {
                     } else {
                         "??"
                     };
-                    egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_animation", asset_id))
+                    egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_animation", self.asset_id))
                         .selected_text(cur_animation_name)
                         .show_ui(ui, |ui| {
                             for animation_id in animation_ids.iter() {
@@ -388,27 +434,27 @@ impl RoomEditor {
                     ui.end_row();
 
                     ui.label("X:");
-                    edit_prop_i16(ui, &mut entity.x, -256, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut entity.x, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Y:");
-                    edit_prop_i16(ui, &mut entity.y, -256, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut entity.y, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Data0:");
-                    edit_prop_u16(ui, &mut entity.data0, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut entity.data0, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data1:");
-                    edit_prop_u16(ui, &mut entity.data1, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut entity.data1, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data2:");
-                    edit_prop_u16(ui, &mut entity.data2, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut entity.data2, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data3:");
-                    edit_prop_u16(ui, &mut entity.data3, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut entity.data3, 0, u16::MAX);
                     ui.end_row();
                 });
         });
@@ -416,14 +462,13 @@ impl RoomEditor {
     }
 
     fn show_trigger_properties(&self, ui: &mut egui::Ui, trg_index: usize, room: &mut Room) -> Option<()> {
-        let asset_id = room.asset.id;
         let trigger = room.triggers.get_mut(trg_index)?;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", asset_id));
+        let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", self.asset_id));
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
             ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
             ui.add(egui::Label::new("Trigger").selectable(false));
         }).body(|ui| {
-            egui::Grid::new(format!("editor_{}_trg_prop_grid", asset_id))
+            egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
@@ -432,35 +477,35 @@ impl RoomEditor {
                     ui.end_row();
 
                     ui.label("X:");
-                    edit_prop_i16(ui, &mut trigger.x, -256, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut trigger.x, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Y:");
-                    edit_prop_i16(ui, &mut trigger.y, -256, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut trigger.y, -256, i16::MAX);
                     ui.end_row();
 
                     ui.label("Width:");
-                    edit_prop_i16(ui, &mut trigger.width, 0, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut trigger.width, 0, i16::MAX);
                     ui.end_row();
 
                     ui.label("Height:");
-                    edit_prop_i16(ui, &mut trigger.height, 0, i16::MAX);
+                    Self::edit_prop_i16(ui, &mut trigger.height, 0, i16::MAX);
                     ui.end_row();
 
                     ui.label("Data0:");
-                    edit_prop_u16(ui, &mut trigger.data0, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut trigger.data0, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data1:");
-                    edit_prop_u16(ui, &mut trigger.data1, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut trigger.data1, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data2:");
-                    edit_prop_u16(ui, &mut trigger.data2, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut trigger.data2, 0, u16::MAX);
                     ui.end_row();
 
                     ui.label("Data3:");
-                    edit_prop_u16(ui, &mut trigger.data3, 0, u16::MAX);
+                    Self::edit_prop_u16(ui, &mut trigger.data3, 0, u16::MAX);
                     ui.end_row();
                 });
         });
@@ -477,72 +522,57 @@ impl RoomEditor {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        if self.properties_dialog.open {
-            self.properties_dialog.show(wc, room);
-        }
-        if self.map_selection_dialog.open &&
-            self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets) &&
-            self.room_editor.selected_item.is_map() {
-                self.room_editor.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
-            }
-
-        let asset_id = room.asset.id;
-        let title = format!("{} - Room", room.asset.name);
-        let window = super::create_editor_window(asset_id, &title, wc);
-        let mut asset_open = self.asset.open;
-        window.open(&mut asset_open).min_size([400.0, 300.0]).default_size([600.0, 400.0]).show(wc.egui.ctx, |ui| {
-            // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
-                egui::MenuBar::new().ui(ui, |ui| {
-                    ui.menu_button("Room", |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                            if ui.button("Properties...").clicked() {
-                                self.properties_dialog.set_open(room);
-                            }
-                        });
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        // header:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Room", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        if ui.button("Properties...").clicked() {
+                            dialogs.properties_dialog.set_open(room);
+                        }
                     });
                 });
-            });
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", room.data_size()));
-            });
-
-            // left panel:
-            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                let want_height = 70.0_f32.max(ui.available_height() / 2.0);
-                ui.allocate_ui(egui::Vec2::new(200.0, want_height), |ui| {
-                    egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                        let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
-                        let (add_entity, sel_entity, rm_entity) = self.show_entity_tree(ui, room);
-                        let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
-
-                        if change_maps { self.map_selection_dialog.set_open(room); }
-                        if add_entity { self.add_entity(wc, room, &asset_ids.animations); }
-                        if add_trigger { self.add_trigger(room); }
-                        if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }
-                        if let Some(ent_index) = sel_entity { self.room_editor.selected_item = RoomItemRef::Entity(ent_index); }
-                        if let Some(trg_index) = sel_trigger { self.room_editor.selected_item = RoomItemRef::Trigger(trg_index); }
-                        if let Some(ent_index) = rm_entity { self.remove_entity(room, ent_index); }
-                        if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
-                    });
-                });
-                ui.separator();
-                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                    self.show_item_properties(ui, room, assets.maps, assets.animations, &asset_ids.animations);
-                });
-            });
-
-            // body:
-            egui::CentralPanel::default().show_inside(ui, |ui| {
-                self.room_editor.show(ui, wc, room, assets);
             });
         });
-        self.asset.open = asset_open;
+
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", room.data_size()));
+        });
+
+        // left panel:
+        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            let want_height = 70.0_f32.max(ui.available_height() / 2.0);
+            ui.allocate_ui(egui::Vec2::new(200.0, want_height), |ui| {
+                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                    let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
+                    let (add_entity, sel_entity, rm_entity) = self.show_entity_tree(ui, room);
+                    let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
+
+                    if change_maps { dialogs.map_selection_dialog.set_open(room); }
+                    if add_entity { self.add_entity(wc, room, &asset_ids.animations); }
+                    if add_trigger { self.add_trigger(room); }
+                    if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }
+                    if let Some(ent_index) = sel_entity { self.room_editor.selected_item = RoomItemRef::Entity(ent_index); }
+                    if let Some(trg_index) = sel_trigger { self.room_editor.selected_item = RoomItemRef::Trigger(trg_index); }
+                    if let Some(ent_index) = rm_entity { self.remove_entity(room, ent_index); }
+                    if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
+                });
+            });
+            ui.separator();
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                self.show_item_properties(ui, room, assets.maps, assets.animations, &asset_ids.animations);
+            });
+        });
+
+        // body:
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.room_editor.show(ui, wc, room, assets);
+        });
     }
 }

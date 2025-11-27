@@ -85,25 +85,3 @@ pub fn calc_image_editor_window_size(image: &impl ImageCollectionAsset) -> (egui
     let default_size = egui::Vec2::new(min_width + 5.0 * img_w, min_height + 200.0).max(egui::Vec2::new(min_width + 200.0, 0.0));
     (min_size, default_size)
 }
-
-pub fn create_editor_window<'a>(id: DataAssetId, title: &'a str, wc: &crate::app::WindowContext) -> egui::Window<'a> {
-    let editor_id = egui::Id::new(format!("editor_{}", id));
-    let default_rect = egui::Rect {
-        min: egui::Pos2 {
-            x : wc.window_space.min.x + 10.0,
-            y : wc.window_space.min.y + 10.0,
-        },
-        max: egui::Pos2 {
-            x: 600.0,
-            y: 300.0,
-        }
-    };
-    let frame = egui::Frame::window(&wc.egui.ctx.style()).inner_margin(1.0);
-    egui::Window::new(title)
-        .id(editor_id)
-        .frame(frame)
-        .enabled(! wc.sys_dialogs.has_open_dialog())
-        .default_rect(default_rect)
-        .max_size(wc.window_space.size())
-        .constrain_to(wc.window_space)
-}
