@@ -84,7 +84,7 @@ impl Dialogs {
 
     pub fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, prop_font: &mut PropFont) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, prop_font) {
-            editor.force_reload_image = true;
+            editor.prop_font_editor.image_changed = true;
         }
     }
 }
@@ -92,7 +92,6 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     prop_font_editor: PropFontEditorWidget,
-    force_reload_image: bool,
     font_view: FontViewWidget,
 }
 
@@ -101,7 +100,6 @@ impl Editor {
         Editor {
             asset_id,
             prop_font_editor: PropFontEditorWidget::new().with_selected_char('@' as u32 - PropFont::FIRST_CHAR),
-            force_reload_image: false,
             font_view: FontViewWidget::new(),
         }
     }
@@ -187,9 +185,7 @@ impl Editor {
 
         // body:
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            if self.prop_font_editor.show(ui, wc, prop_font) {
-                self.force_reload_image = true;
-            }
+            self.prop_font_editor.show(ui, wc, prop_font);
         });
     }
 }

@@ -26,7 +26,7 @@ impl PropFontEditorWidget {
         prop_font.char_widths.get(self.selected_char as usize).map_or(1, |&v| v) as u32
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) -> bool {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) {
         let (image, texture) = ImageCollection::plus_loaded_texture(prop_font, wc.tex_man, wc.egui.ctx,
                                                                     TextureSlot::Transparent, self.image_changed);
         if self.image_changed { self.image_changed = false; }
@@ -77,7 +77,7 @@ impl PropFontEditorWidget {
             Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
         );
 
-        if let Some(pointer_pos) = resp.interact_pointer_pos() && canvas_to_image.from().contains(pointer_pos) {
+        if let Some(pointer_pos) = resp.interact_pointer_pos() && canvas_rect.contains(pointer_pos) {
             let image_pos = canvas_to_image * pointer_pos;
             let x = image_pos.x as i32;
             let y = image_pos.y as i32;
@@ -88,10 +88,10 @@ impl PropFontEditorWidget {
             } else {
                 None
             } {
-                return image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color);
+                if image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color) {
+                    self.image_changed = true;
+                }
             }
         }
-
-        false
     }
 }
