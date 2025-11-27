@@ -4,7 +4,7 @@ use crate::app::AppSettings;
 use crate::image::ImageCollection;
 use super::image_editor::ImageDisplay;
 
-pub struct ImagePickerState {
+pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,
     pub allow_second_selection: bool,
     pub selected_image: u32,
@@ -14,9 +14,9 @@ pub struct ImagePickerState {
     pub display: ImageDisplay,
 }
 
-impl ImagePickerState {
+impl ImagePickerWidget {
     pub fn new() -> Self {
-        ImagePickerState {
+        ImagePickerWidget {
             allow_empty_selection: false,
             allow_second_selection: false,
             zoom: 1.0,
@@ -64,54 +64,53 @@ impl ImagePickerState {
         let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
         painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
     }
-}
 
-pub fn image_picker(ui: &mut egui::Ui, settings: &AppSettings, image: &ImageCollection,
-                    texture: &egui::TextureHandle, state: &mut ImagePickerState) {
-    let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
-    let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
-        let image_size = state.zoom * image.get_item_size();
-        let empty_item_size = state.zoom * if state.allow_empty_selection { Vec2::new(0.0, image.height as f32) } else { Vec2::ZERO };
-        let image_picker_size = state.zoom * image.get_full_size() + empty_item_size;
-        let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
-        let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
-        let space = response.rect;
-        let images_rect = Rect {
-            min: space.min + empty_item_size,
-            max: space.min + empty_item_size + state.zoom * image.get_full_size(),
-        };
-        let canvas_rect = Rect {
-            min: space.min,
-            max: space.min + image_picker_size,
-        };
+    pub fn show(&mut self, ui: &mut egui::Ui, settings: &AppSettings, image: &ImageCollection, texture: &egui::TextureHandle) {
+        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
+        let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
+            let image_size = self.zoom * image.get_item_size();
+            let empty_item_size = self.zoom * if self.allow_empty_selection { Vec2::new(0.0, image.height as f32) } else { Vec2::ZERO };
+            let image_picker_size = self.zoom * image.get_full_size() + empty_item_size;
+            let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
+            let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
+            let space = response.rect;
+            let images_rect = Rect {
+                min: space.min + empty_item_size,
+                max: space.min + empty_item_size + self.zoom * image.get_full_size(),
+            };
+            let canvas_rect = Rect {
+                min: space.min,
+                max: space.min + image_picker_size,
+            };
 
-        // draw background
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, state.background_color.unwrap_or(settings.image_bg_color));
+            // draw background
+            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, self.background_color.unwrap_or(settings.image_bg_color));
 
-        // draw items
-        egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);
+            // draw items
+            egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);
 
-        // draw selection rectangles
-        state.draw_selection_rectangle(&painter, canvas_rect.min, image_size, state.selected_image,
-                                       egui::Color32::BLUE, egui::Color32::WHITE);
-        if state.allow_second_selection {
-            state.draw_selection_rectangle(&painter, canvas_rect.min, image_size, state.selected_image_right,
-                                           egui::Color32::RED, egui::Color32::WHITE);
-        }
-
-        response
-    });
-    if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
-        let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-        if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
-            let frame_size = state.zoom * image.get_item_size();
-            let num_items = image.num_items + if state.allow_empty_selection { 1 } else { 0 };
-            let image_index = state.sel_index_to_image(u32::min((pos.y / frame_size.y).floor() as u32, num_items - 1));
-            if scroll.inner.dragged_by(egui::PointerButton::Primary) {
-                state.selected_image = image_index;
-            } else if scroll.inner.dragged_by(egui::PointerButton::Secondary) {
-                state.selected_image_right = image_index;
+            // draw selection rectangles
+            self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
+                                           egui::Color32::BLUE, egui::Color32::WHITE);
+            if self.allow_second_selection {
+                self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image_right,
+                                               egui::Color32::RED, egui::Color32::WHITE);
             }
-        }
-    };
+
+            response
+        });
+        if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
+            let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
+            if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
+                let frame_size = self.zoom * image.get_item_size();
+                let num_items = image.num_items + if self.allow_empty_selection { 1 } else { 0 };
+                let image_index = self.sel_index_to_image(u32::min((pos.y / frame_size.y).floor() as u32, num_items - 1));
+                if scroll.inner.dragged_by(egui::PointerButton::Primary) {
+                    self.selected_image = image_index;
+                } else if scroll.inner.dragged_by(egui::PointerButton::Secondary) {
+                    self.selected_image_right = image_index;
+                }
+            }
+        };
+    }
 }

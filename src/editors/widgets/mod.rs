@@ -1,17 +1,17 @@
 mod color_picker;
 mod map_editor;
-mod sfx_display;
+mod sfx_editor;
 mod sprite_frame_list_view;
 mod room_editor;
 mod map_view;
 mod image_editor;
 mod image_picker;
+mod prop_font_editor;
 
-use crate::image::ImageCollection;
 use crate::data_asset::MapData;
 use crate::app::AppSettings;
 
-use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
+use egui::{Vec2, Rect, Pos2};
 
 pub const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
 pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;
@@ -19,12 +19,13 @@ pub const SCREEN_SIZE: Vec2 = Vec2::new(320.0, 240.0);
 
 pub use color_picker::{*};
 pub use map_editor::{*};
-pub use sfx_display::{*};
+pub use sfx_editor::{*};
 pub use sprite_frame_list_view::{*};
 pub use room_editor::{*};
 pub use map_view::{*};
 pub use image_editor::{*};
 pub use image_picker::{*};
+pub use prop_font_editor::{*};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {
@@ -141,11 +142,6 @@ impl MapLayerFragment {
         frag
     }
 
-    pub fn get_tile(&self, x: u32, y: u32) -> u8 {
-        if x > self.width || y > self.height { return 0xff; }
-        self.data[(y * self.width + x) as usize]
-    }
-
     pub fn paste_in_map(&self, x: i32, y: i32, map_data: &mut MapData, layer: MapLayer) {
         let (map_width, map_height, map_data, transparent) = match layer {
             MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles, true),
@@ -186,6 +182,11 @@ impl MapLayerFragment {
             }
         }
     }
+
+    pub fn get_tile(&self, x: u32, y: u32) -> u8 {
+        if x > self.width || y > self.height { return 0xff; }
+        self.data[(y * self.width + x) as usize]
+    }
 }
 
 pub struct MapFullFragment {
@@ -201,15 +202,15 @@ impl MapFullFragment {
     pub fn copy_map(map_data: &mut MapData, rect: MapRect, include_bg: bool) -> Option<MapFullFragment> {
         let map_width = map_data.width;
         let map_height = map_data.height;
-        // TODO: shrink rect if too wide or tall
         if rect.width == 0 || rect.height == 0 || rect.x + rect.width > map_width || rect.y + rect.height > map_height { return None; }
 
         let copy_bg = include_bg && map_data.bg_width == map_data.width && map_data.bg_height == map_data.height;
 
-        let mut fg_data = Vec::with_capacity((rect.width * rect.height) as usize);
-        let mut clip_data = Vec::with_capacity((rect.width * rect.height) as usize);
-        let mut fx_data = Vec::with_capacity((rect.width * rect.height) as usize);
-        let mut bg_data = if copy_bg { Vec::with_capacity((rect.width * rect.height) as usize) } else { Vec::new() };
+        let num_tiles = (rect.width * rect.height) as usize;
+        let mut fg_data = Vec::with_capacity(num_tiles);
+        let mut clip_data = Vec::with_capacity(num_tiles);
+        let mut fx_data = Vec::with_capacity(num_tiles);
+        let mut bg_data = if copy_bg { Vec::with_capacity(num_tiles) } else { Vec::new() };
         for y in 0..rect.height {
             for x in 0..rect.width {
                 let tile_index = ((rect.y + y) * map_width + rect.x + x) as usize;
@@ -236,7 +237,6 @@ impl MapFullFragment {
         if frag.is_some() {
             let map_width = map_data.width;
             let map_height = map_data.height;
-            // TODO: shrink rect if too wide or tall
             if rect.width > 0 && rect.height > 0 && rect.x + rect.width <= map_width && rect.y + rect.height <= map_height {
                 let erase_bg = include_bg && map_data.bg_width == map_data.width && map_data.bg_height == map_data.height;
                 for y in 0..rect.height {
@@ -253,26 +253,6 @@ impl MapFullFragment {
             }
         }
         frag
-    }
-
-    pub fn get_layer_tile(&self, x: u32, y: u32, layer: MapLayer) -> u8 {
-        if x > self.width || y > self.height { return 0xff; }
-        match layer {
-            MapLayer::Foreground => {
-                self.fg_data[(y * self.width + x) as usize]
-            }
-            MapLayer::Clip => {
-                self.clip_data[(y * self.width + x) as usize]
-            }
-            MapLayer::Effects => {
-                self.fx_data[(y * self.width + x) as usize]
-            }
-            MapLayer::Background => {
-                if self.bg_data.is_empty() { return 0xff; }
-                self.bg_data[(y * self.width + x) as usize]
-            }
-            _ => 0xff
-        }
     }
 
     pub fn paste_in_map(&self, x: i32, y: i32, map_data: &mut MapData) {
@@ -305,6 +285,26 @@ impl MapFullFragment {
                     map_data.bg_tiles[dest+ix] = self.bg_data[src+ix];
                 }
             }
+        }
+    }
+
+    pub fn get_layer_tile(&self, x: u32, y: u32, layer: MapLayer) -> u8 {
+        if x > self.width || y > self.height { return 0xff; }
+        match layer {
+            MapLayer::Foreground => {
+                self.fg_data[(y * self.width + x) as usize]
+            }
+            MapLayer::Clip => {
+                self.clip_data[(y * self.width + x) as usize]
+            }
+            MapLayer::Effects => {
+                self.fx_data[(y * self.width + x) as usize]
+            }
+            MapLayer::Background => {
+                if self.bg_data.is_empty() { return 0xff; }
+                self.bg_data[(y * self.width + x) as usize]
+            }
+            _ => 0xff
         }
     }
 }
@@ -373,54 +373,4 @@ fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u3
         MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
         _ => 0xff,
     }
-}
-
-pub fn prop_font_image_editor(ui: &mut egui::Ui, texture: &egui::TextureHandle, image: &ImageCollection,
-                              selected_image: u32, image_width: u32) -> (egui::Response, emath::RectTransform) {
-    let image_size = Vec2::new(image_width as f32, image.height as f32);
-    let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
-    let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
-
-    let resp_size = resp.rect.size();
-    let (zoomx, zoomy) = (resp_size.x / (image_size.x + 1.0), (resp_size.y / (image_size.y + 1.0)));
-    let image_zoom = f32::max(f32::min(zoomx, zoomy).floor(), 1.0);
-    let center = resp.rect.center();
-    let canvas_rect = Rect {
-        min: center - image_zoom * image_size / 2.0,
-        max: center + image_zoom * image_size / 2.0,
-    };
-
-    // draw background
-    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
-
-    // draw image
-    let item_uv = Rect {
-        min: Pos2::new(0.0, selected_image as f32 / image.num_items as f32),
-        max: Pos2::new(image_width as f32 / image.width as f32, (selected_image+1) as f32 / image.num_items as f32),
-    };
-    Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
-
-    // draw border
-    let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
-    painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
-
-    // draw grid
-    let canvas_size = canvas_rect.size();
-    let display_grid = f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 3.0;
-    if display_grid {
-        let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
-        for y in 0..=image.height {
-            let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / image.height as f32;
-            painter.hline(canvas_rect.x_range(), py, stroke);
-        }
-        for x in 0..=image_width {
-            let px = canvas_rect.min.x + canvas_rect.width() * x as f32 / image_width as f32;
-            painter.vline(px, canvas_rect.y_range(), stroke);
-        }
-    }
-    let canvas_to_image = emath::RectTransform::from_to(
-        canvas_rect,
-        Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
-    );
-    (resp, canvas_to_image)
 }

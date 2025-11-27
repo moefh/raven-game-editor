@@ -102,7 +102,7 @@ impl ImageDisplay {
     }
 }
 
-pub struct ImageEditorState {
+pub struct ImageEditorWidget {
     pub selected_image: u32,
     pub display: ImageDisplay,
     pub tool: ImageDrawingTool,
@@ -113,9 +113,9 @@ pub struct ImageEditorState {
     drag_frag_origin: Pos2,
 }
 
-impl ImageEditorState {
+impl ImageEditorWidget {
     pub fn new() -> Self {
-        ImageEditorState {
+        ImageEditorWidget {
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
             tool: ImageDrawingTool::Pencil,
@@ -125,6 +125,11 @@ impl ImageEditorState {
             image_changed: false,
             tool_changed: false,
         }
+    }
+
+    pub fn with_selected_image(mut self, selected_image: u32) -> Self {
+        self.selected_image = selected_image;
+        self
     }
 
     pub fn toggle_display(&mut self, bits: u8) {
@@ -278,94 +283,93 @@ impl ImageEditorState {
             }
         }
     }
-}
 
-pub fn image_editor(ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset,
-                    state: &mut ImageEditorState, colors: (u8, u8)) {
-    let slot = state.display.texture_slot();
-    let (image, texture) = ImageCollection::plus_loaded_texture(asset, wc.tex_man, ui.ctx(), slot, state.image_changed);
-    if state.image_changed { state.image_changed = false; }
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset, colors: (u8, u8)) {
+        let slot = self.display.texture_slot();
+        let (image, texture) = ImageCollection::plus_loaded_texture(asset, wc.tex_man, ui.ctx(), slot, self.image_changed);
+        if self.image_changed { self.image_changed = false; }
 
-    let image_size = image.get_item_size();
-    let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
-    let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
+        let image_size = image.get_item_size();
+        let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
+        let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
 
-    let resp_size = resp.rect.size();
-    let (zoomx, zoomy) = (resp_size.x / (image_size.x + 1.0), (resp_size.y / (image_size.y + 1.0)));
-    let image_zoom = f32::max(f32::min(zoomx, zoomy).floor(), 1.0);
-    let center = resp.rect.center();
-    let canvas_rect = Rect {
-        min: center - image_zoom * image_size / 2.0,
-        max: center + image_zoom * image_size / 2.0,
-    };
-    let canvas_to_image = emath::RectTransform::from_to(
-        canvas_rect,
-        Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
-    );
-
-    // draw background
-    painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
-
-    // draw image
-    let item_uv = image.get_item_uv(state.selected_image);
-    Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
-
-    // draw floating selection
-    if let ImageSelection::Fragment(pos, frag) = &mut state.selection {
-        let slot = state.display.float_texture_slot();
-        let (frag_image, frag_texture) = ImageCollection::plus_loaded_texture(frag, wc.tex_man, ui.ctx(), slot, frag.changed);
-        if frag.changed { frag.changed = false; }
-        let uv = frag_image.get_item_uv(0);
-        let frag_size = frag_image.get_item_size();
-        let frag_canvas_rect = Rect {
-            min: canvas_rect.min + image_zoom * pos.to_vec2(),
-            max: canvas_rect.min + image_zoom * (*pos + frag_size).to_vec2(),
+        let resp_size = resp.rect.size();
+        let (zoomx, zoomy) = (resp_size.x / (image_size.x + 1.0), (resp_size.y / (image_size.y + 1.0)));
+        let image_zoom = f32::max(f32::min(zoomx, zoomy).floor(), 1.0);
+        let center = resp.rect.center();
+        let canvas_rect = Rect {
+            min: center - image_zoom * image_size / 2.0,
+            max: center + image_zoom * image_size / 2.0,
         };
-        Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
-    }
+        let canvas_to_image = emath::RectTransform::from_to(
+            canvas_rect,
+            Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
+        );
 
-    // draw border
-    let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
-    painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
+        // draw background
+        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
 
-    // draw grid
-    let canvas_size = canvas_rect.size();
-    let display_grid =
-        state.display.has_bits(ImageDisplay::GRID) &&
-        (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 2.0);
-    if display_grid {
-        let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
-        for y in 0..=image.height {
-            let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / image.height as f32;
-            painter.hline(canvas_rect.x_range(), py, stroke);
+        // draw image
+        let item_uv = image.get_item_uv(self.selected_image);
+        Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
+
+        // draw floating selection
+        if let ImageSelection::Fragment(pos, frag) = &mut self.selection {
+            let slot = self.display.float_texture_slot();
+            let (frag_image, frag_texture) = ImageCollection::plus_loaded_texture(frag, wc.tex_man, ui.ctx(), slot, frag.changed);
+            if frag.changed { frag.changed = false; }
+            let uv = frag_image.get_item_uv(0);
+            let frag_size = frag_image.get_item_size();
+            let frag_canvas_rect = Rect {
+                min: canvas_rect.min + image_zoom * pos.to_vec2(),
+                max: canvas_rect.min + image_zoom * (*pos + frag_size).to_vec2(),
+            };
+            Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
         }
-        for x in 0..=image.width {
-            let px = canvas_rect.min.x + canvas_rect.width() * x as f32 / image.width as f32;
-            painter.vline(px, canvas_rect.y_range(), stroke);
+
+        // draw border
+        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+        painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
+
+        // draw grid
+        let canvas_size = canvas_rect.size();
+        let display_grid =
+            self.display.has_bits(ImageDisplay::GRID) &&
+            (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 2.0);
+        if display_grid {
+            let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
+            for y in 0..=image.height {
+                let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / image.height as f32;
+                painter.hline(canvas_rect.x_range(), py, stroke);
+            }
+            for x in 0..=image.width {
+                let px = canvas_rect.min.x + canvas_rect.width() * x as f32 / image.width as f32;
+                painter.vline(px, canvas_rect.y_range(), stroke);
+            }
         }
-    }
 
-    if state.tool_changed {
-        state.tool_changed = false;
-        state.drop_selection(asset);
-    }
+        if self.tool_changed {
+            self.tool_changed = false;
+            self.drop_selection(asset);
+        }
 
-    // handle click
-    if let Some(pointer_pos) = resp.interact_pointer_pos() {
-        let image_pos = canvas_to_image * pointer_pos;
-        state.handle_mouse(&image, image_pos, asset, &resp, colors);
-    }
+        // handle click
+        if let Some(pointer_pos) = resp.interact_pointer_pos() {
+            let image_pos = canvas_to_image * pointer_pos;
+            self.handle_mouse(&image, image_pos, asset, &resp, colors);
+        }
 
-    // draw selection rectangle
-    if let Some(sel_rect) = state.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
-        let image_to_canvas = canvas_to_image.inverse();
-        let sel_rect = Rect {
-            min: image_to_canvas * sel_rect.min,
-            max: image_to_canvas * sel_rect.max,
-        };
-        if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
-            super::paint_marching_ants(&painter, sel_rect, wc.settings);
-            wc.request_marching_ants_repaint();
+        // draw selection rectangle
+        if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
+            let image_to_canvas = canvas_to_image.inverse();
+            let sel_rect = Rect {
+                min: image_to_canvas * sel_rect.min,
+                max: image_to_canvas * sel_rect.max,
+            };
+            if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
+                super::paint_marching_ants(&painter, sel_rect, wc.settings);
+                wc.request_marching_ants_repaint();
+            }
         }
     }
 }

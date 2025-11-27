@@ -5,13 +5,13 @@ use crate::app::WindowContext;
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::widgets::ImageEditorState;
+use super::widgets::ImageEditorWidget;
 
 pub struct FontEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     force_reload_image: bool,
-    image_editor: ImageEditorState,
+    image_editor: ImageEditorWidget,
 }
 
 fn char_name(ch: char) -> String {
@@ -30,7 +30,7 @@ impl FontEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
             force_reload_image: false,
-            image_editor: ImageEditorState::new(),
+            image_editor: ImageEditorWidget::new().with_selected_image('@' as u32 - Font::FIRST_CHAR),
         }
     }
 
@@ -90,7 +90,7 @@ impl FontEditor {
                 ui.add_space(5.0);
 
                 let colors = (Font::FG_COLOR, Font::BG_COLOR);
-                super::widgets::image_editor(ui, wc, font, &mut self.image_editor, colors);
+                self.image_editor.show(ui, wc, font, colors);
             });
         });
     }

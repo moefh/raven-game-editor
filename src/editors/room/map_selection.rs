@@ -5,6 +5,7 @@ use crate::data_asset::{
     Room, RoomMap, MapData, Tileset,
     DataAssetId, AssetIdList, AssetList,
 };
+use super::super::widgets::MapViewWidget;
 
 pub struct MapSelectionDialog {
     pub open: bool,
@@ -115,7 +116,7 @@ impl MapSelectionDialog {
                 if let Some(map_data) = self.display_map_id.and_then(|map_id| maps.get(&map_id)) &&
                     let Some(tileset) = tilesets.get(&map_data.tileset_id) {
                         ui.label(format!("Map: {} ({}x{})", map_data.asset.name, map_data.width, map_data.height));
-                        super::super::widgets::map_view(ui, wc, map_data, tileset);
+                        MapViewWidget::show(ui, wc, map_data, tileset);
                     }
             });
             maps_changed

@@ -11,6 +11,7 @@ use crate::data_asset::{
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
+use super::widgets::RoomEditorWidget;
 
 pub struct RoomEditorAssetLists<'a> {
     pub maps: &'a AssetList<MapData>,
@@ -101,7 +102,7 @@ fn edit_prop_u16(ui: &mut egui::Ui, value: &mut u16, min: u16, max: u16) {
 
 pub struct RoomEditor {
     pub asset: super::DataAssetEditor,
-    room_editor_state: super::widgets::RoomEditorState,
+    room_editor: RoomEditorWidget,
     properties_dialog: PropertiesDialog,
     map_selection_dialog: MapSelectionDialog,
 }
@@ -110,7 +111,7 @@ impl RoomEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         RoomEditor {
             asset: super::DataAssetEditor::new(id, open),
-            room_editor_state: super::widgets::RoomEditorState::new(),
+            room_editor: RoomEditorWidget::new(),
             properties_dialog: PropertiesDialog::new(),
             map_selection_dialog: MapSelectionDialog::new(),
         }
@@ -143,7 +144,7 @@ impl RoomEditor {
             },
         };
 
-        self.room_editor_state.selected_item = RoomItemRef::Entity(room.entities.len());
+        self.room_editor.selected_item = RoomItemRef::Entity(room.entities.len());
         let name = Self::get_new_item_name(&room.entities, "entity");
         room.entities.push(RoomEntity {
             name,
@@ -161,13 +162,13 @@ impl RoomEditor {
         if ent_index < room.entities.len() {
             room.entities.remove(ent_index);
         }
-        if let RoomItemRef::Entity(sel_index) = self.room_editor_state.selected_item && sel_index == ent_index {
-            self.room_editor_state.selected_item = RoomItemRef::None;
+        if let RoomItemRef::Entity(sel_index) = self.room_editor.selected_item && sel_index == ent_index {
+            self.room_editor.selected_item = RoomItemRef::None;
         }
     }
 
     fn add_trigger(&mut self, room: &mut Room) {
-        self.room_editor_state.selected_item = RoomItemRef::Trigger(room.triggers.len());
+        self.room_editor.selected_item = RoomItemRef::Trigger(room.triggers.len());
         let name = Self::get_new_item_name(&room.triggers, "trigger");
         room.triggers.push(RoomTrigger {
             name,
@@ -186,8 +187,8 @@ impl RoomEditor {
         if trg_index < room.triggers.len() {
             room.triggers.remove(trg_index);
         }
-        if let RoomItemRef::Trigger(sel_index) = self.room_editor_state.selected_item && sel_index == trg_index {
-            self.room_editor_state.selected_item = RoomItemRef::None;
+        if let RoomItemRef::Trigger(sel_index) = self.room_editor.selected_item && sel_index == trg_index {
+            self.room_editor.selected_item = RoomItemRef::None;
         }
     }
 
@@ -210,7 +211,7 @@ impl RoomEditor {
                 if let Some(map) = maps.get(&room_map.map_id) {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                        let mut selected = self.room_editor_state.selected_item.is_the_map(map_index);
+                        let mut selected = self.room_editor.selected_item.is_the_map(map_index);
                         let resp = ui.toggle_value(&mut selected, &map.asset.name);
                         if resp.clicked() || resp.secondary_clicked() {
                             sel_map = Some(map_index);
@@ -247,7 +248,7 @@ impl RoomEditor {
             for (ent_index, ent) in room.entities.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let mut selected = self.room_editor_state.selected_item.is_the_entity(ent_index);
+                    let mut selected = self.room_editor.selected_item.is_the_entity(ent_index);
                     let resp = ui.toggle_value(&mut selected, &ent.name);
                     if resp.clicked() || resp.secondary_clicked() {
                         sel_entity = Some(ent_index);
@@ -290,7 +291,7 @@ impl RoomEditor {
             for (trg_index, trg) in room.triggers.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let mut selected = self.room_editor_state.selected_item.is_the_trigger(trg_index);
+                    let mut selected = self.room_editor.selected_item.is_the_trigger(trg_index);
                     let resp = ui.toggle_value(&mut selected, &trg.name);
                     if resp.clicked() || resp.secondary_clicked() {
                         sel_trigger = Some(trg_index);
@@ -468,7 +469,7 @@ impl RoomEditor {
 
     fn show_item_properties(&self, ui: &mut egui::Ui, room: &mut Room, maps: &AssetList<MapData>,
                             animations: &AssetList<SpriteAnimation>, animation_ids: &AssetIdList) {
-        match self.room_editor_state.selected_item {
+        match self.room_editor.selected_item {
             RoomItemRef::None => {},
             RoomItemRef::Map(map_index) => { self.show_map_properties(ui, map_index, room, maps); },
             RoomItemRef::Entity(ent_index) => { self.show_entity_properties(ui, ent_index, room, animations, animation_ids); },
@@ -482,8 +483,8 @@ impl RoomEditor {
         }
         if self.map_selection_dialog.open &&
             self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets) &&
-            self.room_editor_state.selected_item.is_map() {
-                self.room_editor_state.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
+            self.room_editor.selected_item.is_map() {
+                self.room_editor.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
             }
 
         let asset_id = room.asset.id;
@@ -524,9 +525,9 @@ impl RoomEditor {
                         if change_maps { self.map_selection_dialog.set_open(room); }
                         if add_entity { self.add_entity(wc, room, &asset_ids.animations); }
                         if add_trigger { self.add_trigger(room); }
-                        if let Some(map_index) = sel_map { self.room_editor_state.selected_item = RoomItemRef::Map(map_index); }
-                        if let Some(ent_index) = sel_entity { self.room_editor_state.selected_item = RoomItemRef::Entity(ent_index); }
-                        if let Some(trg_index) = sel_trigger { self.room_editor_state.selected_item = RoomItemRef::Trigger(trg_index); }
+                        if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }
+                        if let Some(ent_index) = sel_entity { self.room_editor.selected_item = RoomItemRef::Entity(ent_index); }
+                        if let Some(trg_index) = sel_trigger { self.room_editor.selected_item = RoomItemRef::Trigger(trg_index); }
                         if let Some(ent_index) = rm_entity { self.remove_entity(room, ent_index); }
                         if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
                     });
@@ -539,7 +540,7 @@ impl RoomEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                super::widgets::room_editor(ui, wc, &mut self.room_editor_state, room, assets);
+                self.room_editor.show(ui, wc, room, assets);
             });
         });
         self.asset.open = asset_open;

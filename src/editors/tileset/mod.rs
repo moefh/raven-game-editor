@@ -10,16 +10,16 @@ use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
-use super::widgets::{ColorPickerState, ImagePickerState, ImageEditorState, ImageDrawingTool, ImageDisplay};
+use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
     rm_tiles_dialog: RemoveTilesDialog,
-    color_picker: ColorPickerState,
-    image_picker: ImagePickerState,
-    image_editor: ImageEditorState,
+    color_picker: ColorPickerWidget,
+    image_picker: ImagePickerWidget,
+    image_editor: ImageEditorWidget,
 }
 
 impl TilesetEditor {
@@ -29,9 +29,9 @@ impl TilesetEditor {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
-            color_picker: ColorPickerState::new(0b000011, 0b110000),
-            image_picker: ImagePickerState::new(),
-            image_editor: ImageEditorState::new(),
+            color_picker: ColorPickerWidget::new(0b000011, 0b110000),
+            image_picker: ImagePickerWidget::new(),
+            image_editor: ImageEditorWidget::new(),
         }
     }
 
@@ -184,20 +184,20 @@ impl TilesetEditor {
                 self.image_picker.zoom = 4.0;
                 self.image_picker.display = self.image_editor.display;
                 let (image, texture) = ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-                super::widgets::image_picker(ui, wc.settings, &image, texture, &mut self.image_picker);
+                self.image_picker.show(ui, wc.settings, &image, texture);
                 self.image_editor.selected_image = self.image_picker.selected_image;
             });
 
             // color picker:
             egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
-                super::widgets::color_picker(ui, wc, &mut self.color_picker);
+                self.color_picker.show(ui, wc);
             });
 
             // image:
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                super::widgets::image_editor(ui, wc, tileset, &mut self.image_editor, colors);
+                self.image_editor.show(ui, wc, tileset, colors);
             });
         });
         self.asset.open = asset_open;

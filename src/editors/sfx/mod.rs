@@ -8,11 +8,12 @@ use crate::misc::wav_utils;
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use super::widgets::SfxEditorWidget;
 
 pub struct SfxEditor {
     pub asset: super::DataAssetEditor,
-    sfx_display_state: super::widgets::SfxDisplayState,
     properties_dialog: PropertiesDialog,
+    sfx_editor: SfxEditorWidget,
     play_volume: f32,
     play_freq: f32,
 }
@@ -21,8 +22,8 @@ impl SfxEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SfxEditor {
             asset: super::DataAssetEditor::new(id, open),
-            sfx_display_state: super::widgets::SfxDisplayState::new(),
             properties_dialog: PropertiesDialog::new(),
+            sfx_editor: SfxEditorWidget::new(),
             play_volume: 0.5,
             play_freq: 11025.0,
         }
@@ -147,7 +148,7 @@ impl SfxEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                super::widgets::sfx_display(ui, &mut self.sfx_display_state, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
+                self.sfx_editor.show(ui, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
             });
         });
 

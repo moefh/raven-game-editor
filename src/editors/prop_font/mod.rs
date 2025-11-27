@@ -2,16 +2,16 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
-use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use super::widgets::PropFontEditorWidget;
 
 pub struct PropFontEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: PropertiesDialog,
+    prop_font_editor: PropFontEditorWidget,
     force_reload_image: bool,
-    selected_char: u32,
 }
 
 fn char_name(ch: char) -> String {
@@ -29,8 +29,8 @@ impl PropFontEditor {
         PropFontEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: PropertiesDialog::new(),
+            prop_font_editor: PropFontEditorWidget::new().with_selected_char('@' as u32 - PropFont::FIRST_CHAR),
             force_reload_image: false,
-            selected_char: 1,
         }
     }
 
@@ -68,15 +68,10 @@ impl PropFontEditor {
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                let (image, texture) = ImageCollection::plus_loaded_texture(prop_font, wc.tex_man, wc.egui.ctx,
-                                                                            TextureSlot::Transparent, self.force_reload_image);
-
-                let sel_char_width = prop_font.char_widths.get(self.selected_char as usize).map_or(1, |&v| v) as u32;
-
                 ui.horizontal(|ui| {
                     ui.label("Selected:");
                     ui.add_space(5.0);
-                    let cur_char = match char::from_u32(PropFont::FIRST_CHAR + self.selected_char) {
+                    let cur_char = match char::from_u32(PropFont::FIRST_CHAR + self.prop_font_editor.selected_char) {
                         Some(ch) => char_name(ch),
                         None => " ".to_string(),
                     };
@@ -86,7 +81,7 @@ impl PropFontEditor {
                         .show_ui(ui, |ui| {
                             for i in 0..PropFont::NUM_CHARS {
                                 if let Some(ch) = char::from_u32(PropFont::FIRST_CHAR + i) {
-                                    ui.selectable_value(&mut self.selected_char, i, char_name(ch));
+                                    ui.selectable_value(&mut self.prop_font_editor.selected_char, i, char_name(ch));
                                 }
                             }
                         });
@@ -95,36 +90,23 @@ impl PropFontEditor {
                     ui.add_space(5.0);
 
                     if ui.button("\u{2796}").clicked() &&
-                        let Some(v) = prop_font.char_widths.get_mut(self.selected_char as usize) &&
+                        let Some(v) = prop_font.char_widths.get_mut(self.prop_font_editor.selected_char as usize) &&
                         *v > 1 {
                             *v -= 1;
                         }
-                    ui.label(format!("{}", sel_char_width));
+
+                    ui.label(format!("{}", self.prop_font_editor.get_selected_char_width(prop_font)));
                     if ui.button("\u{2795}").clicked() &&
-                        let Some(v) = prop_font.char_widths.get_mut(self.selected_char as usize) &&
+                        let Some(v) = prop_font.char_widths.get_mut(self.prop_font_editor.selected_char as usize) &&
                         *v < prop_font.max_width as u8 {
                             *v += 1;
                         }
                 });
                 ui.add_space(5.0);
 
-                let (resp, canvas_to_image) = super::widgets::prop_font_image_editor(ui, texture, &image,
-                                                                                     self.selected_char, sel_char_width);
-                if let Some(pointer_pos) = resp.interact_pointer_pos() &&
-                    canvas_to_image.from().contains(pointer_pos) {
-                        let image_pos = canvas_to_image * pointer_pos;
-                        let x = image_pos.x as i32;
-                        let y = image_pos.y as i32;
-                        if let Some(color) = if resp.dragged_by(egui::PointerButton::Primary) {
-                            Some(PropFont::FG_COLOR)
-                        } else if resp.dragged_by(egui::PointerButton::Secondary) {
-                            Some(PropFont::BG_COLOR)
-                        } else {
-                            None
-                        } {
-                            self.force_reload_image = image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color);
-                        }
-                    }
+                if self.prop_font_editor.show(ui, wc, prop_font) {
+                    self.force_reload_image = true;
+                }
             });
         });
     }

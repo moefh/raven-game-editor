@@ -9,7 +9,7 @@ use crate::data_asset::{
 };
 
 use properties::PropertiesDialog;
-use super::widgets::{ColorPickerState, ImageEditorState, SpriteFrameListView};
+use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView};
 
 enum EditorTabs {
     Sprite,
@@ -38,8 +38,8 @@ pub struct SpriteAnimationEditor {
     selected_loop_frame: usize,
     sprite_frames: Vec<SpriteAnimationFrame>,
     selected_sprite_frame: usize,
-    color_picker: ColorPickerState,
-    image_editor: ImageEditorState,
+    color_picker: ColorPickerWidget,
+    image_editor: ImageEditorWidget,
 }
 
 fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
@@ -60,8 +60,8 @@ impl SpriteAnimationEditor {
             selected_loop_frame: 0,
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
-            color_picker: ColorPickerState::new(0b000011, 0b001100),
-            image_editor: ImageEditorState::new(),
+            color_picker: ColorPickerWidget::new(0b000011, 0b001100),
+            image_editor: ImageEditorWidget::new(),
         }
     }
 
@@ -88,7 +88,7 @@ impl SpriteAnimationEditor {
         // color picker:
         egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            super::widgets::color_picker(ui, wc, &mut self.color_picker);
+            self.color_picker.show(ui, wc);
         });
 
         // loop frames:
@@ -119,7 +119,7 @@ impl SpriteAnimationEditor {
                 .and_then(|frame| frame.head_index)  {
                     self.image_editor.selected_image = image_item as u32;
                     let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                    super::widgets::image_editor(ui, wc, sprite, &mut self.image_editor, colors);
+                    self.image_editor.show(ui, wc, sprite, colors);
                 }
         });
     }

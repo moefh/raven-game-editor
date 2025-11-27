@@ -7,7 +7,7 @@ use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, G
 use crate::misc::STATIC_IMAGES;
 
 use properties::PropertiesDialog;
-use super::widgets::{MapEditorState, MapDisplay, MapLayer, MapTool, ImagePickerState};
+use super::widgets::{MapEditorWidget, MapDisplay, MapLayer, MapTool, ImagePickerWidget};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
@@ -20,8 +20,8 @@ fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
 pub struct MapDataEditor {
     pub asset: super::DataAssetEditor,
     properties_dialog: Option<PropertiesDialog>,
-    map_editor: MapEditorState,
-    image_picker: ImagePickerState,
+    map_editor: MapEditorWidget,
+    image_picker: ImagePickerWidget,
     use_custom_grid_color: bool,
     custom_grid_color: egui::Color32,
 }
@@ -31,8 +31,8 @@ impl MapDataEditor {
         MapDataEditor {
             asset: super::DataAssetEditor::new(id, open),
             properties_dialog: None,
-            map_editor: MapEditorState::new(),
-            image_picker: ImagePickerState::new().use_as_palette(true),
+            map_editor: MapEditorWidget::new(),
+            image_picker: ImagePickerWidget::new().use_as_palette(true),
             use_custom_grid_color: false,
             custom_grid_color: egui::Color32::RED,
         }
@@ -237,14 +237,13 @@ impl MapDataEditor {
                         self.map_editor.set_tool(MapTool::SelectFgLayers);
                     }
 
-                if map_data.width == map_data.bg_width && map_data.height == map_data.bg_height {
-                    if ui.add(egui::Button::image(IMAGES.select)
-                              .selected(self.map_editor.tool == MapTool::SelectAllLayers)
-                              .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
-                        .on_hover_text("Select all layers").clicked() {
-                            self.map_editor.set_tool(MapTool::SelectAllLayers);
-                        }
-                }
+                if map_data.width == map_data.bg_width && map_data.height == map_data.bg_height &&
+                    ui.add(egui::Button::image(IMAGES.select)
+                           .selected(self.map_editor.tool == MapTool::SelectAllLayers)
+                           .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
+                    .on_hover_text("Select all layers").clicked() {
+                        self.map_editor.set_tool(MapTool::SelectAllLayers);
+                    }
 
                 ui.spacing_mut().item_spacing = spacing;
             });
@@ -303,14 +302,14 @@ impl MapDataEditor {
                             ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
                         }
                     };
-                    super::widgets::image_picker(ui, wc.settings, &image, texture, &mut self.image_picker);
+                    self.image_picker.show(ui, wc.settings, &image, texture);
                     self.map_editor.left_draw_tile = self.image_picker.selected_image;
                     self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
                 });
 
                 // body:
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    super::widgets::map_editor(ui, wc, map_data, tileset, &mut self.map_editor);
+                    self.map_editor.show(ui, wc, map_data, tileset);
                 });
             }
         });

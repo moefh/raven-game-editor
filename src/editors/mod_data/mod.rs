@@ -10,7 +10,7 @@ use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::widgets::SfxDisplayState;
+use super::widgets::SfxEditorWidget;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
 
@@ -39,7 +39,7 @@ pub struct ModDataEditor {
     selected_tab: EditorTabs,
     selected_sample: usize,
     selected_song_position: usize,
-    sfx_display_state: SfxDisplayState,
+    sfx_editor: SfxEditorWidget,
     play_volume: f32,
     play_freq: f32,
 }
@@ -52,7 +52,7 @@ impl ModDataEditor {
             selected_tab: EditorTabs::Samples,
             selected_sample: 0,
             selected_song_position: 0,
-            sfx_display_state: SfxDisplayState::new(),
+            sfx_editor: SfxEditorWidget::new(),
             play_volume: 0.5,
             play_freq: 11025.0,
         }
@@ -63,7 +63,7 @@ impl ModDataEditor {
 
     fn select_sample(&mut self, selected_sample: usize) {
         self.selected_sample = selected_sample;
-        self.sfx_display_state = SfxDisplayState::new();
+        self.sfx_editor.reset();
     }
 
     fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
@@ -175,7 +175,7 @@ impl ModDataEditor {
                 let mut loop_start = sample.loop_start as f32;
                 let mut loop_end = (sample.loop_start + sample.loop_len) as f32;
 
-                super::widgets::sfx_display(ui, &mut self.sfx_display_state, sample_data, &mut loop_start, &mut loop_end, 0.0);
+                self.sfx_editor.show(ui, sample_data, &mut loop_start, &mut loop_end, 0.0);
 
                 sample.loop_start = loop_start.max(0.0) as u32;
                 sample.loop_len = (loop_end - loop_start).max(0.0) as u32;

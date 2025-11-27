@@ -11,138 +11,7 @@ use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
 
-fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
-    let max = room.maps.iter().fold(Vec2::ZERO, |max, room_map| {
-        match maps.get(&room_map.map_id) {
-            Some(map_data) => max.max(Vec2::new((room_map.x as u32 + map_data.width) as f32, (room_map.y as u32 + map_data.height) as f32)),
-            None => max,
-        }
-    });
-    Vec2 {
-        x: max.x * TILE_SIZE,
-        y: max.y * TILE_SIZE,
-    }
-}
-
-fn get_tile_rect(x: u32, y: u32, map_pos: Pos2) -> Rect {
-    let tile_pos = Vec2 {
-        x: TILE_SIZE * (x as f32),
-        y: TILE_SIZE * (y as f32),
-    };
-    Rect {
-        min: map_pos + tile_pos,
-        max: map_pos + tile_pos + Vec2::splat(TILE_SIZE),
-    }
-}
-
-fn get_map_rect(room_map: &RoomMap, map_data: &MapData) -> Rect {
-    let map_pos = Pos2::new(room_map.x as f32, room_map.y as f32);
-    let map_size = Vec2::new(map_data.width as f32, map_data.height as f32);
-    egui::Rect {
-        min: TILE_SIZE * map_pos,
-        max: TILE_SIZE * (map_pos + map_size),
-    }
-}
-
-fn get_entity_rect(entity: &RoomEntity, sprite: &Sprite) -> Rect {
-    let ent_pos = Pos2::new(entity.x as f32, entity.y as f32);
-    let ent_size = Vec2::new(sprite.width as f32, sprite.height as f32);
-    egui::Rect {
-        min: ent_pos,
-        max: ent_pos + ent_size,
-    }
-}
-
-fn get_trigger_rect(trigger: &RoomTrigger) -> Rect {
-    let trg_pos = Pos2::new(trigger.x as f32, trigger.y as f32);
-    let trg_size = Vec2::new(trigger.width as f32, trigger.height as f32);
-    egui::Rect {
-        min: trg_pos,
-        max: trg_pos + trg_size,
-    }
-}
-
-fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
-    match item {
-        RoomItemRef::None => None,
-
-        RoomItemRef::Map(map_index) => {
-            let room_map = room.maps.get(map_index)?;
-            let map_data = assets.maps.get(&room_map.map_id)?;
-            Some(get_map_rect(room_map, map_data))
-        },
-
-        RoomItemRef::Entity(ent_index) => {
-            let entity = room.entities.get(ent_index)?;
-            let animation = assets.animations.get(&entity.animation_id)?;
-            let sprite = assets.sprites.get(&animation.sprite_id)?;
-            Some(get_entity_rect(entity, sprite))
-        },
-
-        RoomItemRef::Trigger(trg_index) => {
-            let trigger = room.triggers.get(trg_index)?;
-            Some(get_trigger_rect(trigger))
-        },
-    }
-}
-
-fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room) -> Option<bool> {
-    match item {
-        RoomItemRef::None => None,
-
-        RoomItemRef::Map(map_index) => {
-            let room_map = room.maps.get_mut(map_index)?;
-            room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
-            room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
-            Some(true)
-        },
-
-        RoomItemRef::Entity(ent_index) => {
-            let entity = room.entities.get_mut(ent_index)?;
-            entity.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-            entity.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-            Some(true)
-        },
-
-        RoomItemRef::Trigger(trg_index) => {
-            let trigger = room.triggers.get_mut(trg_index)?;
-            trigger.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-            trigger.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-            Some(true)
-        },
-    }
-}
-
-fn get_rect_border(rect: Rect, pos: Pos2, zoom: f32) -> Option<RectBorder> {
-    let fudge = DRAG_BORDER_FUDGE_SIZE / zoom;
-    let corner_size = Vec2::splat(fudge);
-    let horizontal_size = Vec2::new(rect.width(), fudge);
-    let vertical_size = Vec2::new(fudge, rect.height());
-
-    if Rect::from_center_size(rect.left_top(), corner_size).contains(pos) { return Some(RectBorder::TopLeft); }
-    if Rect::from_center_size(rect.right_top(), corner_size).contains(pos) { return Some(RectBorder::TopRight); }
-    if Rect::from_center_size(rect.right_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomRight); }
-    if Rect::from_center_size(rect.left_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomLeft); }
-
-    if Rect::from_center_size(rect.center_top(), horizontal_size).contains(pos) { return Some(RectBorder::Top); }
-    if Rect::from_center_size(rect.center_bottom(), horizontal_size).contains(pos) { return Some(RectBorder::Bottom); }
-    if Rect::from_center_size(rect.left_center(), vertical_size).contains(pos) { return Some(RectBorder::Left); }
-    if Rect::from_center_size(rect.right_center(), vertical_size).contains(pos) { return Some(RectBorder::Right); }
-
-    None
-}
-
-fn get_trigger_border(item: RoomItemRef, room: &mut Room, pos: Pos2, zoom: f32) -> Option<RectBorder> {
-    if let RoomItemRef::Trigger(trg_index) = item {
-        let trigger = room.triggers.get(trg_index)?;
-        let rect = get_trigger_rect(trigger);
-        get_rect_border(rect, pos, zoom)
-    } else {
-        None
-    }
-}
-
-pub struct RoomEditorState {
+pub struct RoomEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
     pub selected_item: RoomItemRef,
@@ -152,9 +21,9 @@ pub struct RoomEditorState {
     drag_mouse_origin: Pos2,
 }
 
-impl RoomEditorState {
+impl RoomEditorWidget {
     pub fn new() -> Self {
-        RoomEditorState {
+        RoomEditorWidget {
             zoom: 0.5,
             scroll: Vec2::ZERO,
             selected_item: RoomItemRef::None,
@@ -162,6 +31,137 @@ impl RoomEditorState {
             drag_item: RoomItemRef::None,
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
+        }
+    }
+
+    fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
+        let max = room.maps.iter().fold(Vec2::ZERO, |max, room_map| {
+            match maps.get(&room_map.map_id) {
+                Some(map_data) => max.max(Vec2::new((room_map.x as u32 + map_data.width) as f32, (room_map.y as u32 + map_data.height) as f32)),
+                None => max,
+            }
+        });
+        Vec2 {
+            x: max.x * TILE_SIZE,
+            y: max.y * TILE_SIZE,
+        }
+    }
+
+    fn get_tile_rect(x: u32, y: u32, map_pos: Pos2) -> Rect {
+        let tile_pos = Vec2 {
+            x: TILE_SIZE * (x as f32),
+            y: TILE_SIZE * (y as f32),
+        };
+        Rect {
+            min: map_pos + tile_pos,
+            max: map_pos + tile_pos + Vec2::splat(TILE_SIZE),
+        }
+    }
+
+    fn get_map_rect(room_map: &RoomMap, map_data: &MapData) -> Rect {
+        let map_pos = Pos2::new(room_map.x as f32, room_map.y as f32);
+        let map_size = Vec2::new(map_data.width as f32, map_data.height as f32);
+        egui::Rect {
+            min: TILE_SIZE * map_pos,
+            max: TILE_SIZE * (map_pos + map_size),
+        }
+    }
+
+    fn get_entity_rect(entity: &RoomEntity, sprite: &Sprite) -> Rect {
+        let ent_pos = Pos2::new(entity.x as f32, entity.y as f32);
+        let ent_size = Vec2::new(sprite.width as f32, sprite.height as f32);
+        egui::Rect {
+            min: ent_pos,
+            max: ent_pos + ent_size,
+        }
+    }
+
+    fn get_trigger_rect(trigger: &RoomTrigger) -> Rect {
+        let trg_pos = Pos2::new(trigger.x as f32, trigger.y as f32);
+        let trg_size = Vec2::new(trigger.width as f32, trigger.height as f32);
+        egui::Rect {
+            min: trg_pos,
+            max: trg_pos + trg_size,
+        }
+    }
+
+    fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
+        match item {
+            RoomItemRef::None => None,
+
+            RoomItemRef::Map(map_index) => {
+                let room_map = room.maps.get(map_index)?;
+                let map_data = assets.maps.get(&room_map.map_id)?;
+                Some(Self::get_map_rect(room_map, map_data))
+            },
+
+            RoomItemRef::Entity(ent_index) => {
+                let entity = room.entities.get(ent_index)?;
+                let animation = assets.animations.get(&entity.animation_id)?;
+                let sprite = assets.sprites.get(&animation.sprite_id)?;
+                Some(Self::get_entity_rect(entity, sprite))
+            },
+
+            RoomItemRef::Trigger(trg_index) => {
+                let trigger = room.triggers.get(trg_index)?;
+                Some(Self::get_trigger_rect(trigger))
+            },
+        }
+    }
+
+    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room) -> Option<bool> {
+        match item {
+            RoomItemRef::None => None,
+
+            RoomItemRef::Map(map_index) => {
+                let room_map = room.maps.get_mut(map_index)?;
+                room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
+                room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
+                Some(true)
+            },
+
+            RoomItemRef::Entity(ent_index) => {
+                let entity = room.entities.get_mut(ent_index)?;
+                entity.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                entity.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                Some(true)
+            },
+
+            RoomItemRef::Trigger(trg_index) => {
+                let trigger = room.triggers.get_mut(trg_index)?;
+                trigger.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                trigger.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                Some(true)
+            },
+        }
+    }
+
+    fn get_rect_border(rect: Rect, pos: Pos2, zoom: f32) -> Option<RectBorder> {
+        let fudge = DRAG_BORDER_FUDGE_SIZE / zoom;
+        let corner_size = Vec2::splat(fudge);
+        let horizontal_size = Vec2::new(rect.width(), fudge);
+        let vertical_size = Vec2::new(fudge, rect.height());
+
+        if Rect::from_center_size(rect.left_top(), corner_size).contains(pos) { return Some(RectBorder::TopLeft); }
+        if Rect::from_center_size(rect.right_top(), corner_size).contains(pos) { return Some(RectBorder::TopRight); }
+        if Rect::from_center_size(rect.right_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomRight); }
+        if Rect::from_center_size(rect.left_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomLeft); }
+
+        if Rect::from_center_size(rect.center_top(), horizontal_size).contains(pos) { return Some(RectBorder::Top); }
+        if Rect::from_center_size(rect.center_bottom(), horizontal_size).contains(pos) { return Some(RectBorder::Bottom); }
+        if Rect::from_center_size(rect.left_center(), vertical_size).contains(pos) { return Some(RectBorder::Left); }
+        if Rect::from_center_size(rect.right_center(), vertical_size).contains(pos) { return Some(RectBorder::Right); }
+
+        None
+    }
+
+    fn get_trigger_border(item: RoomItemRef, room: &mut Room, pos: Pos2, zoom: f32) -> Option<RectBorder> {
+        if let RoomItemRef::Trigger(trg_index) = item {
+            let trigger = room.triggers.get(trg_index)?;
+            let rect = Self::get_trigger_rect(trigger);
+            Self::get_rect_border(rect, pos, zoom)
+        } else {
+            None
         }
     }
 
@@ -234,7 +234,7 @@ impl RoomEditorState {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        move_item(self.drag_item, new_pos, room).unwrap_or(false)
+        Self::move_item(self.drag_item, new_pos, room).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {
@@ -243,7 +243,7 @@ impl RoomEditorState {
     }
 
     fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, _assets: &RoomEditorAssetLists) -> Option<()> {
-        if let Some(border) = get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) {
+        if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
         }
         None
@@ -276,15 +276,15 @@ impl RoomEditorState {
         if resp.drag_started() &&
             resp.dragged_by(egui::PointerButton::Primary) &&
             self.selected_item.is_trigger() &&
-            let Some(border) = get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) &&
-            let Some(rect) = get_item_rect(self.selected_item, room, assets) {
+            let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) &&
+            let Some(rect) = Self::get_item_rect(self.selected_item, room, assets) {
                 self.resize_start(self.selected_item, border, rect, mouse_pos);
                 return None;
             }
 
         // click/drag selected trigger/entity
         if self.selected_item.is_trigger() || self.selected_item.is_entity() {
-            let rect = get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
@@ -296,7 +296,7 @@ impl RoomEditorState {
         // click/drag entity under the cursor
         for index in 0..room.entities.len() {
             let item = RoomItemRef::Entity(index);
-            let rect = get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.selected_item = item;
                 if resp.drag_started() {
@@ -309,7 +309,7 @@ impl RoomEditorState {
         // click/drag trigger under the cursor
         for index in 0..room.triggers.len() {
             let item = RoomItemRef::Trigger(index);
-            let rect = get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.selected_item = item;
                 if resp.drag_started() {
@@ -322,7 +322,7 @@ impl RoomEditorState {
         // click/drag map under the cursor
         for index in 0..room.maps.len() {
             let item = RoomItemRef::Map(index);
-            let rect = get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.selected_item = item;
                 if resp.drag_started() {
@@ -351,164 +351,164 @@ impl RoomEditorState {
     pub fn clip_scroll(&mut self, canvas_size: Vec2, trans_room_size: Vec2) {
         self.scroll = self.scroll.max(canvas_size - (trans_room_size + 2.0 * BORDER_SIZE)).min(Vec2::ZERO);
     }
-}
 
-fn draw_selection_rect(painter: &egui::Painter, rect: Rect) {
-    let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
-    let inner_stroke = egui::Stroke::new(1.0, Color32::RED);
+    fn draw_selection_rect(painter: &egui::Painter, rect: Rect) {
+        let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        let inner_stroke = egui::Stroke::new(1.0, Color32::RED);
 
-    painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
-    painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
-    painter.rect_stroke(rect.expand(2.0), egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
-}
+        painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
+        painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
+        painter.rect_stroke(rect.expand(2.0), egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
+    }
 
-fn draw_outline_rect(painter: &egui::Painter, rect: Rect) {
-    let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
-    let inner_stroke = egui::Stroke::new(1.0, Color32::BLUE);
+    fn draw_outline_rect(painter: &egui::Painter, rect: Rect) {
+        let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        let inner_stroke = egui::Stroke::new(1.0, Color32::BLUE);
 
-    painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
-    painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
-}
+        painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
+        painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
+    }
 
-fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
-    let image = ImageCollection::from_asset(tileset);
-    for y in 0..map_data.bg_height {
-        for x in 0..map_data.bg_width {
-            let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
-            let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-            if tile == 0xff || tile >= image.num_items { continue; }
-            let draw_rect = to_canvas.transform_rect(get_tile_rect(x, y, map_pos));
-            Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
+    fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
+        let image = ImageCollection::from_asset(tileset);
+        for y in 0..map_data.bg_height {
+            for x in 0..map_data.bg_width {
+                let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
+                let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
+            }
+        }
+
+        for y in 0..map_data.height {
+            for x in 0..map_data.width {
+                let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
+                let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
+                if tile == 0xff || tile >= image.num_items { continue; }
+                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
+            }
         }
     }
 
-    for y in 0..map_data.height {
-        for x in 0..map_data.width {
-            let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
-            let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-            if tile == 0xff || tile >= image.num_items { continue; }
-            let draw_rect = to_canvas.transform_rect(get_tile_rect(x, y, map_pos));
-            Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
-        }
-    }
-}
-
-fn draw_entity(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, entity_rect: Rect, sprite: &Sprite, frame: u32) {
-    let draw_rect = to_canvas.transform_rect(entity_rect);
-    let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-    Image::from_texture((texture.id(), image.get_item_size())).uv(image.get_item_uv(frame)).paint_at(ui, draw_rect);
-}
-
-pub fn room_editor(ui: &mut egui::Ui, wc: &mut WindowContext, state: &mut RoomEditorState, room: &mut Room, assets: &RoomEditorAssetLists) {
-    let min_size = ui.available_size();
-    let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
-    let response_rect = response.rect;
-
-    let room_size = get_room_size(room, assets.maps);
-    let room_rect = Rect::from_min_size(Pos2::ZERO, room_size);
-    let canvas_rect = response_rect.expand2(-Vec2::splat(1.0));
-    let to_canvas_from_zoom = move |zoom, scroll| {
-        RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, room_size),
-            Rect::from_min_size(canvas_rect.min + BORDER_SIZE + scroll, room_size * zoom),
-        )
-    };
-
-    let to_canvas = to_canvas_from_zoom(state.zoom, state.scroll);
-    let bg_rect = Rect {
-        min: response_rect.min,
-        max: Pos2 {
-            x: response_rect.max.x.min(response_rect.min.x + room_size.x * state.zoom + 2.0 + 2.0*BORDER_SIZE.x),
-            y: response_rect.max.y.min(response_rect.min.y + room_size.y * state.zoom + 2.0 + 2.0*BORDER_SIZE.y),
-        },
-    };
-    painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0, 0));
-    let stroke = egui::Stroke::new(1.0, Color32::WHITE);
-    painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Middle);
-    painter.shrink_clip_rect(canvas_rect);
-    ui.shrink_clip_rect(canvas_rect);
-    draw_outline_rect(&painter, canvas_rect);
-
-    if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
-        return; // nothing to do!
+    fn draw_entity(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, entity_rect: Rect, sprite: &Sprite, frame: u32) {
+        let draw_rect = to_canvas.transform_rect(entity_rect);
+        let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        Image::from_texture((texture.id(), image.get_item_size())).uv(image.get_item_uv(frame)).paint_at(ui, draw_rect);
     }
 
-    // limit scroll in case we've been resized
-    state.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
+        let min_size = ui.available_size();
+        let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
+        let response_rect = response.rect;
 
-    // draw maps
-    for room_map in room.maps.iter() {
-        if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
-            let map_rect = get_map_rect(room_map, map_data);
-            draw_map(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
-        }
-    }
+        let room_size = Self::get_room_size(room, assets.maps);
+        let room_rect = Rect::from_min_size(Pos2::ZERO, room_size);
+        let canvas_rect = response_rect.expand2(-Vec2::splat(1.0));
+        let to_canvas_from_zoom = move |zoom, scroll| {
+            RectTransform::from_to(
+                Rect::from_min_size(Pos2::ZERO, room_size),
+                Rect::from_min_size(canvas_rect.min + BORDER_SIZE + scroll, room_size * zoom),
+            )
+        };
 
-    // draw triggers
-    for trigger in room.triggers.iter() {
-        let trg_rect = get_trigger_rect(trigger);
-        draw_outline_rect(&painter, to_canvas.transform_rect(trg_rect));
-    }
+        let to_canvas = to_canvas_from_zoom(self.zoom, self.scroll);
+        let bg_rect = Rect {
+            min: response_rect.min,
+            max: Pos2 {
+                x: response_rect.max.x.min(response_rect.min.x + room_size.x * self.zoom + 2.0 + 2.0*BORDER_SIZE.x),
+                y: response_rect.max.y.min(response_rect.min.y + room_size.y * self.zoom + 2.0 + 2.0*BORDER_SIZE.y),
+            },
+        };
+        painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0, 0));
+        let stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Middle);
+        painter.shrink_clip_rect(canvas_rect);
+        ui.shrink_clip_rect(canvas_rect);
+        Self::draw_outline_rect(&painter, canvas_rect);
 
-    // draw entities
-    for entity in room.entities.iter() {
-        if let Some(animation) = assets.animations.get(&entity.animation_id) && let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-            let sprite_frame = animation.loops.first()
-                .and_then(|aloop| aloop.frame_indices.first())
-                .and_then(|frame| frame.head_index)
-                .unwrap_or(0);
-            let ent_rect = get_entity_rect(entity, sprite);
-            draw_entity(ui, wc, &to_canvas, ent_rect, sprite, sprite_frame as u32);
-            draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
-        }
-    }
-
-    // outline selected map
-    if let RoomItemRef::Map(map_index) = state.selected_item &&
-        let Some(room_map) = room.maps.get(map_index) &&
-        let Some(map_data) = assets.maps.get(&room_map.map_id) {
-            let rect = get_map_rect(room_map, map_data);
-            draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+        if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
+            return; // nothing to do!
         }
 
-    // outline selected entity
-    if let RoomItemRef::Entity(ent_index) = state.selected_item &&
-        let Some(entity) = room.entities.get(ent_index) &&
-        let Some(sprite) = assets.animations.get(&entity.animation_id).and_then(|anim| assets.sprites.get(&anim.sprite_id)) {
-            let rect = get_entity_rect(entity, sprite);
-            draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+        // limit scroll in case we've been resized
+        self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
+
+        // draw maps
+        for room_map in room.maps.iter() {
+            if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                let map_rect = Self::get_map_rect(room_map, map_data);
+                Self::draw_map(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+            }
         }
 
-    // outline selected trigger
-    if let RoomItemRef::Trigger(trg_index) = state.selected_item &&
-        let Some(trigger) = room.triggers.get(trg_index) {
-            let rect = get_trigger_rect(trigger);
-            draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+        // draw triggers
+        for trigger in room.triggers.iter() {
+            let trg_rect = Self::get_trigger_rect(trigger);
+            Self::draw_outline_rect(&painter, to_canvas.transform_rect(trg_rect));
         }
 
-    // check hover
-    if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
-        let mouse_pos = to_canvas.inverse() * hover_pos;
-        state.handle_mouse_hover(&response, mouse_pos, room, assets);
-    }
+        // draw entities
+        for entity in room.entities.iter() {
+            if let Some(animation) = assets.animations.get(&entity.animation_id) && let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                let sprite_frame = animation.loops.first()
+                    .and_then(|aloop| aloop.frame_indices.first())
+                    .and_then(|frame| frame.head_index)
+                    .unwrap_or(0);
+                let ent_rect = Self::get_entity_rect(entity, sprite);
+                Self::draw_entity(ui, wc, &to_canvas, ent_rect, sprite, sprite_frame as u32);
+                Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+            }
+        }
 
-    // check pan
-    if response.dragged_by(egui::PointerButton::Middle) {
-        state.scroll += response.drag_delta();
-        state.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
-    }
+        // outline selected map
+        if let RoomItemRef::Map(map_index) = self.selected_item &&
+            let Some(room_map) = room.maps.get(map_index) &&
+            let Some(map_data) = assets.maps.get(&room_map.map_id) {
+                let rect = Self::get_map_rect(room_map, map_data);
+                Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+            }
 
-    // check click
-    if let Some(pointer_pos) = response.interact_pointer_pos() {
-        let click_pos = to_canvas.inverse() * pointer_pos;
-        state.handle_mouse_down(&response, click_pos, room, assets);
-    }
+        // outline selected entity
+        if let RoomItemRef::Entity(ent_index) = self.selected_item &&
+            let Some(entity) = room.entities.get(ent_index) &&
+            let Some(sprite) = assets.animations.get(&entity.animation_id).and_then(|anim| assets.sprites.get(&anim.sprite_id)) {
+                let rect = Self::get_entity_rect(entity, sprite);
+                Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+            }
 
-    // check zoom (must be last)
-    if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
-        let zoom_delta = ui.input(|i| i.zoom_delta());
-        if zoom_delta != 1.0 {
-            state.set_zoom(state.zoom * zoom_delta, hover_pos - canvas_rect.min, canvas_rect.size(), &to_canvas_from_zoom, room_rect);
+        // outline selected trigger
+        if let RoomItemRef::Trigger(trg_index) = self.selected_item &&
+            let Some(trigger) = room.triggers.get(trg_index) {
+                let rect = Self::get_trigger_rect(trigger);
+                Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+            }
+
+        // check hover
+        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
+            let mouse_pos = to_canvas.inverse() * hover_pos;
+            self.handle_mouse_hover(&response, mouse_pos, room, assets);
+        }
+
+        // check pan
+        if response.dragged_by(egui::PointerButton::Middle) {
+            self.scroll += response.drag_delta();
+            self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
+        }
+
+        // check click
+        if let Some(pointer_pos) = response.interact_pointer_pos() {
+            let click_pos = to_canvas.inverse() * pointer_pos;
+            self.handle_mouse_down(&response, click_pos, room, assets);
+        }
+
+        // check zoom (must be last)
+        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
+            let zoom_delta = ui.input(|i| i.zoom_delta());
+            if zoom_delta != 1.0 {
+                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min, canvas_rect.size(), &to_canvas_from_zoom, room_rect);
+            }
         }
     }
 }
