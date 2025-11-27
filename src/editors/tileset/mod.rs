@@ -14,40 +14,99 @@ use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, Im
 
 pub struct TilesetEditor {
     pub asset: super::DataAssetEditor,
-    properties_dialog: PropertiesDialog,
-    add_tiles_dialog: AddTilesDialog,
-    rm_tiles_dialog: RemoveTilesDialog,
-    color_picker: ColorPickerWidget,
-    image_picker: ImagePickerWidget,
-    image_editor: ImageEditorWidget,
+    editor: Editor,
+    dialogs: Dialogs,
 }
 
 impl TilesetEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         TilesetEditor {
             asset: super::DataAssetEditor::new(id, open),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, asset: &mut impl ImageCollectionAsset) {
+        self.editor.image_editor.drop_selection(asset);
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        self.dialogs.show(wc, &mut self.editor, tileset);
+
+        let title = format!("{} - Tileset", tileset.asset.name);
+        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let (min_size, default_size) = super::calc_image_editor_window_size(tileset);
+        window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, tileset);
+        });
+    }
+}
+
+struct Dialogs {
+    properties_dialog: PropertiesDialog,
+    add_tiles_dialog: AddTilesDialog,
+    rm_tiles_dialog: RemoveTilesDialog,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
+        }
+    }
+
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
+        if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
+            Editor::reload_images(wc, tileset);
+            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
+            editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+        }
+        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
+            Editor::reload_images(wc, tileset);
+        }
+        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
+            Editor::reload_images(wc, tileset);
+            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
+            editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+        }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
+    color_picker: ColorPickerWidget,
+    image_picker: ImagePickerWidget,
+    image_editor: ImageEditorWidget,
+}
+
+impl Editor {
+    fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
             color_picker: ColorPickerWidget::new(0b000011, 0b110000),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::new(),
         }
     }
 
-    pub fn prepare_for_saving(&mut self, tileset: &mut Tileset) {
-        self.image_editor.drop_selection(tileset);
+    fn is_on_top(&self, wc: &WindowContext) -> bool {
+        match wc.top_editor_asset_id {
+            Some(top_id) => top_id == self.asset_id,
+            None => false,
+        }
     }
 
-    fn show_menu_bar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, tileset: &mut Tileset) {
-        let asset_id = tileset.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
+    fn show_menu_bar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, tileset: &mut Tileset) {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tileset", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            self.properties_dialog.set_open(tileset, self.color_picker.right_color);
+                            dialogs.properties_dialog.set_open(tileset, self.color_picker.right_color);
                         }
                     });
                 });
@@ -55,21 +114,21 @@ impl TilesetEditor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
-                            self.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
-                                                           self.color_picker.right_color);
+                            dialogs.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
+                                                              self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
-                            self.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
-                                                           self.color_picker.right_color);
+                            dialogs.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
+                                                              self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove tiles...").clicked() {
-                            self.rm_tiles_dialog.set_open(tileset, self.image_picker.selected_image);
+                            dialogs.rm_tiles_dialog.set_open(tileset, self.image_picker.selected_image);
                         }
                     });
                 });
@@ -78,8 +137,7 @@ impl TilesetEditor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, tileset: &mut Tileset) {
-        let asset_id = tileset.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -88,20 +146,20 @@ impl TilesetEditor {
                 ui.label("Tool:");
                 ui.add_space(1.0);
                 if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Pencil)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Pencil);
                 }
 
                 if ui.add(egui::Button::image(IMAGES.fill)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Fill)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Fill)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Fill);
                 }
 
                 if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Select)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Select)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Select);
                 }
 
@@ -143,63 +201,46 @@ impl TilesetEditor {
         });
     }
 
-    pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
+    fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
         ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
         ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
-        if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
-            self.image_picker.selected_image = self.image_picker.selected_image.min(tileset.num_tiles-1);
-            self.image_editor.selected_image = self.image_picker.selected_image;
-            Self::reload_images(wc, tileset);
-        }
-        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
-            Self::reload_images(wc, tileset);
-        }
-        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
-            self.image_picker.selected_image = self.image_picker.selected_image.min(tileset.num_tiles-1);
-            self.image_editor.selected_image = self.image_picker.selected_image;
-            Self::reload_images(wc, tileset);
-        }
+    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
+        self.show_menu_bar(ui, dialogs, tileset);
+        self.show_toolbar(ui, wc, tileset);
 
-        let asset_id = tileset.asset.id;
-        let title = format!("{} - Tileset", tileset.asset.name);
-        let window = super::create_editor_window(self.asset.id, &title, wc);
-        let (min_size, default_size) = super::calc_image_editor_window_size(tileset);
-        let mut asset_open = self.asset.open;
-        window.min_size(min_size).default_size(default_size).open(&mut asset_open).show(wc.egui.ctx, |ui| {
-            self.show_menu_bar(ui, wc, tileset);
-            self.show_toolbar(ui, wc, tileset);
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", tileset.data_size()));
-            });
-
-            // item picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                self.image_picker.zoom = 4.0;
-                self.image_picker.display = self.image_editor.display;
-                let (image, texture) = ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-                self.image_picker.show(ui, wc.settings, &image, texture);
-                self.image_editor.selected_image = self.image_picker.selected_image;
-            });
-
-            // color picker:
-            egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                self.color_picker.show(ui, wc);
-            });
-
-            // image:
-            egui::CentralPanel::default().show_inside(ui, |ui| {
-                let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                self.image_editor.show(ui, wc, tileset, colors);
-            });
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", tileset.data_size()));
         });
-        self.asset.open = asset_open;
+
+        // item picker:
+        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.image_picker.zoom = 4.0;
+            self.image_picker.display = self.image_editor.display;
+            let (image, texture) = ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+            self.image_picker.show(ui, wc.settings, &image, texture);
+            self.image_editor.set_selected_image(self.image_picker.selected_image, tileset);
+        });
+
+        // color picker:
+        egui::SidePanel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.color_picker.show(ui, wc);
+        });
+
+        // image:
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let colors = (self.color_picker.left_color, self.color_picker.right_color);
+            self.image_editor.show(ui, wc, tileset, colors);
+        });
+
+        // keyboard shortcuts
+        if self.is_on_top(wc) {
+            self.image_editor.handle_keyboard(ui, tileset);
+        }
     }
 }

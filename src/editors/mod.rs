@@ -23,15 +23,39 @@ use crate::data_asset::{DataAssetId, ImageCollectionAsset};
 
 pub struct DataAssetEditor {
     pub id: DataAssetId,
+    pub egui_id: egui::Id,
     pub open: bool,
 }
 
 impl DataAssetEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         DataAssetEditor {
+            egui_id: egui::Id::new(format!("editor_{}", id)),
             id,
             open,
         }
+    }
+
+    pub fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str) -> egui::Window<'a> {
+        let default_rect = egui::Rect {
+            min: egui::Pos2 {
+                x : wc.window_space.min.x + 10.0,
+                y : wc.window_space.min.y + 10.0,
+            },
+            max: egui::Pos2 {
+                x: 600.0,
+                y: 300.0,
+            }
+        };
+        let frame = egui::Frame::window(&wc.egui.ctx.style()).inner_margin(1.0);
+        egui::Window::new(title)
+            .id(self.egui_id)
+            .frame(frame)
+            .enabled(! wc.sys_dialogs.has_open_dialog())
+            .default_rect(default_rect)
+            .max_size(wc.window_space.size())
+            .constrain_to(wc.window_space)
+            .open(&mut self.open)
     }
 }
 

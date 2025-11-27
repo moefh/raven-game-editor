@@ -554,6 +554,7 @@ impl RavenEditorApp {
             dialogs: &mut self.dialogs,
             logger: &mut self.logger,
             settings: &mut self.settings,
+            top_editor_asset_id: self.editors.get_top_editor_asset_id(ctx),
         };
 
         for tileset in self.store.assets.tilesets.iter_mut() {

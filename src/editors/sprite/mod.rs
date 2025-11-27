@@ -5,7 +5,7 @@ mod remove_frames;
 use crate::IMAGES;
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{Sprite, DataAssetId, GenericAsset, ImageCollectionAsset};
+use crate::data_asset::{DataAssetId, Sprite, GenericAsset, ImageCollectionAsset};
 
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
@@ -14,40 +14,99 @@ use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, Im
 
 pub struct SpriteEditor {
     pub asset: super::DataAssetEditor,
-    properties_dialog: PropertiesDialog,
-    add_frames_dialog: AddFramesDialog,
-    rm_frames_dialog: RemoveFramesDialog,
-    color_picker: ColorPickerWidget,
-    image_picker: ImagePickerWidget,
-    image_editor: ImageEditorWidget,
+    editor: Editor,
+    dialogs: Dialogs,
 }
 
 impl SpriteEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SpriteEditor {
             asset: super::DataAssetEditor::new(id, open),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, sprite: &mut Sprite) {
+        self.editor.image_editor.drop_selection(sprite);
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
+        self.dialogs.show(wc, &mut self.editor, sprite);
+
+        let title = format!("{} - Sprite", sprite.asset.name);
+        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let (min_size, default_size) = super::calc_image_editor_window_size(sprite);
+        window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, sprite);
+        });
+    }
+}
+
+struct Dialogs {
+    properties_dialog: PropertiesDialog,
+    add_frames_dialog: AddFramesDialog,
+    rm_frames_dialog: RemoveFramesDialog,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
             rm_frames_dialog: RemoveFramesDialog::new(),
+        }
+    }
+
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, sprite: &mut Sprite) {
+        if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
+            Editor::reload_images(wc, sprite);
+            editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
+            editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
+        }
+        if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
+            Editor::reload_images(wc, sprite);
+        }
+        if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
+            Editor::reload_images(wc, sprite);
+            editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
+            editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
+        }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
+    color_picker: ColorPickerWidget,
+    image_picker: ImagePickerWidget,
+    image_editor: ImageEditorWidget,
+}
+
+impl Editor {
+    pub fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
             color_picker: ColorPickerWidget::new(0b000011, 0b001100),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::new(),
         }
     }
 
-    pub fn prepare_for_saving(&mut self, sprite: &mut Sprite) {
-        self.image_editor.drop_selection(sprite);
+    fn is_on_top(&self, wc: &WindowContext) -> bool {
+        match wc.top_editor_asset_id {
+            Some(top_id) => top_id == self.asset_id,
+            None => false,
+        }
     }
 
-    fn show_menu_bar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, sprite: &mut Sprite) {
-        let asset_id = sprite.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
+    fn show_menu_bar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, sprite: &mut Sprite) {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Sprite", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            self.properties_dialog.set_open(sprite, self.color_picker.right_color);
+                            dialogs.properties_dialog.set_open(sprite, self.color_picker.right_color);
                         }
                     });
                 });
@@ -55,21 +114,21 @@ impl SpriteEditor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Insert frames...").clicked() {
-                            self.add_frames_dialog.set_open(AddFramesAction::Insert, self.image_picker.selected_image,
-                                                            self.color_picker.right_color);
+                            dialogs.add_frames_dialog.set_open(AddFramesAction::Insert, self.image_picker.selected_image,
+                                                               self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_width(14.0).max_height(14.0));
                         if ui.button("Append frames...").clicked() {
-                            self.add_frames_dialog.set_open(AddFramesAction::Append, self.image_picker.selected_image,
-                                                            self.color_picker.right_color);
+                            dialogs.add_frames_dialog.set_open(AddFramesAction::Append, self.image_picker.selected_image,
+                                                               self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove frames...").clicked() {
-                            self.rm_frames_dialog.set_open(sprite, self.image_picker.selected_image);
+                            dialogs.rm_frames_dialog.set_open(sprite, self.image_picker.selected_image);
                         }
                     });
                 });
@@ -78,8 +137,7 @@ impl SpriteEditor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, sprite: &mut Sprite) {
-        let asset_id = sprite.asset.id;
-        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", asset_id)).show_inside(ui, |ui| {
+        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -88,20 +146,20 @@ impl SpriteEditor {
                 ui.label("Tool:");
                 ui.add_space(1.0);
                 if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Pencil)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Pencil);
                 }
 
                 if ui.add(egui::Button::image(IMAGES.fill)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Fill)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Fill)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Fill);
                 }
 
                 if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.image_editor.tool == ImageDrawingTool::Select)
-                          .frame_when_inactive(self.image_editor.tool == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Select)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Select);
                 }
 
@@ -148,58 +206,41 @@ impl SpriteEditor {
         ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
-        if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
-            self.image_picker.selected_image = self.image_picker.selected_image.min(sprite.num_frames-1);
-            self.image_editor.selected_image = self.image_picker.selected_image;
-            Self::reload_images(wc, sprite);
-        }
-        if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
-            Self::reload_images(wc, sprite);
-        }
-        if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
-            self.image_picker.selected_image = self.image_picker.selected_image.min(sprite.num_frames-1);
-            self.image_editor.selected_image = self.image_picker.selected_image;
-            Self::reload_images(wc, sprite);
-        }
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
+        self.show_menu_bar(ui, dialogs, sprite);
+        self.show_toolbar(ui, wc, sprite);
 
-        let asset_id = sprite.asset.id;
-        let title = format!("{} - Sprite", sprite.asset.name);
-        let window = super::create_editor_window(asset_id, &title, wc);
-        let (min_size, default_size) = super::calc_image_editor_window_size(sprite);
-        let mut asset_open = self.asset.open;
-        window.min_size(min_size).default_size(default_size).open(&mut asset_open).show(wc.egui.ctx, |ui| {
-            self.show_menu_bar(ui, wc, sprite);
-            self.show_toolbar(ui, wc, sprite);
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", sprite.data_size()));
-            });
-
-            // item picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                self.image_picker.zoom = 80.0 / sprite.width as f32;
-                self.image_picker.display = self.image_editor.display;
-                let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-                self.image_picker.show(ui, wc.settings, &image, texture);
-                self.image_editor.selected_image = self.image_picker.selected_image;
-            });
-
-            // color picker:
-            egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                self.color_picker.show(ui, wc);
-            });
-
-            // image:
-            egui::CentralPanel::default().show_inside(ui, |ui| {
-                let colors = (self.color_picker.left_color, self.color_picker.right_color);
-                self.image_editor.show(ui, wc, sprite, colors);
-            });
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", sprite.data_size()));
         });
-        self.asset.open = asset_open;
+
+        // item picker:
+        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.image_picker.zoom = 80.0 / sprite.width as f32;
+            self.image_picker.display = self.image_editor.display;
+            let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+            self.image_picker.show(ui, wc.settings, &image, texture);
+            self.image_editor.set_selected_image(self.image_picker.selected_image, sprite);
+        });
+
+        // color picker:
+        egui::SidePanel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.color_picker.show(ui, wc);
+        });
+
+        // image:
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let colors = (self.color_picker.left_color, self.color_picker.right_color);
+            self.image_editor.show(ui, wc, sprite, colors);
+        });
+
+        // keyboard shortcuts
+        if self.is_on_top(wc) {
+            self.image_editor.handle_keyboard(ui, sprite);
+        }
     }
 }

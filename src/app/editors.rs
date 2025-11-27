@@ -8,6 +8,7 @@ use crate::editors::{
 };
 
 pub struct AssetEditors {
+    pub egui_id_to_asset_id: HashMap<egui::Id, DataAssetId>,
     pub tilesets: HashMap<DataAssetId, TilesetEditor>,
     pub maps: HashMap<DataAssetId, MapDataEditor>,
     pub rooms: HashMap<DataAssetId, RoomEditor>,
@@ -23,6 +24,7 @@ impl AssetEditors {
 
     pub fn new() -> Self {
         AssetEditors {
+            egui_id_to_asset_id: HashMap::new(),
             tilesets: HashMap::new(),
             maps: HashMap::new(),
             rooms: HashMap::new(),
@@ -35,28 +37,35 @@ impl AssetEditors {
         }
     }
 
+    pub fn get_top_editor_asset_id(&self, ctx: &egui::Context) -> Option<DataAssetId> {
+        ctx.memory(|mem| {
+            mem.layer_ids().fold(None, |top, layer_id| self.egui_id_to_asset_id.get(&layer_id.id).copied().or(top))
+        })
+    }
+
     pub fn clear(&mut self) {
-        self.tilesets = HashMap::new();
-        self.maps = HashMap::new();
-        self.rooms = HashMap::new();
-        self.sprites = HashMap::new();
-        self.animations = HashMap::new();
-        self.sfxs = HashMap::new();
-        self.mods = HashMap::new();
-        self.fonts = HashMap::new();
-        self.prop_fonts = HashMap::new();
+        self.egui_id_to_asset_id.clear();
+        self.tilesets.clear();
+        self.maps.clear();
+        self.rooms.clear();
+        self.sprites.clear();
+        self.animations.clear();
+        self.sfxs.clear();
+        self.mods.clear();
+        self.fonts.clear();
+        self.prop_fonts.clear();
     }
 
     pub fn create_editors_for_new_store(&mut self, store: &DataAssetStore) {
-        for &id in store.asset_ids.tilesets.iter() { self.add_tileset(id); }
-        for &id in store.asset_ids.maps.iter() { self.add_map(id); }
-        for &id in store.asset_ids.rooms.iter() { self.add_room(id); }
-        for &id in store.asset_ids.sprites.iter() { self.add_sprite(id); }
-        for &id in store.asset_ids.animations.iter() { self.add_animation(id); }
-        for &id in store.asset_ids.sfxs.iter() { self.add_sfx(id); }
-        for &id in store.asset_ids.mods.iter() { self.add_mod(id); }
-        for &id in store.asset_ids.fonts.iter() { self.add_font(id); }
-        for &id in store.asset_ids.prop_fonts.iter() { self.add_prop_font(id); }
+        for id in store.asset_ids.tilesets.iter().copied() { self.add_tileset(id); }
+        for id in store.asset_ids.maps.iter().copied() { self.add_map(id); }
+        for id in store.asset_ids.rooms.iter().copied() { self.add_room(id); }
+        for id in store.asset_ids.sprites.iter().copied() { self.add_sprite(id); }
+        for id in store.asset_ids.animations.iter().copied() { self.add_animation(id); }
+        for id in store.asset_ids.sfxs.iter().copied() { self.add_sfx(id); }
+        for id in store.asset_ids.mods.iter().copied() { self.add_mod(id); }
+        for id in store.asset_ids.fonts.iter().copied() { self.add_font(id); }
+        for id in store.asset_ids.prop_fonts.iter().copied() { self.add_prop_font(id); }
     }
 
     pub fn get_editor(&self, id: DataAssetId) -> Option<&DataAssetEditor> {
@@ -86,51 +95,69 @@ impl AssetEditors {
     }
 
     pub fn remove_editor(&mut self, id: DataAssetId) -> bool {
-        if self.tilesets.remove(&id).is_some() { return true; }
-        if self.maps.remove(&id).is_some() { return true; }
-        if self.rooms.remove(&id).is_some() { return true; }
-        if self.sprites.remove(&id).is_some() { return true; }
-        if self.animations.remove(&id).is_some() { return true; }
-        if self.sfxs.remove(&id).is_some() { return true; }
-        if self.mods.remove(&id).is_some() { return true; }
-        if self.fonts.remove(&id).is_some() { return true; }
-        if self.prop_fonts.remove(&id).is_some() { return true; }
+        if let Some(editor) = self.tilesets.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.maps.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.rooms.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.animations.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.sfxs.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.mods.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
+        if let Some(editor) = self.prop_fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.asset.egui_id); return true; }
         false
     }
 
     pub fn add_tileset(&mut self, id: DataAssetId) {
-        self.tilesets.insert(id, TilesetEditor::new(id, false));
+        let editor = TilesetEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.tilesets.insert(id, editor);
     }
 
     pub fn add_map(&mut self, id: DataAssetId) {
-        self.maps.insert(id, MapDataEditor::new(id, false));
+        let editor = MapDataEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.maps.insert(id, editor);
     }
 
     pub fn add_room(&mut self, id: DataAssetId) {
-        self.rooms.insert(id, RoomEditor::new(id, false));
+        let editor = RoomEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.rooms.insert(id, editor);
     }
 
     pub fn add_sprite(&mut self, id: DataAssetId) {
-        self.sprites.insert(id, SpriteEditor::new(id, false));
+        let editor = SpriteEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.sprites.insert(id, editor);
     }
 
     pub fn add_animation(&mut self, id: DataAssetId) {
-        self.animations.insert(id, SpriteAnimationEditor::new(id, false));
+        let editor = SpriteAnimationEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.animations.insert(id, editor);
     }
 
     pub fn add_sfx(&mut self, id: DataAssetId) {
-        self.sfxs.insert(id, SfxEditor::new(id, false));
+        let editor = SfxEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.sfxs.insert(id, editor);
     }
 
     pub fn add_mod(&mut self, id: DataAssetId) {
-        self.mods.insert(id, ModDataEditor::new(id, false));
+        let editor = ModDataEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.mods.insert(id, editor);
     }
 
     pub fn add_font(&mut self, id: DataAssetId) {
-        self.fonts.insert(id, FontEditor::new(id, false));
+        let editor = FontEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.fonts.insert(id, editor);
     }
 
     pub fn add_prop_font(&mut self, id: DataAssetId) {
-        self.prop_fonts.insert(id, PropFontEditor::new(id, false));
+        let editor = PropFontEditor::new(id, false);
+        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        self.prop_fonts.insert(id, editor);
     }
 }

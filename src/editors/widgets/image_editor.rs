@@ -103,10 +103,11 @@ impl ImageDisplay {
 }
 
 pub struct ImageEditorWidget {
-    pub selected_image: u32,
     pub display: ImageDisplay,
-    pub tool: ImageDrawingTool,
     pub selection: ImageSelection,
+    tool: ImageDrawingTool,
+    selected_image: u32,
+    undo_target: Option<ImageFragment>,
     image_changed: bool,
     tool_changed: bool,
     drag_mouse_origin: Pos2,
@@ -122,6 +123,7 @@ impl ImageEditorWidget {
             selection: ImageSelection::None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
+            undo_target: None,
             image_changed: false,
             tool_changed: false,
         }
@@ -138,6 +140,45 @@ impl ImageEditorWidget {
             self.image_changed = true;
             self.selection.set_changed();
         }
+    }
+
+    fn set_undo_target(&mut self, asset: &impl ImageCollectionAsset) {
+        let image = ImageCollection::from_asset(asset);
+        self.undo_target = image.copy_fragment(asset.asset_id(), asset.data(), self.selected_image, ImageRect::from_image_item(&image));
+    }
+
+    pub fn undo(&mut self, asset: &mut impl ImageCollectionAsset) {
+        if let Some(frag) = self.undo_target.take() {
+            let image = ImageCollection::from_asset(asset);
+            image.paste_fragment(asset.data_mut(), self.selected_image, 0, 0, &frag, false);
+            self.image_changed = true;
+            self.selection = ImageSelection::None;
+        }
+    }
+
+    fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
+        if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
+            self.set_undo_target(asset);
+            let image = ImageCollection::from_asset(asset);
+            let image_rect = ImageRect::from_rect(sel_rect, &image);
+            let bg_color = if self.display.is_transparent() { ImageFragment::TRANSPARENT_COLOR } else { bg_color };
+            if let Some(frag) = image.cut_fragment(asset.asset_id(), asset.data_mut(), self.selected_image, image_rect, bg_color) {
+                self.selection = ImageSelection::Fragment(sel_rect.min, frag);
+                self.image_changed = true;
+            } else {
+                self.selection = ImageSelection::None;
+            }
+        }
+    }
+
+    pub fn drop_selection(&mut self, asset: &mut impl ImageCollectionAsset) {
+        let image = ImageCollection::from_asset(asset);
+        if let ImageSelection::Fragment(pos, frag) = &self.selection {
+            let transparent = self.display.is_transparent();
+            image.paste_fragment(asset.data_mut(), self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
+            self.image_changed = true;
+        }
+        self.selection = ImageSelection::None;
     }
 
     pub fn vflip(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
@@ -172,32 +213,23 @@ impl ImageEditorWidget {
         }
     }
 
+    pub fn get_tool(&self) -> ImageDrawingTool {
+        self.tool
+    }
+
     pub fn set_tool(&mut self, tool: ImageDrawingTool) {
         self.tool = tool;
         self.tool_changed = true;
     }
 
-    pub fn drop_selection(&mut self, asset: &mut impl ImageCollectionAsset) {
-        let image = ImageCollection::from_asset(asset);
-        if let ImageSelection::Fragment(pos, frag) = &self.selection {
-            let transparent = self.display.is_transparent();
-            image.paste_fragment(asset.data_mut(), self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
-            self.image_changed = true;
-        }
-        self.selection = ImageSelection::None;
+    pub fn get_selected_image(&self) -> u32 {
+        self.selected_image
     }
 
-    fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
-        if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
-            let image = ImageCollection::from_asset(asset);
-            let image_rect = ImageRect::from_rect(sel_rect, &image);
-            let bg_color = if self.display.is_transparent() { ImageFragment::TRANSPARENT_COLOR } else { bg_color };
-            if let Some(frag) = image.cut_fragment(asset.asset_id(), asset.data_mut(), self.selected_image, image_rect, bg_color) {
-                self.selection = ImageSelection::Fragment(sel_rect.min, frag);
-                self.image_changed = true;
-            } else {
-                self.selection = ImageSelection::None;
-            }
+    pub fn set_selected_image(&mut self, sel_image: u32, asset: &impl ImageCollectionAsset) {
+        if self.selected_image != sel_image {
+            self.selected_image = sel_image;
+            self.set_undo_target(asset);
         }
     }
 
@@ -265,6 +297,7 @@ impl ImageEditorWidget {
 
         match self.tool {
             ImageDrawingTool::Pencil => {
+                if resp.drag_started() { self.set_undo_target(asset); }
                 if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
                     image.set_pixel(asset.data_mut(), x, y, self.selected_image, color) {
                         self.image_changed = true;
@@ -272,6 +305,7 @@ impl ImageEditorWidget {
             }
 
             ImageDrawingTool::Fill => {
+                if resp.drag_started() { self.set_undo_target(asset); }
                 if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
                     image.flood_fill(asset.data_mut(), x, y, self.selected_image, color) {
                         self.image_changed = true;
@@ -281,6 +315,13 @@ impl ImageEditorWidget {
             ImageDrawingTool::Select => {
                 self.handle_selection_mouse(image, mouse_pos, asset, resp, colors);
             }
+        }
+    }
+
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, asset: &mut impl ImageCollectionAsset) {
+        let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
+            self.undo(asset);
         }
     }
 

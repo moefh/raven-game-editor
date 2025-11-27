@@ -1,6 +1,6 @@
 use crate::image::TextureManager;
 use crate::app::{AppDialogs, SysDialogs, AppSettings};
-use crate::data_asset::StringLogger;
+use crate::data_asset::{DataAssetId, StringLogger};
 
 pub struct WindowEguiContext<'a> {
     pub ctx: &'a egui::Context,
@@ -24,6 +24,7 @@ pub struct WindowContext<'a> {
     pub sys_dialogs: &'a mut SysDialogs,
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
+    pub top_editor_asset_id: Option<DataAssetId>,
 }
 
 impl<'a> WindowContext<'a> {

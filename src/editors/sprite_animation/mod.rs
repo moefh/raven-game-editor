@@ -9,6 +9,7 @@ use crate::data_asset::{
 };
 
 use properties::PropertiesDialog;
+use super::DataAssetEditor;
 use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView};
 
 enum EditorTabs {
@@ -30,9 +31,63 @@ impl FrameDragPayload {
 }
 
 pub struct SpriteAnimationEditor {
-    pub asset: super::DataAssetEditor,
-    force_reload_image: bool,
+    pub asset: DataAssetEditor,
+    editor: Editor,
+    dialogs: Dialogs,
+}
+
+impl SpriteAnimationEditor {
+    pub fn new(id: DataAssetId, open: bool) -> Self {
+        SpriteAnimationEditor {
+            asset: DataAssetEditor::new(id, open),
+            editor: Editor::new(id),
+            dialogs: Dialogs::new(),
+        }
+    }
+
+    pub fn prepare_for_saving(&mut self, animation: &mut SpriteAnimation, sprites: &mut AssetList<Sprite>) {
+        if let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
+            self.editor.image_editor.drop_selection(sprite);
+        }
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
+        self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
+
+        let title = format!("{} - Animation", animation.asset.name);
+        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        window.min_size([450.0, 400.0]).default_size([500.0, 400.0]).show(wc.egui.ctx, |ui| {
+            self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
+        });
+    }
+}
+
+struct Dialogs {
     properties_dialog: Option<PropertiesDialog>,
+}
+
+impl Dialogs {
+    fn new() -> Self {
+        Dialogs {
+            properties_dialog: None,
+        }
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation,
+                sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>, editor: &mut Editor) {
+        if let Some(dlg) = &mut self.properties_dialog && dlg.open {
+            dlg.show(wc, animation, sprite_ids, sprites);
+        }
+
+        if let Some(sprite) = sprites.get(&animation.sprite_id) && sprite.num_frames as usize != editor.sprite_frames.len() {
+            Editor::build_sprite_frames(&mut editor.sprite_frames, sprite.num_frames);
+        }
+    }
+}
+
+struct Editor {
+    asset_id: DataAssetId,
+    force_reload_image: bool,
     selected_tab: EditorTabs,
     selected_loop: usize,
     selected_loop_frame: usize,
@@ -42,19 +97,11 @@ pub struct SpriteAnimationEditor {
     image_editor: ImageEditorWidget,
 }
 
-fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
-    frames.clear();
-    for index in 0..num_frames as u8 {
-        frames.push(SpriteAnimationFrame { head_index: Some(index), foot_index: None });
-    }
-}
-
-impl SpriteAnimationEditor {
-    pub fn new(id: DataAssetId, open: bool) -> Self {
-        SpriteAnimationEditor {
-            asset: super::DataAssetEditor::new(id, open),
+impl Editor {
+    pub fn new(asset_id: DataAssetId) -> Self {
+        Editor {
+            asset_id,
             force_reload_image: false,
-            properties_dialog: None,
             selected_tab: EditorTabs::Sprite,
             selected_loop: 0,
             selected_loop_frame: 0,
@@ -65,9 +112,17 @@ impl SpriteAnimationEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, animation: &mut SpriteAnimation, sprites: &mut AssetList<Sprite>) {
-        if let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
-            self.image_editor.drop_selection(sprite);
+    pub fn is_on_top(&self, wc: &WindowContext) -> bool {
+        match wc.top_editor_asset_id {
+            Some(top_id) => top_id == self.asset_id,
+            None => false,
+        }
+    }
+
+    fn build_sprite_frames(frames: &mut Vec<SpriteAnimationFrame>, num_frames: u32) {
+        frames.clear();
+        for index in 0..num_frames as u8 {
+            frames.push(SpriteAnimationFrame { head_index: Some(index), foot_index: None });
         }
     }
 
@@ -117,7 +172,7 @@ impl SpriteAnimationEditor {
             if let Some(image_item) = animation.loops.get(self.selected_loop)
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
-                    self.image_editor.selected_image = image_item as u32;
+                    self.image_editor.set_selected_image(image_item as u32, sprite);
                     let colors = (self.color_picker.left_color, self.color_picker.right_color);
                     self.image_editor.show(ui, wc, sprite, colors);
                 }
@@ -246,78 +301,68 @@ impl SpriteAnimationEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation,
-                sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
-        if let Some(dlg) = &mut self.properties_dialog && dlg.open {
-            dlg.show(wc, animation, sprite_ids, sprites);
-        }
-
-        if let Some(sprite) = sprites.get(&animation.sprite_id) {
-            if sprite.num_frames as usize != self.sprite_frames.len() {
-                build_sprite_frames(&mut self.sprite_frames, sprite.num_frames);
-            }
-        } else {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
+        if sprites.get(&animation.sprite_id).is_none() {
             return;  // animation has an invalid sprite id
         }
 
-        let asset_id = animation.asset.id;
-        let title = format!("{} - Animation", animation.asset.name);
-        let window = super::create_editor_window(asset_id, &title, wc);
-        let mut asset_open = self.asset.open;
-        window.open(&mut asset_open).min_size([450.0, 400.0]).default_size([500.0, 400.0]).show(wc.egui.ctx, |ui| {
-            // header:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_top", asset_id)).show_inside(ui, |ui| {
-                egui::MenuBar::new().ui(ui, |ui| {
-                    ui.menu_button("Animation", |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                            if ui.button("Properties...").clicked() {
-                                let dlg = self.properties_dialog.get_or_insert_with(|| {
-                                    PropertiesDialog::new(animation.sprite_id)
-                                });
-                                dlg.set_open(animation);
-                            }
-                        });
+        // header:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Animation", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        if ui.button("Properties...").clicked() {
+                            let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
+                                PropertiesDialog::new(animation.sprite_id)
+                            });
+                            dlg.set_open(animation);
+                        }
                     });
                 });
             });
-
-            // footer:
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                ui.label(format!("{} bytes", animation.data_size()));
-            });
-
-            // loops:
-            egui::SidePanel::left(format!("editor_panel_{}_left", asset_id)).resizable(false).max_width(120.0).show_inside(ui, |ui| {
-                ui.add_space(5.0);
-                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                    for (loop_index, aloop) in animation.loops.iter().enumerate() {
-                        let response = ui.selectable_label(self.selected_loop == loop_index, &aloop.name);
-                        if response.clicked() {
-                            self.select_loop(loop_index);
-                        }
-                    }
-                });
-            });
-
-            // tabs:
-            egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", asset_id)).show_inside(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Sprite), "Sprite").clicked() {
-                        self.selected_tab = EditorTabs::Sprite;
-                    }
-                    if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Frames), "Frames").clicked() {
-                        self.selected_tab = EditorTabs::Frames;
-                    }
-                });
-            });
-
-            match self.selected_tab {
-                EditorTabs::Sprite => self.sprite_tab(ui, wc, animation, sprite_ids, sprites),
-                EditorTabs::Frames => self.frames_tab(ui, wc, animation, sprite_ids, sprites),
-            };
         });
-        self.asset.open = asset_open;
+
+        // footer:
+        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.label(format!("{} bytes", animation.data_size()));
+        });
+
+        // loops:
+        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).max_width(120.0).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                for (loop_index, aloop) in animation.loops.iter().enumerate() {
+                    let response = ui.selectable_label(self.selected_loop == loop_index, &aloop.name);
+                    if response.clicked() {
+                        self.select_loop(loop_index);
+                    }
+                }
+            });
+        });
+
+        // tabs:
+        egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Sprite), "Sprite").clicked() {
+                    self.selected_tab = EditorTabs::Sprite;
+                }
+                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Frames), "Frames").clicked() {
+                    self.selected_tab = EditorTabs::Frames;
+                }
+            });
+        });
+
+        match self.selected_tab {
+            EditorTabs::Sprite => self.sprite_tab(ui, wc, animation, sprite_ids, sprites),
+            EditorTabs::Frames => self.frames_tab(ui, wc, animation, sprite_ids, sprites),
+        };
+
+        // keyboard:
+        if self.is_on_top(wc) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
+            self.image_editor.handle_keyboard(ui, sprite);
+        }
     }
 }

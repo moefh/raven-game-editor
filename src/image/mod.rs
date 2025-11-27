@@ -29,6 +29,15 @@ impl ImageRect {
             height: rect.height().max(0.0) as u32,
         }
     }
+
+    pub fn from_image_item(image: &ImageCollection) -> Self {
+        ImageRect {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+        }
+    }
 }
 
 pub struct ImageFragment {
