@@ -340,8 +340,6 @@ impl ImageEditorWidget {
                 let image_rect = ImageRect::from_rect(sel_rect, &image);
                 if let Some(frag) = image.copy_fragment(asset.asset_id(), asset.data_mut(), self.selected_image, image_rect) {
                     wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
-                } else {
-                    wc.clipboard = None;
                 }
             }
             ImageSelection::Fragment(_, frag) => {
@@ -352,6 +350,7 @@ impl ImageEditorWidget {
     }
 
     pub fn cut(&mut self, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset, fill_color: u8) {
+        self.set_undo_target(asset);
         self.lift_selection(asset, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
             wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
@@ -360,6 +359,8 @@ impl ImageEditorWidget {
 
     pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset) {
         if let Some(ClipboardData::Image(pixels)) = &wc.clipboard {
+            self.tool = ImageDrawingTool::Select;
+            self.set_undo_target(asset);
             self.drop_selection(asset);
             self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset_id(), pixels.clone()));
         }
@@ -380,18 +381,9 @@ impl ImageEditorWidget {
         }
 
         match wc.keyboard_pressed.take() {
-            Some(KeyboardPressed::CtrlC) => {
-                self.copy(wc, asset);
-            }
-            Some(KeyboardPressed::CtrlX) => {
-                self.set_undo_target(asset);
-                self.cut(wc, asset, fill_color);
-            }
-            Some(KeyboardPressed::CtrlV) => {
-                self.tool = ImageDrawingTool::Select;
-                self.set_undo_target(asset);
-                self.paste(wc, asset);
-            }
+            Some(KeyboardPressed::CtrlC) => { self.copy(wc, asset); }
+            Some(KeyboardPressed::CtrlX) => { self.cut(wc, asset, fill_color); }
+            Some(KeyboardPressed::CtrlV) => { self.paste(wc, asset); }
             None => {}
         }
     }
