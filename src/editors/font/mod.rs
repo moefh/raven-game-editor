@@ -77,6 +77,7 @@ impl Dialogs {
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, font: &mut Font) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, font) {
             editor.force_reload_image = true;
+            editor.image_editor.set_undo_target(font);
         }
     }
 }

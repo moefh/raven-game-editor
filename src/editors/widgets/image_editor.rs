@@ -29,7 +29,7 @@ impl ImageSelection {
                 std::mem::swap(self, &mut ret);
                 match ret {
                     ImageSelection::Fragment(pos, frag) => Some((pos, frag)),
-                    _ => panic!("error taking image fragment")  // we had a fragment, but not after swapping!?
+                    _ => None,  // this shouldn't happen
                 }
             }
             _ => None
@@ -146,7 +146,7 @@ impl ImageEditorWidget {
         }
     }
 
-    fn set_undo_target(&mut self, asset: &impl ImageCollectionAsset) {
+    pub fn set_undo_target(&mut self, asset: &impl ImageCollectionAsset) {
         let image = ImageCollection::from_asset(asset);
         self.undo_target = image.copy_fragment(asset.asset_id(), asset.data(), self.selected_image, ImageRect::from_image_item(&image));
     }
@@ -154,7 +154,7 @@ impl ImageEditorWidget {
     fn lift_selection(&mut self, asset: &mut impl ImageCollectionAsset, bg_color: u8) {
         if self.selection.is_floating() { return; } // already lifted
 
-        if let Some(sel_rect) = self.selection.get_rect() && sel_rect.width() > 0.0 && sel_rect.height() > 0.0 {
+        if let Some(sel_rect) = self.selection.get_rect() && sel_rect.is_positive() {
             self.set_undo_target(asset);
             let image = ImageCollection::from_asset(asset);
             let image_rect = ImageRect::from_rect(sel_rect, &image);
@@ -375,7 +375,6 @@ impl ImageEditorWidget {
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
-            self.set_undo_target(asset);
             self.delete_selection(asset, fill_color);
             return;
         }

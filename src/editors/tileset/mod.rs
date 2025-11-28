@@ -64,14 +64,17 @@ impl Dialogs {
             Editor::reload_images(wc, tileset);
             editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
             editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+            editor.image_editor.set_undo_target(tileset);
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
             Editor::reload_images(wc, tileset);
+            editor.image_editor.set_undo_target(tileset);
         }
         if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
             Editor::reload_images(wc, tileset);
             editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
             editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+            editor.image_editor.set_undo_target(tileset);
         }
     }
 }

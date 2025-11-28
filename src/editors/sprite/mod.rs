@@ -64,14 +64,17 @@ impl Dialogs {
             Editor::reload_images(wc, sprite);
             editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
             editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
+            editor.image_editor.set_undo_target(sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
+            editor.image_editor.set_undo_target(sprite);
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
             editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
             editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
+            editor.image_editor.set_undo_target(sprite);
         }
     }
 }
