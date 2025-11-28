@@ -86,7 +86,7 @@ impl Editor {
         }
     }
 
-    fn show_menubar(&mut self, ui: &mut egui::Ui, dialogs: &mut Dialogs, map_data: &mut MapData) {
+    fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, map_data: &mut MapData) {
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Map", |ui| {
@@ -101,6 +101,24 @@ impl Editor {
                     });
                 });
                 ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_space(22.0);
+                        if ui.button("Cut").clicked() {
+                            self.map_editor.cut(wc, map_data);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add_space(22.0);
+                        if ui.button("Copy").clicked() {
+                            self.map_editor.copy(wc, map_data);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add_space(22.0);
+                        if ui.button("Paste").clicked() {
+                            self.map_editor.paste(wc, map_data);
+                        }
+                    });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
@@ -320,7 +338,7 @@ impl Editor {
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                 map_data: &mut MapData, tilesets: &AssetList<Tileset>) {
-        self.show_menubar(ui, dialogs, map_data);
+        self.show_menubar(ui, wc, dialogs, map_data);
         self.show_display_toolbar(ui, wc);
         self.show_edit_toolbar(ui, wc, map_data);
         self.show_footer(ui, wc, map_data);
@@ -353,7 +371,7 @@ impl Editor {
 
             // keyboard:
             if wc.is_editor_on_top(self.asset_id) {
-                self.map_editor.handle_keyboard(ui, map_data);
+                self.map_editor.handle_keyboard(ui, wc, map_data);
             }
         }
     }

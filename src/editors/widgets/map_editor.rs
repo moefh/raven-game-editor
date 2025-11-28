@@ -5,8 +5,9 @@ use crate::misc::STATIC_IMAGES;
 use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
 use egui::emath;
 
+use crate::app::KeyboardPressed;
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::super::{MapFullFragment, MapLayerFragment, MapRect, MapLayer};
+use super::super::{ClipboardData, MapFullFragment, MapLayerFragment, MapRect, MapLayer};
 
 pub enum MapSelection {
     None,
@@ -16,6 +17,13 @@ pub enum MapSelection {
 }
 
 impl MapSelection {
+    pub fn is_floating(&self) -> bool {
+        match self {
+            MapSelection::LayerFragment(..) | MapSelection::FullFragment(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn take_layer_fragment(&mut self) -> Option<(Pos2, MapLayerFragment)> {
         match self {
             MapSelection::LayerFragment(..) => {
@@ -177,6 +185,8 @@ impl MapEditorWidget {
     }
 
     pub fn lift_selection(&mut self, map_data: &mut MapData) {
+        if self.selection.is_floating() { return; } // already floating
+
         let fill_tile = self.get_fill_bg_tile_for_layer();
         if let Some(sel_rect) = self.selection.get_rect() &&
             sel_rect.is_positive() &&
@@ -242,7 +252,8 @@ impl MapEditorWidget {
 
     fn paint_floating_selection_for_layer(&self, ui: &mut egui::Ui, layer: MapLayer,
                                           image: &ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect) {
-        if self.edit_layer == layer && let MapSelection::LayerFragment(pos, frag) = &self.selection {
+        let compatible_layer = self.edit_layer == layer || self.edit_layer == MapLayer::Screen;
+        if compatible_layer && let MapSelection::LayerFragment(pos, frag) = &self.selection {
             let frag_x = pos.x as i32;
             let frag_y = pos.y as i32;
             for y in 0..frag.height {
@@ -256,7 +267,10 @@ impl MapEditorWidget {
                     image.paint_at(ui, tile_rect);
                 }
             }
-        } else if let MapSelection::FullFragment(pos, frag) = &self.selection && (layer != MapLayer::Background || ! frag.bg_data.is_empty()) {
+            return;
+        }
+
+        if let MapSelection::FullFragment(pos, frag) = &self.selection && (layer != MapLayer::Background || ! frag.bg_data.is_empty()) {
             let frag_x = pos.x as i32;
             let frag_y = pos.y as i32;
             for y in 0..frag.height {
@@ -276,9 +290,8 @@ impl MapEditorWidget {
     fn handle_selection_mouse(&mut self, pointer_pos: Pos2, resp: &egui::Response, map_data: &mut MapData,
                               canvas_to_map_fg: &emath::RectTransform, canvas_to_map_bg: &emath::RectTransform) {
         let (mouse_pos, map_size) = match self.edit_layer {
-            MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => (canvas_to_map_fg * pointer_pos, canvas_to_map_fg.to().size()),
             MapLayer::Background => (canvas_to_map_bg * pointer_pos, canvas_to_map_bg.to().size()),
-            _ => { return; }
+            _ => (canvas_to_map_fg * pointer_pos, canvas_to_map_fg.to().size()),
         };
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             if ! resp.dragged_by(egui::PointerButton::Secondary) && ! resp.dragged_by(egui::PointerButton::Middle) {
@@ -382,10 +395,98 @@ impl MapEditorWidget {
         }
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, map_data: &mut MapData) {
+    pub fn cut(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
+        //FIXME: self.set_undo_target(map_data);
+        self.lift_selection(map_data);
+        if let Some((_, frag)) = self.selection.take_layer_fragment() {
+            wc.clipboard = Some(ClipboardData::MapLayerFragment(frag));
+            return;
+        }
+        if let Some((_, frag)) = self.selection.take_full_fragment() {
+            wc.clipboard = Some(ClipboardData::MapFullFragment(frag));
+            return;
+        }
+    }
+
+    pub fn copy(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
+        if self.tool == MapTool::SelectLayer && self.edit_layer == MapLayer::Screen { return; }
+
+        match &self.selection {
+            MapSelection::LayerFragment(_, frag) => {
+                wc.clipboard = Some(ClipboardData::MapLayerFragment(frag.clone()));
+            }
+            MapSelection::FullFragment(_, frag) => {
+                wc.clipboard = Some(ClipboardData::MapFullFragment(frag.clone()));
+            }
+            MapSelection::Rect(..) => {
+                if let Some(sel_rect) = self.selection.get_rect() &&
+                    sel_rect.is_positive() &&
+                    let Some(map_rect) = MapRect::from_rect(sel_rect, map_data, self.edit_layer) {
+                        match self.tool {
+                            MapTool::SelectLayer => {
+                                if let Some(frag) = MapLayerFragment::copy_map(map_data, self.edit_layer, map_rect) {
+                                    wc.clipboard = Some(ClipboardData::MapLayerFragment(frag.clone()));
+                                }
+                            }
+
+                            MapTool::SelectAllLayers | MapTool::SelectFgLayers => {
+                                let include_bg_layer = self.tool == MapTool::SelectAllLayers;
+                                if let Some(frag) = MapFullFragment::copy_map(map_data, map_rect, include_bg_layer) {
+                                    wc.clipboard = Some(ClipboardData::MapFullFragment(frag.clone()));
+                                }
+                            }
+
+                            _ => {}
+                        }
+                    }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn paste(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
+        match &wc.clipboard {
+            Some(ClipboardData::MapLayerFragment(frag)) => {
+                self.tool = MapTool::SelectLayer;
+                self.edit_layer = frag.layer;
+                // FIXME: self.set_undo_target(map_data);
+                self.drop_selection(map_data);
+                self.selection = MapSelection::LayerFragment(Pos2::ZERO, frag.clone());
+            }
+
+            Some(ClipboardData::MapFullFragment(frag)) => {
+                let full_bg = map_data.bg_width == map_data.width || map_data.bg_height == map_data.height;
+                if frag.bg_data.is_empty() && (full_bg || self.tool != MapTool::SelectAllLayers) {
+                    MapTool::SelectFgLayers
+                } else {
+                    MapTool::SelectAllLayers
+                };
+                // FIXME: self.set_undo_target(map_data);
+                self.drop_selection(map_data);
+                self.selection = MapSelection::FullFragment(Pos2::ZERO, frag.clone());
+            }
+
+            _ => {}
+        }
+    }
+
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData) {
+        //let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
+        //if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
+        //    self.undo(asset);
+        //    return;
+        //}
+
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
             self.delete_selection(map_data);
+        }
+
+        match wc.keyboard_pressed.take() {
+            Some(KeyboardPressed::CtrlC) => { self.copy(wc, map_data); }
+            Some(KeyboardPressed::CtrlX) => { self.cut(wc, map_data); }
+            Some(KeyboardPressed::CtrlV) => { self.paste(wc, map_data); }
+            None => {}
         }
     }
 
@@ -564,20 +665,19 @@ impl MapEditorWidget {
         }
 
         // draw selection rectangle
-        if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) &&
-            let Some(map_to_canvas) = match self.edit_layer {
-                MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => Some(canvas_to_map_fg.inverse()),
-                MapLayer::Background => Some(canvas_to_map_bg.inverse()),
-                _ => None,
-            } {
-                let sel_rect = Rect {
-                    min: map_to_canvas * sel_rect.min,
-                    max: map_to_canvas * sel_rect.max,
-                };
-                if sel_rect.is_positive() || response.dragged_by(egui::PointerButton::Primary) {
-                    super::paint_marching_ants(&painter, sel_rect, wc.settings);
-                    wc.request_marching_ants_repaint();
-                }
+        if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
+            let map_to_canvas = match self.edit_layer {
+                MapLayer::Background => canvas_to_map_bg.inverse(),
+                _ => canvas_to_map_fg.inverse(),
+            };
+            let sel_rect = Rect {
+                min: map_to_canvas * sel_rect.min,
+                max: map_to_canvas * sel_rect.max,
+            };
+            if sel_rect.is_positive() || response.dragged_by(egui::PointerButton::Primary) {
+                super::paint_marching_ants(&painter, sel_rect, wc.settings);
+                wc.request_marching_ants_repaint();
             }
+        }
     }
 }

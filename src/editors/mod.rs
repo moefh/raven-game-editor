@@ -110,9 +110,8 @@ pub struct MapRect {
 impl MapRect {
     pub fn from_rect(rect: Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
         let (map_width, map_height) = match layer {
-            MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => (map_data.width, map_data.height),
             MapLayer::Background => (map_data.bg_width, map_data.bg_height),
-            _ => { return None; }
+            _ => (map_data.width, map_data.height),
         };
         let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(map_width as f32, map_height as f32)));
         Some(MapRect {
@@ -124,9 +123,11 @@ impl MapRect {
     }
 }
 
+#[derive(Clone)]
 pub struct MapLayerFragment {
     pub width: u32,
     pub height: u32,
+    pub layer: MapLayer,
     pub data: Vec<u8>,
 }
 
@@ -150,6 +151,7 @@ impl MapLayerFragment {
         Some(MapLayerFragment {
             width: rect.width,
             height: rect.height,
+            layer: layer,
             data,
         })
     }
@@ -222,6 +224,7 @@ impl MapLayerFragment {
     }
 }
 
+#[derive(Clone)]
 pub struct MapFullFragment {
     pub width: u32,
     pub height: u32,
