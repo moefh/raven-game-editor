@@ -7,7 +7,7 @@ use egui::emath;
 
 use crate::app::KeyboardPressed;
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::super::{ClipboardData, MapFullFragment, MapLayerFragment, MapRect, MapLayer};
+use super::super::{ClipboardData, MapUndoData, MapFullFragment, MapLayerFragment, MapRect, MapLayer};
 
 pub enum MapSelection {
     None,
@@ -18,10 +18,7 @@ pub enum MapSelection {
 
 impl MapSelection {
     pub fn is_floating(&self) -> bool {
-        match self {
-            MapSelection::LayerFragment(..) | MapSelection::FullFragment(..) => true,
-            _ => false,
-        }
+        matches!(self, MapSelection::LayerFragment(..) | MapSelection::FullFragment(..))
     }
 
     pub fn take_layer_fragment(&mut self) -> Option<(Pos2, MapLayerFragment)> {
@@ -31,7 +28,7 @@ impl MapSelection {
                 std::mem::swap(self, &mut ret);
                 match ret {
                     MapSelection::LayerFragment(pos, frag) => Some((pos, frag)),
-                    _ => panic!("error taking map fragment")  // we had a fragment, but not after swapping!?
+                    _ => None,  // this shouldn't happen, but it's not a big deal
                 }
             }
             _ => None
@@ -45,7 +42,7 @@ impl MapSelection {
                 std::mem::swap(self, &mut ret);
                 match ret {
                     MapSelection::FullFragment(pos, frag) => Some((pos, frag)),
-                    _ => panic!("error taking map fragment")  // we had a fragment, but not after swapping!?
+                    _ => None,  // this shouldn't happen, but it's not a big deal
                 }
             }
             _ => None
@@ -133,6 +130,7 @@ pub struct MapEditorWidget {
     drag_frag_origin: Pos2,
     tool_changed: bool,
     edit_layer_changed: bool,
+    undo_target: Option<MapUndoData>,
 }
 
 impl MapEditorWidget {
@@ -154,7 +152,12 @@ impl MapEditorWidget {
             drag_frag_origin: Pos2::ZERO,
             tool_changed: false,
             edit_layer_changed: false,
+            undo_target: None,
         }
+    }
+
+    pub fn set_undo_target(&mut self, map_data: &MapData) {
+        self.undo_target = Some(MapUndoData::from_map(map_data));
     }
 
     pub fn set_edit_layer(&mut self, layer: MapLayer) {
@@ -193,6 +196,7 @@ impl MapEditorWidget {
             let Some(map_rect) = MapRect::from_rect(sel_rect, map_data, self.edit_layer) {
                 self.selection = match self.tool {
                     MapTool::SelectLayer => {
+                        self.set_undo_target(map_data);
                         if let Some(frag) = MapLayerFragment::cut_map(map_data, self.edit_layer, map_rect, fill_tile) {
                             MapSelection::LayerFragment(sel_rect.min, frag)
                         } else {
@@ -201,6 +205,7 @@ impl MapEditorWidget {
                     }
 
                     MapTool::SelectAllLayers | MapTool::SelectFgLayers => {
+                        self.set_undo_target(map_data);
                         let include_bg_layer = self.tool == MapTool::SelectAllLayers;
                         if let Some(frag) = MapFullFragment::cut_map(map_data, map_rect, fill_tile, include_bg_layer) {
                             MapSelection::FullFragment(sel_rect.min, frag)
@@ -366,9 +371,11 @@ impl MapEditorWidget {
                 if let Some(tile) = self.get_selected_tile_for_click(response) {
                     match self.edit_layer {
                         MapLayer::Foreground | MapLayer::Clip | MapLayer::Effects => {
+                            if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_fg_layer_tile(self.edit_layer, canvas_to_map_fg * pointer_pos, tile, map_data);
                         }
                         MapLayer::Background => {
+                            if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_bg_layer_tile(canvas_to_map_bg * pointer_pos, tile, map_data);
                         }
                         MapLayer::Screen => {
@@ -395,8 +402,15 @@ impl MapEditorWidget {
         }
     }
 
+    pub fn undo(&mut self, map_data: &mut MapData) {
+        if let Some(undo_target) = self.undo_target.take() {
+            undo_target.to_map(map_data);
+            self.selection = MapSelection::None;
+        }
+    }
+
     pub fn cut(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
-        //FIXME: self.set_undo_target(map_data);
+        self.set_undo_target(map_data);
         self.lift_selection(map_data);
         if let Some((_, frag)) = self.selection.take_layer_fragment() {
             wc.clipboard = Some(ClipboardData::MapLayerFragment(frag));
@@ -404,7 +418,6 @@ impl MapEditorWidget {
         }
         if let Some((_, frag)) = self.selection.take_full_fragment() {
             wc.clipboard = Some(ClipboardData::MapFullFragment(frag));
-            return;
         }
     }
 
@@ -449,7 +462,7 @@ impl MapEditorWidget {
             Some(ClipboardData::MapLayerFragment(frag)) => {
                 self.tool = MapTool::SelectLayer;
                 self.edit_layer = frag.layer;
-                // FIXME: self.set_undo_target(map_data);
+                self.set_undo_target(map_data);
                 self.drop_selection(map_data);
                 self.selection = MapSelection::LayerFragment(Pos2::ZERO, frag.clone());
             }
@@ -461,7 +474,7 @@ impl MapEditorWidget {
                 } else {
                     MapTool::SelectAllLayers
                 };
-                // FIXME: self.set_undo_target(map_data);
+                self.set_undo_target(map_data);
                 self.drop_selection(map_data);
                 self.selection = MapSelection::FullFragment(Pos2::ZERO, frag.clone());
             }
@@ -471,11 +484,11 @@ impl MapEditorWidget {
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData) {
-        //let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
-        //if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
-        //    self.undo(asset);
-        //    return;
-        //}
+        let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
+            self.undo(map_data);
+            return;
+        }
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {

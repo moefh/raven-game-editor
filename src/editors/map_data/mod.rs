@@ -38,7 +38,7 @@ impl MapDataEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
-        self.dialogs.show(wc, map_data, tileset_ids, tilesets);
+        self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
         let title = format!("{} - Map", map_data.asset.name);
         let window = DataAssetEditor::create_window(&mut self.asset, wc, &title);
@@ -60,9 +60,13 @@ impl Dialogs {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+    pub fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor,
+                map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
             dlg.show(wc, map_data, tileset_ids, tilesets);
+            if dlg.resized {
+                editor.map_editor.set_undo_target(map_data);
+            }
         }
     }
 }
@@ -101,6 +105,15 @@ impl Editor {
                     });
                 });
                 ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
+                        if ui.button("Undo").clicked() {
+                            self.map_editor.undo(map_data);
+                        }
+                    });
+
+                    ui.separator();
+
                     ui.horizontal(|ui| {
                         ui.add_space(22.0);
                         if ui.button("Cut").clicked() {

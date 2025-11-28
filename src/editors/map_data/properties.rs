@@ -43,6 +43,7 @@ pub struct PropertiesDialog {
     pub bg_width: f32,
     pub bg_height: f32,
     pub new_tile: u8,
+    pub resized: bool,
 }
 
 impl PropertiesDialog {
@@ -56,6 +57,7 @@ impl PropertiesDialog {
             bg_width: 0.0,
             bg_height: 0.0,
             new_tile: 0,
+            resized: false,
         }
     }
 
@@ -68,12 +70,14 @@ impl PropertiesDialog {
         self.bg_width = map_data.bg_width as f32;
         self.bg_height = map_data.bg_height as f32;
         self.new_tile = new_tile;
+        self.resized = false;
         self.open = true;
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
         if self.width < self.bg_width || self.height < self.bg_height {
             wc.dialogs.open_message_box("Invalid Size", "The background must be smaller or the same size as the foreground.");
+            self.resized = false;
             return false;
         }
 
@@ -91,6 +95,9 @@ impl PropertiesDialog {
             map_data.height = height;
             map_data.bg_width = bg_width;
             map_data.bg_height = bg_height;
+            self.resized = true;
+        } else {
+            self.resized = false;
         }
         true
     }

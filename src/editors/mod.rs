@@ -151,7 +151,7 @@ impl MapLayerFragment {
         Some(MapLayerFragment {
             width: rect.width,
             height: rect.height,
-            layer: layer,
+            layer,
             data,
         })
     }
@@ -224,6 +224,72 @@ impl MapLayerFragment {
     }
 }
 
+pub struct MapUndoData {
+    pub width: u32,
+    pub height: u32,
+    pub bg_width: u32,
+    pub bg_height: u32,
+    pub fg_tiles: Vec<u8>,
+    pub clip_tiles: Vec<u8>,
+    pub fx_tiles: Vec<u8>,
+    pub bg_tiles: Vec<u8>,
+}
+
+impl MapUndoData {
+    pub fn from_map(map_data: &MapData) -> Self {
+        let num_fg_tiles = (map_data.width * map_data.height) as usize;
+        let mut fg_tiles = Vec::with_capacity(num_fg_tiles);
+        let mut clip_tiles = Vec::with_capacity(num_fg_tiles);
+        let mut fx_tiles = Vec::with_capacity(num_fg_tiles);
+        for y in 0..map_data.height {
+            for x in 0..map_data.width {
+                let tile_index = (map_data.width * y + x) as usize;
+                fg_tiles.push(map_data.fg_tiles[tile_index]);
+                clip_tiles.push(map_data.clip_tiles[tile_index]);
+                fx_tiles.push(map_data.fx_tiles[tile_index]);
+            }
+        }
+        let num_bg_tiles = (map_data.bg_width * map_data.bg_height) as usize;
+        let mut bg_tiles = Vec::with_capacity(num_bg_tiles);
+        for y in 0..map_data.bg_height {
+            for x in 0..map_data.bg_width {
+                let tile_index = (map_data.bg_width * y + x) as usize;
+                bg_tiles.push(map_data.bg_tiles[tile_index]);
+            }
+        }
+        MapUndoData {
+            width: map_data.width,
+            height: map_data.height,
+            bg_width: map_data.bg_width,
+            bg_height: map_data.bg_height,
+            fg_tiles,
+            clip_tiles,
+            fx_tiles,
+            bg_tiles,
+        }
+    }
+
+    pub fn to_map(&self, map_data: &mut MapData) -> bool {
+        if self.width != map_data.width || self.height != map_data.height ||
+            self.bg_width != map_data.bg_width || self.bg_height != map_data.bg_height {
+                return false;
+            }
+        let map_width = map_data.width as usize;
+        for y in 0..map_data.height {
+            let tile_index = (map_data.width * y) as usize;
+            map_data.fg_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.fg_tiles[tile_index..tile_index+map_width]);
+            map_data.clip_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.clip_tiles[tile_index..tile_index+map_width]);
+            map_data.fx_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.fx_tiles[tile_index..tile_index+map_width]);
+        }
+        let map_bg_width = map_data.bg_width as usize;
+        for y in 0..map_data.bg_height {
+            let tile_index = (map_data.bg_width * y) as usize;
+            map_data.bg_tiles[tile_index..tile_index+map_bg_width].copy_from_slice(&self.bg_tiles[tile_index..tile_index+map_bg_width]);
+        }
+        true
+    }
+}
+
 #[derive(Clone)]
 pub struct MapFullFragment {
     pub width: u32,
@@ -235,7 +301,7 @@ pub struct MapFullFragment {
 }
 
 impl MapFullFragment {
-    pub fn copy_map(map_data: &mut MapData, rect: MapRect, include_bg: bool) -> Option<MapFullFragment> {
+    pub fn copy_map(map_data: &MapData, rect: MapRect, include_bg: bool) -> Option<MapFullFragment> {
         let map_width = map_data.width;
         let map_height = map_data.height;
         if rect.width == 0 || rect.height == 0 || rect.x + rect.width > map_width || rect.y + rect.height > map_height { return None; }
