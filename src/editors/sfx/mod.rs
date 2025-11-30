@@ -1,4 +1,5 @@
 mod properties;
+mod export;
 
 use std::io::Error;
 use crate::IMAGES;
@@ -8,6 +9,7 @@ use crate::misc::wav_utils;
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use export::ExportDialog;
 use super::DataAssetEditor;
 use super::widgets::SfxEditorWidget;
 
@@ -42,18 +44,23 @@ impl SfxEditor {
 
 struct Dialogs {
     properties_dialog: PropertiesDialog,
+    export_dialog: ExportDialog,
 }
 
 impl Dialogs {
     fn new() -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
+            export_dialog: ExportDialog::new(),
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, sfx: &mut Sfx, _sound_player: &mut SoundPlayer) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, sfx);
+        }
+        if self.export_dialog.open {
+            self.export_dialog.show(wc, sfx);
         }
     }
 }
@@ -117,7 +124,15 @@ impl Editor {
                                                      ]);
                         }
                     });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Export...").clicked() {
+                            dialogs.export_dialog.set_open(sfx, 22050);
+                        }
+                    });
+
                     ui.separator();
+
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {

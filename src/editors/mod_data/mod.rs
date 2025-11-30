@@ -1,4 +1,5 @@
 mod properties;
+mod export_sample;
 
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
@@ -10,6 +11,7 @@ use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use export_sample::ExportSampleDialog;
 use super::widgets::SfxEditorWidget;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
@@ -38,7 +40,7 @@ impl ModDataEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        self.dialogs.show(wc, &mut self.editor, mod_data, sound_player);
+        self.dialogs.show(wc, &mut self.editor, mod_data);
 
         let title = format!("{} - MOD", mod_data.asset.name);
         let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
@@ -50,18 +52,23 @@ impl ModDataEditor {
 
 struct Dialogs {
     properties_dialog: PropertiesDialog,
+    export_sample_dialog: ExportSampleDialog,
 }
 
 impl Dialogs {
     fn new() -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
+            export_sample_dialog: ExportSampleDialog::new(),
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, mod_data: &mut ModData, _sound_player: &mut SoundPlayer) {
+    pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, mod_data: &mut ModData) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, mod_data);
+        }
+        if self.export_sample_dialog.open {
+            self.export_sample_dialog.show(wc, mod_data);
         }
     }
 }
@@ -108,7 +115,8 @@ impl Editor {
         self.sfx_editor.reset();
     }
 
-    fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+    fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                   mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         egui::SidePanel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -178,6 +186,12 @@ impl Editor {
                                                              ("WAVE files (*.wav)", &["wav"]),
                                                              ("All files (*)", &[""]),
                                                          ]);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
+                            if ui.button("Export WAV...").clicked() {
+                                dialogs.export_sample_dialog.set_open(self.selected_sample, 22050, sample.bits_per_sample);
                             }
                         });
                     });
@@ -460,7 +474,7 @@ impl Editor {
         });
 
         match self.selected_tab {
-            EditorTabs::Samples => { self.samples_tab(ui, wc, mod_data, sound_player) }
+            EditorTabs::Samples => { self.samples_tab(ui, wc, dialogs, mod_data, sound_player) }
             EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data, sound_player); }
         };
     }
