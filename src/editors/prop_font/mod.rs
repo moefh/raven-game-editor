@@ -1,7 +1,7 @@
 mod properties;
 
 use crate::IMAGES;
-use crate::app::WindowContext;
+use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
@@ -114,11 +114,34 @@ impl Editor {
         }
     }
 
+    fn export_dlg_id(pfont: &PropFont) -> String {
+        format!("editor_{}_export_pfont", pfont.asset.id)
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
+            let Err(e) = ImageCollection::save_prop_font_png(&filename, prop_font) {
+                wc.dialogs.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
+            }
+
         // header:
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Prop Font", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
+                        if ui.button("Export...").clicked() {
+                            wc.sys_dialogs.save_file(Some(wc.egui.window), Self::export_dlg_id(prop_font),
+                                                     "Export Prop Font",
+                                                     &[
+                                                         ("PNG files (*.png)", &["png"]),
+                                                         ("All files (*.*)", &["*"]),
+                                                     ]);
+                        }
+                    });
+
+                    ui.separator();
+
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {

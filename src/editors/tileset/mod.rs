@@ -1,6 +1,7 @@
 mod properties;
 mod add_tiles;
 mod remove_tiles;
+mod export;
 
 use crate::IMAGES;
 use crate::app::WindowContext;
@@ -10,6 +11,7 @@ use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
+use export::ExportDialog;
 use super::DataAssetEditor;
 use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
@@ -48,6 +50,7 @@ struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
     rm_tiles_dialog: RemoveTilesDialog,
+    export_dialog: ExportDialog,
 }
 
 impl Dialogs {
@@ -56,6 +59,7 @@ impl Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
+            export_dialog: ExportDialog::new(),
         }
     }
 
@@ -75,6 +79,9 @@ impl Dialogs {
             editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
             editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
             editor.image_editor.set_undo_target(tileset);
+        }
+        if self.export_dialog.open {
+            self.export_dialog.show(wc, tileset);
         }
     }
 }
@@ -100,6 +107,15 @@ impl Editor {
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tileset", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
+                        if ui.button("Export...").clicked() {
+                            dialogs.export_dialog.set_open(tileset);
+                        }
+                    });
+
+                    ui.separator();
+
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {

@@ -1,7 +1,7 @@
 mod properties;
 
 use crate::IMAGES;
-use crate::app::WindowContext;
+use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, ImageCollectionAsset, GenericAsset};
 
@@ -109,11 +109,36 @@ impl Editor {
         }
     }
 
+    fn export_dlg_id(font: &Font) -> String {
+        format!("editor_{}_export_font", font.asset.id)
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) {
+            let image = ImageCollection::from_asset(font);
+            if let Err(e) = image.save_font_png(&filename, 16, &font.data) {
+                wc.dialogs.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
+            }
+        }
+
         // header:
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Font", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
+                        if ui.button("Export...").clicked() {
+                            wc.sys_dialogs.save_file(Some(wc.egui.window), Self::export_dlg_id(font),
+                                                     "Export Font",
+                                                     &[
+                                                         ("PNG files (*.png)", &["png"]),
+                                                         ("All files (*.*)", &["*"]),
+                                                     ]);
+                        }
+                    });
+
+                    ui.separator();
+
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
