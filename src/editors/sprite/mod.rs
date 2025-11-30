@@ -146,19 +146,19 @@ impl Editor {
                     ui.separator();
 
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
                         if ui.button("Cut").clicked() {
                             self.image_editor.cut(wc, sprite, self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
                         if ui.button("Copy").clicked() {
                             self.image_editor.copy(wc, sprite);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
                         if ui.button("Paste").clicked() {
                             self.image_editor.paste(wc, sprite);
                         }

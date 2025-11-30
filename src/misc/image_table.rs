@@ -79,6 +79,12 @@ image_table! {
     import: "../../assets/ImportIcon.png",
     export: "../../assets/ExportIcon.png",
     chicken: "../../assets/ChickenIcon.png",
+    trash: "../../assets/TrashIcon.png",
+    add: "../../assets/AddIcon.png",
+    undo: "../../assets/UndoIcon.png",
+    cut: "../../assets/CutIcon.png",
+    copy: "../../assets/CopyIcon.png",
+    paste: "../../assets/PasteIcon.png",
 
     // buttons
     pen: "../../assets/PenIcon.png",
@@ -96,9 +102,6 @@ image_table! {
     layer_clip: "../../assets/CollisionIcon.png",
     screen: "../../assets/ScreenIcon.png",
     log: "../../assets/LogIcon.png",
-    trash: "../../assets/TrashIcon.png",
-    add: "../../assets/AddIcon.png",
-    undo: "../../assets/UndoIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",
