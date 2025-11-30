@@ -1,4 +1,4 @@
-use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImageRect};
+use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect};
 use crate::data_asset::ImageCollectionAsset;
 use crate::app::{WindowContext, KeyboardPressed};
 
@@ -364,6 +364,13 @@ impl ImageEditorWidget {
             self.drop_selection(asset);
             self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset_id(), pixels.clone()));
         }
+    }
+
+    pub fn paste_pixels(&mut self, asset: &mut impl ImageCollectionAsset, pixels: ImagePixels) {
+        self.tool = ImageDrawingTool::Select;
+        self.set_undo_target(asset);
+        self.drop_selection(asset);
+        self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset_id(), pixels));
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut impl ImageCollectionAsset, fill_color: u8) {

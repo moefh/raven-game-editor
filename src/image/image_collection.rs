@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
-use super::{TextureManager, TextureName, TextureSlot, ImageRect, ImageFragment, StaticImageData};
+use super::{TextureManager, TextureName, TextureSlot, ImageRect, ImageFragment, StaticImageData, ImagePixels};
 use crate::data_asset::{DataAssetId, ImageCollectionAsset, Font, PropFont};
 
 pub struct ImageCollection {
@@ -21,8 +21,8 @@ impl ImageCollection {
 
     pub fn from_static_image(image: &StaticImageData) -> Self {
         ImageCollection {
-            width: image.width,
-            height: image.height,
+            width: image.pixels.width,
+            height: image.pixels.height,
             num_items: image.num_items,
         }
     }
@@ -47,7 +47,7 @@ impl ImageCollection {
                                    slot: TextureSlot) -> (Self, &'a egui::TextureHandle) {
         let image = Self::from_static_image(static_image);
         let tex_name = TextureName::from_static_image_id(static_image.id, slot);
-        let texture = image.get_or_load_texture(tex_man, ctx, tex_name, &static_image.data, false);
+        let texture = image.get_or_load_texture(tex_man, ctx, tex_name, &static_image.pixels.data, false);
         (image, texture)
     }
 
@@ -368,5 +368,26 @@ impl ImageCollection {
         }
         ::image::save_buffer_with_format(path, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)?;
         Ok(())
+    }
+
+    pub fn load_png(path: impl AsRef<std::path::Path>) -> Result<ImagePixels, Box<dyn std::error::Error>> {
+        let img = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
+        let width = img.width();
+        let height = img.height();
+        let mut data = Vec::with_capacity((width * height) as usize);
+        for pixel in img.pixels() {
+            if pixel[3] >= 0x80 {
+                data.push((pixel[0] >> 2) & 0b110000 |
+                          (pixel[1] >> 4) & 0b001100 |
+                          (pixel[2] >> 6) & 0b000011);
+            } else {
+                data.push(ImagePixels::TRANSPARENT_COLOR);
+            }
+        }
+        Ok(ImagePixels {
+            width,
+            height,
+            data,
+        })
     }
 }

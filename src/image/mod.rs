@@ -48,6 +48,8 @@ pub struct ImagePixels {
 }
 
 impl ImagePixels {
+    pub const TRANSPARENT_COLOR: u8 = ImageFragment::TRANSPARENT_COLOR;
+
     pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
         ImagePixels {
             width,
@@ -96,20 +98,20 @@ impl ImageCollectionAsset for ImageFragment {
 
 pub struct StaticImageData {
     pub id: StaticImageId,
-    pub width: u32,
-    pub height: u32,
+    pub pixels: ImagePixels,
     pub num_items: u32,
-    pub data: Vec<u8>,
 }
 
 impl StaticImageData {
     pub fn new(id: StaticImageId, width: u32, height: u32, num_items: u32, data: Vec<u8>) -> Self {
         StaticImageData {
             id,
-            width,
-            height,
             num_items,
-            data,
+            pixels: ImagePixels {
+                width,
+                height,
+                data,
+            },
         }
     }
 }

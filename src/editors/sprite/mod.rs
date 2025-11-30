@@ -4,7 +4,7 @@ mod remove_frames;
 mod export;
 
 use crate::IMAGES;
-use crate::app::WindowContext;
+use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{DataAssetId, Sprite, GenericAsset, ImageCollectionAsset};
 
@@ -104,6 +104,18 @@ impl Editor {
     }
 
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
+        let import_frame_dlg_id = format!("editor_{}_import_frame", sprite.asset.id);
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&import_frame_dlg_id) {
+            let image = match ImageCollection::load_png(&filename) {
+                Ok(img) => img,
+                Err(e) => {
+                    wc.dialogs.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
+                    return;
+                }
+            };
+            self.image_editor.paste_pixels(sprite, image);
+        }
+
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Sprite", |ui| {
@@ -155,6 +167,20 @@ impl Editor {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
                             self.image_editor.delete_selection(sprite, self.color_picker.right_color);
+                        }
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Paste from file...").clicked() {
+                            wc.sys_dialogs.open_file(Some(wc.egui.window), import_frame_dlg_id,
+                                                     "Paste From File",
+                                                     &[
+                                                         ("PNG files (*.png)", &["png"]),
+                                                         ("All files (*.*)", &["*"]),
+                                                     ]);
                         }
                     });
 
