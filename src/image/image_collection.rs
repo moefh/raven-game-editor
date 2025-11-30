@@ -377,9 +377,9 @@ impl ImageCollection {
         let mut data = Vec::with_capacity((width * height) as usize);
         for pixel in img.pixels() {
             if pixel[3] >= 0x80 {
-                data.push((pixel[0] >> 2) & 0b110000 |
+                data.push((pixel[2] >> 2) & 0b110000 |
                           (pixel[1] >> 4) & 0b001100 |
-                          (pixel[2] >> 6) & 0b000011);
+                          (pixel[0] >> 6) & 0b000011);
             } else {
                 data.push(ImagePixels::TRANSPARENT_COLOR);
             }
