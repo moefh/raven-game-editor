@@ -8,7 +8,7 @@ use super::super::player::Player;
 const USE_FILTER: bool = true;
 const MIN_SAMPLE_RATE: u32 = 44100;
 const MAX_SAMPLE_RATE: u32 = 48000;
-const REQ_BUFFER_SIZE: u32 = 2048;
+const REQ_BUFFER_SIZE: u32 = 4096;
 
 pub struct SoundPlayerImpl {
     pub name: String,
