@@ -1,9 +1,16 @@
-pub mod settings;
-pub mod status;
-pub mod log_window;
-pub mod properties;
+mod settings;
+mod status;
+mod log_window;
+mod properties;
+mod check;
 
 use super::WindowContext;
+
+pub use settings::SettingsWindow;
+pub use status::StatusWindow;
+pub use log_window::LogWindow;
+pub use properties::PropertiesWindow;
+pub use check::CheckWindow;
 
 pub struct AppWindow {
     pub id: egui::Id,
@@ -11,61 +18,103 @@ pub struct AppWindow {
 }
 
 impl AppWindow {
-    pub fn new(id: egui::Id) -> Self {
+    pub fn new(id_str: &str) -> Self {
         AppWindow {
-            id,
+            id: egui::Id::new(id_str),
             open: false,
         }
+    }
+
+    pub fn default_rect(&self, wc: &WindowContext, width: f32, height: f32) -> egui::Rect {
+        let x = wc.window_space.min.x + 10.0;
+        let y = wc.window_space.min.y + 10.0;
+        egui::Rect {
+            min: egui::Pos2::new(x, y),
+            max: egui::Pos2::new(x + width, y + height),
+        }
+    }
+
+    pub fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str, default_rect: egui::Rect) -> egui::Window<'a> {
+        egui::Window::new(title)
+            .id(self.id)
+            .open(&mut self.open)
+            .enabled(! wc.sys_dialogs.has_open_dialog())
+            .default_rect(default_rect)
+            .max_width(wc.window_space.width())
+            .max_height(wc.window_space.height())
+            .constrain_to(wc.window_space)
     }
 }
 
 pub struct AppWindows {
     pub window_ids: Vec<egui::Id>,
-    pub settings: AppWindow,
-    pub status: AppWindow,
-    pub properties: AppWindow,
-    pub log_window: AppWindow,
+    pub settings: SettingsWindow,
+    pub status: StatusWindow,
+    pub properties: PropertiesWindow,
+    pub log_window: LogWindow,
+    pub check: CheckWindow,
 }
 
 impl AppWindows {
     pub fn new() -> Self {
-        let settings_id = egui::Id::new("project_settings");
-        let status_id = egui::Id::new("project_status");
-        let properties_id = egui::Id::new("project_properties");
-        let log_window_id = egui::Id::new("project_log_window");
-        let window_ids = vec![
-            settings_id,
-            status_id,
-            properties_id,
-            log_window_id,
-        ];
         AppWindows {
-            window_ids,
-            settings: AppWindow::new(settings_id),
-            status: AppWindow::new(status_id),
-            properties: AppWindow::new(properties_id),
-            log_window: AppWindow::new(log_window_id),
+            window_ids: Vec::new(),
+            settings: SettingsWindow::new(AppWindow::new("app_settings")),
+            status: StatusWindow::new(AppWindow::new("project_status")),
+            properties: PropertiesWindow::new(AppWindow::new("project_properties")),
+            log_window: LogWindow::new(AppWindow::new("project_log_window")),
+            check: CheckWindow::new(AppWindow::new("check_window")),
         }
     }
 
-    pub fn get_ids(&self) -> &[egui::Id] {
+    pub fn get_ids(&mut self) -> &[egui::Id] {
+        if self.window_ids.is_empty() {
+            self.window_ids.push(self.settings.base.id);
+            self.window_ids.push(self.properties.base.id);
+            self.window_ids.push(self.status.base.id);
+            self.window_ids.push(self.log_window.base.id);
+            self.window_ids.push(self.check.base.id);
+        }
         &self.window_ids
     }
 
     pub fn show_properties(&mut self, wc: &WindowContext, vga_sync_bits: &mut u8, project_prefix: &mut String) {
-        properties::show_project_properties(&mut self.properties, wc, vga_sync_bits, project_prefix);
+        self.properties.show(wc, vga_sync_bits, project_prefix);
     }
 
     pub fn show_settings(&mut self, wc: &mut WindowContext) {
-        settings::show_editor_settings(&mut self.settings, wc);
+        self.settings.show(wc);
     }
 
     pub fn show_status(&mut self, wc: &WindowContext) {
-        status::show_editor_status(&mut self.status, wc);
+        self.status.show(wc);
     }
 
     pub fn show_log_window(&mut self, wc: &WindowContext) {
-        log_window::show_log_window(&mut self.log_window, wc);
+        self.log_window.show(wc);
     }
 
+    pub fn show_check(&mut self, wc: &WindowContext) {
+        self.check.show(wc);
+    }
+
+    pub fn open_log_window(&mut self) {
+        self.log_window.base.open = true;
+    }
+
+    pub fn open_properties(&mut self) {
+        self.properties.base.open = true;
+    }
+
+    pub fn open_settings(&mut self) {
+        self.settings.base.open = true;
+    }
+
+    pub fn open_status(&mut self) {
+        self.status.base.open = true;
+    }
+
+    pub fn open_check(&mut self) {
+        self.check.base.open = true;
+    }
 }

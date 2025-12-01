@@ -26,7 +26,7 @@ const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
-//pub const NO_IMAGE_MENU_SIZE: f32 = 19.0;
+pub const NO_IMAGE_MENU_SIZE: f32 = 19.0;
 pub const IMAGE_MENU_SIZE: f32 = 14.0;
 pub const NO_IMAGE_TREE_SIZE: f32 = 25.0;
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
@@ -125,7 +125,7 @@ impl RavenEditorApp {
             Err(_) => {
                 self.open_message_box("Error Reading Project",
                                       "Error reading project.\n\nConsult the log window for details.");
-                self.windows.log_window.open = true;
+                self.windows.open_log_window();
             }
         }
     }
@@ -173,7 +173,7 @@ impl RavenEditorApp {
             Err(_) => {
                 self.open_message_box("Error Writing Project",
                                       "Error writing project.\n\nConsult the log window for details.");
-                self.windows.log_window.open = true;
+                self.windows.open_log_window();
                 false
             }
         }
@@ -337,6 +337,11 @@ impl RavenEditorApp {
             if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            let run_check_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F5);
+            if ui.input_mut(|i| i.consume_shortcut(&run_check_shortcut)) {
+                self.windows.open_check();
+                self.windows.check.run_check(&self.store);
+            }
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -375,7 +380,7 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Settings").clicked() {
-                            self.windows.settings.open = true;
+                            self.windows.open_settings();
                         }
                     });
                     ui.separator();
@@ -399,14 +404,15 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Properties").clicked() {
-                            self.windows.properties.open = true;
+                            self.windows.open_properties();
                         }
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.log).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Log Window").clicked() {
-                            self.windows.log_window.open = true;
+                        ui.add_space(NO_IMAGE_MENU_SIZE);
+                        if ui.button("Run Check (F5)").clicked() {
+                            self.windows.open_check();
+                            self.windows.check.run_check(&self.store);
                         }
                     });
                 });
@@ -414,7 +420,7 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.info).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Status").clicked() {
-                            self.windows.status.open = true;
+                            self.windows.open_status();
                         }
                     });
                     ui.separator();
@@ -457,9 +463,9 @@ impl RavenEditorApp {
                 ui.add_space(5.0);
 
                 if ui.add(egui::Button::image_and_text(IMAGES.log, "Log")
-                          .selected(self.windows.log_window.open)
-                          .frame_when_inactive(self.windows.log_window.open)).on_hover_text("Log Window").clicked() {
-                    self.windows.log_window.open = ! self.windows.log_window.open;
+                          .selected(self.windows.log_window.base.open)
+                          .frame_when_inactive(self.windows.log_window.base.open)).on_hover_text("Log Window").clicked() {
+                    self.windows.log_window.base.open = ! self.windows.log_window.base.open;
                 }
 
                 ui.spacing_mut().item_spacing = spacing;
@@ -621,18 +627,11 @@ impl RavenEditorApp {
             }
         }
 
-        if self.windows.settings.open {
-            self.windows.show_settings(&mut win_ctx);
-        }
-        if self.windows.status.open {
-            self.windows.show_status(&win_ctx);
-        }
-        if self.windows.properties.open {
-            self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
-        }
-        if self.windows.log_window.open {
-            self.windows.show_log_window(&win_ctx);
-        }
+        self.windows.show_settings(&mut win_ctx);
+        self.windows.show_status(&win_ctx);
+        self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
+        self.windows.show_log_window(&win_ctx);
+        self.windows.show_check(&win_ctx);
 
         self.editors_clipboard = win_ctx.clipboard.take();
     }

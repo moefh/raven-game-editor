@@ -36,6 +36,10 @@ impl StringLogger {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.log.clear();
+    }
+
     pub fn log<S: AsRef<str>>(&mut self, msg: S) {
         self.log.push_str(msg.as_ref());
         self.log.push('\n');
