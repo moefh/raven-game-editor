@@ -190,8 +190,9 @@ impl Editor {
                         });
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                            if ui.button("Export WAV...").clicked() {
-                                dialogs.export_sample_dialog.set_open(self.selected_sample, 22050, sample.bits_per_sample);
+                            let enabled = ! sample_data.is_empty();
+                            if ui.add_enabled(enabled, egui::Button::new("Export WAV...")).clicked() {
+                                dialogs.export_sample_dialog.set_open(wc, self.selected_sample, 22050, sample.bits_per_sample);
                             }
                         });
                     });
@@ -448,7 +449,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(mod_data);
+                            dialogs.properties_dialog.set_open(wc, mod_data);
                         }
                     });
                 });

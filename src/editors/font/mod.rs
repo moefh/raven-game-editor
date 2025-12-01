@@ -142,7 +142,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(font);
+                            dialogs.properties_dialog.set_open(wc, font);
                         }
                     });
                 });

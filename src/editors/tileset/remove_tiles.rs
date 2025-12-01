@@ -21,12 +21,17 @@ impl RemoveTilesDialog {
         }
     }
 
-    pub fn set_open(&mut self, tileset: &Tileset, sel_tile: u32) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_tileset_rm_tiles")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset, sel_tile: u32) {
         if tileset.num_tiles <= 1 || tileset.num_tiles <= sel_tile { return; }
         self.max_tiles = (tileset.num_tiles - sel_tile).min(tileset.num_tiles - 1);
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
@@ -53,7 +58,7 @@ impl RemoveTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_tileset_add_tiles")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Remove Tiles");
@@ -82,6 +87,7 @@ impl RemoveTilesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

@@ -14,10 +14,15 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, mod_data: &ModData) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_mod_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, mod_data: &ModData) {
         self.name.clear();
         self.name.push_str(&mod_data.asset.name);
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, mod_data: &mut ModData) {
@@ -25,8 +30,8 @@ impl PropertiesDialog {
         mod_data.asset.name.push_str(&self.name);
     }
 
-    pub fn show(&mut self, wc: &WindowContext, mod_data: &mut ModData) {
-        if egui::Modal::new(egui::Id::new("dlg_mod_properties")).show(wc.egui.ctx, |ui| {
+    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("MOD Properties");
@@ -55,6 +60,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
     }
 }

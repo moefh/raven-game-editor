@@ -54,7 +54,10 @@ impl DataAssetEditor {
             min: default_pos,
             max: default_pos + egui::Vec2::new(400.0, 240.0),
         };
-        let frame = egui::Frame::window(&wc.egui.ctx.style()).inner_margin(1.0);
+        let selected = wc.is_editor_on_top(self.id);
+        let frame = egui::Frame::window(&wc.egui.ctx.style())
+            .inner_margin(1.0)
+            .fill(if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) });
         egui::Window::new(title)
             .id(self.egui_id)
             .frame(frame)

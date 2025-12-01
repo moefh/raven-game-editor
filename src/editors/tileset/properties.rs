@@ -21,12 +21,17 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, tileset: &Tileset, sel_color: u8) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_tileset_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset, sel_color: u8) {
         self.name.clear();
         self.name.push_str(&tileset.asset.name);
         self.num_tiles = tileset.num_tiles as f32;
         self.sel_color = sel_color;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
@@ -41,7 +46,7 @@ impl PropertiesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_tileset_properties")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(350.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Tileset Properties");
@@ -74,6 +79,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

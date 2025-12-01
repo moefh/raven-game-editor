@@ -25,7 +25,11 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, sprite: &Sprite, sel_color: u8) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_sprite_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite, sel_color: u8) {
         self.name.clear();
         self.name.push_str(&sprite.asset.name);
         self.width = sprite.width;
@@ -33,6 +37,7 @@ impl PropertiesDialog {
         self.num_frames = sprite.num_frames;
         self.sel_color = sel_color;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
@@ -55,7 +60,7 @@ impl PropertiesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if ! self.open { return false; }
 
-        if egui::Modal::new(egui::Id::new("dlg_sprite_properties")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Sprite Properties");
@@ -96,6 +101,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

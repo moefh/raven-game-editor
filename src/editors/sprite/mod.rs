@@ -122,7 +122,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
-                            dialogs.export_dialog.set_open(sprite);
+                            dialogs.export_dialog.set_open(wc, sprite);
                         }
                     });
 
@@ -131,7 +131,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(sprite, self.color_picker.right_color);
+                            dialogs.properties_dialog.set_open(wc, sprite, self.color_picker.right_color);
                         }
                     });
                 });
@@ -189,21 +189,21 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(AddFramesAction::Insert, self.image_picker.selected_image,
+                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert, self.image_picker.selected_image,
                                                                self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(AddFramesAction::Append, self.image_picker.selected_image,
+                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append, self.image_picker.selected_image,
                                                                self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove frames...").clicked() {
-                            dialogs.rm_frames_dialog.set_open(sprite, self.image_picker.selected_image);
+                            dialogs.rm_frames_dialog.set_open(wc, sprite, self.image_picker.selected_image);
                         }
                     });
                 });

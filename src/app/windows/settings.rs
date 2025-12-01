@@ -10,8 +10,7 @@ fn color_setting(ui: &mut egui::Ui, label: &'static str, colors: &mut [&mut egui
     ui.end_row();
 }
 
-pub fn show_editor_settings(wc: &mut super::super::WindowContext, window_open: &mut bool) {
-    let window_id = egui::Id::new("editor_settings");
+pub fn show_editor_settings(window: &mut super::AppWindow, wc: &mut super::super::WindowContext) {
     let window_space = wc.window_space;
     let default_rect = egui::Rect {
         min: egui::Pos2 {
@@ -24,7 +23,8 @@ pub fn show_editor_settings(wc: &mut super::super::WindowContext, window_open: &
         }
     };
     egui::Window::new("Editor Settings")
-        .id(window_id)
+        .id(window.id)
+        .open(&mut window.open)
         .enabled(! wc.sys_dialogs.has_open_dialog())
         .default_rect(default_rect)
         .max_width(window_space.max.x - window_space.min.x)
@@ -32,7 +32,7 @@ pub fn show_editor_settings(wc: &mut super::super::WindowContext, window_open: &
         .constrain_to(window_space)
         .vscroll(true)
         .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
-        .open(window_open).show(wc.egui.ctx, |ui| {
+        .show(wc.egui.ctx, |ui| {
             egui::CollapsingHeader::new("Main Settings").default_open(true).show(ui, |ui| {
                 egui::Grid::new("editor_settings_main")
                     .num_columns(2)

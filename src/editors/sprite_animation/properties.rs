@@ -33,11 +33,16 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, animation: &SpriteAnimation) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_animation_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, animation: &SpriteAnimation) {
         self.name.clear();
         self.name.push_str(&animation.asset.name);
         self.sprite_id = animation.sprite_id;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, animation: &mut SpriteAnimation, sprites: &AssetList<Sprite>) {
@@ -49,11 +54,11 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn show(&mut self, wc: &WindowContext, animation: &mut SpriteAnimation,
+    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation,
                 sprite_ids: &AssetIdList, sprites: &AssetList<Sprite>) {
         if ! self.open { return; }
 
-        if egui::Modal::new(egui::Id::new("dlg_animation_properties")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Animation Properties");
@@ -99,6 +104,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
     }
 }

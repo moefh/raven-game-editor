@@ -28,12 +28,17 @@ impl AddTilesDialog {
         }
     }
 
-    pub fn set_open(&mut self, action: AddTilesAction, sel_tile: u32, sel_color: u8) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_tileset_add_tiles")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddTilesAction, sel_tile: u32, sel_color: u8) {
         self.action = action;
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.sel_color = sel_color;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
@@ -60,7 +65,7 @@ impl AddTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_tileset_add_tiles")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 match self.action {
@@ -92,6 +97,7 @@ impl AddTilesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

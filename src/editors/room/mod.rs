@@ -531,7 +531,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(room);
+                            dialogs.properties_dialog.set_open(wc, room);
                         }
                     });
                 });
@@ -554,7 +554,7 @@ impl Editor {
                     let (add_entity, sel_entity, rm_entity) = self.show_entity_tree(ui, room);
                     let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
 
-                    if change_maps { dialogs.map_selection_dialog.set_open(room); }
+                    if change_maps { dialogs.map_selection_dialog.set_open(wc, room); }
                     if add_entity { self.add_entity(wc, room, &asset_ids.animations); }
                     if add_trigger { self.add_trigger(room); }
                     if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }

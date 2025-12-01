@@ -61,7 +61,11 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, map_data: &MapData, new_tile: u8) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_map_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, map_data: &MapData, new_tile: u8) {
         self.name.clear();
         self.name.push_str(&map_data.asset.name);
         self.tileset_id = map_data.tileset_id;
@@ -72,6 +76,7 @@ impl PropertiesDialog {
         self.new_tile = new_tile;
         self.resized = false;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
@@ -105,7 +110,7 @@ impl PropertiesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         if ! self.open { return; }
 
-        if egui::Modal::new(egui::Id::new("dlg_map_data_properties")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(350.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Map Properties");
@@ -166,6 +171,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
     }
 }

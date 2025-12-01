@@ -100,7 +100,7 @@ impl Editor {
                             let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
-                            dlg.set_open(map_data, self.image_picker.selected_image_right as u8);
+                            dlg.set_open(wc, map_data, self.image_picker.selected_image_right as u8);
                         }
                     });
                 });

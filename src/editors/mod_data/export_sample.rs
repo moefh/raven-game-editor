@@ -28,13 +28,18 @@ impl ExportSampleDialog {
         }
     }
 
-    pub fn set_open(&mut self, sample_index: usize, sample_rate: u32, bits_per_sample: u16) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_mod_sample_export")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, sample_index: usize, sample_rate: u32, bits_per_sample: u16) {
         self.filename = None;
         self.sample_index = sample_index;
         self.display_filename = None;
         self.bits_per_sample = bits_per_sample;
         self.sample_rate = sample_rate;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) -> bool {
@@ -62,7 +67,7 @@ impl ExportSampleDialog {
             self.filename = Some(filename);
         }
 
-        if egui::Modal::new(egui::Id::new("dlg_mod_sample_export")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Export MOD Sample");
@@ -95,6 +100,7 @@ impl ExportSampleDialog {
                             ui.horizontal(|ui| {
                                 egui::ComboBox::from_id_salt(format!("editor_{}_export_mod_sample_rate", mod_data.asset.id))
                                     .selected_text(self.sample_rate.to_string())
+                                    .width(60.0)
                                     .show_ui(ui, |ui| {
                                         for sample_rate in ALLOWED_SAMPLE_RATES {
                                             ui.selectable_value(&mut self.sample_rate, *sample_rate, sample_rate.to_string());
@@ -107,6 +113,7 @@ impl ExportSampleDialog {
                             ui.label("Bits/sample:");
                             egui::ComboBox::from_id_salt(format!("editor_{}_export_mod_sample_bits_per_sample", mod_data.asset.id))
                                 .selected_text(self.bits_per_sample.to_string())
+                                .width(60.0)
                                 .show_ui(ui, |ui| {
                                     for bits_per_sample in ALLOWED_BITS_PER_SAMPLE {
                                         ui.selectable_value(&mut self.bits_per_sample, *bits_per_sample, bits_per_sample.to_string());
@@ -127,6 +134,7 @@ impl ExportSampleDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
     }
 }

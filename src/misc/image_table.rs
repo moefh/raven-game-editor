@@ -21,7 +21,7 @@ impl StaticImages {
 pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
     let mut store = StaticImageStore::new();
     let clip_tiles_id = store.load_image("clip tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/CollisionBitmap.png"));
-    let fx_tiles_id = store.load_image("clip tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
+    let fx_tiles_id = store.load_image("effects tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
     StaticImages {
         store,
         clip_tiles_id,
@@ -85,6 +85,7 @@ image_table! {
     cut: "../../assets/CutIcon.png",
     copy: "../../assets/CopyIcon.png",
     paste: "../../assets/PasteIcon.png",
+    info: "../../assets/InfoIcon.png",
 
     // buttons
     pen: "../../assets/PenIcon.png",

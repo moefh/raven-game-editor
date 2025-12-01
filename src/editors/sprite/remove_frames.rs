@@ -21,12 +21,17 @@ impl RemoveFramesDialog {
         }
     }
 
-    pub fn set_open(&mut self, sprite: &Sprite, sel_frame: u32) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_sprite_remove_frames")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite, sel_frame: u32) {
         if sprite.num_frames <= 1 || sprite.num_frames <= sel_frame { return; }
         self.max_frames = (sprite.num_frames - sel_frame).min(sprite.num_frames - 1);
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
@@ -53,7 +58,7 @@ impl RemoveFramesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_sprite_add_frames")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Remove Frames");
@@ -82,6 +87,7 @@ impl RemoveFramesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

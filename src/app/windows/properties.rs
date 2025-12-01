@@ -5,9 +5,8 @@ const VGA_SYNC_BITS_OPTIONS: &[&str] = &[
     "0xc0 (11)",
 ];
 
-pub fn show_project_properties(wc: &super::super::WindowContext, window_open: &mut bool,
+pub fn show_project_properties(window: &mut super::AppWindow, wc: &super::super::WindowContext,
                                vga_sync_bits: &mut u8, project_prefix: &mut String) {
-    let window_id = egui::Id::new("project_properties");
     let window_space = wc.window_space;
     let default_rect = egui::Rect {
         min: egui::Pos2 {
@@ -21,13 +20,14 @@ pub fn show_project_properties(wc: &super::super::WindowContext, window_open: &m
     };
     let mut close_window = false;
     egui::Window::new("Project Properties")
-        .id(window_id)
+        .id(window.id)
+        .open(&mut window.open)
         .enabled(! wc.sys_dialogs.has_open_dialog())
         .default_rect(default_rect)
         .max_width(window_space.max.x - window_space.min.x)
         .max_height(window_space.max.y - window_space.min.y)
         .constrain_to(window_space)
-        .open(window_open).show(wc.egui.ctx, |ui| {
+        .show(wc.egui.ctx, |ui| {
             egui::Grid::new("project_properties_grid")
                 .num_columns(2)
                 .spacing([8.0, 8.0])
@@ -55,6 +55,6 @@ pub fn show_project_properties(wc: &super::super::WindowContext, window_open: &m
             });
         });
     if close_window {
-        *window_open = false;
+        window.open = false;
     }
 }

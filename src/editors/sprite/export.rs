@@ -21,11 +21,16 @@ impl ExportDialog {
         }
     }
 
-    pub fn set_open(&mut self, sprite: &Sprite) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_sprite_export")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
         self.filename = None;
         self.display_filename = None;
         self.num_items_x = (sprite.num_frames as f32).sqrt().ceil() as u32;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
@@ -48,7 +53,7 @@ impl ExportDialog {
             self.filename = Some(filename);
         }
 
-        if egui::Modal::new(egui::Id::new("dlg_sprite_export")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Export Sprite");
@@ -94,6 +99,7 @@ impl ExportDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
     }
 }

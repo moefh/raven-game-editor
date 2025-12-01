@@ -28,12 +28,17 @@ impl AddFramesDialog {
         }
     }
 
-    pub fn set_open(&mut self, action: AddFramesAction, sel_frame: u32, sel_color: u8) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_sprite_add_frames")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddFramesAction, sel_frame: u32, sel_color: u8) {
         self.action = action;
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.sel_color = sel_color;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
@@ -60,7 +65,7 @@ impl AddFramesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_sprite_add_frames")).show(wc.egui.ctx, |ui| {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 match self.action {
@@ -92,6 +97,7 @@ impl AddFramesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

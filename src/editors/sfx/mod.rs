@@ -34,7 +34,7 @@ impl SfxEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
-        let title = format!("{} - Sfx", sfx.asset.name);
+        let title = format!("{} - SFX", sfx.asset.name);
         let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
         window.min_size([400.0, 220.0]).default_size([500.0, 220.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
@@ -112,7 +112,7 @@ impl Editor {
         // header:
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button("Sfx", |ui| {
+                ui.menu_button("SFX", |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                         if ui.button("Import...").clicked() {
@@ -125,9 +125,9 @@ impl Editor {
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
-                            dialogs.export_dialog.set_open(sfx, 22050);
+                            dialogs.export_dialog.set_open(wc, sfx, 22050);
                         }
                     });
 
@@ -136,7 +136,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(sfx);
+                            dialogs.properties_dialog.set_open(wc, sfx);
                         }
                     });
                 });

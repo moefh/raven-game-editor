@@ -122,7 +122,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
-                            dialogs.export_dialog.set_open(tileset);
+                            dialogs.export_dialog.set_open(wc, tileset);
                         }
                     });
 
@@ -131,7 +131,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(tileset, self.color_picker.right_color);
+                            dialogs.properties_dialog.set_open(wc, tileset, self.color_picker.right_color);
                         }
                     });
                 });
@@ -189,21 +189,21 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(AddTilesAction::Insert, self.image_picker.selected_image,
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.image_picker.selected_image,
                                                               self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(AddTilesAction::Append, self.image_picker.selected_image,
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.image_picker.selected_image,
                                                               self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove tiles...").clicked() {
-                            dialogs.rm_tiles_dialog.set_open(tileset, self.image_picker.selected_image);
+                            dialogs.rm_tiles_dialog.set_open(wc, tileset, self.image_picker.selected_image);
                         }
                     });
                 });

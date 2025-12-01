@@ -21,7 +21,6 @@ pub struct AssetEditors {
 }
 
 impl AssetEditors {
-
     pub fn new() -> Self {
         AssetEditors {
             egui_id_to_asset_id: HashMap::new(),
@@ -35,12 +34,6 @@ impl AssetEditors {
             fonts: HashMap::new(),
             prop_fonts: HashMap::new(),
         }
-    }
-
-    pub fn get_top_editor_asset_id(&self, ctx: &egui::Context) -> Option<DataAssetId> {
-        ctx.memory(|mem| {
-            mem.layer_ids().fold(None, |top, layer_id| self.egui_id_to_asset_id.get(&layer_id.id).copied().or(top))
-        })
     }
 
     pub fn clear(&mut self) {

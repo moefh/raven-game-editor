@@ -22,13 +22,18 @@ impl MapSelectionDialog {
         }
     }
 
-    pub fn set_open(&mut self, room: &Room) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_room_maps")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room) {
         self.sel_map_ids.clear();
         for map in &room.maps {
             self.sel_map_ids.insert(map.map_id);
         }
         self.display_map_id = room.maps.first().map(|m| m.map_id);
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, room: &mut Room) -> bool {
@@ -59,7 +64,7 @@ impl MapSelectionDialog {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, all_map_ids: &AssetIdList,
                 maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
         let mut maps_changed = false;
-        let modal_response = egui::Modal::new(egui::Id::new("dlg_room_maps")).show(wc.egui.ctx, |ui| {
+        let modal_response = egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             let asset_id = room.asset.id;
             egui::TopBottomPanel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(2.0);
@@ -123,6 +128,7 @@ impl MapSelectionDialog {
         });
         if modal_response.should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
             return modal_response.inner;
         }
         false

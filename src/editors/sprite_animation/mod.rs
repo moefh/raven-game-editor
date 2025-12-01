@@ -310,7 +310,7 @@ impl Editor {
                             let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(animation.sprite_id)
                             });
-                            dlg.set_open(animation);
+                            dlg.set_open(wc, animation);
                         }
                     });
                 });

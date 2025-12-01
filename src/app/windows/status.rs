@@ -1,5 +1,4 @@
-pub fn show_editor_status(wc: &super::super::WindowContext, window_open: &mut bool) {
-    let window_id = egui::Id::new("editor_status");
+pub fn show_editor_status(window: &mut super::AppWindow, wc: &super::super::WindowContext) {
     let window_space = wc.window_space;
     let default_rect = egui::Rect {
         min: egui::Pos2 {
@@ -12,13 +11,14 @@ pub fn show_editor_status(wc: &super::super::WindowContext, window_open: &mut bo
         }
     };
     egui::Window::new("Editor Status")
-        .id(window_id)
+        .id(window.id)
+        .open(&mut window.open)
         .enabled(! wc.sys_dialogs.has_open_dialog())
         .default_rect(default_rect)
         .max_width(window_space.max.x - window_space.min.x)
         .max_height(window_space.max.y - window_space.min.y)
         .constrain_to(window_space)
-        .open(window_open).show(wc.egui.ctx, |ui| {
+        .show(wc.egui.ctx, |ui| {
             //egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 wc.egui.ctx.texture_ui(ui);
             //});

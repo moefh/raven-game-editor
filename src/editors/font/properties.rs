@@ -21,12 +21,17 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, font: &Font) {
+    pub fn id() -> egui::Id {
+        egui::Id::new("dlg_font_properties")
+    }
+
+    pub fn set_open(&mut self, wc: &mut WindowContext, font: &Font) {
         self.name.clear();
         self.name.push_str(&font.asset.name);
         self.width = font.width as f32;
         self.height = font.height as f32;
         self.open = true;
+        wc.set_window_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, font: &mut Font) {
@@ -44,8 +49,8 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn show(&mut self, wc: &WindowContext, font: &mut Font) -> bool {
-        if egui::Modal::new(egui::Id::new("dlg_font_properties")).show(wc.egui.ctx, |ui| {
+    pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) -> bool {
+        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Font Properties");
@@ -82,6 +87,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
+            wc.set_window_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;
