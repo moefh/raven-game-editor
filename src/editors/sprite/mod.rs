@@ -109,7 +109,7 @@ impl Editor {
             let image = match ImageCollection::load_png(&filename) {
                 Ok(img) => img,
                 Err(e) => {
-                    wc.dialogs.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
+                    wc.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
                     return;
                 }
             };

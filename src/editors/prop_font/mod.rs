@@ -121,7 +121,7 @@ impl Editor {
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
         if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
             let Err(e) = ImageCollection::save_prop_font_png(&filename, prop_font) {
-                wc.dialogs.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
+                wc.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
             }
 
         // header:

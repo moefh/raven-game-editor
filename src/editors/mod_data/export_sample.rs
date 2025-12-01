@@ -49,12 +49,12 @@ impl ExportSampleDialog {
                 let Err(e) = wav_utils::WavFile::write(filename, self.sample_rate, self.bits_per_sample, sample_data) {
                     wc.logger.log(format!("ERROR writing WAVE file to {}:", filename.display()));
                     wc.logger.log(format!("{}", e));
-                    wc.dialogs.open_message_box("Error Writing Sample",
-                                                "Error exporting WAVE file.\n\nConsult the log window for more information.");
+                    wc.open_message_box("Error Writing Sample",
+                                        "Error exporting WAVE file.\n\nConsult the log window for more information.");
                 }
             true
         } else {
-            wc.dialogs.open_message_box("Filename Needed", "You need to select a filename to export.");
+            wc.open_message_box("Filename Needed", "You need to select a filename to export.");
             false
         }
     }

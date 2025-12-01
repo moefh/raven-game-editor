@@ -373,7 +373,7 @@ impl Editor {
             Err(e) => {
                 wc.logger.log(format!("ERROR reading MOD file from {}:", filename.display()));
                 wc.logger.log(format!("{}", e));
-                wc.dialogs.open_message_box("Error importing MOD", "Error importing MOD file.\n\nConsult the log window for more information.");
+                wc.open_message_box("Error importing MOD", "Error importing MOD file.\n\nConsult the log window for more information.");
             }
         }
     }
@@ -382,7 +382,7 @@ impl Editor {
         if let Err(e) = mod_utils::ModFile::write_mod_data(filename, mod_data) {
             wc.logger.log(format!("ERROR writing MOD file to {}:", filename.display()));
             wc.logger.log(format!("{}", e));
-            wc.dialogs.open_message_box("Error exporting MOD", "Error exporting MOD file.\n\nConsult the log window for more information.");
+            wc.open_message_box("Error exporting MOD", "Error exporting MOD file.\n\nConsult the log window for more information.");
         }
     }
 
@@ -403,7 +403,7 @@ impl Editor {
         if let Err(e) = result {
             wc.logger.log(format!("ERROR reading WAVE file from {}:", filename.display()));
             wc.logger.log(format!("{}", e));
-            wc.dialogs.open_message_box("Error importing sample", "Error importing WAVE file.\n\nConsult the log window for more information.");
+            wc.open_message_box("Error importing sample", "Error importing WAVE file.\n\nConsult the log window for more information.");
         }
     }
 

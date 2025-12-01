@@ -37,11 +37,11 @@ impl ExportDialog {
         if let Some(filename) = &self.filename {
             let image = ImageCollection::from_asset(sprite);
             if let Err(e) = image.save_image_png(filename, self.num_items_x, &sprite.data) {
-                wc.dialogs.open_message_box("Error Exporting", format!("Error exporting sprite to {}:\n{}", filename.display(), e));
+                wc.open_message_box("Error Exporting", format!("Error exporting sprite to {}:\n{}", filename.display(), e));
             }
             true
         } else {
-            wc.dialogs.open_message_box("Filename Needed", "You need to select a filename to export.");
+            wc.open_message_box("Filename Needed", "You need to select a filename to export.");
             false
         }
     }

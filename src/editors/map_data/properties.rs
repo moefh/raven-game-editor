@@ -81,7 +81,7 @@ impl PropertiesDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
         if self.width < self.bg_width || self.height < self.bg_height {
-            wc.dialogs.open_message_box("Invalid Size", "The background must be smaller or the same size as the foreground.");
+            wc.open_message_box("Invalid Size", "The background must be smaller or the same size as the foreground.");
             self.resized = false;
             return false;
         }

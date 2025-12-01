@@ -40,9 +40,10 @@ pub fn show_editor_settings(window: &mut super::AppWindow, wc: &mut super::super
                     .show(ui, |ui| {
                         ui.label("Theme:");
                         egui::widgets::global_theme_preference_buttons(ui);
-                        match ui.ctx().theme() {
-                            egui::Theme::Light => if wc.settings.theme != "light" { wc.settings.theme = "light".to_owned(); }
-                            egui::Theme::Dark => if wc.settings.theme != "dark" { wc.settings.theme = "dark".to_owned(); }
+                        match ui.ctx().options(|opt| { opt.theme_preference }) {
+                            egui::ThemePreference::System => if wc.settings.theme != "system" { wc.settings.theme = "system".to_owned(); }
+                            egui::ThemePreference::Light => if wc.settings.theme != "light" { wc.settings.theme = "light".to_owned(); }
+                            egui::ThemePreference::Dark => if wc.settings.theme != "dark" { wc.settings.theme = "dark".to_owned(); }
                         }
                         ui.end_row();
 

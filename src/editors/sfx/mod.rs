@@ -97,7 +97,7 @@ impl Editor {
         if let Err(e) = result {
             wc.logger.log(format!("ERROR reading WAV file from {}:", filename.display()));
             wc.logger.log(format!("{}", e));
-            wc.dialogs.open_message_box("Error importing Sfx", "Error importing WAV file.\n\nConsult the log window for more information.");
+            wc.open_message_box("Error importing Sfx", "Error importing WAV file.\n\nConsult the log window for more information.");
         }
     }
 

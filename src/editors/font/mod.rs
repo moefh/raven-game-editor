@@ -117,7 +117,7 @@ impl Editor {
         if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) {
             let image = ImageCollection::from_asset(font);
             if let Err(e) = image.save_font_png(&filename, 16, &font.data) {
-                wc.dialogs.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
+                wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
             }
         }
 

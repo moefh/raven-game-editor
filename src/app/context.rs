@@ -10,6 +10,28 @@ pub enum KeyboardPressed {
     CtrlX,
 }
 
+/**
+The `AppWindowTracker` is used to decide whether a window should
+process keyboard shortcuts.
+
+We can get an ordered list of EGUI window ids from the EGUI
+context. An editor window should process keyboard shortcuts if there's
+no active window above it in the EGUI order. We can't simply check if
+it's the top window because EGUI keeps all windows it's ever seen in
+the list (i.e., even windows that are not open), and worse, the list
+also has child-windows of an editor (e.g. widgets).
+
+So we keep 3 types of windows in storage:
+
+- `editor_ids` are the editor windows;
+
+- `non_asset_ids` are other app windows that are not asset editors
+  (e.g. the log window), which always block editors from processing
+  shortcuts (if above the editors in EGUI order);
+
+- `open_ids` are the dialog windows, which block editors only if they
+  are visible (i.e., open).
+*/
 pub struct AppWindowTracker {
     pub open_ids: HashMap<egui::Id, bool>,
     pub editor_ids: HashMap<egui::Id, DataAssetId>,
@@ -25,10 +47,17 @@ impl AppWindowTracker {
         }
     }
 
+    /**
+     * Mark a dialog window as open or closed. This must be called
+     * whenever a dialog window opens or closes.
+     */
     pub fn set_open(&mut self, id: egui::Id, open: bool) {
         self.open_ids.insert(id, open);
     }
 
+    /**
+     * Reset the state of all windows.
+     */
     pub fn reset(&mut self, editor_ids: &HashMap<egui::Id, DataAssetId>, non_asset_ids: &[egui::Id]) {
         self.editor_ids.clear();
         self.open_ids.clear();
@@ -41,6 +70,10 @@ impl AppWindowTracker {
         }
     }
 
+    /**
+     * Return the asset id of the editor that should process keyboard
+     * shortcuts, `None` if no editor should process shortcuts.
+     */
     pub fn get_top_editor_asset_id(&self, ctx: &egui::Context) -> Option<DataAssetId> {
         ctx.memory(|mem| {
             mem.layer_ids().fold(None, |top, layer_id| {
@@ -94,5 +127,9 @@ impl<'a> WindowContext<'a> {
 
     pub fn set_window_open(&mut self, window_id: egui::Id, open: bool) {
         self.window_tracker.set_open(window_id, open);
+    }
+
+    pub fn open_message_box(&mut self, title: impl AsRef<str>, text: impl AsRef<str>) {
+        self.dialogs.open_message_box(self.window_tracker, title, text);
     }
 }

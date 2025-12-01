@@ -187,7 +187,7 @@ impl Editor {
         let animation_id = match animations.get_first() {
             Some(v) => v,
             None => {
-                wc.dialogs.open_message_box("No Animation Available", "You must create a sprite animation first!");
+                wc.open_message_box("No Animation Available", "You must create a sprite animation first!");
                 return;
             },
         };

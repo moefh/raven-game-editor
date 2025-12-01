@@ -98,13 +98,13 @@ impl RavenEditorApp {
         });
         ctx.style_mut_of(egui::Theme::Dark, |style: &mut egui::Style| {
             style.visuals.window_highlight_topmost = true;
-            style.visuals.window_fill = egui::Color32::from_rgb(0, 0x20, 0x40);
+            style.visuals.window_fill = egui::Color32::BLACK;
             style.visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 0x40, 0x80));
             style.visuals.panel_fill = egui::Color32::from_rgb(0x10, 0x10, 0x10);
             style.visuals.faint_bg_color = egui::Color32::from_rgb(0x18, 0x18, 0x18);
             style.visuals.extreme_bg_color = egui::Color32::BLACK;
-            style.visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(0xff, 0x10, 0x10);
-        });
+            style.visuals.widgets.open.weak_bg_fill = egui::Color32::from_rgb(0x10, 0x20, 0x40);
+       });
         ctx.set_zoom_factor(self.settings.zoom as f32 / 100.0);
         match self.settings.theme.as_str() {
             "light" => ctx.set_theme(egui::ThemePreference::Light),
@@ -295,46 +295,37 @@ impl RavenEditorApp {
     }
 
     fn open_message_box(&mut self, title: &str, text: &str) {
-        self.dialogs.open_message_box(title, text);
+        self.dialogs.open_message_box(&mut self.window_tracker, title, text);
     }
 
     fn open_confirmation_dialog_for(&mut self, action: ConfirmationDialogAction) {
         self.confirmation_dialog_action = action;
         match action {
             ConfirmationDialogAction::NewProject => {
-                self.dialogs.open_confirmation_dialog("New Project", "Close current project and start a new one?", "Yes", "No");
+                self.dialogs.open_confirmation_dialog(&mut self.window_tracker, "New Project",
+                                                      "Close current project and start a new one?", "Yes", "No");
             }
             ConfirmationDialogAction::None => {}
         };
     }
 
-    fn open_about_dialog(&mut self) {
-        self.dialogs.open_about();
+    fn update_dialogs(&mut self, ctx: &egui::Context) {
+        self.dialogs.show_about(ctx, &mut self.window_tracker, &self.sys_dialogs);
+        self.dialogs.show_message_box(ctx, &mut self.window_tracker, &self.sys_dialogs);
+
+        if matches!(self.dialogs.show_confirmation_dialog(ctx, &mut self.window_tracker, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
+            match self.confirmation_dialog_action {
+                ConfirmationDialogAction::NewProject => {
+                    self.load_project(crate::data_asset::DataAssetStore::new());
+                    self.set_filename(None);
+                }
+                ConfirmationDialogAction::None => {}
+            };
+            self.confirmation_dialog_action = ConfirmationDialogAction::None;
+        }
     }
 
-    fn update_dialogs(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
-        if self.dialogs.about_open {
-            self.dialogs.show_about(ctx, &self.sys_dialogs);
-        }
-
-        if self.dialogs.message_box_open {
-            self.dialogs.show_message_box(ctx, &self.sys_dialogs);
-        }
-
-        if self.dialogs.confirmation_dialog_open &&
-            matches!(self.dialogs.show_confirmation_dialog(ctx, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
-                match self.confirmation_dialog_action {
-                    ConfirmationDialogAction::NewProject => {
-                        self.load_project(crate::data_asset::DataAssetStore::new());
-                        self.set_filename(None);
-                    }
-                    ConfirmationDialogAction::None => {}
-                };
-                self.confirmation_dialog_action = ConfirmationDialogAction::None;
-            }
-    }
-
-    fn update_menu(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
+    fn update_menu(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
         egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
 
@@ -430,7 +421,7 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.pico).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("About").clicked() {
-                            self.open_about_dialog();
+                            self.dialogs.open_about(&mut self.window_tracker);
                         }
                     });
                 });
@@ -438,7 +429,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_toolbar(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
+    fn update_toolbar(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
         egui::TopBottomPanel::top("main_toolbar").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
 
@@ -478,7 +469,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_footer(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
+    fn update_footer(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
@@ -486,7 +477,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_asset_tree(&mut self, ctx: &egui::Context, _window: &eframe::Frame) {
+    fn update_asset_tree(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -706,11 +697,12 @@ impl eframe::App for RavenEditorApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
             self.filename_changed = false;
         }
-        self.update_dialogs(ctx, window);
+
+        self.update_dialogs(ctx);
         self.update_menu(ctx, window);
         self.update_toolbar(ctx, window);
-        self.update_footer(ctx, window);
-        self.update_asset_tree(ctx, window);
+        self.update_footer(ctx);
+        self.update_asset_tree(ctx);
         self.update_windows(ctx, window);
     }
 }
