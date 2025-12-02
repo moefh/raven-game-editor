@@ -19,8 +19,8 @@ pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
-use crate::data_asset::{DataAssetId, MapData, ImageCollectionAsset};
-use crate::image::ImagePixels;
+use crate::data_asset::{DataAssetId, MapData};
+use crate::image::{ImagePixels, ImageCollection};
 use egui::{Pos2, Rect};
 
 pub struct DataAssetEditor {
@@ -38,7 +38,7 @@ impl DataAssetEditor {
         }
     }
 
-    pub fn calc_image_editor_window_size(image: &impl ImageCollectionAsset) -> (egui::Vec2, egui::Vec2) {
+    pub fn calc_image_editor_window_size(image: &impl ImageCollection) -> (egui::Vec2, egui::Vec2) {
         let img_w = image.width() as f32;
         let img_h = image.height() as f32;
         let min_width = 130.0 + img_w + 220.0;

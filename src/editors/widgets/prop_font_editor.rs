@@ -37,11 +37,10 @@ impl PropFontEditorWidget {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) {
-        let (image, texture) = ImageCollection::plus_loaded_texture(prop_font, wc.tex_man, wc.egui.ctx,
-                                                                    TextureSlot::Transparent, self.image_changed);
+        let texture = prop_font.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, self.image_changed);
         if self.image_changed { self.image_changed = false; }
         let char_width = self.get_selected_char_width(prop_font);
-        let image_size = Vec2::new(char_width as f32, image.height as f32);
+        let image_size = Vec2::new(char_width as f32, prop_font.height as f32);
         let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
         let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
 
@@ -59,8 +58,8 @@ impl PropFontEditorWidget {
 
         // draw image
         let item_uv = Rect {
-            min: Pos2::new(0.0, self.selected_char as f32 / image.num_items as f32),
-            max: Pos2::new(char_width as f32 / image.width as f32, (self.selected_char+1) as f32 / image.num_items as f32),
+            min: Pos2::new(0.0, self.selected_char as f32 / PropFont::NUM_CHARS as f32),
+            max: Pos2::new(char_width as f32 / prop_font.max_width as f32, (self.selected_char+1) as f32 / PropFont::NUM_CHARS as f32),
         };
         Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
 
@@ -73,8 +72,8 @@ impl PropFontEditorWidget {
         let display_grid = f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 3.0;
         if display_grid {
             let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
-            for y in 0..=image.height {
-                let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / image.height as f32;
+            for y in 0..=prop_font.height {
+                let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / prop_font.height as f32;
                 painter.hline(canvas_rect.x_range(), py, stroke);
             }
             for x in 0..=char_width {
@@ -91,7 +90,7 @@ impl PropFontEditorWidget {
             let image_pos = canvas_to_image * pointer_pos;
             let x = image_pos.x as i32;
             let y = image_pos.y as i32;
-            if let Some(color) = Self::get_click_color(&resp) && image.set_pixel(&mut prop_font.data, x, y, self.selected_char, color) {
+            if let Some(color) = Self::get_click_color(&resp) && prop_font.set_pixel(x, y, self.selected_char, color) {
                 self.image_changed = true;
             }
         }

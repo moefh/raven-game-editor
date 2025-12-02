@@ -39,7 +39,8 @@ impl Font {
 }
 
 impl super::GenericAsset for Font {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: width(1) + height(1) + pad(2) + data<ptr>(4)
         let header = 4usize + 4usize;
@@ -49,13 +50,4 @@ impl super::GenericAsset for Font {
 
         header + data
     }
-}
-
-impl super::ImageCollectionAsset for Font {
-    fn asset_id(&self) -> super::DataAssetId { self.asset.id }
-    fn width(&self) -> u32 { self.width }
-    fn height(&self) -> u32 { self.height }
-    fn num_items(&self) -> u32 { Font::NUM_CHARS }
-    fn data(&self) -> &[u8] { &self.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
 }

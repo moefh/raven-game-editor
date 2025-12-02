@@ -67,7 +67,8 @@ impl Room {
 }
 
 impl super::GenericAsset for Room {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: num_maps(1) + num_entities(1) + num_triggers(1) + pad(1) +
         //         maps<ptr>(4) + entities<ptr>(4) + triggers<ptr>(4)

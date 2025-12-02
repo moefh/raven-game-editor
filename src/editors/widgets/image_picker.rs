@@ -65,11 +65,11 @@ impl ImagePickerWidget {
         painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, settings: &AppSettings, image: &ImageCollection, texture: &egui::TextureHandle) {
+    pub fn show(&mut self, ui: &mut egui::Ui, settings: &AppSettings, image: &impl ImageCollection, texture: &egui::TextureHandle) {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
         let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
             let image_size = self.zoom * image.get_item_size();
-            let empty_item_size = self.zoom * if self.allow_empty_selection { Vec2::new(0.0, image.height as f32) } else { Vec2::ZERO };
+            let empty_item_size = self.zoom * if self.allow_empty_selection { Vec2::new(0.0, image.height() as f32) } else { Vec2::ZERO };
             let image_picker_size = self.zoom * image.get_full_size() + empty_item_size;
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
             let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
@@ -103,7 +103,7 @@ impl ImagePickerWidget {
             let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
             if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
                 let frame_size = self.zoom * image.get_item_size();
-                let num_items = image.num_items + if self.allow_empty_selection { 1 } else { 0 };
+                let num_items = image.num_items() + if self.allow_empty_selection { 1 } else { 0 };
                 let image_index = self.sel_index_to_image(u32::min((pos.y / frame_size.y).floor() as u32, num_items - 1));
                 if scroll.inner.dragged_by(egui::PointerButton::Primary) {
                     self.selected_image = image_index;

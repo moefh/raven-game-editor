@@ -35,8 +35,7 @@ impl ExportDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if let Some(filename) = &self.filename {
-            let image = ImageCollection::from_asset(sprite);
-            if let Err(e) = image.save_image_png(filename, self.num_items_x, &sprite.data) {
+            if let Err(e) = sprite.save_image_png(filename, self.num_items_x) {
                 wc.open_message_box("Error Exporting", format!("Error exporting sprite to {}:\n{}", filename.display(), e));
             }
             true

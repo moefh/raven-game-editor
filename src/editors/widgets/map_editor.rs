@@ -256,7 +256,7 @@ impl MapEditorWidget {
     }
 
     fn paint_floating_selection_for_layer(&self, ui: &mut egui::Ui, layer: MapLayer,
-                                          image: &ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect) {
+                                          image: &impl ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect) {
         let compatible_layer = self.edit_layer == layer || self.edit_layer == MapLayer::Screen;
         if compatible_layer && let MapSelection::LayerFragment(pos, frag) = &self.selection {
             let frag_x = pos.x as i32;
@@ -266,7 +266,7 @@ impl MapEditorWidget {
                 for x in 0..frag.width {
                     let tile_x = { let tile_x = frag_x + x as i32; if tile_x < 0 { continue; } tile_x as u32 };
                     let tile = frag.get_tile(x, y) as u32;
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= image.num_items() { continue; }
                     let tile_rect = Self::get_tile_rect(tile_x, tile_y, self.zoom, canvas_rect.min + self.scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
                     image.paint_at(ui, tile_rect);
@@ -283,7 +283,7 @@ impl MapEditorWidget {
                 for x in 0..frag.width {
                     let tile_x = { let tile_x = frag_x + x as i32; if tile_x < 0 { continue; } tile_x as u32 };
                     let tile = frag.get_layer_tile(x, y, layer) as u32;
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= image.num_items() { continue; }
                     let tile_rect = Self::get_tile_rect(tile_x, tile_y, self.zoom, canvas_rect.min + self.scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
                     image.paint_at(ui, tile_rect);
@@ -504,7 +504,6 @@ impl MapEditorWidget {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData, tileset: &Tileset) {
-        let image = ImageCollection::from_asset(tileset);
         let min_size = (self.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
@@ -556,13 +555,13 @@ impl MapEditorWidget {
 
         // background
         if self.display.has_bits(MapDisplay::BACKGROUND) {
-            let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
             for y in 0..map_data.bg_height {
                 for x in 0..map_data.bg_width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= tileset.num_tiles { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile));
                     if self.edit_layer == MapLayer::Foreground {
                         image.tint(Color32::BLACK).paint_at(ui, tile_rect);
                     } else {
@@ -571,18 +570,18 @@ impl MapEditorWidget {
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Background, &image, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Background, tileset, texture, canvas_rect);
         }
 
         // foreground
         if self.display.has_bits(MapDisplay::FOREGROUND) {
-            let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= tileset.num_tiles { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile));
+                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile));
                     if self.edit_layer == MapLayer::Background {
                         image.tint(Color32::BLACK).paint_at(ui, tile_rect);
                     } else {
@@ -591,39 +590,39 @@ impl MapEditorWidget {
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, &image, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, tileset, texture, canvas_rect);
         }
 
         // collision
         if self.display.has_bits(MapDisplay::CLIP) {
             let clip_tiles = STATIC_IMAGES.clip_tiles();
-            let (image, texture) = ImageCollection::plus_static_texture(clip_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+            let texture = clip_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Clip, x, y);
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= clip_tiles.num_items { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(clip_tiles.get_item_uv(tile)).paint_at(ui, tile_rect);
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Clip, &image, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Clip, clip_tiles, texture, canvas_rect);
         }
 
         // effects
         if self.display.has_bits(MapDisplay::EFFECTS) {
             let fx_tiles = STATIC_IMAGES.fx_tiles();
-            let (image, texture) = ImageCollection::plus_static_texture(fx_tiles, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+            let texture = fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
-                    if tile == 0xff || tile >= image.num_items { continue; }
+                    if tile == 0xff || tile >= fx_tiles.num_items { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(fx_tiles.get_item_uv(tile)).paint_at(ui, tile_rect);
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Effects, &image, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Effects, fx_tiles, texture, canvas_rect);
         }
 
         // grid and border

@@ -361,18 +361,22 @@ impl Editor {
             egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 4.0;
-                let (image, texture) = match self.map_editor.edit_layer {
+                match self.map_editor.edit_layer {
                     MapLayer::Clip => {
-                        ImageCollection::plus_static_texture(STATIC_IMAGES.clip_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                        let tiles = STATIC_IMAGES.clip_tiles();
+                        let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.show(ui, wc.settings, tiles, texture);
                     }
                     MapLayer::Effects => {
-                        ImageCollection::plus_static_texture(STATIC_IMAGES.fx_tiles(), wc.tex_man, wc.egui.ctx, TextureSlot::Transparent)
+                        let tiles = STATIC_IMAGES.fx_tiles();
+                        let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.show(ui, wc.settings, tiles, texture);
                     }
                     _ => {
-                        ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot())
+                        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.show(ui, wc.settings, tileset, texture);
                     }
-                };
-                self.image_picker.show(ui, wc.settings, &image, texture);
+                }
                 self.map_editor.left_draw_tile = self.image_picker.selected_image;
                 self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
             });

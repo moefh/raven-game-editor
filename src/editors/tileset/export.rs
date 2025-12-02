@@ -35,8 +35,7 @@ impl ExportDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if let Some(filename) = &self.filename {
-            let image = ImageCollection::from_asset(tileset);
-            if let Err(e) = image.save_image_png(filename, self.num_items_x, &tileset.data) {
+            if let Err(e) = tileset.save_image_png(filename, self.num_items_x) {
                 wc.open_message_box("Error Exporting", format!("Error exporting tileset to {}:\n{}", filename.display(), e));
             }
             true

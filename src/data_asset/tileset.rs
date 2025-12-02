@@ -41,7 +41,8 @@ impl Tileset {
 }
 
 impl super::GenericAsset for Tileset {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: w(4) + h(4) + stride(4) + num_tiles(4) + data<ptr>(4)
         let header = 4usize * 5usize;
@@ -51,13 +52,4 @@ impl super::GenericAsset for Tileset {
 
         header + image
     }
-}
-
-impl super::ImageCollectionAsset for Tileset {
-    fn asset_id(&self) -> super::DataAssetId { self.asset.id }
-    fn width(&self) -> u32 { self.width }
-    fn height(&self) -> u32 { self.height }
-    fn num_items(&self) -> u32 { self.num_tiles }
-    fn data(&self) -> &[u8] { &self.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
 }

@@ -101,7 +101,8 @@ impl SpriteAnimation {
 }
 
 impl super::GenericAsset for SpriteAnimation {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // collision: x(2) + y(2) + w(2) + h(2)
         let collision = 4usize * 2usize;

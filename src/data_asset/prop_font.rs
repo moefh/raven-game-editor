@@ -44,7 +44,8 @@ impl PropFont {
 }
 
 impl super::GenericAsset for PropFont {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: height(1) + pad(3) + data<ptr>(4) + 96*char_width(1) + 96*char_offset(2)
         let header = 4usize + 4usize + 96usize + 96usize * 2usize;
@@ -54,13 +55,4 @@ impl super::GenericAsset for PropFont {
 
         header + data
     }
-}
-
-impl super::ImageCollectionAsset for PropFont {
-    fn asset_id(&self) -> super::DataAssetId { self.asset.id }
-    fn width(&self) -> u32 { self.max_width }
-    fn height(&self) -> u32 { self.height }
-    fn num_items(&self) -> u32 { PropFont::NUM_CHARS }
-    fn data(&self) -> &[u8] { &self.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.data }
 }

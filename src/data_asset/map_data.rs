@@ -63,7 +63,8 @@ impl MapData {
 }
 
 impl super::GenericAsset for MapData {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: u16(2) * (w,h,bg_w,bg_h) + ptr(4) * (tileset,tile_data)
         let header = 2usize * 4usize + 4usize * 2usize;

@@ -51,8 +51,7 @@ impl RemoveFramesDialog {
                 sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
         }
-        let image = ImageCollection::from_asset(sprite);
-        image.resize(sprite.width, sprite.height, sprite.num_frames - self.num_frames, &mut sprite.data, 0);
+        sprite.resize(sprite.width, sprite.height, sprite.num_frames - self.num_frames, 0);
         sprite.num_frames -= self.num_frames;
         self.image_changed = true;
     }

@@ -5,8 +5,8 @@ mod export;
 
 use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{DataAssetId, Sprite, GenericAsset, ImageCollectionAsset};
+use crate::image::{ImageCollection, ImagePixels, TextureSlot};
+use crate::data_asset::{DataAssetId, Sprite, GenericAsset};
 
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
@@ -106,7 +106,7 @@ impl Editor {
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
         let import_frame_dlg_id = format!("editor_{}_import_frame", sprite.asset.id);
         if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&import_frame_dlg_id) {
-            let image = match ImageCollection::load_png(&filename) {
+            let image = match ImagePixels::load_png(&filename) {
                 Ok(img) => img,
                 Err(e) => {
                     wc.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
@@ -276,9 +276,9 @@ impl Editor {
         });
     }
 
-    pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
-        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+    pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollection) {
+        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
+        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
@@ -296,8 +296,8 @@ impl Editor {
             ui.add_space(5.0);
             self.image_picker.zoom = 80.0 / sprite.width as f32;
             self.image_picker.display = self.image_editor.display;
-            let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-            self.image_picker.show(ui, wc.settings, &image, texture);
+            let texture = sprite.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+            self.image_picker.show(ui, wc.settings, sprite, texture);
             self.image_editor.set_selected_image(self.image_picker.selected_image, sprite);
         });
 

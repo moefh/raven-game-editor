@@ -40,25 +40,23 @@ impl MapViewWidget {
         };
         painter.rect_filled(map_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0,0,0));
 
-        let image = ImageCollection::from_asset(tileset);
-
-        let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
+        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == 0xff || tile >= image.num_items { continue; }
+                if tile == 0xff || tile >= tileset.num_tiles { continue; }
                 let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
         }
 
-        let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
+        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                if tile == 0xff || tile >= image.num_items { continue; }
+                if tile == 0xff || tile >= tileset.num_tiles { continue; }
                 let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, tile_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile)).paint_at(ui, tile_rect);
             }
         }
     }

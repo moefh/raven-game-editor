@@ -42,8 +42,7 @@ impl AddFramesDialog {
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
-        let image = ImageCollection::from_asset(sprite);
-        image.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, &mut sprite.data, self.sel_color);
+        sprite.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, self.sel_color);
         if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < sprite.num_frames {
             let src_top = self.sel_frame * sprite.height;
             let dst_top = (self.sel_frame + self.num_frames) * sprite.height;

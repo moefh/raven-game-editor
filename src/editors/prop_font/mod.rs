@@ -2,7 +2,7 @@ mod properties;
 
 use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -27,15 +27,15 @@ impl FontPainter for PropFont {
         let zoom = height / self.height as f32;
         let width = zoom * char_width;
 
-        let (image, texture) = ImageCollection::plus_texture(self, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        let image_size = image.get_item_size();
+        let texture = self.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let image_size = self.get_item_size();
         let rect = egui::Rect {
             min: pos,
             max: pos + egui::Vec2::new(width, height),
         };
         let uv = Rect {
-            min: Pos2::new(0.0, char_index as f32 / image.num_items as f32),
-            max: Pos2::new(char_width / image.width as f32, (char_index+1) as f32 / image.num_items as f32),
+            min: Pos2::new(0.0, char_index as f32 / PropFont::NUM_CHARS as f32),
+            max: Pos2::new(char_width / self.max_width as f32, (char_index+1) as f32 / PropFont::NUM_CHARS as f32),
         };
         egui::Image::from_texture((texture.id(), image_size)).uv(uv).paint_at(ui, rect);
         width + zoom
@@ -120,7 +120,7 @@ impl Editor {
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
         if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
-            let Err(e) = ImageCollection::save_prop_font_png(&filename, prop_font) {
+            let Err(e) = ImagePixels::save_prop_font_png(&filename, prop_font) {
                 wc.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
             }
 

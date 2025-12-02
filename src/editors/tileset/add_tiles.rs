@@ -42,8 +42,7 @@ impl AddTilesDialog {
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
-        let image = ImageCollection::from_asset(tileset);
-        image.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, &mut tileset.data, self.sel_color);
+        tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.sel_color);
         if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < tileset.num_tiles {
             let src_top = self.sel_tile * tileset.height;
             let dst_top = (self.sel_tile + self.num_tiles) * tileset.height;

@@ -144,17 +144,15 @@ impl Editor {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
                 let slot = self.image_editor.display.texture_slot();
-                let (image, texture) = ImageCollection::plus_loaded_texture(sprite, wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
-                if self.force_reload_image { self.force_reload_image = false; }
-                let view = SpriteFrameListView::new(texture, &image, &aloop.frame_indices,
-                                                    animation.foot_overlap, self.selected_loop_frame);
-                let scroll = view.show(ui);
+                let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
+                let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, self.selected_loop_frame);
+                let scroll = view.show(ui, sprite, texture);
                 let num_frames = aloop.frame_indices.len();
                 if num_frames != 0 &&
                     let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
                     scroll.inner_rect.contains(pointer_pos) {
                         let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                        let frame_size = image.get_item_size();
+                        let frame_size = sprite.get_item_size();
                         self.selected_loop_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
                     }
             }
@@ -181,7 +179,7 @@ impl Editor {
 
         let asset_id = animation.asset.id;
         let slot = self.image_editor.display.texture_slot();
-        let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, slot);
+        let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
 
         egui::TopBottomPanel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
@@ -219,24 +217,23 @@ impl Editor {
                         ui.end_row();
                     });
                 ui.add_space(5.0);
-                let view = SpriteFrameListView::new(texture, &image, &aloop.frame_indices,
-                                                    animation.foot_overlap, aloop.frame_indices.len() + 1);
-                view.show(ui);
+                let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, aloop.frame_indices.len() + 1);
+                view.show(ui, sprite, texture);
             }
         });
 
         egui::TopBottomPanel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label("Sprite frames (drag to the lists below):");
-            let view = SpriteFrameListView::new(texture, &image, &self.sprite_frames, 0, self.selected_sprite_frame);
-            let scroll = view.show(ui);
+            let view = SpriteFrameListView::new(&self.sprite_frames, 0, self.selected_sprite_frame);
+            let scroll = view.show(ui, sprite, texture);
             let num_frames = self.sprite_frames.len();
             if num_frames != 0 &&
                 let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
                 scroll.inner_rect.contains(pointer_pos) &&
                 scroll.inner.drag_started() {
                     let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                    let frame_size = image.get_item_size();
+                    let frame_size = sprite.get_item_size();
                     self.selected_sprite_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
                     scroll.inner.dnd_set_drag_payload(FrameDragPayload::new(self.selected_sprite_frame));
                 }

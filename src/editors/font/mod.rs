@@ -3,7 +3,7 @@ mod properties;
 use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{Font, DataAssetId, ImageCollectionAsset, GenericAsset};
+use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use super::DataAssetEditor;
@@ -22,13 +22,13 @@ impl FontPainter for Font {
 
         let zoom = height / self.height as f32;
         let width = zoom * self.width as f32;
-        let (image, texture) = ImageCollection::plus_texture(self, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        let image_size = image.get_item_size();
+        let texture = self.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        let image_size = self.get_item_size();
         let rect = egui::Rect {
             min: pos,
             max: pos + egui::Vec2::new(width, height),
         };
-        egui::Image::from_texture((texture.id(), image_size)).uv(image.get_item_uv(ch as u32 - Font::FIRST_CHAR)).paint_at(ui, rect);
+        egui::Image::from_texture((texture.id(), image_size)).uv(self.get_item_uv(ch as u32 - Font::FIRST_CHAR)).paint_at(ui, rect);
         width
     }
 }
@@ -48,8 +48,8 @@ impl FontEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, asset: &mut impl ImageCollectionAsset) {
-        self.editor.image_editor.drop_selection(asset);
+    pub fn prepare_for_saving(&mut self, font: &mut Font) {
+        self.editor.image_editor.drop_selection(font);
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
@@ -114,12 +114,10 @@ impl Editor {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) {
-            let image = ImageCollection::from_asset(font);
-            if let Err(e) = image.save_font_png(&filename, 16, &font.data) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) &&
+            let Err(e) = font.save_font_png(&filename, 16) {
                 wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
             }
-        }
 
         // header:
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {

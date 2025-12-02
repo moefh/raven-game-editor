@@ -114,19 +114,8 @@ impl DataAsset {
 }
 
 pub trait GenericAsset {
-    //fn asset(&self) -> &DataAsset;
+    fn asset(&self) -> &DataAsset;
     fn data_size(&self) -> usize;
-}
-
-pub trait ImageCollectionAsset {
-    const TRANSPARENT_COLOR: u8 = 0b001100;
-
-    fn asset_id(&self) -> DataAssetId;
-    fn width(&self) -> u32;
-    fn height(&self) -> u32;
-    fn num_items(&self) -> u32;
-    fn data(&self) -> &[u8];
-    fn data_mut(&mut self) -> &mut [u8];
 }
 
 pub fn image_pixels_prop_font_to_u8(bits: &[u8], widths: &[u8], height: u32, num_items: u32, offsets: &[u16]) -> Vec<u8> {

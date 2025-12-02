@@ -4,19 +4,14 @@ use crate::data_asset::sprite_animation::SpriteAnimationFrame;
 use crate::image::ImageCollection;
 
 pub struct SpriteFrameListView<'a> {
-    texture: &'a egui::TextureHandle,
-    image: &'a ImageCollection,
     frame_indices: &'a [SpriteAnimationFrame],
     foot_overlap: i8,
     selected_index: usize,
 }
 
 impl<'a> SpriteFrameListView<'a> {
-    pub fn new(texture: &'a egui::TextureHandle, image: &'a ImageCollection,
-               frame_indices: &'a [SpriteAnimationFrame], foot_overlap: i8, selected_index: usize) -> Self {
+    pub fn new(frame_indices: &'a [SpriteAnimationFrame], foot_overlap: i8, selected_index: usize) -> Self {
         SpriteFrameListView {
-            texture,
-            image,
             frame_indices,
             foot_overlap,
             selected_index,
@@ -36,12 +31,13 @@ impl<'a> SpriteFrameListView<'a> {
         }
     }
 
-    pub fn show(&self, ui: &mut egui::Ui) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
+    pub fn show(&self, ui: &mut egui::Ui, image: &impl ImageCollection, texture: &egui::TextureHandle)
+                -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
         egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
             let use_foot_frames = self.frame_indices.iter().any(|f| f.foot_index.is_some());
             let foot_overlap = if use_foot_frames { self.foot_overlap as f32 } else { 0.0 };
-            let image_size = self.image.get_item_size();
+            let image_size = image.get_item_size();
             let image_cell_size = Vec2::new(image_size.x, image_size.y * if use_foot_frames { 2.0 } else { 1.0 } - foot_overlap);
             let image_picker_size = Vec2::new(image_cell_size.x * self.frame_indices.len() as f32, image_cell_size.y);
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(ui.available_width(), 0.0));
@@ -60,14 +56,14 @@ impl<'a> SpriteFrameListView<'a> {
             // draw items
             for (index, frame) in self.frame_indices.iter().enumerate() {
                 if let Some(head_index) = frame.head_index {
-                    let uv = self.image.get_item_uv(head_index as u32);
+                    let uv = image.get_item_uv(head_index as u32);
                     let rect = Self::get_frame_rect(index, 0.0, image_size, canvas_rect);
-                    Image::from_texture((self.texture.id(), image_picker_size)).uv(uv).paint_at(ui, rect);
+                    Image::from_texture((texture.id(), image_picker_size)).uv(uv).paint_at(ui, rect);
                 }
                 if use_foot_frames && let Some(foot_index) = frame.foot_index {
-                    let uv = self.image.get_item_uv(foot_index as u32);
+                    let uv = image.get_item_uv(foot_index as u32);
                     let rect = Self::get_frame_rect(index, image_size.y - self.foot_overlap as f32, image_size, canvas_rect);
-                    Image::from_texture((self.texture.id(), image_picker_size)).uv(uv).paint_at(ui, rect);
+                    Image::from_texture((texture.id(), image_picker_size)).uv(uv).paint_at(ui, rect);
                 }
             }
 

@@ -5,8 +5,8 @@ mod export;
 
 use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{Tileset, DataAssetId, GenericAsset, ImageCollectionAsset};
+use crate::image::{ImageCollection, ImagePixels, TextureSlot};
+use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
@@ -30,8 +30,8 @@ impl TilesetEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, asset: &mut impl ImageCollectionAsset) {
-        self.editor.image_editor.drop_selection(asset);
+    pub fn prepare_for_saving(&mut self, tileset: &mut Tileset) {
+        self.editor.image_editor.drop_selection(tileset);
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
@@ -106,7 +106,7 @@ impl Editor {
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         let import_tile_dlg_id = format!("editor_{}_import_tile", tileset.asset.id);
         if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&import_tile_dlg_id) {
-            let image = match ImageCollection::load_png(&filename) {
+            let image = match ImagePixels::load_png(&filename) {
                 Ok(img) => img,
                 Err(e) => {
                     wc.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
@@ -276,9 +276,9 @@ impl Editor {
         });
     }
 
-    fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollectionAsset) {
-        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        ImageCollection::plus_loaded_texture(asset, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+    fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollection) {
+        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
+        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
@@ -296,8 +296,8 @@ impl Editor {
             ui.add_space(5.0);
             self.image_picker.zoom = 4.0;
             self.image_picker.display = self.image_editor.display;
-            let (image, texture) = ImageCollection::plus_texture(tileset, wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-            self.image_picker.show(ui, wc.settings, &image, texture);
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
+            self.image_picker.show(ui, wc.settings, tileset, texture);
             self.image_editor.set_selected_image(self.image_picker.selected_image, tileset);
         });
 

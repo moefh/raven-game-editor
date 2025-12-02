@@ -48,8 +48,7 @@ impl PropertiesDialog {
         let height = self.height;
         let num_frames = self.num_frames;
         if num_frames != sprite.num_frames || width != sprite.width || height != sprite.height {
-            let image = ImageCollection::from_asset(sprite);
-            image.resize(width, height, num_frames, &mut sprite.data, self.sel_color);
+            sprite.resize(width, height, num_frames, self.sel_color);
             sprite.width = width;
             sprite.height = height;
             sprite.num_frames = num_frames;

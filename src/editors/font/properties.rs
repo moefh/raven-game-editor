@@ -41,8 +41,7 @@ impl PropertiesDialog {
         let width = self.width as u32;
         let height = self.height as u32;
         if width != font.width || height != font.height {
-            let image = ImageCollection::from_asset(font);
-            image.resize(width, height, Font::NUM_CHARS, &mut font.data, 0x0c);
+            font.resize(width, height, Font::NUM_CHARS, 0x0c);
             font.width = width;
             font.height = height;
             self.image_changed = true;

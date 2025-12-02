@@ -125,7 +125,8 @@ impl ModData {
 }
 
 impl super::GenericAsset for ModData {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // sample_header: len(4) + loop_start(4) + loop_len(4) +
         //                finetune(1) + volume(1) + bits_per_sample(2) + data<ptr>(4)

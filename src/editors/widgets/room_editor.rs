@@ -371,32 +371,31 @@ impl RoomEditorWidget {
     }
 
     fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
-        let image = ImageCollection::from_asset(tileset);
         for y in 0..map_data.bg_height {
             for x in 0..map_data.bg_width {
-                let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Opaque);
+                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == 0xff || tile >= image.num_items { continue; }
+                if tile == 0xff || tile >= tileset.num_items() { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile)).paint_at(ui, draw_rect);
             }
         }
 
         for y in 0..map_data.height {
             for x in 0..map_data.width {
-                let texture = image.texture(wc.tex_man, wc.egui.ctx, tileset, TextureSlot::Transparent);
+                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                if tile == 0xff || tile >= image.num_items { continue; }
+                if tile == 0xff || tile >= tileset.num_items() { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile)).paint_at(ui, draw_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile)).paint_at(ui, draw_rect);
             }
         }
     }
 
     fn draw_entity(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, entity_rect: Rect, sprite: &Sprite, frame: u32) {
         let draw_rect = to_canvas.transform_rect(entity_rect);
-        let (image, texture) = ImageCollection::plus_texture(sprite, wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        Image::from_texture((texture.id(), image.get_item_size())).uv(image.get_item_uv(frame)).paint_at(ui, draw_rect);
+        let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        Image::from_texture((texture.id(), sprite.get_item_size())).uv(sprite.get_item_uv(frame)).paint_at(ui, draw_rect);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {

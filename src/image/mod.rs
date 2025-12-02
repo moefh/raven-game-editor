@@ -3,13 +3,12 @@ mod texture_manager;
 mod static_image_store;
 
 use egui::{Rect, Pos2};
-use crate::data_asset::ImageCollectionAsset;
 
 pub use texture_manager::TextureManager;
 pub use image_collection::ImageCollection;
 pub use static_image_store::StaticImageStore;
 
-use crate::data_asset::DataAssetId;
+use crate::data_asset::{DataAssetId, PropFont};
 
 #[derive(Copy, Clone)]
 pub struct ImageRect {
@@ -20,8 +19,8 @@ pub struct ImageRect {
 }
 
 impl ImageRect {
-    pub fn from_rect(rect: Rect, image: &ImageCollection) -> Self {
-        let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(image.width as f32, image.height as f32)));
+    pub fn from_rect(rect: Rect, image: &impl ImageCollection) -> Self {
+        let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(image.width() as f32, image.height() as f32)));
         ImageRect {
             x: rect.min.x as u32,
             y: rect.min.y as u32,
@@ -30,12 +29,12 @@ impl ImageRect {
         }
     }
 
-    pub fn from_image_item(image: &ImageCollection) -> Self {
+    pub fn from_image_item(image: &impl ImageCollection) -> Self {
         ImageRect {
             x: 0,
             y: 0,
-            width: image.width,
-            height: image.height,
+            width: image.width(),
+            height: image.height(),
         }
     }
 }
@@ -48,7 +47,7 @@ pub struct ImagePixels {
 }
 
 impl ImagePixels {
-    pub const TRANSPARENT_COLOR: u8 = ImageFragment::TRANSPARENT_COLOR;
+    pub const TRANSPARENT_COLOR: u8 = 0b001100;
 
     pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
         ImagePixels {
@@ -56,6 +55,58 @@ impl ImagePixels {
             height,
             data,
         }
+    }
+
+    pub fn load_png(path: impl AsRef<std::path::Path>) -> Result<ImagePixels, Box<dyn std::error::Error>> {
+        let img = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
+        let width = img.width();
+        let height = img.height();
+        let mut data = Vec::with_capacity((width * height) as usize);
+        for pixel in img.pixels() {
+            if pixel[3] >= 0x80 {
+                data.push((pixel[2] >> 2) & 0b110000 |
+                          (pixel[1] >> 4) & 0b001100 |
+                          (pixel[0] >> 6) & 0b000011);
+            } else {
+                data.push(ImagePixels::TRANSPARENT_COLOR);
+            }
+        }
+        Ok(ImagePixels {
+            width,
+            height,
+            data,
+        })
+    }
+
+    pub fn save_prop_font_png(path: impl AsRef<std::path::Path>, pfont: &PropFont) -> Result<(), Box<dyn std::error::Error>> {
+        let dst_char_width = pfont.char_widths.iter().max().ok_or(std::io::Error::other("invalid prop font char width")).copied()? as u32;
+
+        let num_items_x = 16;
+        let num_items_y = PropFont::NUM_CHARS.div_ceil(num_items_x);
+        let dst_w = num_items_x * dst_char_width;
+        let dst_h = num_items_y * pfont.height;
+
+        let mut dst = vec![0u8; (4 * dst_w * dst_h) as usize];
+        for y_item in 0..num_items_y {
+            let dst_item_off_y = dst_w * y_item * pfont.height;
+            for x_item in 0..num_items_x {
+                if y_item * num_items_x + x_item >= PropFont::NUM_CHARS { break; }
+                let src_item_off = (y_item * num_items_x + x_item) * pfont.max_width * pfont.height;
+                for y in 0..pfont.height {
+                    let dst_off_y = dst_item_off_y + x_item * dst_char_width + dst_w * y;
+                    for x in 0..dst_char_width {
+                        let dst_off = (4 * (dst_off_y + x)) as usize;
+                        let src_off = (src_item_off + y * pfont.max_width + x) as usize;
+                        dst[dst_off  ] = 0;
+                        dst[dst_off+1] = if pfont.data[src_off] == PropFont::BG_COLOR { 0xff } else { 0 };
+                        dst[dst_off+2] = 0;
+                        dst[dst_off+3] = 0xff;
+                    }
+                }
+            }
+        }
+        ::image::save_buffer_with_format(path, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)?;
+        Ok(())
     }
 }
 
@@ -87,13 +138,13 @@ impl ImageFragment {
     }
 }
 
-impl ImageCollectionAsset for ImageFragment {
-    fn asset_id(&self) -> DataAssetId { self.id }
+impl ImageCollection for ImageFragment {
+    fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.id) }
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { 1 }
-    fn data(&self) -> &[u8] { &self.pixels.data }
-    fn data_mut(&mut self) -> &mut [u8] { &mut self.pixels.data }
+    fn data(&self) -> &Vec<u8> { &self.pixels.data }
+    fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }
 
 pub struct StaticImageData {
@@ -114,6 +165,15 @@ impl StaticImageData {
             },
         }
     }
+}
+
+impl ImageCollection for StaticImageData {
+    fn texture_name_id(&self) -> TextureNameId { TextureNameId::Static(self.id) }
+    fn width(&self) -> u32 { self.pixels.width }
+    fn height(&self) -> u32 { self.pixels.height }
+    fn num_items(&self) -> u32 { 1 }
+    fn data(&self) -> &Vec<u8> { &self.pixels.data }
+    fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -157,16 +217,9 @@ pub struct TextureName {
 }
 
 impl TextureName {
-    pub fn from_asset_id(asset_id: DataAssetId, slot: TextureSlot) -> Self {
+    pub fn new(id: TextureNameId, slot: TextureSlot) -> Self {
         TextureName {
-            id: TextureNameId::Asset(asset_id),
-            slot,
-        }
-    }
-
-    pub fn from_static_image_id(static_image_id: StaticImageId, slot: TextureSlot) -> Self {
-        TextureName {
-            id: TextureNameId::Static(static_image_id),
+            id,
             slot,
         }
     }

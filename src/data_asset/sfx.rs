@@ -57,7 +57,8 @@ impl Sfx {
 }
 
 impl super::GenericAsset for Sfx {
-    //fn asset(&self) -> &super::DataAsset { &self.asset }
+    fn asset(&self) -> &super::DataAsset { &self.asset }
+
     fn data_size(&self) -> usize {
         // header: len(4) + loop_start(4) + loop_len(4) + bits_per_sample(4) + samples<ptr>(4)
         let header = 4usize * 4usize + 4usize;

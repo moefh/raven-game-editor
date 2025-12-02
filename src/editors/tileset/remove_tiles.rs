@@ -51,8 +51,7 @@ impl RemoveTilesDialog {
                 tileset.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
         }
-        let image = ImageCollection::from_asset(tileset);
-        image.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, &mut tileset.data, 0);
+        tileset.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, 0);
         tileset.num_tiles -= self.num_tiles;
         self.image_changed = true;
     }
