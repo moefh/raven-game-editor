@@ -80,6 +80,10 @@ impl AppWindows {
         &self.window_ids
     }
 
+    pub fn clear_project(&mut self) {
+        self.check.clear();
+    }
+
     pub fn show_properties(&mut self, wc: &WindowContext, vga_sync_bits: &mut u8, project_prefix: &mut String) {
         self.properties.show(wc, vga_sync_bits, project_prefix);
     }

@@ -17,6 +17,10 @@ impl CheckWindow {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.result = None;
+    }
+
     pub fn run_check(&mut self, store: &DataAssetStore) {
         self.result = Some(CheckResult::check_project(store));
     }
@@ -57,6 +61,8 @@ impl CheckWindow {
                             ui.label("============================================================");
                         }
                         ui.label(format!("DONE: {}/{} assets ok", num_assets - num_assets_with_problems, num_assets));
+                    } else {
+                        ui.label("(Press F5 to check)");
                     }
                 });
             });

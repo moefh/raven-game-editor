@@ -202,6 +202,7 @@ impl RavenEditorApp {
     fn load_project(&mut self, store: DataAssetStore) {
         self.editors.clear();
         self.tex_manager.clear();
+        self.windows.clear_project();
         self.store = store;
         self.editors.create_editors_for_new_store(&self.store);
         self.window_tracker.reset(&self.editors.egui_id_to_asset_id, self.windows.get_ids());
