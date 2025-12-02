@@ -90,6 +90,10 @@ impl RavenEditorApp {
         app
     }
 
+    fn activate_window(ctx: &egui::Context, window_id: egui::Id) {
+        ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, window_id));
+    }
+
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
         egui_extras::install_image_loaders(ctx);
         crate::add_font(ctx);
@@ -339,8 +343,12 @@ impl RavenEditorApp {
             }
             let run_check_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F5);
             if ui.input_mut(|i| i.consume_shortcut(&run_check_shortcut)) {
-                self.windows.open_check();
                 self.windows.check.run_check(&self.store);
+                if ! self.windows.check.base.open {
+                    self.windows.open_check();
+                } else {
+                    Self::activate_window(ctx, self.windows.check.base.id);
+                }
             }
 
             egui::MenuBar::new().ui(ui, |ui| {
@@ -631,7 +639,14 @@ impl RavenEditorApp {
         self.windows.show_status(&win_ctx);
         self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
         self.windows.show_log_window(&win_ctx);
-        self.windows.show_check(&win_ctx);
+        if let Some(asset_id) = self.windows.show_check(&win_ctx, &self.store) &&
+            let Some(editor) = self.editors.get_editor_mut(asset_id) {
+                if ! editor.open {
+                    editor.open = true;
+                } else {
+                    Self::activate_window(ctx, editor.egui_id);
+                }
+            }
 
         self.editors_clipboard = win_ctx.clipboard.take();
     }

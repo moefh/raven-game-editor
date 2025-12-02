@@ -1,60 +1,66 @@
-use std::cell::RefCell;
-use std::sync::LazyLock;
-
 use super::AppWindow;
 use super::super::WindowContext;
 
-use crate::data_asset::{DataAssetStore, StringLogger};
-
-static TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(
-    || time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
+use crate::data_asset::{DataAssetId, DataAssetStore};
+use crate::checker::CheckResult;
 
 pub struct CheckWindow {
     pub base: AppWindow,
-    pub log: RefCell<StringLogger>,
+    pub result: Option<CheckResult>,
 }
 
 impl CheckWindow {
     pub fn new(base: AppWindow) -> Self {
         CheckWindow {
             base,
-            log: RefCell::new(StringLogger::new(false)),
+            result: None,
         }
     }
 
-    fn clear_log(&self) {
-        if let Ok(mut log) = self.log.try_borrow_mut() {
-            log.clear();
-        }
+    pub fn run_check(&mut self, store: &DataAssetStore) {
+        self.result = Some(CheckResult::check_project(store));
     }
 
-    fn log(&self, line: impl AsRef<str>) {
-        if let Ok(mut log) = self.log.try_borrow_mut() {
-            log.log(line);
-        }
-    }
-
-    pub fn run_check(&mut self, _store: &DataAssetStore) {
-        self.clear_log();
-        if let Ok(now) = time::OffsetDateTime::now_local() && let Ok(timestamp) = now.format(&TIMESTAMP_FORMAT) {
-            self.log(format!("[{}]", timestamp));
-        } else {
-            self.log("[<unknown time>]");
-        }
-        self.log("DONE: 0/0 checks passed, 0/0 failed");
-    }
-
-    pub fn show(&mut self, wc: &WindowContext) {
-        let default_rect = self.base.default_rect(wc, 600.0, 300.0);
+    pub fn show(&mut self, wc: &WindowContext, store: &DataAssetStore) -> Option<DataAssetId> {
+        let default_rect = egui::Rect {
+            min: egui::Pos2::new(wc.window_space.min.x + 5.0, wc.window_space.max.y - 130.0),
+            max: wc.window_space.max - egui::Vec2::splat(20.0),
+        };
+        let mut open_asset_id = None;
         self.base.create_window(wc, "✔ Project Check", default_rect).show(wc.egui.ctx, |ui| {
-            egui::ScrollArea::both().auto_shrink(false).stick_to_bottom(true).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
-                    match self.log.try_borrow() {
-                        Ok(log) => ui.label(log.read()),
-                        Err(e) => ui.label(format!("ERROR: can't read check result:\n{}\n", e)),
+                    if let Some(result) = &self.result {
+                        ui.label(format!("[{}]", result.timestamp));
+                        let num_assets = result.num_assets_checked();
+                        let num_assets_with_problems = result.num_assets_with_problems();
+                        if num_assets_with_problems > 0 {
+                            ui.label("=== PROBLEMS FOUND =========================================");
+                            for (asset_id, problems) in &result.asset_problems {
+                                if ! problems.is_empty() {
+                                    match store.assets.get_asset(*asset_id) {
+                                        Some(asset) => {
+                                            ui.horizontal(|ui| {
+                                                ui.label("->");
+                                                if ui.button(&asset.name).clicked() {
+                                                    open_asset_id = Some(asset.id);
+                                                }
+                                            });
+                                        }
+                                        None => { ui.label("-> <unknown asset>:"); }
+                                    }
+                                    for problem in problems {
+                                        problem.log(ui);
+                                    }
+                                }
+                            }
+                            ui.label("============================================================");
+                        }
+                        ui.label(format!("DONE: {}/{} assets ok", num_assets - num_assets_with_problems, num_assets));
                     }
                 });
             });
         });
+        open_asset_id
     }
 }

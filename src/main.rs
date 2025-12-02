@@ -5,6 +5,7 @@ mod image;
 mod sound;
 mod data_asset;
 mod editors;
+mod checker;
 mod app;
 
 use crate::app::RavenEditorApp;

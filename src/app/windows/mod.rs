@@ -4,6 +4,8 @@ mod log_window;
 mod properties;
 mod check;
 
+use crate::data_asset::{DataAssetId, DataAssetStore};
+
 use super::WindowContext;
 
 pub use settings::SettingsWindow;
@@ -94,8 +96,8 @@ impl AppWindows {
         self.log_window.show(wc);
     }
 
-    pub fn show_check(&mut self, wc: &WindowContext) {
-        self.check.show(wc);
+    pub fn show_check(&mut self, wc: &WindowContext, store: &DataAssetStore) -> Option<DataAssetId> {
+        self.check.show(wc, store)
     }
 
     pub fn open_log_window(&mut self) {
