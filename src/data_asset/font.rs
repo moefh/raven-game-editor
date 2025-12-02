@@ -33,8 +33,24 @@ impl Font {
             asset,
             width: data.width,
             height: data.height,
-            data: super::image_pixels_font_to_u8(data.data, data.width, data.height, Font::NUM_CHARS),
+            data: Self::bits_to_pixels(data.data, data.width, data.height),
         }
+    }
+
+    fn bits_to_pixels(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
+        let stride = width.div_ceil(8) as usize;
+        let mut pixels = vec![Font::BG_COLOR; (width * height * Self::NUM_CHARS) as usize];
+        for y in 0..(height * Self::NUM_CHARS) as usize {
+            for x in 0..stride {
+                let block = bits.get(y*stride + x).map_or(0, |&v| v);
+                for ix in 0..8.min(width as i32 - x as i32 * 8) as usize {
+                    if block & (1 << ix) != 0 {
+                        pixels[y * width as usize + x*8 + ix] = Self::FG_COLOR;
+                    }
+                }
+            }
+        }
+        pixels
     }
 }
 

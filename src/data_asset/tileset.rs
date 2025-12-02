@@ -1,5 +1,3 @@
-pub const TILE_SIZE: u32 = 16;
-
 pub struct Tileset {
     pub asset: super::DataAsset,
     pub width: u32,
@@ -16,15 +14,16 @@ pub struct CreationData<'a> {
 }
 
 impl Tileset {
-    pub const TILE_SIZE: u32 = TILE_SIZE;
+    pub const TILE_SIZE: u32 = 16;
 
     pub fn new(asset: super::DataAsset) -> Self {
+        let num_tiles = 10;
         Tileset {
             asset,
-            width: TILE_SIZE,
-            height: TILE_SIZE,
-            num_tiles: 10,
-            data: vec![0x3f; (TILE_SIZE*TILE_SIZE*10) as usize],
+            width: Self::TILE_SIZE,
+            height: Self::TILE_SIZE,
+            num_tiles,
+            data: vec![0x3f; (Self::TILE_SIZE*Self::TILE_SIZE*num_tiles) as usize],
         }
     }
 
@@ -34,7 +33,7 @@ impl Tileset {
             width: data.width,
             height: data.height,
             num_tiles: data.num_tiles,
-            data: super::image_pixels_u32_to_u8(data.data, data.width, data.height, data.num_tiles),
+            data: super::image_u32_to_pixels(data.data, data.width, data.height, data.num_tiles),
         }
     }
 

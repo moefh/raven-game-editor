@@ -17,12 +17,15 @@ impl Sprite {
     pub const MIRROR_FRAMES: bool = true;
 
     pub fn new(asset: super::DataAsset) -> Self {
+        let width = 32;
+        let height = 32;
+        let num_frames = 8;
         Sprite {
             asset,
-            width: 32,
-            height: 32,
-            num_frames: 8,
-            data: vec![0x3f; 32*32*8],
+            width,
+            height,
+            num_frames,
+            data: vec![0x3f; (width*height*num_frames) as usize],
         }
     }
 
@@ -32,7 +35,7 @@ impl Sprite {
             width: data.width,
             height: data.height,
             num_frames: data.num_frames,
-            data: super::image_pixels_u32_to_u8(data.data, data.width, data.height, data.num_frames),
+            data: super::image_u32_to_pixels(data.data, data.width, data.height, data.num_frames),
         }
     }
 }

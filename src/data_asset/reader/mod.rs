@@ -1050,9 +1050,9 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("tileset data not found: '{}'", full_name), ident.pos)?;
                 };
 
-            if width != super::tileset::TILE_SIZE || height != super::tileset::TILE_SIZE {
+            if width != super::Tileset::TILE_SIZE || height != super::Tileset::TILE_SIZE {
                 error(format!("invalid tileset size: got {}x{}, expected {}x{}",
-                              width, height, super::tileset::TILE_SIZE, super::tileset::TILE_SIZE), t.pos)?;
+                              width, height, super::Tileset::TILE_SIZE, super::Tileset::TILE_SIZE), t.pos)?;
             }
             let want_stride = width.div_ceil(4);
             if stride != want_stride {

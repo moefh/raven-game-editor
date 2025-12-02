@@ -1,7 +1,9 @@
 use std::sync::LazyLock;
 
-use crate::data_asset::tileset::TILE_SIZE;
+use crate::data_asset::Tileset;
 use crate::image::{StaticImageId, StaticImageData, StaticImageStore};
+
+const TILE_SIZE: u32 = Tileset::TILE_SIZE;
 
 pub struct StaticImages {
     clip_tiles_id: StaticImageId,
