@@ -3,7 +3,7 @@ mod add_tiles;
 mod remove_tiles;
 mod export;
 
-use crate::IMAGES;
+use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};

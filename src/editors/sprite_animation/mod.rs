@@ -1,6 +1,6 @@
 mod properties;
 
-use crate::IMAGES;
+use crate::misc::IMAGES;
 use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::{

@@ -4,9 +4,8 @@ mod export_sample;
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
 
-use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::misc::{mod_utils, wav_utils};
+use crate::misc::{IMAGES, mod_utils, wav_utils};
 use crate::sound::SoundPlayer;
 use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 

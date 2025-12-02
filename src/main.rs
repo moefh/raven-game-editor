@@ -7,7 +7,6 @@ mod data_asset;
 mod editors;
 mod app;
 
-use crate::misc::image_table::IMAGES;
 use crate::app::RavenEditorApp;
 
 static FONT_BYTES: &[u8] = include_bytes!("../assets/fonts/ComicMono.ttf");

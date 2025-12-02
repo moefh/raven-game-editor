@@ -1,10 +1,9 @@
 mod properties;
 
-use crate::IMAGES;
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
-use crate::misc::STATIC_IMAGES;
+use crate::misc::{IMAGES, STATIC_IMAGES};
 
 use properties::PropertiesDialog;
 use super::{DataAssetEditor, MapLayer};
@@ -143,6 +142,17 @@ impl Editor {
         });
     }
 
+    fn add_indenting_label(ui: &mut egui::Ui, width: f32, text: &str) {
+        let start = ui.cursor();
+        ui.label(text);
+        let end = ui.cursor();
+        let space_left = width - (end.min.x - start.min.x);
+        if space_left > 0.0 {
+            let indent = egui::Rect::from_min_size(end.min, egui::Vec2::new(space_left, 1.0));
+            ui.advance_cursor_after_rect(indent);
+        }
+    }
+
     fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext) {
         egui::TopBottomPanel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
@@ -150,8 +160,8 @@ impl Editor {
                 ui.add_space(2.0);
                 let spacing = ui.spacing().item_spacing;
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-                ui.label("Display:");
-                ui.add_space(1.0);
+
+                Self::add_indenting_label(ui, 70.0, "Display:");
 
                 if ui.add(egui::Button::image(IMAGES.layer_fg)
                           .selected(self.map_editor.display.has_bits(MapDisplay::FOREGROUND))
@@ -248,8 +258,7 @@ impl Editor {
                 let spacing = ui.spacing().item_spacing;
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
 
-                ui.label("Edit:");
-                ui.add_space(23.0);
+                Self::add_indenting_label(ui, 70.0, "Edit:");
 
                 if ui.add(egui::Button::image(IMAGES.pencil_fg)
                           .selected(self.map_editor.edit_layer == MapLayer::Foreground)

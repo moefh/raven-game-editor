@@ -1,6 +1,6 @@
 mod properties;
 
-use crate::IMAGES;
+use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};

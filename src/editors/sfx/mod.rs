@@ -2,10 +2,9 @@ mod properties;
 mod export;
 
 use std::io::Error;
-use crate::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::sound::SoundPlayer;
-use crate::misc::wav_utils;
+use crate::misc::{IMAGES, wav_utils};
 use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
