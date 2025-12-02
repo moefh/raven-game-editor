@@ -171,7 +171,7 @@ impl ImageCollection for StaticImageData {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Static(self.id) }
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
-    fn num_items(&self) -> u32 { 1 }
+    fn num_items(&self) -> u32 { self.num_items }
     fn data(&self) -> &Vec<u8> { &self.pixels.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }
