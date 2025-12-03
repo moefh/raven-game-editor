@@ -2,7 +2,7 @@ use std::io::{Result, Error};
 use std::path::PathBuf;
 
 use crate::data_asset::StringLogger;
-use crate::data_asset::reader::tokenizer::{Tokenizer, Token, TokenData};
+use crate::data_asset::{Tokenizer, Token, TokenData};
 
 pub struct AppSettings {
     pub theme: String,
@@ -110,7 +110,7 @@ impl<'a> ConfigLoader<'a> {
 
     fn load_config(config: &str, settings: &mut AppSettings) -> Result<()> {
         let mut loader = ConfigLoader {
-            tok: crate::data_asset::reader::tokenizer::Tokenizer::new(config),
+            tok: crate::data_asset::Tokenizer::new(config),
             settings,
         };
         loader.load()

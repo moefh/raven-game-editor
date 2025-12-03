@@ -120,7 +120,7 @@ impl RavenEditorApp {
 
     pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
         let mut store = crate::data_asset::DataAssetStore::new();
-        match crate::data_asset::reader::read_project(path.as_ref(), &mut store, &mut self.logger) {
+        match crate::data_asset::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
                 self.load_project(store);
                 self.set_filename(Some(path.as_ref().to_path_buf()));
@@ -172,7 +172,7 @@ impl RavenEditorApp {
 
     fn write_project(&mut self, path: &std::path::Path) -> bool {
         self.prepare_for_saving();
-        match crate::data_asset::writer::write_project(path, &self.store, &mut self.logger) {
+        match crate::data_asset::write_project(path, &self.store, &mut self.logger) {
             Ok(()) => true,
             Err(_) => {
                 self.open_message_box("Error Writing Project",

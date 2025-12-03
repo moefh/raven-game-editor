@@ -1,5 +1,5 @@
 use crate::data_asset::{AssetCollection, ModData};
-use crate::data_asset::mod_data::MOD_PERIOD_TABLE;
+use crate::data_asset::MOD_PERIOD_TABLE;
 
 use super::AssetProblem;
 
