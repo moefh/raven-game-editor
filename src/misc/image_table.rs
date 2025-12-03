@@ -88,6 +88,7 @@ image_table! {
     copy: "../../assets/CopyIcon.png",
     paste: "../../assets/PasteIcon.png",
     info: "../../assets/InfoIcon.png",
+    header: "../../assets/HeaderIcon.png",
 
     // buttons
     pen: "../../assets/PenIcon.png",

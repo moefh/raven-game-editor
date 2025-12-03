@@ -118,6 +118,22 @@ impl RavenEditorApp {
         }
     }
 
+    pub fn export_header(&mut self, path: &std::path::Path) -> bool {
+        match crate::data_asset::write_header_def(path, &self.store.project_prefix) {
+            Ok(()) => {
+                self.logger.log(format!("Exported header to {}", path.display()));
+                true
+            }
+            Err(e) => {
+                self.logger.log(format!("ERROR writing header content to {}:\n{}", path.display(), e));
+                self.open_message_box("Error Exportint Header",
+                                      "Error exporting header.\n\nConsult the log window for details.");
+                self.windows.open_log_window();
+                false
+            }
+        }
+    }
+
     pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
         let mut store = crate::data_asset::DataAssetStore::new();
         match crate::data_asset::read_project(path.as_ref(), &mut store, &mut self.logger) {
@@ -422,6 +438,20 @@ impl RavenEditorApp {
                             self.windows.open_properties();
                         }
                     });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.header).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        if ui.button("Export header...").clicked() {
+                            self.sys_dialogs.save_file(
+                                Some(window),
+                                "export_header".to_owned(),
+                                "Export Header File",
+                                &[
+                                    ("Header files (*.h)", &["h"]),
+                                    ("All files (*.*)", &["*"]),
+                                ]
+                            );
+                        }
+                    });
                     ui.separator();
                     ui.horizontal(|ui| {
                         ui.add_space(NO_IMAGE_MENU_SIZE);
@@ -698,6 +728,9 @@ impl eframe::App for RavenEditorApp {
             }
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("open_project") {
             self.open(&filename);
+        }
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("export_header") {
+            self.export_header(&filename);
         }
 
         if self.reset_egui_context {

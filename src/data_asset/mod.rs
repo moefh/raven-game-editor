@@ -9,6 +9,7 @@ mod font;
 mod prop_font;
 mod reader;
 mod writer;
+mod header_def;
 
 use std::fmt;
 use std::collections::HashMap;
@@ -26,6 +27,7 @@ pub use sfx::Sfx;
 pub use mod_data::{MOD_PERIOD_TABLE, ModData, ModSample, ModCell};
 pub use font::Font;
 pub use prop_font::PropFont;
+pub use header_def::write_header_def;
 
 pub struct StringLogger {
     log: String,
