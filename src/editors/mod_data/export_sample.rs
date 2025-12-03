@@ -86,12 +86,15 @@ impl ExportSampleDialog {
                                     ui.label("");
                                 }
                                 if ui.button("...").clicked() {
-                                    wc.sys_dialogs.save_file(Some(wc.egui.window), export_dlg_id,
-                                                             "Export MOD Sample",
-                                                             &[
-                                                                 ("WAVE files (*.wav)", &["wav"]),
-                                                                 ("All files (*.*)", &["*"]),
-                                                             ]);
+                                    wc.sys_dialogs.save_file(
+                                        Some(wc.egui.window),
+                                        export_dlg_id,
+                                        "Export MOD Sample",
+                                        &[
+                                            ("WAVE files (*.wav)", &["wav"]),
+                                            ("All files (*.*)", &["*"]),
+                                        ]
+                                    );
                                 }
                             });
                             ui.end_row();

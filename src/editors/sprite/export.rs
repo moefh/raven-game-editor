@@ -71,12 +71,15 @@ impl ExportDialog {
                                     ui.label("");
                                 }
                                 if ui.button("...").clicked() {
-                                    wc.sys_dialogs.save_file(Some(wc.egui.window), format!("editor_{}_export_sprite", sprite.asset.id),
-                                                             "Export Sprite",
-                                                             &[
-                                                                 ("PNG files (*.png)", &["png"]),
-                                                                 ("All files (*.*)", &["*"]),
-                                                             ]);
+                                    wc.sys_dialogs.save_file(
+                                        Some(wc.egui.window),
+                                        format!("editor_{}_export_sprite", sprite.asset.id),
+                                        "Export Sprite",
+                                        &[
+                                            ("PNG files (*.png)", &["png"]),
+                                            ("All files (*.*)", &["*"]),
+                                        ]
+                                    );
                                 }
                             });
                             ui.end_row();

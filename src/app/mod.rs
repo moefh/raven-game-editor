@@ -108,7 +108,7 @@ impl RavenEditorApp {
             style.visuals.faint_bg_color = egui::Color32::from_rgb(0x18, 0x18, 0x18);
             style.visuals.extreme_bg_color = egui::Color32::BLACK;
             style.visuals.widgets.open.weak_bg_fill = egui::Color32::from_rgb(0x10, 0x20, 0x40);
-       });
+        });
         ctx.set_zoom_factor(self.settings.zoom as f32 / 100.0);
         match self.settings.theme.as_str() {
             "light" => ctx.set_theme(egui::ThemePreference::Light),
@@ -184,12 +184,15 @@ impl RavenEditorApp {
     }
 
     pub fn save_as(&mut self, window: &eframe::Frame) {
-        self.sys_dialogs.save_file(Some(window), "save_project_as".to_owned(),
-                                   "Save Project As",
-                                   &[
-                                       ("Raven project files (*.h)", &["h"]),
-                                       ("All files (*.*)", &["*"]),
-                                   ]);
+        self.sys_dialogs.save_file(
+            Some(window),
+            "save_project_as".to_owned(),
+            "Save Project As",
+            &[
+                ("Raven project files (*.h)", &["h"]),
+                ("All files (*.*)", &["*"]),
+            ]
+        );
     }
 
     pub fn save(&mut self, window: &eframe::Frame) {
@@ -364,12 +367,15 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Open...").clicked() {
-                            self.sys_dialogs.open_file(Some(window), "open_project".to_owned(),
-                                                       "Open Project",
-                                                       &[
-                                                           ("Raven project files (*.h)", &["h"]),
-                                                           ("All files (*.*)", &["*"]),
-                                                       ]);
+                            self.sys_dialogs.open_file(
+                                Some(window),
+                                "open_project".to_owned(),
+                                "Open Project",
+                                &[
+                                    ("Raven project files (*.h)", &["h"]),
+                                    ("All files (*.*)", &["*"]),
+                                ]
+                            );
                         }
                     });
 
@@ -456,12 +462,15 @@ impl RavenEditorApp {
                     self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
                 }
                 if ui.add(egui::Button::image(IMAGES.open).frame_when_inactive(false)).on_hover_text("Open Project").clicked() {
-                    self.sys_dialogs.open_file(Some(window), "open_project".to_owned(),
-                                               "Open Project",
-                                               &[
-                                                   ("Raven project files (*.h)", &["h"]),
-                                                   ("All files (*.*)", &["*"]),
-                                               ]);
+                    self.sys_dialogs.open_file(
+                        Some(window),
+                        "open_project".to_owned(),
+                        "Open Project",
+                        &[
+                            ("Raven project files (*.h)", &["h"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
                 }
                 if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text("Save Project").clicked() {
                     self.save(window);

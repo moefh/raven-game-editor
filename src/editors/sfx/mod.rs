@@ -115,12 +115,15 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                         if ui.button("Import...").clicked() {
-                            wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}", self.asset_id),
-                                                     "Import WAVE file",
-                                                     &[
-                                                         ("WAVE files (*.wav)", &["wav"]),
-                                                         ("All files (*.*)", &["*"]),
-                                                     ]);
+                            wc.sys_dialogs.open_file(
+                                Some(wc.egui.window),
+                                format!("editor_{}", self.asset_id),
+                                "Import WAVE file",
+                                &[
+                                    ("WAVE files (*.wav)", &["wav"]),
+                                    ("All files (*.*)", &["*"]),
+                                ]
+                            );
                         }
                     });
                     ui.horizontal(|ui| {

@@ -179,12 +179,15 @@ impl Editor {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                             if ui.button("Import WAV...").clicked() {
-                                wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_sample", self.asset_id),
-                                                         "Import WAVE file",
-                                                         &[
-                                                             ("WAVE files (*.wav)", &["wav"]),
-                                                             ("All files (*)", &[""]),
-                                                         ]);
+                                wc.sys_dialogs.open_file(
+                                    Some(wc.egui.window),
+                                    format!("editor_{}_import_sample", self.asset_id),
+                                    "Import WAVE file",
+                                    &[
+                                        ("WAVE files (*.wav)", &["wav"]),
+                                        ("All files (*)", &[""]),
+                                    ]
+                                );
                             }
                         });
                         ui.horizontal(|ui| {
@@ -425,23 +428,29 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                         if ui.button("Import...").clicked() {
-                            wc.sys_dialogs.open_file(Some(wc.egui.window), format!("editor_{}_import_mod", self.asset_id),
-                                                     "Import MOD file",
-                                                     &[
-                                                         ("MOD files (*.mod)", &["mod"]),
-                                                         ("All files (*)", &[""]),
-                                                     ]);
+                            wc.sys_dialogs.open_file(
+                                Some(wc.egui.window),
+                                format!("editor_{}_import_mod", self.asset_id),
+                                "Import MOD file",
+                                &[
+                                    ("MOD files (*.mod)", &["mod"]),
+                                    ("All files (*)", &[""]),
+                                ]
+                            );
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
-                            wc.sys_dialogs.save_file(Some(wc.egui.window), format!("editor_{}_export_mod", self.asset_id),
-                                                     "Export MOD file",
-                                                     &[
-                                                         ("MOD files (*.mod)", &["mod"]),
-                                                         ("All files (*)", &[""]),
-                                                     ]);
+                            wc.sys_dialogs.save_file(
+                                Some(wc.egui.window),
+                                format!("editor_{}_export_mod", self.asset_id),
+                                "Export MOD file",
+                                &[
+                                    ("MOD files (*.mod)", &["mod"]),
+                                    ("All files (*)", &[""]),
+                                ]
+                            );
                         }
                     });
                     ui.separator();

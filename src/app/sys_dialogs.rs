@@ -27,7 +27,7 @@ impl SysDialogRequest {
         self.response_data.lock().unwrap().response.is_none()
     }
 
-    fn open_file(response_data: Arc<Mutex<SysDialogResponseData>>, file_dialog: rfd::FileDialog) {
+    fn open_file(file_dialog: rfd::FileDialog, response_data: Arc<Mutex<SysDialogResponseData>>) {
         let file = file_dialog.pick_file();
         let mut data = response_data.lock().unwrap();
         data.response = match file {
@@ -36,7 +36,7 @@ impl SysDialogRequest {
         };
     }
 
-    fn save_file(response_data: Arc<Mutex<SysDialogResponseData>>, file_dialog: rfd::FileDialog) {
+    fn save_file(file_dialog: rfd::FileDialog, response_data: Arc<Mutex<SysDialogResponseData>>) {
         let file = file_dialog.save_file();
         let mut data = response_data.lock().unwrap();
         data.response = match file {
@@ -94,9 +94,6 @@ impl SysDialogs {
     pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
-        let request = SysDialogRequest::new(request_id);
-
-        let response_data = request.response_data.clone();
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
         if let Some(window) = window {
             file_dialog = file_dialog.set_parent(window);
@@ -104,7 +101,10 @@ impl SysDialogs {
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
-        thread::spawn(move || SysDialogRequest::open_file(response_data, file_dialog));
+
+        let request = SysDialogRequest::new(request_id);
+        let response_data = request.response_data.clone();
+        thread::spawn(move || SysDialogRequest::open_file(file_dialog, response_data));
 
         self.request = Some(request);
         true
@@ -113,9 +113,6 @@ impl SysDialogs {
     pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
-        let request = SysDialogRequest::new(request_id);
-
-        let response_data = request.response_data.clone();
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
         if let Some(window) = window {
             file_dialog = file_dialog.set_parent(window);
@@ -123,7 +120,10 @@ impl SysDialogs {
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
-        thread::spawn(move || SysDialogRequest::save_file(response_data, file_dialog));
+
+        let request = SysDialogRequest::new(request_id);
+        let response_data = request.response_data.clone();
+        thread::spawn(move || SysDialogRequest::save_file(file_dialog, response_data));
 
         self.request = Some(request);
         true

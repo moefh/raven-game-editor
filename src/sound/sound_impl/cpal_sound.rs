@@ -99,13 +99,16 @@ impl SoundPlayerImpl {
                 player.render_samples(data);
             },
             move |err| { println!("CPAL error: {}", err); },
-            None)?;
+            None
+        )?;
         stream.pause()?;
 
         Ok(SoundPlayerImpl {
             name: format!("cpal at {} Hz, {} channel(s), filter {}",
-                          config.sample_rate.0, config.channels,
-                          if USE_FILTER { "enabled" } else { "disabled" }),
+                          config.sample_rate.0,
+                          config.channels,
+                          if USE_FILTER { "enabled" } else { "disabled" }
+            ),
             _host: host,
             _device: device,
             stream,

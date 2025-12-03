@@ -175,12 +175,15 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
                         if ui.button("Paste from file...").clicked() {
-                            wc.sys_dialogs.open_file(Some(wc.egui.window), import_tile_dlg_id,
-                                                     "Paste From File",
-                                                     &[
-                                                         ("PNG files (*.png)", &["png"]),
-                                                         ("All files (*.*)", &["*"]),
-                                                     ]);
+                            wc.sys_dialogs.open_file(
+                                Some(wc.egui.window),
+                                import_tile_dlg_id,
+                                "Paste From File",
+                                &[
+                                    ("PNG files (*.png)", &["png"]),
+                                    ("All files (*.*)", &["*"]),
+                                ]
+                            );
                         }
                     });
 

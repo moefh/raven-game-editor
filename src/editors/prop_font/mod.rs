@@ -131,12 +131,15 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
-                            wc.sys_dialogs.save_file(Some(wc.egui.window), Self::export_dlg_id(prop_font),
-                                                     "Export Prop Font",
-                                                     &[
-                                                         ("PNG files (*.png)", &["png"]),
-                                                         ("All files (*.*)", &["*"]),
-                                                     ]);
+                            wc.sys_dialogs.save_file(
+                                Some(wc.egui.window),
+                                Self::export_dlg_id(prop_font),
+                                "Export Prop Font",
+                                &[
+                                    ("PNG files (*.png)", &["png"]),
+                                    ("All files (*.*)", &["*"]),
+                                ]
+                            );
                         }
                     });
 
