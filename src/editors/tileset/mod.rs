@@ -314,6 +314,10 @@ impl Editor {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             let colors = (self.color_picker.left_color, self.color_picker.right_color);
             self.image_editor.show(ui, wc, tileset, colors);
+            self.color_picker.maybe_set_colors(
+                self.image_editor.pick_left_color.take(),
+                self.image_editor.pick_right_color.take()
+            );
         });
 
         // keyboard shortcuts

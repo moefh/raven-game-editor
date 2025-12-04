@@ -100,6 +100,15 @@ impl ColorPickerWidget {
         }
     }
 
+    pub fn maybe_set_colors(&mut self, left_color: Option<u8>, right_color: Option<u8>) {
+        if let Some(color) = left_color {
+            self.left_color = color;
+        }
+        if let Some(color) = right_color {
+            self.right_color = color;
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext) {
         let min_size = Vec2::splat(112.0).max(Vec2::new(112.0, ui.available_size().y));
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());

@@ -109,6 +109,8 @@ impl ImageDisplay {
 pub struct ImageEditorWidget {
     pub display: ImageDisplay,
     pub selection: ImageSelection,
+    pub pick_left_color: Option<u8>,
+    pub pick_right_color: Option<u8>,
     tool: ImageDrawingTool,
     selected_image: u32,
     undo_target: Option<ImageFragment>,
@@ -125,6 +127,8 @@ impl ImageEditorWidget {
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
             tool: ImageDrawingTool::Pencil,
             selection: ImageSelection::None,
+            pick_left_color: None,
+            pick_right_color: None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
             undo_target: None,
@@ -236,7 +240,7 @@ impl ImageEditorWidget {
         }
     }
 
-    fn get_selected_color_for_click(&self, resp: &egui::Response, colors: (u8, u8)) -> Option<u8> {
+    fn get_selected_color_for_click(resp: &egui::Response, colors: (u8, u8)) -> Option<u8> {
         if resp.dragged_by(egui::PointerButton::Primary) {
             Some(colors.0)
         } else if resp.dragged_by(egui::PointerButton::Secondary) {
@@ -293,25 +297,51 @@ impl ImageEditorWidget {
         }
     }
 
+    fn pick_color(&mut self, x: i32, y: i32, asset: &mut (impl ImageCollection + GenericAsset), resp: &egui::Response) -> bool {
+        let mouse_in_image = x >= 0 && y >= 0 && (x as u32) < asset.width() && (y as u32) < asset.height();
+        if ! mouse_in_image { return false; }
+
+        let color = asset.get_pixel(x, y, self.selected_image);
+        if resp.dragged_by(egui::PointerButton::Primary) {
+            self.pick_left_color = Some(color);
+            return true;
+        }
+        if resp.dragged_by(egui::PointerButton::Secondary) {
+            self.pick_right_color = Some(color);
+            return true
+        }
+        false
+    }
+
     fn handle_mouse(&mut self, mouse_pos: Pos2, asset: &mut (impl ImageCollection + GenericAsset), resp: &egui::Response, colors: (u8, u8)) {
         let x = mouse_pos.x.floor() as i32;
         let y = mouse_pos.y.floor() as i32;
 
+        let ctrl_held = resp.ctx.input(|i| i.modifiers.ctrl);
+
         match self.tool {
             ImageDrawingTool::Pencil => {
-                if resp.drag_started() { self.set_undo_target(asset); }
-                if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
-                    asset.set_pixel(x, y, self.selected_image, color) {
-                        self.image_changed = true;
-                    }
+                if ctrl_held {
+                    self.pick_color(x, y, asset, resp);
+                } else {
+                    if resp.drag_started() { self.set_undo_target(asset); }
+                    if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
+                        asset.set_pixel(x, y, self.selected_image, color) {
+                            self.image_changed = true;
+                        }
+                }
             }
 
             ImageDrawingTool::Fill => {
-                if resp.drag_started() { self.set_undo_target(asset); }
-                if let Some(color) = self.get_selected_color_for_click(resp, colors) &&
-                    asset.flood_fill(x, y, self.selected_image, color) {
-                        self.image_changed = true;
-                    }
+                if ctrl_held {
+                    self.pick_color(x, y, asset, resp);
+                } else {
+                    if resp.drag_started() { self.set_undo_target(asset); }
+                    if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
+                        asset.flood_fill(x, y, self.selected_image, color) {
+                            self.image_changed = true;
+                        }
+                }
             }
 
             ImageDrawingTool::Select => {

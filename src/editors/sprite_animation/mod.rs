@@ -166,6 +166,10 @@ impl Editor {
                     self.image_editor.set_selected_image(image_item as u32, sprite);
                     let colors = (self.color_picker.left_color, self.color_picker.right_color);
                     self.image_editor.show(ui, wc, sprite, colors);
+                    self.color_picker.maybe_set_colors(
+                        self.image_editor.pick_left_color.take(),
+                        self.image_editor.pick_right_color.take()
+                    );
                 }
         });
     }
