@@ -414,10 +414,18 @@ impl ImageEditorWidget {
         }
     }
 
+    fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {
+        image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
+        image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset), colors: (u8, u8)) {
+        if self.image_changed {
+            Self::update_texture(wc, asset);
+            self.image_changed = false;
+        }
         let slot = self.display.texture_slot();
-        let texture = asset.load_texture(wc.tex_man, ui.ctx(), slot, self.image_changed);
-        if self.image_changed { self.image_changed = false; }
+        let texture = asset.texture(wc.tex_man, ui.ctx(), slot);
 
         let image_size = asset.get_item_size();
         let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
