@@ -1,4 +1,6 @@
-use crate::data_asset::{AssetCollection, ModData};
+use std::collections::BTreeMap;
+
+use crate::data_asset::{DataAssetId, DataAssetStore, ModData};
 use crate::data_asset::MOD_PERIOD_TABLE;
 
 use super::AssetProblem;
@@ -15,7 +17,7 @@ fn get_next_nearest_mod_period(period: u16) -> Option<u16> {
     Some(0)
 }
 
-pub fn check_mod(mod_data: &ModData, _assets: &AssetCollection) -> Vec<AssetProblem> {
+fn check_mod(mod_data: &ModData) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
 
     let num_song_pos = mod_data.song_positions.iter().copied().max().unwrap_or(0) as usize + 1;
@@ -43,4 +45,10 @@ pub fn check_mod(mod_data: &ModData, _assets: &AssetCollection) -> Vec<AssetProb
     }
 
     problems
+}
+
+pub fn check_mods(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+    for mod_data in store.assets.mods.iter() {
+        asset_problems.insert(mod_data.asset.id, check_mod(mod_data));
+    }
 }

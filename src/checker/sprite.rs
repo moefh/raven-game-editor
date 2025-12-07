@@ -1,8 +1,10 @@
-use crate::data_asset::{AssetCollection, Sprite};
+use std::collections::BTreeMap;
+
+use crate::data_asset::{DataAssetId, DataAssetStore, Sprite};
 
 use super::AssetProblem;
 
-pub fn check_sprite(sprite: &Sprite, _assets: &AssetCollection) -> Vec<AssetProblem> {
+fn check_sprite(sprite: &Sprite) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
 
     if sprite.num_frames > 255 {
@@ -10,4 +12,10 @@ pub fn check_sprite(sprite: &Sprite, _assets: &AssetCollection) -> Vec<AssetProb
     }
 
     problems
+}
+
+pub fn check_sprites(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+    for sprite in store.assets.sprites.iter() {
+        asset_problems.insert(sprite.asset.id, check_sprite(sprite));
+    }
 }

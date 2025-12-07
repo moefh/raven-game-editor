@@ -1,8 +1,10 @@
-use crate::data_asset::{AssetCollection, Tileset};
+use std::collections::BTreeMap;
+
+use crate::data_asset::{DataAssetId, DataAssetStore, Tileset};
 
 use super::AssetProblem;
 
-pub fn check_tileset(tileset: &Tileset, _assets: &AssetCollection) -> Vec<AssetProblem> {
+fn check_tileset(tileset: &Tileset) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
 
     if tileset.num_tiles > 255 {
@@ -10,4 +12,10 @@ pub fn check_tileset(tileset: &Tileset, _assets: &AssetCollection) -> Vec<AssetP
     }
 
     problems
+}
+
+pub fn check_tilesets(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+    for tileset in store.assets.tilesets.iter() {
+        asset_problems.insert(tileset.asset.id, check_tileset(tileset));
+    }
 }

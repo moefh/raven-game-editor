@@ -7,12 +7,13 @@ mod mod_data;
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-static TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(
-    || time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
+static TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(|| {
+    time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap()
+});
 
 use crate::data_asset::{DataAssetStore, DataAssetId};
 
-pub use asset_problem::AssetProblem;
+pub use asset_problem::{AssetProblem, MapLayer};
 
 pub struct CheckResult {
     pub timestamp: String,
@@ -28,18 +29,10 @@ impl CheckResult {
         };
 
         let mut asset_problems = BTreeMap::new();
-        for tileset in store.assets.tilesets.iter() {
-            asset_problems.insert(tileset.asset.id, tileset::check_tileset(tileset, &store.assets));
-        }
-        for map_data in store.assets.maps.iter() {
-            asset_problems.insert(map_data.asset.id, map_data::check_map(map_data, &store.assets));
-        }
-        for sprite in store.assets.sprites.iter() {
-            asset_problems.insert(sprite.asset.id, sprite::check_sprite(sprite, &store.assets));
-        }
-        for mod_data in store.assets.mods.iter() {
-            asset_problems.insert(mod_data.asset.id, mod_data::check_mod(mod_data, &store.assets));
-        }
+        tileset::check_tilesets(&mut asset_problems, store);
+        map_data::check_maps(&mut asset_problems, store);
+        sprite::check_sprites(&mut asset_problems, store);
+        mod_data::check_mods(&mut asset_problems, store);
 
         CheckResult {
             timestamp,

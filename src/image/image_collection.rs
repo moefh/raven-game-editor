@@ -12,6 +12,12 @@ pub trait ImageCollection {
     fn data(&self) -> &Vec<u8>;
     fn data_mut(&mut self) -> &mut Vec<u8>;
 
+    fn item_data(&self, item: u32) -> &[u8] {
+        let num_item_pixels = (self.width() * self.height()) as usize;
+        let first_item_pixel = item as usize * num_item_pixels;
+        &self.data()[first_item_pixel..first_item_pixel+num_item_pixels]
+    }
+
     fn load_texture<'a>(&self, tex_man: &'a mut TextureManager, ctx: &egui::Context, slot: TextureSlot, force_load: bool)
                         -> &'a egui::TextureHandle {
         self.get_or_load_texture(tex_man, ctx, slot, force_load)

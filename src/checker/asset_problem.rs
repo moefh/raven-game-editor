@@ -1,10 +1,27 @@
-use crate::data_asset::Tileset;
+use crate::data_asset::{DataAssetId, Tileset};
+
+pub enum MapLayer {
+    Foreground,
+    Background,
+}
+
+impl MapLayer {
+    pub fn name(&self) -> &'static str {
+        match self {
+            MapLayer::Foreground => "foreground",
+            MapLayer::Background => "background",
+        }
+    }
+}
 
 pub enum AssetProblem {
     TilesetTooBig { num_tiles: u32 },
+    MapTilesetInvalid { tileset_id: DataAssetId },
     MapTooSmall { width: u32, height: u32 },
     MapBackgroundTooSmall { bg_width: u32, bg_height: u32 },
     MapBackgroundTooBig { width: u32, height: u32, bg_width: u32, bg_height: u32 },
+    MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
+    MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -15,6 +32,10 @@ impl AssetProblem {
         match self {
             AssetProblem::TilesetTooBig { num_tiles } => {
                 ui.label(format!("  -> tileset has too many tiles: {} (max is 255)", num_tiles));
+            }
+
+            AssetProblem::MapTilesetInvalid { tileset_id } => {
+                ui.label(format!("  -> map references an invalid tileset: {}", tileset_id));
             }
 
             AssetProblem::MapTooSmall { width, height } => {
@@ -44,6 +65,25 @@ impl AssetProblem {
                     bg_height,
                     width,
                     height
+                ));
+            }
+
+            AssetProblem::MapInvalidTile { tile_x, tile_y, tile, layer } => {
+                ui.label(format!(
+                    "  -> map has invalid tile {} at ({}, {}) layer {} ",
+                    tile,
+                    tile_x,
+                    tile_y,
+                    layer.name()
+                ));
+            }
+
+            AssetProblem::MapTransparentTile { first_tile_x, first_tile_y, num_tiles } => {
+                ui.label(format!(
+                    "  -> map has transparent fg tiles over missing background starting at ({}, {}), total of {} tile(s)",
+                    first_tile_x,
+                    first_tile_y,
+                    num_tiles
                 ));
             }
 
