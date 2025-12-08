@@ -11,7 +11,7 @@ pub const SCREEN_HEIGHT: u32 = 240;
 /// Return a vector of bools indicating whether each tile is transparent or not
 fn build_tileset_transparency(tileset: &Tileset) -> Vec<bool> {
     (0..tileset.num_tiles).map(|tile| {
-        tileset.item_data(tile).iter().any(|&p| p == ImagePixels::TRANSPARENT_COLOR)
+        tileset.item_data(tile).contains(&ImagePixels::TRANSPARENT_COLOR)
     }).collect()
 }
 
@@ -25,12 +25,12 @@ fn get_bg_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
     map_data.bg_tiles[(y*map_data.bg_width + x) as usize]
 }
 
-fn check_map_transparency(map_data: &MapData, tileset_transp: &Vec<bool>, problems: &mut Vec<AssetProblem>) {
+fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
     // Build a map of all fg tile positions that may overlap a transparent bg (i.e., a bg with no tile set).
     // Note that bg with a tile set is never transparent, because in bg a transparent pixel is drawn as green.
     let pw = map_data.width - map_data.bg_width + 1;
     let ph = map_data.height - map_data.bg_height + 1;
-    if pw <= 0 || ph <= 0 {
+    if pw + map_data.bg_width > map_data.width || ph + map_data.bg_height > map_data.height {
         // invalid size; this will be caught by another checker
         return;
     }
