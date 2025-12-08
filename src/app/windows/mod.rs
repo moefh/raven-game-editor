@@ -42,8 +42,7 @@ impl AppWindow {
             .open(&mut self.open)
             .enabled(! wc.sys_dialogs.has_open_dialog())
             .default_rect(default_rect)
-            .max_width(wc.window_space.width())
-            .max_height(wc.window_space.height())
+            .max_size(wc.window_space.size())
             .constrain_to(wc.window_space)
     }
 }
@@ -92,8 +91,8 @@ impl AppWindows {
         self.settings.show(wc);
     }
 
-    pub fn show_status(&mut self, wc: &WindowContext) {
-        self.status.show(wc);
+    pub fn show_status(&mut self, wc: &WindowContext, store: &DataAssetStore) {
+        self.status.show(wc, store);
     }
 
     pub fn show_log_window(&mut self, wc: &WindowContext) {

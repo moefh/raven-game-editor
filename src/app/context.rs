@@ -87,6 +87,22 @@ impl AppWindowTracker {
             })
         })
     }
+
+    pub fn get_top_non_editor_id(&self, ctx: &egui::Context) -> Option<egui::Id> {
+        ctx.memory(|mem| {
+            mem.layer_ids().fold(None, |top, layer_id| {
+                if let Some(true) = self.open_ids.get(&layer_id.id) {   // open dialog
+                    Some(layer_id.id)
+                } else if self.non_asset_ids.contains(&layer_id.id) {   // non-editor window
+                    Some(layer_id.id)
+                } else if self.editor_ids.contains_key(&layer_id.id) {  // editor window
+                    None
+                } else {
+                    top
+                }
+            })
+        })
+    }
 }
 
 pub struct WindowEguiContext<'a> {
@@ -123,6 +139,10 @@ impl<'a> WindowContext<'a> {
 
     pub fn is_editor_on_top(&self, id: DataAssetId) -> bool {
         self.window_tracker.get_top_editor_asset_id(self.egui.ctx) == Some(id)
+    }
+
+    pub fn is_window_on_top(&self, window_id: egui::Id) -> bool {
+        self.window_tracker.get_top_non_editor_id(self.egui.ctx) == Some(window_id)
     }
 
     pub fn set_window_open(&mut self, window_id: egui::Id, open: bool) {

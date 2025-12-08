@@ -676,7 +676,7 @@ impl RavenEditorApp {
         }
 
         self.windows.show_settings(&mut win_ctx);
-        self.windows.show_status(&win_ctx);
+        self.windows.show_status(&win_ctx, &self.store);
         self.windows.show_properties(&win_ctx, &mut self.store.vga_sync_bits, &mut self.store.project_prefix);
         self.windows.show_log_window(&win_ctx);
         if let Some(asset_id) = self.windows.show_check(&win_ctx, &self.store) &&
