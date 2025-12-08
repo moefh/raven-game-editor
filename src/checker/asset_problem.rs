@@ -23,6 +23,10 @@ pub enum AssetProblem {
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
     MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
+    RoomWithNoMaps,
+    RoomInvalidMapId { map_id: DataAssetId },
+    RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
+    RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
 }
@@ -91,8 +95,34 @@ impl AssetProblem {
                 ui.label(format!("  -> sprite has too many frames: {} (max is 255)", num_frames));
             }
 
+            AssetProblem::RoomWithNoMaps => {
+                ui.label("  -> room has no maps");
+            }
+
+            AssetProblem::RoomInvalidMapId { map_id } => {
+                ui.label(format!("  -> room with invalid map id: {}", map_id));
+            }
+
+            AssetProblem::RoomMapInvalidXLocation { map_id, x } => {
+                ui.label(format!(
+                    "  -> room map {} extends too far horizontally: {} (max is {})",
+                    map_id,
+                    x,
+                    (i16::MAX as u32 + 1) / Tileset::TILE_SIZE
+                ));
+            }
+
+            AssetProblem::RoomMapInvalidYLocation { map_id, y } => {
+                ui.label(format!(
+                    "  -> room map {} extends too far horizontally: {} (max is {})",
+                    map_id,
+                    y,
+                    (i16::MAX as u32 + 1) / Tileset::TILE_SIZE
+                ));
+            }
+
             AssetProblem::ModPatternTooSmall { expected, got } => {
-                    ui.label(format!("  -> MOD pattern has too few cells: expected {}, got {}", expected, got));
+                ui.label(format!("  -> MOD pattern has too few cells: expected {}, got {}", expected, got));
             }
 
             AssetProblem::ModNoteOutOfTune { song_position, row, chan, sharp_by } => {

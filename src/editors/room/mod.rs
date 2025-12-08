@@ -389,11 +389,11 @@ impl Editor {
                     ui.end_row();
 
                     ui.label("X:");
-                    Self::edit_prop_u16(ui, &mut room_map.x, 0, 1024);
+                    Self::edit_prop_u16(ui, &mut room_map.x, 0, 2048);
                     ui.end_row();
 
                     ui.label("Y:");
-                    Self::edit_prop_u16(ui, &mut room_map.y, 0, 1024);
+                    Self::edit_prop_u16(ui, &mut room_map.y, 0, 2048);
                     ui.end_row();
                 });
         });

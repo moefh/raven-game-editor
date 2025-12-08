@@ -3,6 +3,7 @@ mod tileset;
 mod map_data;
 mod sprite;
 mod mod_data;
+mod room;
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
@@ -33,6 +34,7 @@ impl CheckResult {
         map_data::check_maps(&mut asset_problems, store);
         sprite::check_sprites(&mut asset_problems, store);
         mod_data::check_mods(&mut asset_problems, store);
+        room::check_rooms(&mut asset_problems, store);
 
         CheckResult {
             timestamp,
