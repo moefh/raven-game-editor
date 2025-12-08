@@ -34,9 +34,9 @@ impl MapData {
             height,
             bg_width,
             bg_height,
-            fg_tiles: vec![0; (width * height) as usize],
-            clip_tiles: vec![0; (width * height) as usize],
-            fx_tiles: vec![0; (width * height) as usize],
+            fg_tiles: vec![0xff; (width * height) as usize],
+            clip_tiles: vec![0xff; (width * height) as usize],
+            fx_tiles: vec![0xff; (width * height) as usize],
             bg_tiles: vec![0; (bg_width * bg_height) as usize],
         }
     }
