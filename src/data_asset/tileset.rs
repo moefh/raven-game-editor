@@ -16,10 +16,10 @@ pub struct CreationData<'a> {
 impl Tileset {
     pub const TILE_SIZE: u32 = 16;
 
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         let num_tiles = 10;
         Tileset {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Tileset, id, name),
             width: Self::TILE_SIZE,
             height: Self::TILE_SIZE,
             num_tiles,
@@ -27,9 +27,9 @@ impl Tileset {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         Tileset {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Tileset, id, name),
             width: data.width,
             height: data.height,
             num_tiles: data.num_tiles,

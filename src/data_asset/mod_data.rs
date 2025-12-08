@@ -44,10 +44,10 @@ pub struct CreationData<'a> {
 }
 
 impl ModData {
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         let num_channels = 4;
         ModData {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::ModData, id, name),
             num_channels,
             samples: Self::gen_samples(),
             pattern: Self::gen_pattern(num_channels),
@@ -55,9 +55,9 @@ impl ModData {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         ModData {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::ModData, id, name),
             num_channels: data.num_channels,
             samples: data.samples,
             pattern: Vec::from(data.pattern),

@@ -19,11 +19,11 @@ impl PropFont {
     pub const BG_COLOR: u8 = 0b001100;
     pub const FG_COLOR: u8 = 0b110000;
 
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         let height = 8;
         let max_width = 2 * height;
         PropFont {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::PropFont, id, name),
             max_width,
             height,
             data: vec![0x0c; (max_width * height * PropFont::NUM_CHARS) as usize],
@@ -31,9 +31,9 @@ impl PropFont {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         PropFont {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::PropFont, id, name),
             max_width: 2 * data.height,
             height: data.height,
             data: Self::bits_to_pixels(data.data, &data.char_widths, data.height, &data.char_offsets),

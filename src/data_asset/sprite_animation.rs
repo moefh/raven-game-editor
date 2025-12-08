@@ -38,7 +38,7 @@ pub struct CreationData<'a> {
 impl SpriteAnimation {
     pub const NUM_LOOPS: usize = 20;
 
-    pub fn new(asset: super::DataAsset, sprite_id: super::DataAssetId) -> Self {
+    pub fn new(id: super::DataAssetId, name: String, sprite_id: super::DataAssetId) -> Self {
         let mut loops = Vec::new();
         for loop_index in 0..Self::NUM_LOOPS {
             loops.push(SpriteAnimationLoop {
@@ -52,7 +52,7 @@ impl SpriteAnimation {
         }
 
         SpriteAnimation {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::SpriteAnimation, id, name),
             sprite_id,
             clip_rect: super::Rect::new(0, 0, 0, 0),
             foot_overlap: 0,
@@ -60,7 +60,7 @@ impl SpriteAnimation {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         let mut loops = Vec::new();
         for loop_data in data.loops {
             let mut frame_indices = Vec::new();
@@ -80,7 +80,7 @@ impl SpriteAnimation {
             });
         }
         SpriteAnimation {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::SpriteAnimation, id, name),
             sprite_id: data.sprite_id,
             clip_rect: data.clip_rect,
             foot_overlap: data.foot_overlap,

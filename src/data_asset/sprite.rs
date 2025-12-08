@@ -16,12 +16,12 @@ pub struct CreationData<'a> {
 impl Sprite {
     pub const MIRROR_FRAMES: bool = true;
 
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         let width = 32;
         let height = 32;
         let num_frames = 8;
         Sprite {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Sprite, id, name),
             width,
             height,
             num_frames,
@@ -29,9 +29,9 @@ impl Sprite {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         Sprite {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Sprite, id, name),
             width: data.width,
             height: data.height,
             num_frames: data.num_frames,

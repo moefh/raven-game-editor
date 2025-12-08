@@ -47,18 +47,18 @@ pub struct CreationData<'a> {
 }
 
 impl Room {
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         Room {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
             maps: Vec::new(),
             triggers: Vec::new(),
             entities: Vec::new(),
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         Room {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
             maps: Vec::from(data.maps),
             triggers: Vec::from(data.triggers),
             entities: Vec::from(data.entities),

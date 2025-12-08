@@ -17,10 +17,10 @@ pub struct CreationData<'a> {
 }
 
 impl Sfx {
-    pub fn new(asset: super::DataAsset) -> Self {
+    pub fn new(id: super::DataAssetId, name: String) -> Self {
         let len = 5000;
         Sfx {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Sfx, id, name),
             len,
             loop_start: 0,
             loop_len: 0,
@@ -29,9 +29,9 @@ impl Sfx {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         Sfx {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::Sfx, id, name),
             len: data.len,
             loop_start: data.loop_start,
             loop_len: data.loop_len,

@@ -90,9 +90,9 @@ impl Window {
                             match (w.asset_id, w.dialog, w.is_non_asset_id) {
                                 (Some(asset_id), _, _) => {
                                     if let Some(asset) = store.assets.get_asset(asset_id) {
-                                        ui.label(format!("asset <{}> {}", asset_id, asset.name));
+                                        ui.label(format!("<{}:{}> {}", asset.asset_type.name(), asset_id, asset.name));
                                     } else {
-                                        ui.label(format!("asset <{}> [NOT FOUND]", asset_id));
+                                        ui.label(format!("<asset:{}> [NOT FOUND]", asset_id));
                                     }
                                 }
                                 (None, Some(true), _) => {

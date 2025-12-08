@@ -22,13 +22,13 @@ pub struct CreationData<'a> {
 }
 
 impl MapData {
-    pub fn new(asset: super::DataAsset, tileset_id: super::DataAssetId) -> Self {
+    pub fn new(id: super::DataAssetId, name: String, tileset_id: super::DataAssetId) -> Self {
         let width = 24;
         let height = 24;
         let bg_width = 24;
         let bg_height = 24;
         MapData {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::MapData, id, name),
             tileset_id,
             width,
             height,
@@ -41,14 +41,14 @@ impl MapData {
         }
     }
 
-    pub fn from_data(asset: super::DataAsset, data: CreationData) -> Self {
+    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
         let fg_size = (data.width * data.height) as usize;
         let fg_tiles = Vec::from(&data.tiles[0..fg_size]);
         let clip_tiles = Vec::from(&data.tiles[fg_size..2*fg_size]);
         let fx_tiles = Vec::from(&data.tiles[2*fg_size..3*fg_size]);
         let bg_tiles = Vec::from(&data.tiles[3*fg_size..]);
         MapData {
-            asset,
+            asset: super::DataAsset::new(super::DataAssetType::MapData, id, name),
             tileset_id: data.tileset_id,
             width: data.width,
             height: data.height,

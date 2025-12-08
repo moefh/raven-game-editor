@@ -104,15 +104,32 @@ pub enum DataAssetType {
     PropFont,
 }
 
+impl DataAssetType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            DataAssetType::Tileset => "tileset",
+            DataAssetType::MapData => "map",
+            DataAssetType::Room => "room",
+            DataAssetType::Sprite => "sprite",
+            DataAssetType::SpriteAnimation => "animation",
+            DataAssetType::Sfx => "sfx",
+            DataAssetType::ModData => "mod",
+            DataAssetType::Font => "font",
+            DataAssetType::PropFont => "prop_font",
+        }
+    }
+}
+
 pub struct DataAsset {
-    //pub asset_type: DataAssetType,
+    pub asset_type: DataAssetType,
     pub id: DataAssetId,
     pub name: String,
 }
 
 impl DataAsset {
-    fn new(id: DataAssetId, name: String) -> Self {
+    fn new(asset_type: DataAssetType, id: DataAssetId, name: String) -> Self {
         DataAsset {
+            asset_type,
             id,
             name,
         }
@@ -164,7 +181,6 @@ pub struct AssetList<T> {
 }
 
 impl<T> AssetList<T> {
-
     fn new() -> Self {
         AssetList {
             store: HashMap::new(),
@@ -198,7 +214,6 @@ impl<T> AssetList<T> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.store.values_mut()
     }
-
 }
 
 pub struct AssetIdList {
@@ -206,7 +221,6 @@ pub struct AssetIdList {
 }
 
 impl AssetIdList {
-
     fn new() -> Self {
         AssetIdList {
             store: Vec::new(),
@@ -236,7 +250,6 @@ impl AssetIdList {
     pub fn get_first(&self) -> Option<DataAssetId> {
         self.store.first().copied()
     }
-
 }
 
 pub struct AssetCollection {
@@ -252,7 +265,6 @@ pub struct AssetCollection {
 }
 
 impl AssetCollection {
-
     fn new() -> Self {
         AssetCollection {
             tilesets: AssetList::new(),
@@ -341,7 +353,6 @@ pub struct AssetIdCollection {
 }
 
 impl AssetIdCollection {
-
     fn new() -> Self {
         AssetIdCollection {
             tilesets: AssetIdList::new(),
@@ -369,7 +380,6 @@ impl AssetIdCollection {
             DataAssetType::PropFont => self.prop_fonts.iter(),
         }
     }
-
 }
 
 pub struct DataAssetStore {
@@ -414,14 +424,14 @@ impl DataAssetStore {
     pub fn add_tileset(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.tilesets.push(id);
-        self.assets.tilesets.insert(id, Tileset::new(DataAsset::new(id, name)));
+        self.assets.tilesets.insert(id, Tileset::new(id, name));
         Some(id)
     }
 
     pub fn add_tileset_from(&mut self, name: String, data: tileset::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.tilesets.push(id);
-        self.assets.tilesets.insert(id, Tileset::from_data(DataAsset::new(id, name), data));
+        self.assets.tilesets.insert(id, Tileset::from_data(id, name, data));
         Some(id)
     }
 
@@ -431,7 +441,7 @@ impl DataAssetStore {
         }
         let id = self.gen_id();
         self.asset_ids.maps.push(id);
-        self.assets.maps.insert(id, MapData::new(DataAsset::new(id, name), tileset_id));
+        self.assets.maps.insert(id, MapData::new(id, name, tileset_id));
         Some(id)
     }
 
@@ -441,35 +451,35 @@ impl DataAssetStore {
         }
         let id = self.gen_id();
         self.asset_ids.maps.push(id);
-        self.assets.maps.insert(id, MapData::from_data(DataAsset::new(id, name), data));
+        self.assets.maps.insert(id, MapData::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_room(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.rooms.push(id);
-        self.assets.rooms.insert(id, Room::new(DataAsset::new(id, name)));
+        self.assets.rooms.insert(id, Room::new(id, name));
         Some(id)
     }
 
     pub fn add_room_from(&mut self, name: String, data: room::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.rooms.push(id);
-        self.assets.rooms.insert(id, Room::from_data(DataAsset::new(id, name), data));
+        self.assets.rooms.insert(id, Room::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_sprite(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sprites.push(id);
-        self.assets.sprites.insert(id, Sprite::new(DataAsset::new(id, name)));
+        self.assets.sprites.insert(id, Sprite::new(id, name));
         Some(id)
     }
 
     pub fn add_sprite_from(&mut self, name: String, data: sprite::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sprites.push(id);
-        self.assets.sprites.insert(id, Sprite::from_data(DataAsset::new(id, name), data));
+        self.assets.sprites.insert(id, Sprite::from_data(id, name, data));
         Some(id)
     }
 
@@ -479,7 +489,7 @@ impl DataAssetStore {
         }
         let id = self.gen_id();
         self.asset_ids.animations.push(id);
-        self.assets.animations.insert(id, SpriteAnimation::new(DataAsset::new(id, name), sprite_id));
+        self.assets.animations.insert(id, SpriteAnimation::new(id, name, sprite_id));
         Some(id)
     }
 
@@ -489,63 +499,63 @@ impl DataAssetStore {
         }
         let id = self.gen_id();
         self.asset_ids.animations.push(id);
-        self.assets.animations.insert(id, SpriteAnimation::from_data(DataAsset::new(id, name), data));
+        self.assets.animations.insert(id, SpriteAnimation::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_sfx(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sfxs.push(id);
-        self.assets.sfxs.insert(id, Sfx::new(DataAsset::new(id, name)));
+        self.assets.sfxs.insert(id, Sfx::new(id, name));
         Some(id)
     }
 
     pub fn add_sfx_from(&mut self, name: String, data: sfx::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sfxs.push(id);
-        self.assets.sfxs.insert(id, Sfx::from_data(DataAsset::new(id, name), data));
+        self.assets.sfxs.insert(id, Sfx::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_mod(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.mods.push(id);
-        self.assets.mods.insert(id, ModData::new(DataAsset::new(id, name)));
+        self.assets.mods.insert(id, ModData::new(id, name));
         Some(id)
     }
 
     pub fn add_mod_from(&mut self, name: String, data: mod_data::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.mods.push(id);
-        self.assets.mods.insert(id, ModData::from_data(DataAsset::new(id, name), data));
+        self.assets.mods.insert(id, ModData::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.fonts.push(id);
-        self.assets.fonts.insert(id, Font::new(DataAsset::new(id, name)));
+        self.assets.fonts.insert(id, Font::new(id, name));
         Some(id)
     }
 
     pub fn add_font_from(&mut self, name: String, data: font::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.fonts.push(id);
-        self.assets.fonts.insert(id, Font::from_data(DataAsset::new(id, name), data));
+        self.assets.fonts.insert(id, Font::from_data(id, name, data));
         Some(id)
     }
 
     pub fn add_prop_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.prop_fonts.push(id);
-        self.assets.prop_fonts.insert(id, PropFont::new(DataAsset::new(id, name)));
+        self.assets.prop_fonts.insert(id, PropFont::new(id, name));
         Some(id)
     }
 
     pub fn add_prop_font_from(&mut self, name: String, data: prop_font::CreationData) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.prop_fonts.push(id);
-        self.assets.prop_fonts.insert(id, PropFont::from_data(DataAsset::new(id, name), data));
+        self.assets.prop_fonts.insert(id, PropFont::from_data(id, name, data));
         Some(id)
     }
 }
