@@ -257,64 +257,55 @@ impl RavenEditorApp {
         } else {
             self.store.remove_asset(id);
             self.editors.remove_editor(id);
+            self.window_tracker.remove_editor(id);
         }
     }
 
     fn add_asset(&mut self, asset_type: DataAssetType) {
-        match asset_type {
+        let added = match asset_type {
             DataAssetType::Tileset => {
-                if let Some(id) = self.store.add_tileset(self.new_asset_name(asset_type)) {
-                    self.editors.add_tileset(id);
-                }
-            },
+                self.store.add_tileset(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_tileset(id)))
+            }
             DataAssetType::MapData => {
                 if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
-                    if let Some(id) = self.store.add_map(self.new_asset_name(asset_type), tileset_id) {
-                        self.editors.add_map(id);
-                    }
+                    self.store.add_map(self.new_asset_name(asset_type), tileset_id).map(|id| (id, self.editors.add_map(id)))
                 } else {
                     self.open_message_box("No Tileset Available", "You must create a tileset first!");
+                    None
                 }
-            },
+            }
             DataAssetType::Room => {
-                if let Some(id) = self.store.add_room(self.new_asset_name(asset_type)) {
-                    self.editors.add_room(id);
-                }
-            },
+                self.store.add_room(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_room(id)))
+            }
             DataAssetType::Sprite => {
-                if let Some(id) = self.store.add_sprite(self.new_asset_name(asset_type)) {
-                    self.editors.add_sprite(id);
-                }
-            },
+                self.store.add_sprite(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_sprite(id)))
+            }
             DataAssetType::SpriteAnimation => {
                 if let Some(sprite_id) = self.store.asset_ids.sprites.get_first() {
-                    if let Some(id) = self.store.add_animation(self.new_asset_name(asset_type), sprite_id) {
-                        self.editors.add_animation(id);
-                    }
+                    self.store.add_animation(self.new_asset_name(asset_type), sprite_id).map(|id| {
+                        (id, self.editors.add_animation(id))
+                    })
                 } else {
                     self.open_message_box("No Sprite Available", "You must create a sprite first!");
+                    None
                 }
-            },
+            }
             DataAssetType::Sfx => {
-                if let Some(id) = self.store.add_sfx(self.new_asset_name(asset_type)) {
-                    self.editors.add_sfx(id);
-                }
-            },
+                self.store.add_sfx(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_sfx(id)))
+            }
             DataAssetType::ModData => {
-                if let Some(id) = self.store.add_mod(self.new_asset_name(asset_type)) {
-                    self.editors.add_mod(id);
-                }
-            },
+                self.store.add_mod(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_mod(id)))
+            }
             DataAssetType::Font => {
-                if let Some(id) = self.store.add_font(self.new_asset_name(asset_type)) {
-                    self.editors.add_font(id);
-                }
-            },
+                self.store.add_font(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_font(id)))
+            }
             DataAssetType::PropFont => {
-                if let Some(id) = self.store.add_prop_font(self.new_asset_name(asset_type)) {
-                    self.editors.add_prop_font(id);
-                }
-            },
+                self.store.add_prop_font(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_prop_font(id)))
+            }
+        };
+
+        if let Some((asset_id, egui_id)) = added {
+            self.window_tracker.add_editor(egui_id, asset_id)
         }
     }
 

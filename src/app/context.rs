@@ -70,6 +70,22 @@ impl AppWindowTracker {
         }
     }
 
+    pub fn add_editor(&mut self, egui_id: egui::Id, asset_id: DataAssetId) {
+        self.editor_ids.insert(egui_id, asset_id);
+    }
+
+    pub fn remove_editor(&mut self, editor_asset_id: DataAssetId) {
+        if let Some(egui_id) = self.editor_ids.iter().find_map(|(&egui_id, &asset_id)| {
+            if asset_id == editor_asset_id {
+                Some(egui_id)
+            } else {
+                None
+            }
+        }) {
+            self.editor_ids.remove(&egui_id);
+        }
+    }
+
     /**
      * Return the asset id of the editor that should process keyboard
      * shortcuts, `None` if no editor should process shortcuts.

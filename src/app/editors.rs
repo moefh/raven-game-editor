@@ -100,57 +100,75 @@ impl AssetEditors {
         false
     }
 
-    pub fn add_tileset(&mut self, id: DataAssetId) {
+    pub fn add_tileset(&mut self, id: DataAssetId) -> egui::Id {
         let editor = TilesetEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.tilesets.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_map(&mut self, id: DataAssetId) {
+    pub fn add_map(&mut self, id: DataAssetId) -> egui::Id {
         let editor = MapDataEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.maps.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_room(&mut self, id: DataAssetId) {
+    pub fn add_room(&mut self, id: DataAssetId) -> egui::Id {
         let editor = RoomEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.rooms.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_sprite(&mut self, id: DataAssetId) {
+    pub fn add_sprite(&mut self, id: DataAssetId) -> egui::Id {
         let editor = SpriteEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.sprites.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_animation(&mut self, id: DataAssetId) {
+    pub fn add_animation(&mut self, id: DataAssetId) -> egui::Id {
         let editor = SpriteAnimationEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.animations.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_sfx(&mut self, id: DataAssetId) {
+    pub fn add_sfx(&mut self, id: DataAssetId) -> egui::Id {
         let editor = SfxEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.sfxs.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_mod(&mut self, id: DataAssetId) {
+    pub fn add_mod(&mut self, id: DataAssetId) -> egui::Id {
         let editor = ModDataEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.mods.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_font(&mut self, id: DataAssetId) {
+    pub fn add_font(&mut self, id: DataAssetId) -> egui::Id {
         let editor = FontEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.fonts.insert(id, editor);
+        egui_id
     }
 
-    pub fn add_prop_font(&mut self, id: DataAssetId) {
+    pub fn add_prop_font(&mut self, id: DataAssetId) -> egui::Id {
         let editor = PropFontEditor::new(id, false);
-        self.egui_id_to_asset_id.insert(editor.asset.egui_id, editor.asset.id);
+        let egui_id = editor.asset.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.asset.id);
         self.prop_fonts.insert(id, editor);
+        egui_id
     }
 }
