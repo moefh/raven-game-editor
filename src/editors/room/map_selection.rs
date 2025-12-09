@@ -65,6 +65,8 @@ impl MapSelectionDialog {
                 maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
         let mut maps_changed = false;
         let modal_response = egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
+            wc.sys_dialogs.block_ui(ui);
+
             let asset_id = room.asset.id;
             egui::TopBottomPanel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(2.0);

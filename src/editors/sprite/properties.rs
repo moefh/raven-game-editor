@@ -60,6 +60,7 @@ impl PropertiesDialog {
         if ! self.open { return false; }
 
         if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
+            wc.sys_dialogs.block_ui(ui);
             ui.set_width(300.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 ui.heading("Sprite Properties");
