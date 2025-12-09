@@ -150,6 +150,10 @@ impl ImageEditorWidget {
         }
     }
 
+    pub fn set_image_changed(&mut self) {
+        self.image_changed = true;
+    }
+
     pub fn set_undo_target(&mut self, asset: &(impl ImageCollection + GenericAsset)) {
         self.undo_target = asset.copy_fragment(asset.asset().id, self.selected_image, ImageRect::from_image_item(asset));
     }
@@ -233,10 +237,13 @@ impl ImageEditorWidget {
         self.selected_image
     }
 
-    pub fn set_selected_image(&mut self, sel_image: u32, asset: &(impl ImageCollection + GenericAsset)) {
+    pub fn set_selected_image(&mut self, sel_image: u32, asset: &(impl ImageCollection + GenericAsset)) -> bool {
         if self.selected_image != sel_image {
             self.selected_image = sel_image;
             self.set_undo_target(asset);
+            true
+        } else {
+            false
         }
     }
 

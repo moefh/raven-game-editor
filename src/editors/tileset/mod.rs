@@ -1,6 +1,7 @@
 mod properties;
 mod add_tiles;
 mod remove_tiles;
+mod import;
 mod export;
 
 use crate::misc::IMAGES;
@@ -12,6 +13,7 @@ use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
 use export::ExportDialog;
+use import::ImportDialog;
 use super::DataAssetEditor;
 use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
@@ -50,6 +52,7 @@ struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
     rm_tiles_dialog: RemoveTilesDialog,
+    import_dialog: ImportDialog,
     export_dialog: ExportDialog,
 }
 
@@ -59,8 +62,9 @@ impl Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
+            import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
-        }
+       }
     }
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
@@ -82,6 +86,13 @@ impl Dialogs {
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, tileset);
+        }
+        if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
+            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
+            if ! editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset) {
+                editor.image_editor.set_undo_target(tileset);
+            }
+            editor.image_editor.set_image_changed();
         }
     }
 }
@@ -119,6 +130,12 @@ impl Editor {
         egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tileset", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Import...").clicked() {
+                            dialogs.import_dialog.set_open(wc);
+                        }
+                    });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {

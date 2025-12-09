@@ -57,19 +57,23 @@ impl ImagePixels {
         }
     }
 
+    pub fn rgba_to_pixel(data: &[u8]) -> u8 {
+        if data[3] >= 0x80 {
+            (data[2] >> 2) & 0b110000 |
+            (data[1] >> 4) & 0b001100 |
+            (data[0] >> 6) & 0b000011
+        } else {
+            ImagePixels::TRANSPARENT_COLOR
+        }
+    }
+
     pub fn load_png(path: impl AsRef<std::path::Path>) -> Result<ImagePixels, Box<dyn std::error::Error>> {
         let img = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
         let width = img.width();
         let height = img.height();
         let mut data = Vec::with_capacity((width * height) as usize);
         for pixel in img.pixels() {
-            if pixel[3] >= 0x80 {
-                data.push((pixel[2] >> 2) & 0b110000 |
-                          (pixel[1] >> 4) & 0b001100 |
-                          (pixel[0] >> 6) & 0b000011);
-            } else {
-                data.push(ImagePixels::TRANSPARENT_COLOR);
-            }
+            data.push(Self::rgba_to_pixel(&pixel.0));
         }
         Ok(ImagePixels {
             width,

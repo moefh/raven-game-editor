@@ -261,6 +261,37 @@ pub trait ImageCollection {
 
     }
 
+    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, width: u32, height: u32, border: u32, space_between: u32)
+                      -> Result<u32, Box<dyn std::error::Error>> {
+        let src = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
+        let src_data = src.as_raw();
+
+        let nx = (src.width() - 2*border + space_between).div_ceil(width + space_between);
+        let ny = (src.height() - 2*border + space_between).div_ceil(height + space_between);
+
+        let dst_data = self.data_mut();
+        if dst_data.len() != (nx * ny) as usize {
+            dst_data.resize((nx * ny * width * height) as usize, ImagePixels::TRANSPARENT_COLOR);
+        }
+        dst_data.fill(ImagePixels::TRANSPARENT_COLOR);
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let dst_off = ((iy * nx) + ix) * width * height;
+                for y in 0..height {
+                    let src_y = border + iy * (height + space_between) + y;
+                    if src_y >= src.height() { continue; }
+                    for x in 0..width {
+                        let src_x = border + ix * (width + space_between) + x;
+                        if src_x >= src.width() { continue; }
+                        let src_off = (src_y * src.width() + src_x) as usize * 4;
+                        dst_data[(dst_off + y*width + x) as usize] = ImagePixels::rgba_to_pixel(&src_data[src_off..src_off+4]);
+                    }
+                }
+            }
+        }
+        Ok(nx * ny)
+    }
+
     fn save_image_png(&self, path: impl AsRef<std::path::Path>, num_items_x: u32) -> Result<(), Box<dyn std::error::Error>> {
         fn conv_pixel(pixel: u8) -> [u8; 4] {
             let r = (pixel     ) & 0b11;
