@@ -532,7 +532,9 @@ impl RavenEditorApp {
                     let mut add_asset = false;
                     let tree_node_id = ui.make_persistent_id(asset_def.id);
 
-                    egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
+                    let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
+                    let mut toggle_node_open = false;
+                    let mut header_resp = node.show_header(ui, |ui| {
                         let header = ui.add(egui::Label::new(asset_def.tree_root_item).selectable(false).sense(egui::Sense::click()));
                         egui::Popup::context_menu(&header).show(|ui| {
                             ui.horizontal(|ui| {
@@ -543,7 +545,12 @@ impl RavenEditorApp {
                                 }
                             });
                         });
-                    }).body(|ui| {
+                        toggle_node_open = header.clicked();
+                    });
+                    if toggle_node_open {
+                        header_resp.toggle();
+                    }
+                    header_resp.body(|ui| {
                         for &id in self.store.asset_ids.ids_of_type(asset_def.asset_type) {
                             if let Some(asset) = self.store.assets.get_asset_mut(id) {
                                 ui.horizontal(|ui| {

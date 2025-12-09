@@ -244,7 +244,9 @@ impl Editor {
         let (mut choose_maps, mut sel_map) = (false, None);
 
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_tree", room.asset.id));
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
+        let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
+        let mut toggle_node_open = false;
+        let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Maps").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
                 ui.horizontal(|ui| {
@@ -254,7 +256,12 @@ impl Editor {
                     }
                 });
             });
-        }).body(|ui| {
+            toggle_node_open = resp.clicked();
+        });
+        if toggle_node_open {
+            node_resp.toggle();
+        }
+        node_resp.body(|ui| {
             for (map_index, room_map) in room.maps.iter().enumerate() {
                 if let Some(map) = maps.get(&room_map.map_id) {
                     ui.horizontal(|ui| {
