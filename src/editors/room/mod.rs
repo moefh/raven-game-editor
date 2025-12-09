@@ -548,7 +548,13 @@ impl Editor {
         // footer:
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes", room.data_size()));
+            ui.label(format!(
+                "{} bytes [maps: {}, entities: {}, triggers: {}]",
+                room.data_size(),
+                room.maps.len(),
+                room.entities.len(),
+                room.triggers.len()
+            ));
         });
 
         // left panel:

@@ -186,7 +186,7 @@ impl Editor {
         // footer:
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes", font.data_size()));
+            ui.label(format!("{} bytes [size: {}x{}]", font.data_size(), font.width, font.height));
         });
 
         // body:

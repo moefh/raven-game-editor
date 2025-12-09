@@ -470,7 +470,10 @@ impl Editor {
         // footer:
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes", mod_data.data_size()));
+            let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
+                n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
+            });
+            ui.label(format!("{} bytes [samples: {}, song pos: {}]", mod_data.data_size(), num_samples, mod_data.song_positions.len()));
         });
 
         // tabs:

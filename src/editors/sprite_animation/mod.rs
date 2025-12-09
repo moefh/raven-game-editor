@@ -321,7 +321,10 @@ impl Editor {
         // footer:
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes", animation.data_size()));
+            let num_loops = animation.loops.iter().fold(0, |n, aloop| {
+                n + if aloop.frame_indices.is_empty() { 0 } else { 1 }
+            });
+            ui.label(format!("{} bytes [{} loops]", animation.data_size(), num_loops));
         });
 
         // loops:

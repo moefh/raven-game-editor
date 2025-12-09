@@ -518,7 +518,7 @@ impl RavenEditorApp {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
-            ui.label(format!("{} bytes", self.store.assets.data_size()));
+            ui.label(format!("{} bytes [{} assets]", self.store.assets.data_size(), self.store.num_assets()));
         });
     }
 

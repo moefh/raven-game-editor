@@ -408,6 +408,18 @@ impl DataAssetStore {
         DataAssetId { id }
     }
 
+    pub fn num_assets(&self) -> usize {
+        self.assets.tilesets.store.len() +
+            self.assets.maps.store.len() +
+            self.assets.rooms.store.len() +
+            self.assets.sprites.store.len() +
+            self.assets.animations.store.len() +
+            self.assets.sfxs.store.len() +
+            self.assets.mods.store.len() +
+            self.assets.fonts.store.len() +
+            self.assets.prop_fonts.store.len()
+    }
+
     pub fn remove_asset(&mut self, id: DataAssetId) -> Option<DataAsset> {
         if let Some(v) = self.assets.tilesets.remove(&id) { self.asset_ids.tilesets.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.maps.remove(&id) { self.asset_ids.maps.remove_id(id); return Some(v.asset); }

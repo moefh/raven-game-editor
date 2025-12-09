@@ -344,7 +344,14 @@ impl Editor {
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
-                ui.label(format!("{} bytes", map_data.data_size()));
+                ui.label(format!(
+                    "{} bytes [fg: {}x{}, bg: {}x{}]",
+                    map_data.data_size(),
+                    map_data.width,
+                    map_data.height,
+                    map_data.bg_width,
+                    map_data.bg_height
+                ));
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         let spacing = ui.spacing().item_spacing;
