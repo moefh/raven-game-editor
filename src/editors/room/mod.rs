@@ -289,7 +289,9 @@ impl Editor {
     fn show_entity_tree(&self, ui: &mut egui::Ui, room: &Room) -> (bool, Option<usize>, Option<usize>) {
         let (mut add_entity, mut sel_entity, mut rm_entity) = (false, None, None);
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_ent_tree", room.asset.id));
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
+        let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
+        let mut toggle_node_open = false;
+        let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Entities").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
                 ui.horizontal(|ui| {
@@ -299,7 +301,12 @@ impl Editor {
                     }
                 });
             });
-        }).body(|ui| {
+            toggle_node_open = resp.clicked();
+        });
+        if toggle_node_open {
+            node_resp.toggle();
+        }
+        node_resp.body(|ui| {
             for (ent_index, ent) in room.entities.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
@@ -332,7 +339,9 @@ impl Editor {
     fn show_trigger_tree(&self, ui: &mut egui::Ui, room: &Room) -> (bool, Option<usize>, Option<usize>) {
         let (mut add_trigger, mut sel_trigger, mut rm_trigger) = (false, None, None);
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_tree", room.asset.id));
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
+        let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
+        let mut toggle_node_open = false;
+        let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Triggers").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
                 ui.horizontal(|ui| {
@@ -342,7 +351,12 @@ impl Editor {
                     }
                 });
             });
-        }).body(|ui| {
+            toggle_node_open = resp.clicked();
+        });
+        if toggle_node_open {
+            node_resp.toggle();
+        }
+        node_resp.body(|ui| {
             for (trg_index, trg) in room.triggers.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
