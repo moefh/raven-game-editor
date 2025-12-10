@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use crate::image::TextureManager;
 use crate::app::{AppDialogs, SysDialogs, AppSettings};
 use crate::data_asset::{DataAssetId, StringLogger};
-use crate::editors::ClipboardData;
+use crate::editors::{MapClipboardData, ImageClipboardData};
 
 pub enum KeyboardPressed {
     CtrlC,
@@ -144,7 +144,8 @@ pub struct WindowContext<'a> {
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
     pub window_tracker: &'a mut AppWindowTracker,
-    pub clipboard: Option<ClipboardData>,
+    pub image_clipboard: ImageClipboardData,
+    pub map_clipboard: MapClipboardData,
     pub keyboard_pressed: Option<KeyboardPressed>,
 }
 

@@ -163,24 +163,28 @@ impl Editor {
                     ui.separator();
 
                     ui.horizontal(|ui| {
+                        if self.image_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
                         if ui.button("Cut").clicked() {
                             self.image_editor.cut(wc, tileset, self.color_picker.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
+                        if self.image_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
                         if ui.button("Copy").clicked() {
                             self.image_editor.copy(wc, tileset);
                         }
                     });
                     ui.horizontal(|ui| {
+                        if wc.image_clipboard.is_none() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
                         if ui.button("Paste").clicked() {
                             self.image_editor.paste(wc, tileset);
                         }
                     });
                     ui.horizontal(|ui| {
+                        if self.image_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
                             self.image_editor.delete_selection(tileset, self.color_picker.right_color);

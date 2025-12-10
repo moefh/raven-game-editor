@@ -420,8 +420,33 @@ impl MapFullFragment {
     }
 }
 
-pub enum ClipboardData {
+pub enum ImageClipboardData {
+    Empty,
     Image(ImagePixels),
+}
+
+impl ImageClipboardData {
+    pub fn is_none(&self) -> bool {
+        matches!(self, ImageClipboardData::Empty)
+    }
+
+    pub fn take(&mut self) -> ImageClipboardData {
+        std::mem::replace(self, ImageClipboardData::Empty)
+    }
+}
+
+pub enum MapClipboardData {
+    Empty,
     MapLayerFragment(MapLayerFragment),
     MapFullFragment(MapFullFragment),
+}
+
+impl MapClipboardData {
+    pub fn is_none(&self) -> bool {
+        matches!(self, MapClipboardData::Empty)
+    }
+
+    pub fn take(&mut self) -> MapClipboardData {
+        std::mem::replace(self, MapClipboardData::Empty)
+    }
 }

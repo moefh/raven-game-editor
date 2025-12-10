@@ -2,7 +2,7 @@ use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImagePixels, Ima
 use crate::app::{WindowContext, KeyboardPressed};
 use crate::data_asset::GenericAsset;
 
-use super::super::ClipboardData;
+use super::super::ImageClipboardData;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub enum ImageSelection {
@@ -14,6 +14,18 @@ pub enum ImageSelection {
 impl ImageSelection {
     pub fn is_floating(&self) -> bool {
         matches!(self, ImageSelection::Fragment(..))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            ImageSelection::None => true,
+            ImageSelection::Rect(origin, end) => {
+                let width = end.x - origin.x;
+                let height = end.y - origin.y;
+                width.abs() == 0.0 || height.abs() == 0.0
+            }
+            ImageSelection::Fragment(_, _) => false,
+        }
     }
 
     pub fn set_changed(&mut self) {
@@ -366,11 +378,11 @@ impl ImageEditorWidget {
                 };
                 let image_rect = ImageRect::from_rect(sel_rect, asset);
                 if let Some(frag) = asset.copy_fragment(asset.asset().id, self.selected_image, image_rect) {
-                    wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
+                    wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
                 }
             }
             ImageSelection::Fragment(_, frag) => {
-                wc.clipboard = Some(ClipboardData::Image(frag.pixels.clone()));
+                wc.image_clipboard = ImageClipboardData::Image(frag.pixels.clone());
             }
             _ => {}
         }
@@ -380,12 +392,12 @@ impl ImageEditorWidget {
         self.set_undo_target(asset);
         self.lift_selection(asset, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
-            wc.clipboard = Some(ClipboardData::Image(frag.take_pixels()));
+            wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
         }
     }
 
     pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset)) {
-        if let Some(ClipboardData::Image(pixels)) = &wc.clipboard {
+        if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
             self.tool = ImageDrawingTool::Select;
             self.set_undo_target(asset);
             self.drop_selection(asset);

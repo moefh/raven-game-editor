@@ -7,7 +7,7 @@ use egui::emath;
 
 use crate::app::KeyboardPressed;
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::super::{ClipboardData, MapUndoData, MapFullFragment, MapLayerFragment, MapRect, MapLayer};
+use super::super::{MapClipboardData, MapUndoData, MapFullFragment, MapLayerFragment, MapRect, MapLayer};
 
 pub enum MapSelection {
     None,
@@ -19,6 +19,19 @@ pub enum MapSelection {
 impl MapSelection {
     pub fn is_floating(&self) -> bool {
         matches!(self, MapSelection::LayerFragment(..) | MapSelection::FullFragment(..))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            MapSelection::None => true,
+            MapSelection::Rect(origin, end) => {
+                let width = end.x - origin.x;
+                let height = end.y - origin.y;
+                width.abs() == 0.0 && height.abs() == 0.0
+            }
+            MapSelection::LayerFragment(_, _) => false,
+            MapSelection::FullFragment(_, _) => false,
+        }
     }
 
     pub fn take_layer_fragment(&mut self) -> Option<(Pos2, MapLayerFragment)> {
@@ -413,11 +426,11 @@ impl MapEditorWidget {
         self.set_undo_target(map_data);
         self.lift_selection(map_data);
         if let Some((_, frag)) = self.selection.take_layer_fragment() {
-            wc.clipboard = Some(ClipboardData::MapLayerFragment(frag));
+            wc.map_clipboard = MapClipboardData::MapLayerFragment(frag);
             return;
         }
         if let Some((_, frag)) = self.selection.take_full_fragment() {
-            wc.clipboard = Some(ClipboardData::MapFullFragment(frag));
+            wc.map_clipboard = MapClipboardData::MapFullFragment(frag);
         }
     }
 
@@ -426,10 +439,10 @@ impl MapEditorWidget {
 
         match &self.selection {
             MapSelection::LayerFragment(_, frag) => {
-                wc.clipboard = Some(ClipboardData::MapLayerFragment(frag.clone()));
+                wc.map_clipboard = MapClipboardData::MapLayerFragment(frag.clone());
             }
             MapSelection::FullFragment(_, frag) => {
-                wc.clipboard = Some(ClipboardData::MapFullFragment(frag.clone()));
+                wc.map_clipboard = MapClipboardData::MapFullFragment(frag.clone());
             }
             MapSelection::Rect(..) => {
                 if let Some(sel_rect) = self.selection.get_rect() &&
@@ -438,14 +451,14 @@ impl MapEditorWidget {
                         match self.tool {
                             MapTool::SelectLayer => {
                                 if let Some(frag) = MapLayerFragment::copy_map(map_data, self.edit_layer, map_rect) {
-                                    wc.clipboard = Some(ClipboardData::MapLayerFragment(frag.clone()));
+                                    wc.map_clipboard = MapClipboardData::MapLayerFragment(frag.clone());
                                 }
                             }
 
                             MapTool::SelectAllLayers | MapTool::SelectFgLayers => {
                                 let include_bg_layer = self.tool == MapTool::SelectAllLayers;
                                 if let Some(frag) = MapFullFragment::copy_map(map_data, map_rect, include_bg_layer) {
-                                    wc.clipboard = Some(ClipboardData::MapFullFragment(frag.clone()));
+                                    wc.map_clipboard = MapClipboardData::MapFullFragment(frag.clone());
                                 }
                             }
 
@@ -458,8 +471,8 @@ impl MapEditorWidget {
     }
 
     pub fn paste(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
-        match &wc.clipboard {
-            Some(ClipboardData::MapLayerFragment(frag)) => {
+        match &wc.map_clipboard {
+            MapClipboardData::MapLayerFragment(frag) => {
                 self.tool = MapTool::SelectLayer;
                 self.edit_layer = frag.layer;
                 self.set_undo_target(map_data);
@@ -467,7 +480,7 @@ impl MapEditorWidget {
                 self.selection = MapSelection::LayerFragment(Pos2::ZERO, frag.clone());
             }
 
-            Some(ClipboardData::MapFullFragment(frag)) => {
+            MapClipboardData::MapFullFragment(frag) => {
                 let full_bg = map_data.bg_width == map_data.width || map_data.bg_height == map_data.height;
                 if frag.bg_data.is_empty() && (full_bg || self.tool != MapTool::SelectAllLayers) {
                     MapTool::SelectFgLayers

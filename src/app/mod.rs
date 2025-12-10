@@ -9,7 +9,7 @@ use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
 use crate::misc::asset_defs::ASSET_DEFS;
 use crate::misc::IMAGES;
-use crate::editors::ClipboardData;
+use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
@@ -48,7 +48,8 @@ pub struct RavenEditorApp {
     dialogs: AppDialogs,
     windows: AppWindows,
     editors: editors::AssetEditors,
-    editors_clipboard: Option<ClipboardData>,
+    image_clipboard: ImageClipboardData,
+    map_clipboard: MapClipboardData,
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
     settings: AppSettings,
@@ -70,7 +71,8 @@ impl RavenEditorApp {
             dialogs: dialogs::AppDialogs::new(),
             editors: editors::AssetEditors::new(),
             windows: windows::AppWindows::new(),
-            editors_clipboard: None,
+            image_clipboard: ImageClipboardData::Empty,
+            map_clipboard: MapClipboardData::Empty,
             tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
             settings: AppSettings::new(),
@@ -493,7 +495,7 @@ impl RavenEditorApp {
                         ]
                     );
                 }
-                if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text("Save Project").clicked() {
+                if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text("Save Project (Ctrl+S)").clicked() {
                     self.save(window);
                 }
 
@@ -618,7 +620,8 @@ impl RavenEditorApp {
             logger: &mut self.logger,
             settings: &mut self.settings,
             window_tracker: &mut self.window_tracker,
-            clipboard: self.editors_clipboard.take(),
+            map_clipboard: self.map_clipboard.take(),
+            image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),
         };
 
@@ -686,7 +689,8 @@ impl RavenEditorApp {
                 }
             }
 
-        self.editors_clipboard = win_ctx.clipboard.take();
+        self.map_clipboard = win_ctx.map_clipboard.take();
+        self.image_clipboard = win_ctx.image_clipboard.take();
     }
 }
 

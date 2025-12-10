@@ -11,12 +11,6 @@ use super::widgets::{MapEditorWidget, MapDisplay, MapTool, ImagePickerWidget};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
-fn calc_map_editor_window_size() -> (egui::Vec2, egui::Vec2) {
-    let min_size = egui::Vec2::new(500.0, 200.0);
-    let default_size = egui::Vec2::new(630.0, 380.0);
-    (min_size, default_size)
-}
-
 pub struct MapDataEditor {
     pub asset: DataAssetEditor,
     editor: Editor,
@@ -41,7 +35,8 @@ impl MapDataEditor {
 
         let title = format!("{} - Map", map_data.asset.name);
         let window = DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        let (min_size, default_size) = calc_map_editor_window_size();
+        let min_size = egui::Vec2::new(500.0, 200.0);
+        let default_size = egui::Vec2::new(630.0, 380.0);
         window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
@@ -114,24 +109,28 @@ impl Editor {
                     ui.separator();
 
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        if self.map_editor.selection.is_empty() { ui.disable(); }
+                        ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
                         if ui.button("Cut").clicked() {
                             self.map_editor.cut(wc, map_data);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        if self.map_editor.selection.is_empty() { ui.disable(); }
+                        ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
                         if ui.button("Copy").clicked() {
                             self.map_editor.copy(wc, map_data);
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add_space(22.0);
+                        if wc.map_clipboard.is_none() { ui.disable(); }
+                        ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
                         if ui.button("Paste").clicked() {
                             self.map_editor.paste(wc, map_data);
                         }
                     });
                     ui.horizontal(|ui| {
+                        if self.map_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
                             self.map_editor.delete_selection(map_data);
