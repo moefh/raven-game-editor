@@ -142,7 +142,6 @@ impl RavenEditorApp {
             Ok(()) => {
                 self.load_project(store);
                 self.set_filename(Some(path.as_ref().to_path_buf()));
-
             },
             Err(_) => {
                 self.open_message_box("Error Reading Project",
@@ -191,7 +190,10 @@ impl RavenEditorApp {
     fn write_project(&mut self, path: &std::path::Path) -> bool {
         self.prepare_for_saving();
         match crate::data_asset::write_project(path, &self.store, &mut self.logger) {
-            Ok(()) => true,
+            Ok(()) => {
+                self.editors.clear_dirty(&self.store);
+                true
+            }
             Err(_) => {
                 self.open_message_box("Error Writing Project",
                                       "Error writing project.\n\nConsult the log window for details.");
@@ -218,6 +220,11 @@ impl RavenEditorApp {
             Some(p) => { self.write_project(&p.clone()); }
             None => { self.save_as(window); }
         }
+    }
+
+    fn new_project(&mut self) {
+        self.load_project(crate::data_asset::DataAssetStore::new());
+        self.set_filename(None);
     }
 
     fn load_project(&mut self, store: DataAssetStore) {
@@ -319,8 +326,13 @@ impl RavenEditorApp {
         self.confirmation_dialog_action = action;
         match action {
             ConfirmationDialogAction::NewProject => {
-                self.dialogs.open_confirmation_dialog(&mut self.window_tracker, "New Project",
-                                                      "Close current project and start a new one?", "Yes", "No");
+                self.dialogs.open_confirmation_dialog(
+                    &mut self.window_tracker,
+                    "Unsaved Changes",
+                    "The current project has unsaved changes.\n\nDiscard changes?",
+                    "Yes",
+                    "No"
+                );
             }
             ConfirmationDialogAction::None => {}
         };
@@ -333,8 +345,7 @@ impl RavenEditorApp {
         if matches!(self.dialogs.show_confirmation_dialog(ctx, &mut self.window_tracker, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
             match self.confirmation_dialog_action {
                 ConfirmationDialogAction::NewProject => {
-                    self.load_project(crate::data_asset::DataAssetStore::new());
-                    self.set_filename(None);
+                    self.new_project();
                 }
                 ConfirmationDialogAction::None => {}
             };
@@ -369,7 +380,11 @@ impl RavenEditorApp {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.new).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("New").clicked() {
-                            self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                            if self.editors.is_dirty() {
+                                self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                            } else {
+                                self.new_project();
+                            }
                         }
                     });
                     ui.separator();
@@ -482,7 +497,11 @@ impl RavenEditorApp {
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
 
                 if ui.add(egui::Button::image(IMAGES.new).frame_when_inactive(false)).on_hover_text("New Project").clicked() {
-                    self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                    if self.editors.is_dirty() {
+                        self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                    } else {
+                        self.new_project();
+                    }
                 }
                 if ui.add(egui::Button::image(IMAGES.open).frame_when_inactive(false)).on_hover_text("Open Project").clicked() {
                     self.sys_dialogs.open_file(
@@ -520,7 +539,9 @@ impl RavenEditorApp {
         egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
-            ui.label(format!("{} bytes [{} assets]", self.store.assets.data_size(), self.store.num_assets()));
+
+            let dirty = if self.editors.is_dirty() { " (modified)" } else { "" };
+            ui.label(format!("{} bytes [{} assets]{}", self.store.assets.data_size(), self.store.num_assets(), dirty));
         });
     }
 
@@ -737,12 +758,9 @@ impl eframe::App for RavenEditorApp {
 
         if self.reset_egui_context {
             ctx.memory_mut(|mem| {
-                // is this enough?
                 mem.reset_areas();
                 mem.data.clear();
             });
-            //ctx.memory_mut(|mem| *mem = Default::default()); // is this needed?
-            //self.setup_egui_context(ctx);
             self.reset_egui_context = false;
         }
         if self.filename_changed {
@@ -757,6 +775,7 @@ impl eframe::App for RavenEditorApp {
             self.filename_changed = false;
         }
 
+        self.editors.update_dirty(&self.store);
         self.update_dialogs(ctx);
         self.update_menu(ctx, window);
         self.update_toolbar(ctx, window);

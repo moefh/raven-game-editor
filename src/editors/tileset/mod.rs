@@ -14,11 +14,11 @@ use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
 use export::ExportDialog;
 use import::ImportDialog;
-use super::DataAssetEditor;
+use super::AssetEditorBase;
 use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
 pub struct TilesetEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -26,7 +26,7 @@ pub struct TilesetEditor {
 impl TilesetEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         TilesetEditor {
-            asset: DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -39,11 +39,13 @@ impl TilesetEditor {
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         self.dialogs.show(wc, &mut self.editor, tileset);
 
-        let title = format!("{} - Tileset", tileset.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        let (min_size, default_size) = DataAssetEditor::calc_image_editor_window_size(tileset);
+        let is_dirty = self.base.is_dirty();
+        let modified = if is_dirty { " - (modified)" } else { "" };
+        let title = format!("{} - Tileset{}", tileset.asset.name, modified);
+        let window = self.base.create_window(wc, &title);
+        let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
         window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
-            self.editor.show(ui, wc, &mut self.dialogs, tileset);
+            self.editor.show(ui, wc, &mut self.dialogs, tileset, is_dirty);
         });
     }
 }
@@ -305,14 +307,15 @@ impl Editor {
         asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
+    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset, is_dirty: bool) {
         self.show_menu_bar(ui, wc, dialogs, tileset);
         self.show_toolbar(ui, wc, tileset);
 
         // footer:
         egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes [{} tiles]", tileset.data_size(), tileset.num_tiles));
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
         });
 
         // item picker:

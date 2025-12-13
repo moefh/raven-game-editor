@@ -11,6 +11,7 @@ use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use export_sample::ExportSampleDialog;
+use super::AssetEditorBase;
 use super::widgets::SfxEditorWidget;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
@@ -21,7 +22,7 @@ enum EditorTabs {
 }
 
 pub struct ModDataEditor {
-    pub asset: super::DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -29,7 +30,7 @@ pub struct ModDataEditor {
 impl ModDataEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         ModDataEditor {
-            asset: super::DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -42,7 +43,7 @@ impl ModDataEditor {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
         let title = format!("{} - MOD", mod_data.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         window.min_size([600.0, 300.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });

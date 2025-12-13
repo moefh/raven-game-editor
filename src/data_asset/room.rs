@@ -1,5 +1,5 @@
 #[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, std::hash::Hash)]
 pub struct RoomMap {
     pub x: u16,
     pub y: u16,
@@ -7,7 +7,7 @@ pub struct RoomMap {
 }
 
 #[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, std::hash::Hash)]
 pub struct RoomEntity {
     pub name: String,
     pub x: i16,
@@ -20,7 +20,7 @@ pub struct RoomEntity {
 }
 
 #[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, std::hash::Hash)]
 pub struct RoomTrigger {
     pub name: String,
     pub x: i16,
@@ -33,6 +33,7 @@ pub struct RoomTrigger {
     pub data3: u16,
 }
 
+#[derive(std::hash::Hash)]
 pub struct Room {
     pub asset: super::DataAsset,
     pub maps: Vec<RoomMap>,

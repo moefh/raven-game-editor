@@ -1,4 +1,4 @@
-#[allow(unused)]
+#[derive(std::hash::Hash)]
 pub struct Sfx {
     pub asset: super::DataAsset,
     pub len: u32,

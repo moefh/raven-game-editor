@@ -1,3 +1,4 @@
+#[derive(std::hash::Hash)]
 pub struct Tileset {
     pub asset: super::DataAsset,
     pub width: u32,

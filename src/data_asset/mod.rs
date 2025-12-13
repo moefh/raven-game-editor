@@ -66,7 +66,7 @@ impl StringLogger {
 }
 
 #[allow(unused)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, std::hash::Hash)]
 pub struct Rect {
     x: i32,
     y: i32,
@@ -120,6 +120,7 @@ impl DataAssetType {
     }
 }
 
+#[derive(std::hash::Hash)]
 pub struct DataAsset {
     pub asset_type: DataAssetType,
     pub id: DataAssetId,

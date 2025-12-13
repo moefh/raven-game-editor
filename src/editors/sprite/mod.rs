@@ -14,11 +14,11 @@ use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
 use import::ImportDialog;
 use export::ExportDialog;
-use super::DataAssetEditor;
+use super::AssetEditorBase;
 use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
 
 pub struct SpriteEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -26,7 +26,7 @@ pub struct SpriteEditor {
 impl SpriteEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SpriteEditor {
-            asset: DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -40,8 +40,8 @@ impl SpriteEditor {
         self.dialogs.show(wc, &mut self.editor, sprite);
 
         let title = format!("{} - Sprite", sprite.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
-        let (min_size, default_size) = DataAssetEditor::calc_image_editor_window_size(sprite);
+        let window = self.base.create_window(wc, &title);
+        let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
         window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sprite);
         });

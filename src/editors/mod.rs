@@ -19,26 +19,44 @@ pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
+use crate::misc::calc_hash;
 use crate::data_asset::{DataAssetId, MapData};
 use crate::image::{ImagePixels, ImageCollection};
 use egui::{Pos2, Rect};
 
-pub struct DataAssetEditor {
+pub struct AssetEditorBase {
     pub id: DataAssetId,
     pub egui_id: egui::Id,
     pub open: bool,
+    saved_hash: u64,
+    cur_hash: u64,
 }
 
-impl DataAssetEditor {
-    pub fn new(id: DataAssetId, open: bool) -> Self {
-        DataAssetEditor {
-            egui_id: egui::Id::new(format!("editor_{}", id)),
+impl AssetEditorBase {
+    fn new(id: DataAssetId, open: bool) -> Self {
+        AssetEditorBase {
             id,
             open,
+            egui_id: egui::Id::new(format!("editor_{}", id)),
+            saved_hash: 0,
+            cur_hash: 0,
         }
     }
 
-    pub fn calc_image_editor_window_size(image: &impl ImageCollection) -> (egui::Vec2, egui::Vec2) {
+    pub fn is_dirty(&self) -> bool {
+        self.cur_hash != self.saved_hash
+    }
+
+    pub fn clear_dirty(&mut self, asset: &impl std::hash::Hash) {
+        self.cur_hash = calc_hash(asset);
+        self.saved_hash = self.cur_hash;
+    }
+
+    pub fn update_dirty(&mut self, asset: &impl std::hash::Hash) {
+        self.cur_hash = calc_hash(asset);
+    }
+
+    fn calc_image_editor_window_size(image: &impl ImageCollection) -> (egui::Vec2, egui::Vec2) {
         let img_w = image.width() as f32;
         let img_h = image.height() as f32;
         let min_width = 130.0 + img_w + 220.0;
@@ -48,7 +66,7 @@ impl DataAssetEditor {
         (min_size, default_size)
     }
 
-    pub fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str) -> egui::Window<'a> {
+    fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
         let default_rect = egui::Rect {
             min: default_pos,

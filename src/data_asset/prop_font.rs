@@ -1,3 +1,4 @@
+#[derive(std::hash::Hash)]
 pub struct PropFont {
     pub asset: super::DataAsset,
     pub max_width: u32,

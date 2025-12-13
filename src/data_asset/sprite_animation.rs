@@ -1,17 +1,16 @@
-#[derive(Clone)]
+#[derive(Clone, std::hash::Hash)]
 pub struct SpriteAnimationFrame {
     pub head_index: Option<u8>,
     pub foot_index: Option<u8>,
 }
 
-#[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, std::hash::Hash)]
 pub struct SpriteAnimationLoop {
     pub name: String,
     pub frame_indices: Vec<SpriteAnimationFrame>,
 }
 
-#[allow(unused)]
+#[derive(std::hash::Hash)]
 pub struct SpriteAnimation {
     pub asset: super::DataAsset,
     pub sprite_id: super::DataAssetId,

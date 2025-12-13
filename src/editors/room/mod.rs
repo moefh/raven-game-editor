@@ -11,6 +11,7 @@ use crate::data_asset::{
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
+use super::AssetEditorBase;
 use super::widgets::RoomEditorWidget;
 
 pub struct RoomEditorAssetLists<'a> {
@@ -85,7 +86,7 @@ impl RoomItemRef {
 }
 
 pub struct RoomEditor {
-    pub asset: super::DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -93,7 +94,7 @@ pub struct RoomEditor {
 impl RoomEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         RoomEditor {
-            asset: super::DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -106,7 +107,7 @@ impl RoomEditor {
         self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
 
         let title = format!("{} - Room", room.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         window.min_size([400.0, 300.0]).default_size([600.0, 400.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });

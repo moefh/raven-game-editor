@@ -8,7 +8,7 @@ pub const MOD_PERIOD_TABLE : &[u16] = &[
     53,50,47,45,42,40,37,35,33,31,30,28,
 ];
 
-#[allow(unused)]
+#[derive(std::hash::Hash)]
 pub struct ModSample {
     pub len: u32,
     pub loop_start: u32,
@@ -19,15 +19,14 @@ pub struct ModSample {
     pub data: Option<Vec<i16>>,
 }
 
-#[allow(unused)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, std::hash::Hash)]
 pub struct ModCell {
     pub sample: u8,
     pub period: u16,
     pub effect: u16,
 }
 
-#[allow(unused)]
+#[derive(std::hash::Hash)]
 pub struct ModData {
     pub asset: super::DataAsset,
     pub samples: Vec<ModSample>,

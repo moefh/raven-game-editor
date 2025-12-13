@@ -9,7 +9,7 @@ use crate::data_asset::{
 };
 
 use properties::PropertiesDialog;
-use super::DataAssetEditor;
+use super::AssetEditorBase;
 use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView};
 
 enum EditorTabs {
@@ -31,7 +31,7 @@ impl FrameDragPayload {
 }
 
 pub struct SpriteAnimationEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -39,7 +39,7 @@ pub struct SpriteAnimationEditor {
 impl SpriteAnimationEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SpriteAnimationEditor {
-            asset: DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -55,7 +55,7 @@ impl SpriteAnimationEditor {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
         let title = format!("{} - Animation", animation.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         window.min_size([450.0, 400.0]).default_size([500.0, 400.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });

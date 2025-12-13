@@ -6,7 +6,7 @@ use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
-use super::DataAssetEditor;
+use super::AssetEditorBase;
 use super::widgets::{PropFontEditorWidget, FontViewWidget, FontPainter};
 
 use egui::{Pos2, Rect};
@@ -43,7 +43,7 @@ impl FontPainter for PropFont {
 }
 
 pub struct PropFontEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -51,7 +51,7 @@ pub struct PropFontEditor {
 impl PropFontEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         PropFontEditor {
-            asset: super::DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -64,7 +64,7 @@ impl PropFontEditor {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
         let title = format!("{} - Prop Font", prop_font.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         window.min_size([350.0, 250.0]).default_size([400.0, 350.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });

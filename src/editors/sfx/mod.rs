@@ -9,11 +9,11 @@ use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use export::ExportDialog;
-use super::DataAssetEditor;
+use super::AssetEditorBase;
 use super::widgets::SfxEditorWidget;
 
 pub struct SfxEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -21,7 +21,7 @@ pub struct SfxEditor {
 impl SfxEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         SfxEditor {
-            asset: super::DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -34,7 +34,7 @@ impl SfxEditor {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
         let title = format!("{} - SFX", sfx.asset.name);
-        let window = super::DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         window.min_size([400.0, 220.0]).default_size([500.0, 220.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
         });

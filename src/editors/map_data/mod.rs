@@ -6,13 +6,13 @@ use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, G
 use crate::misc::{IMAGES, STATIC_IMAGES};
 
 use properties::PropertiesDialog;
-use super::{DataAssetEditor, MapLayer};
+use super::{AssetEditorBase, MapLayer};
 use super::widgets::{MapEditorWidget, MapDisplay, MapTool, ImagePickerWidget};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 pub struct MapDataEditor {
-    pub asset: DataAssetEditor,
+    pub base: AssetEditorBase,
     editor: Editor,
     dialogs: Dialogs,
 }
@@ -20,7 +20,7 @@ pub struct MapDataEditor {
 impl MapDataEditor {
     pub fn new(id: DataAssetId, open: bool) -> Self {
         MapDataEditor {
-            asset: DataAssetEditor::new(id, open),
+            base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
             dialogs: Dialogs::new(),
         }
@@ -34,7 +34,7 @@ impl MapDataEditor {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
         let title = format!("{} - Map", map_data.asset.name);
-        let window = DataAssetEditor::create_window(&mut self.asset, wc, &title);
+        let window = self.base.create_window(wc, &title);
         let min_size = egui::Vec2::new(500.0, 200.0);
         let default_size = egui::Vec2::new(630.0, 380.0);
         window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
