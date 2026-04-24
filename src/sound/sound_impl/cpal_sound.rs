@@ -35,8 +35,8 @@ impl SoundPlayerImpl {
 
     fn find_preferred_config(device: &cpal::Device) -> Result<Option<cpal::SupportedStreamConfigRange>, Box<dyn Error>> {
         let configs = device.supported_output_configs()?.find(|range| {
-            let min_sample_rate = MIN_SAMPLE_RATE.max(range.min_sample_rate().0);
-            let max_sample_rate = MAX_SAMPLE_RATE.min(range.max_sample_rate().0);
+            let min_sample_rate = MIN_SAMPLE_RATE.max(range.min_sample_rate());
+            let max_sample_rate = MAX_SAMPLE_RATE.min(range.max_sample_rate());
             if matches!(range.sample_format(), cpal::SampleFormat::I16) &&
                 range.channels() == 1 &&
                 min_sample_rate <= max_sample_rate &&
@@ -53,8 +53,8 @@ impl SoundPlayerImpl {
 
     fn find_acceptable_config(device: &cpal::Device) -> Result<Option<cpal::SupportedStreamConfigRange>, Box<dyn Error>> {
         let configs = device.supported_output_configs()?.find(|range| {
-            let min_sample_rate = MIN_SAMPLE_RATE.max(range.min_sample_rate().0);
-            let max_sample_rate = MAX_SAMPLE_RATE.min(range.max_sample_rate().0);
+            let min_sample_rate = MIN_SAMPLE_RATE.max(range.min_sample_rate());
+            let max_sample_rate = MAX_SAMPLE_RATE.min(range.max_sample_rate());
             if matches!(range.sample_format(), cpal::SampleFormat::I16) &&
                 range.channels() <= 2 &&
                 min_sample_rate <= max_sample_rate &&
@@ -82,15 +82,15 @@ impl SoundPlayerImpl {
             std::io::Error::other(format!("no suitable config found.\nSupported configs:\n{}",
                                           Self::read_supported_output_configs(&device)))
         })?;
-        let min_sample_rate = config_range.min_sample_rate().0;
-        let max_sample_rate = config_range.max_sample_rate().0;
+        let min_sample_rate = config_range.min_sample_rate();
+        let max_sample_rate = config_range.max_sample_rate();
         let sample_rate = MAX_SAMPLE_RATE.clamp(min_sample_rate, max_sample_rate);
-        let mut config = config_range.try_with_sample_rate(cpal::SampleRate(sample_rate)).ok_or_else(|| {
+        let mut config = config_range.try_with_sample_rate(sample_rate).ok_or_else(|| {
             std::io::Error::other("sample rate not supported")
         })?.config();
         config.buffer_size = cpal::BufferSize::Fixed(REQ_BUFFER_SIZE);
 
-        let player = Arc::new(Mutex::new(Player::new(config.channels as usize, config.sample_rate.0 as f32, USE_FILTER)));
+        let player = Arc::new(Mutex::new(Player::new(config.channels as usize, config.sample_rate as f32, USE_FILTER)));
         let player_clone = player.clone();
         let stream = device.build_output_stream(
             &config,
@@ -105,7 +105,7 @@ impl SoundPlayerImpl {
 
         Ok(SoundPlayerImpl {
             name: format!("cpal at {} Hz, {} channel(s), filter {}",
-                          config.sample_rate.0,
+                          config.sample_rate,
                           config.channels,
                           if USE_FILTER { "enabled" } else { "disabled" }
             ),
