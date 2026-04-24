@@ -117,7 +117,7 @@ impl Editor {
 
     fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                    mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        egui::SidePanel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_width(160.0).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_size(160.0).show_inside(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (sample_index, sample) in mod_data.samples.iter().enumerate() {
@@ -159,7 +159,7 @@ impl Editor {
         });
 
         // sample properties
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show_inside(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
                 let mut loop_start = sample.loop_start as f32;
@@ -426,7 +426,7 @@ impl Editor {
         }
 
         // header:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("MOD", |ui| {
                     ui.horizontal(|ui| {
@@ -469,7 +469,7 @@ impl Editor {
         });
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
                 n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
@@ -478,7 +478,7 @@ impl Editor {
         });
 
         // tabs:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Samples), "Samples").clicked() {
                     self.selected_tab = EditorTabs::Samples;

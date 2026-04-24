@@ -39,10 +39,10 @@ impl MessageBoxDialog {
         wt.set_open(self.id, self.open);
     }
 
-    fn show(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
+    fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
         if ! self.open { return; }
 
-        if egui::Modal::new(self.id).show(ctx, |ui| {
+        if egui::Modal::new(self.id).show(ui.ctx(), |ui| {
             sys_dialogs.block_ui(ui);
             ui.set_width(350.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
@@ -96,10 +96,10 @@ impl ConfirmationDialog {
         wt.set_open(self.id, self.open);
     }
 
-    fn show(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> ConfirmationDialogResult {
+    fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> ConfirmationDialogResult {
         if ! self.open { return ConfirmationDialogResult::No; }
 
-        let resp = egui::Modal::new(self.id).show(ctx, |ui| {
+        let resp = egui::Modal::new(self.id).show(ui.ctx(), |ui| {
             sys_dialogs.block_ui(ui);
             ui.set_width(350.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
@@ -142,10 +142,10 @@ impl AboutDialog {
         wt.set_open(self.id, self.open);
     }
 
-    fn show(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
+    fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
         if ! self.open { return; }
 
-        if egui::Modal::new(self.id).show(ctx, |ui| {
+        if egui::Modal::new(self.id).show(ui.ctx(), |ui| {
             sys_dialogs.block_ui(ui);
             ui.set_width(400.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
@@ -199,16 +199,16 @@ impl AppDialogs {
         self.about.set_open(wt);
     }
 
-    pub fn show_about(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
-        self.about.show(ctx, wt, sys_dialogs);
+    pub fn show_about(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
+        self.about.show(ui, wt, sys_dialogs);
     }
 
-    pub fn show_message_box(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
-        self.message_box.show(ctx, wt, sys_dialogs);
+    pub fn show_message_box(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
+        self.message_box.show(ui, wt, sys_dialogs);
     }
 
-    pub fn show_confirmation_dialog(&mut self, ctx: &egui::Context, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs)
+    pub fn show_confirmation_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs)
                                     -> ConfirmationDialogResult {
-        self.confirmation.show(ctx, wt, sys_dialogs)
+        self.confirmation.show(ui, wt, sys_dialogs)
     }
 }

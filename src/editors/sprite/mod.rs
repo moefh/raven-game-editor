@@ -127,7 +127,7 @@ impl Editor {
             self.image_editor.paste_pixels(sprite, image);
         }
 
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Sprite", |ui| {
                     ui.horizontal(|ui| {
@@ -236,7 +236,7 @@ impl Editor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, sprite: &mut Sprite) {
-        egui::TopBottomPanel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -310,13 +310,13 @@ impl Editor {
         self.show_toolbar(ui, wc, sprite);
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label(format!("{} bytes [{} frames]", sprite.data_size(), sprite.num_frames));
         });
 
         // item picker:
-        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
             self.image_picker.zoom = 80.0 / sprite.width as f32;
             self.image_picker.display = self.image_editor.display;
@@ -326,7 +326,7 @@ impl Editor {
         });
 
         // color picker:
-        egui::SidePanel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
             self.color_picker.show(ui, wc);
         });

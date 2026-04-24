@@ -85,7 +85,7 @@ impl Editor {
     }
 
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, map_data: &mut MapData) {
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Map", |ui| {
                     ui.horizontal(|ui| {
@@ -153,7 +153,7 @@ impl Editor {
     }
 
     fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext) {
-        egui::TopBottomPanel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -250,7 +250,7 @@ impl Editor {
     }
 
     fn show_edit_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        egui::TopBottomPanel::top(format!("editor_panel_{}_edit_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_edit_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -340,7 +340,7 @@ impl Editor {
     }
 
     fn show_footer(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 ui.label(format!(
@@ -373,7 +373,7 @@ impl Editor {
 
         if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
             // tile picker:
-            egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+            egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 4.0;
                 match self.map_editor.edit_layer {

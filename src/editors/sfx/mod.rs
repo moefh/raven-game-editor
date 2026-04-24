@@ -109,7 +109,7 @@ impl Editor {
         let mut loop_end = (sfx.loop_start + sfx.loop_len) as f32;
 
         // header:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("SFX", |ui| {
                     ui.horizontal(|ui| {
@@ -146,13 +146,13 @@ impl Editor {
         });
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label(format!("{} bytes [samples: {}, bits/sample: {}]", sfx.data_size(), sfx.samples.len(), sfx.bits_per_sample));
         });
 
         // properties
-        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
             egui::CollapsingHeader::new("Sample").default_open(true).show(ui, |ui| {
                 egui::Grid::new(format!("editor_{}_loop_grid", self.asset_id)).num_columns(2).show(ui, |ui| {

@@ -547,7 +547,7 @@ impl Editor {
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                 room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         // header:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
                     ui.horizontal(|ui| {
@@ -561,7 +561,7 @@ impl Editor {
         });
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label(format!(
                 "{} bytes [maps: {}, entities: {}, triggers: {}]",
@@ -573,7 +573,7 @@ impl Editor {
         });
 
         // left panel:
-        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
             let want_height = 70.0_f32.max(ui.available_height() / 2.0);
             ui.allocate_ui(egui::Vec2::new(200.0, want_height), |ui| {

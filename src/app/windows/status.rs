@@ -28,10 +28,10 @@ impl StatusWindow {
         };
         let selected = wc.is_window_on_top(self.base.id);
         let title_bg = match wc.egui.ctx.theme() {
-            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.style().visuals.window_fill },
+            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.global_style().visuals.window_fill },
             egui::Theme::Dark => if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) },
         };
-        let frame = egui::Frame::window(&wc.egui.ctx.style())
+        let frame = egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
             .fill(title_bg);
@@ -122,7 +122,7 @@ impl Window {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataAssetStore) {
-        egui::TopBottomPanel::top("editor_status_window_tabs").show_inside(ui, |ui| {
+        egui::Panel::top("editor_status_window_tabs").show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, StatusWindowsTabs::Windows), "Windows").clicked() {
@@ -135,7 +135,7 @@ impl Window {
             ui.add_space(0.0);
         });
 
-        egui::TopBottomPanel::bottom("editor_status_window_footer").show_inside(ui, |ui| {
+        egui::Panel::bottom("editor_status_window_footer").show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label("");
         });

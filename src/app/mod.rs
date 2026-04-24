@@ -338,11 +338,11 @@ impl RavenEditorApp {
         };
     }
 
-    fn update_dialogs(&mut self, ctx: &egui::Context) {
-        self.dialogs.show_about(ctx, &mut self.window_tracker, &self.sys_dialogs);
-        self.dialogs.show_message_box(ctx, &mut self.window_tracker, &self.sys_dialogs);
+    fn update_dialogs(&mut self, ui: &mut egui::Ui) {
+        self.dialogs.show_about(ui, &mut self.window_tracker, &self.sys_dialogs);
+        self.dialogs.show_message_box(ui, &mut self.window_tracker, &self.sys_dialogs);
 
-        if matches!(self.dialogs.show_confirmation_dialog(ctx, &mut self.window_tracker, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
+        if matches!(self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
             match self.confirmation_dialog_action {
                 ConfirmationDialogAction::NewProject => {
                     self.new_project();
@@ -353,8 +353,8 @@ impl RavenEditorApp {
         }
     }
 
-    fn update_menu(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("main_menu").show(ctx, |ui| {
+    fn update_menu(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
+        egui::Panel::top("main_menu").show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
             let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
@@ -371,7 +371,7 @@ impl RavenEditorApp {
                 if ! self.windows.check.base.open {
                     self.windows.open_check();
                 } else {
-                    Self::activate_window(ctx, self.windows.check.base.id);
+                    Self::activate_window(ui, self.windows.check.base.id);
                 }
             }
 
@@ -488,8 +488,8 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_toolbar(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("main_toolbar").show(ctx, |ui| {
+    fn update_toolbar(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
+        egui::Panel::top("main_toolbar").show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
             ui.horizontal(|ui| {
@@ -535,8 +535,8 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_footer(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("footer").show(ctx, |ui| {
+    fn update_footer(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::bottom("footer").show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
 
@@ -545,8 +545,8 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_asset_tree(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::left("asset_tree").resizable(false).exact_width(ASSET_TREE_PANEL_WIDTH).show(ctx, |ui| {
+    fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::left("asset_tree").resizable(false).exact_size(ASSET_TREE_PANEL_WIDTH).show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
@@ -616,12 +616,12 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_windows(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will hover
         });
-        let content_rect = ctx.content_rect();
+        let content_rect = ui.ctx().content_rect();
         let window_space = egui::Rect {
             min: egui::Pos2 {
                 x: content_rect.min.x + ASSET_TREE_PANEL_WIDTH,
@@ -634,7 +634,7 @@ impl RavenEditorApp {
         };
         let mut win_ctx = WindowContext {
             window_space,
-            egui: WindowEguiContext::new(ctx, window),
+            egui: WindowEguiContext::new(ui.ctx(), window),
             tex_man: &mut self.tex_manager,
             sys_dialogs: &mut self.sys_dialogs,
             dialogs: &mut self.dialogs,
@@ -706,7 +706,7 @@ impl RavenEditorApp {
                 if ! editor.open {
                     editor.open = true;
                 } else {
-                    Self::activate_window(ctx, editor.egui_id);
+                    Self::activate_window(ui, editor.egui_id);
                 }
             }
 
@@ -744,7 +744,7 @@ impl eframe::App for RavenEditorApp {
         }
     }
 
-    fn update(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("save_project_as") &&
             self.write_project(&filename) {
                 self.set_filename(Some(filename));
@@ -757,7 +757,7 @@ impl eframe::App for RavenEditorApp {
         }
 
         if self.reset_egui_context {
-            ctx.memory_mut(|mem| {
+            ui.ctx().memory_mut(|mem| {
                 mem.reset_areas();
                 mem.data.clear();
             });
@@ -771,16 +771,16 @@ impl eframe::App for RavenEditorApp {
                 }
                 None => "<unnamed> - Raven Game Editor".to_owned()
             };
-            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
             self.filename_changed = false;
         }
 
         self.editors.update_dirty(&self.store);
-        self.update_dialogs(ctx);
-        self.update_menu(ctx, window);
-        self.update_toolbar(ctx, window);
-        self.update_footer(ctx);
-        self.update_asset_tree(ctx);
-        self.update_windows(ctx, window);
+        self.update_dialogs(ui);
+        self.update_menu(ui, window);
+        self.update_toolbar(ui, window);
+        self.update_footer(ui);
+        self.update_asset_tree(ui);
+        self.update_windows(ui, window);
     }
 }

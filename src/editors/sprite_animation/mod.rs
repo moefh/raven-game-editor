@@ -134,13 +134,13 @@ impl Editor {
         let asset_id = animation.asset.id;
 
         // color picker:
-        egui::SidePanel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
             self.color_picker.show(ui, wc);
         });
 
         // loop frames:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
                 let slot = self.image_editor.display.texture_slot();
@@ -185,7 +185,7 @@ impl Editor {
         let slot = self.image_editor.display.texture_slot();
         let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
 
-        egui::TopBottomPanel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             if let Some(aloop) = animation.loops.get_mut(self.selected_loop) {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", animation.asset.id))
@@ -226,7 +226,7 @@ impl Editor {
             }
         });
 
-        egui::TopBottomPanel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label("Sprite frames (drag to the lists below):");
             let view = SpriteFrameListView::new(&self.sprite_frames, 0, self.selected_sprite_frame);
@@ -302,7 +302,7 @@ impl Editor {
         }
 
         // header:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Animation", |ui| {
                     ui.horizontal(|ui| {
@@ -319,7 +319,7 @@ impl Editor {
         });
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             let num_loops = animation.loops.iter().fold(0, |n, aloop| {
                 n + if aloop.frame_indices.is_empty() { 0 } else { 1 }
@@ -328,7 +328,7 @@ impl Editor {
         });
 
         // loops:
-        egui::SidePanel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).max_width(120.0).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).max_size(120.0).show_inside(ui, |ui| {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (loop_index, aloop) in animation.loops.iter().enumerate() {
@@ -341,7 +341,7 @@ impl Editor {
         });
 
         // tabs:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Sprite), "Sprite").clicked() {
                     self.selected_tab = EditorTabs::Sprite;

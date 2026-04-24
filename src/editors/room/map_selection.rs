@@ -68,13 +68,13 @@ impl MapSelectionDialog {
             wc.sys_dialogs.block_ui(ui);
 
             let asset_id = room.asset.id;
-            egui::TopBottomPanel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
+            egui::Panel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
                 ui.add_space(2.0);
                 ui.heading("Map Selection");
                 ui.add_space(2.0);
             });
 
-            egui::TopBottomPanel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show_inside(ui, |ui| {
+            egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {
@@ -87,10 +87,10 @@ impl MapSelectionDialog {
                 });
             });
 
-            egui::SidePanel::left(format!("editor_panel_{}_maps_left", asset_id))
+            egui::Panel::left(format!("editor_panel_{}_maps_left", asset_id))
                 .resizable(false)
                 .show_separator_line(false)
-                .min_width(200.0)
+                .min_size(200.0)
                 .show_inside(ui, |ui| {
                     ui.add_space(5.0);
                     ui.label("Available maps:");

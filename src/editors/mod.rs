@@ -75,10 +75,10 @@ impl AssetEditorBase {
 
         let selected = wc.is_editor_on_top(self.id);
         let title_bg = match wc.egui.ctx.theme() {
-            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.style().visuals.window_fill },
+            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.global_style().visuals.window_fill },
             egui::Theme::Dark => if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) },
         };
-        let frame = egui::Frame::window(&wc.egui.ctx.style())
+        let frame = egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
             .fill(title_bg);

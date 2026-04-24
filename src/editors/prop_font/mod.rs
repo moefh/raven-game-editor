@@ -125,7 +125,7 @@ impl Editor {
             }
 
         // header:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Prop Font", |ui| {
                     ui.horizontal(|ui| {
@@ -156,7 +156,7 @@ impl Editor {
         });
 
         // font test:
-        egui::TopBottomPanel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Edit:");
@@ -204,7 +204,7 @@ impl Editor {
         });
 
         // footer:
-        egui::TopBottomPanel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label(format!("{} bytes [height: {}]", prop_font.data_size(), prop_font.height));
         });
