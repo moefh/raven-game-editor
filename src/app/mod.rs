@@ -73,7 +73,7 @@ impl RavenEditorApp {
             windows: windows::AppWindows::new(),
             image_clipboard: ImageClipboardData::Empty,
             map_clipboard: MapClipboardData::Empty,
-            tex_manager: TextureManager::new(),
+            tex_manager: TextureManager::new(6),
             sound_player: SoundPlayer::new(),
             settings: AppSettings::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
@@ -232,6 +232,7 @@ impl RavenEditorApp {
         self.tex_manager.clear();
         self.windows.clear_project();
         self.store = store;
+        self.tex_manager.set_bits_per_pixel(self.store.vga_bits_per_pixel);
         self.editors.create_editors_for_new_store(&self.store);
         self.window_tracker.reset(&self.editors.egui_id_to_asset_id, self.windows.get_ids());
         self.reset_egui_context = true;
@@ -700,7 +701,7 @@ impl RavenEditorApp {
 
         self.windows.show_settings(&mut win_ctx);
         self.windows.show_status(&win_ctx, &self.store);
-        self.windows.show_properties(&win_ctx,
+        self.windows.show_properties(&mut win_ctx,
                                      &mut self.store.vga_bits_per_pixel,
                                      &mut self.store.vga_sync_bits,
                                      &mut self.store.project_prefix);

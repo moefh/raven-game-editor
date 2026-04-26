@@ -2062,6 +2062,7 @@ impl<'a> ProjectDataReader<'a> {
 
 pub fn read_project<P: AsRef<Path>>(filename: P, store: &mut DataAssetStore, logger: &mut StringLogger) -> Result<()> {
     logger.log(format!("-> reading file {}", filename.as_ref().display()));
+    store.vga_bits_per_pixel = 6;  // default for compatibility
 
     let data = match fs::read_to_string(filename) {
         Ok(data) => data,

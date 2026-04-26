@@ -19,7 +19,7 @@ impl PropertiesWindow {
         "0xc0 (11)",
     ];
 
-    pub fn show(&mut self, wc: &WindowContext, vga_bits_per_pixel: &mut u8, vga_sync_bits: &mut u8, project_prefix: &mut String) {
+    pub fn show(&mut self, wc: &mut WindowContext, vga_bits_per_pixel: &mut u8, vga_sync_bits: &mut u8, project_prefix: &mut String) {
         let default_rect = self.base.default_rect(wc, 400.0, 200.0);
         let response = self.base.create_window(wc, "Project Properties", default_rect).show(wc.egui.ctx, |ui| {
             egui::Grid::new("project_properties_grid")
@@ -34,6 +34,7 @@ impl PropertiesWindow {
                         ui.label("Colors:");
                     });
                     ui.vertical(|ui| {
+                        let old_bits_per_pixel = *vga_bits_per_pixel;
                         ui.horizontal(|ui| {
                             ui.radio_value(vga_bits_per_pixel, 8, "256 (8 bits)");
                         });
@@ -50,6 +51,9 @@ impl PropertiesWindow {
                                     });
                             });
                         });
+                        if old_bits_per_pixel != *vga_bits_per_pixel {
+                            wc.tex_man.set_bits_per_pixel(*vga_bits_per_pixel);
+                        }
                     });
                     ui.end_row();
                 });
