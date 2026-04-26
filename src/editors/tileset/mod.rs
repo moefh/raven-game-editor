@@ -4,7 +4,7 @@ mod remove_tiles;
 mod import;
 mod export;
 
-use crate::misc::IMAGES;
+use crate::misc::{colors, IMAGES};
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
@@ -110,7 +110,7 @@ impl Editor {
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            color_picker: ColorPickerWidget::new(0b000011, 0b110000),
+            color_picker: ColorPickerWidget::new(colors::RED, colors::BLUE),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::new(),
         }
@@ -150,7 +150,7 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, tileset, self.color_picker.right_color);
+                            dialogs.properties_dialog.set_open(wc, tileset, self.color_picker.state.right_color);
                         }
                     });
                 });
@@ -168,7 +168,7 @@ impl Editor {
                         if self.image_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
                         if ui.button("Cut").clicked() {
-                            self.image_editor.cut(wc, tileset, self.color_picker.right_color);
+                            self.image_editor.cut(wc, tileset, self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
@@ -189,7 +189,7 @@ impl Editor {
                         if self.image_editor.selection.is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
-                            self.image_editor.delete_selection(tileset, self.color_picker.right_color);
+                            self.image_editor.delete_selection(tileset, self.color_picker.state.right_color);
                         }
                     });
 
@@ -216,14 +216,14 @@ impl Editor {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
                             dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.image_picker.selected_image,
-                                                              self.color_picker.right_color);
+                                                              self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
                             dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.image_picker.selected_image,
-                                                              self.color_picker.right_color);
+                                                              self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
@@ -269,10 +269,10 @@ impl Editor {
                 ui.add_space(5.0);
 
                 if ui.add(egui::Button::image(IMAGES.v_flip)).on_hover_text("Vertical Flip").clicked() {
-                    self.image_editor.vflip(tileset, self.color_picker.right_color);
+                    self.image_editor.vflip(tileset, self.color_picker.state.right_color);
                 }
                 if ui.add(egui::Button::image(IMAGES.h_flip)).on_hover_text("Horizontal Flip").clicked() {
-                    self.image_editor.hflip(tileset, self.color_picker.right_color);
+                    self.image_editor.hflip(tileset, self.color_picker.state.right_color);
                 }
                 ui.spacing_mut().item_spacing = spacing;
 
@@ -331,12 +331,12 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc);
+            self.color_picker.show(ui, wc, format!("editor_{}_color_picker", self.asset_id));
         });
 
         // image:
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            let colors = (self.color_picker.left_color, self.color_picker.right_color);
+            let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
             self.image_editor.show(ui, wc, tileset, colors);
             self.color_picker.maybe_set_colors(
                 self.image_editor.pick_left_color.take(),
@@ -346,7 +346,7 @@ impl Editor {
 
         // keyboard shortcuts
         if wc.is_editor_on_top(self.asset_id) {
-            self.image_editor.handle_keyboard(ui, wc, tileset, self.color_picker.right_color);
+            self.image_editor.handle_keyboard(ui, wc, tileset, self.color_picker.state.right_color);
         }
     }
 }

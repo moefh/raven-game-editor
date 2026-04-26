@@ -7,11 +7,11 @@ pub struct Tileset {
     pub data: Vec<u8>,
 }
 
-pub struct CreationData<'a> {
+pub struct CreationData {
     pub width: u32,
     pub height: u32,
     pub num_tiles: u32,
-    pub data: &'a [u32],
+    pub pixels: Vec<u8>,
 }
 
 impl Tileset {
@@ -34,7 +34,7 @@ impl Tileset {
             width: data.width,
             height: data.height,
             num_tiles: data.num_tiles,
-            data: super::image_u32_to_pixels(data.data, data.width, data.height, data.num_tiles),
+            data: data.pixels,
         }
     }
 

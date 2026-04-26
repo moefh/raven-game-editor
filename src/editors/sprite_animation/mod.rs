@@ -1,6 +1,6 @@
 mod properties;
 
-use crate::misc::IMAGES;
+use crate::misc::{colors, IMAGES};
 use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::{
@@ -107,7 +107,7 @@ impl Editor {
             selected_loop_frame: 0,
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
-            color_picker: ColorPickerWidget::new(0b000011, 0b001100),
+            color_picker: ColorPickerWidget::new(colors::RED, colors::GREEN),
             image_editor: ImageEditorWidget::new(),
         }
     }
@@ -136,7 +136,7 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc);
+            self.color_picker.show(ui, wc, format!("editor_{}_color_picker", self.asset_id));
         });
 
         // loop frames:
@@ -164,7 +164,7 @@ impl Editor {
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
                     self.image_editor.set_selected_image(image_item as u32, sprite);
-                    let colors = (self.color_picker.left_color, self.color_picker.right_color);
+                    let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
                     self.image_editor.show(ui, wc, sprite, colors);
                     self.color_picker.maybe_set_colors(
                         self.image_editor.pick_left_color.take(),
@@ -359,7 +359,7 @@ impl Editor {
 
         // keyboard:
         if wc.is_editor_on_top(self.asset_id) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
-            self.image_editor.handle_keyboard(ui, wc, sprite, self.color_picker.right_color);
+            self.image_editor.handle_keyboard(ui, wc, sprite, self.color_picker.state.right_color);
         }
     }
 }

@@ -38,12 +38,82 @@ const C_STRUCT_NAMES : &[&str] = &[
 
 static RE_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#\s*define\s+([A-Za-z0-9_]+)\s+(.*)$").unwrap());
+static RE_VGA_BITS_PER_PIXEL: LazyLock<Regex> = LazyLock::new(
+    || Regex::new(r"^([A-Za-z0-9_]+)_DATA_VGA_BITS_PER_PIXEL$").unwrap());
 static RE_VGA_SYNC_BITS: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^([A-Za-z0-9_]+)_DATA_VGA_SYNC_BITS$").unwrap());
 static RE_PRE_PROCESSOR_IF: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#if").unwrap());
 static RE_PRE_PROCESSOR_ENDIF: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#endif").unwrap());
+
+fn image_6bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32, pixel_mapping: &Vec<u8>) -> Vec<u8> {
+    const COLOR_BITS: u32 = 0b0011_1111;
+
+    let stride = width.div_ceil(4) as usize;
+    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
+    for y in 0 .. (height * num_items) as usize {
+        for x in 0..stride {
+            let quad = data[y*stride + x];
+            if x < stride-1 || width.is_multiple_of(4) {
+                pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
+                pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
+                pixels.push(pixel_mapping[((quad >> 16) & COLOR_BITS) as usize]);
+                pixels.push(pixel_mapping[((quad >> 24) & COLOR_BITS) as usize]);
+            } else {
+                match width % 4 {
+                    1 => {
+                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
+                    },
+                    2 => {
+                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
+                        pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
+                    },
+                    3 => {
+                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
+                        pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
+                        pixels.push(pixel_mapping[((quad >> 16) & COLOR_BITS) as usize]);
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+    pixels
+}
+
+fn image_8bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
+    let stride = width.div_ceil(4) as usize;
+    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
+    for y in 0 .. (height * num_items) as usize {
+        for x in 0..stride {
+            let quad = data[y*stride + x];
+            if x < stride-1 || width.is_multiple_of(4) {
+                pixels.push((quad        ) as u8);
+                pixels.push(((quad >>  8)) as u8);
+                pixels.push(((quad >> 16)) as u8);
+                pixels.push(((quad >> 24)) as u8);
+            } else {
+                match width % 4 {
+                    1 => {
+                        pixels.push((quad        ) as u8);
+                    },
+                    2 => {
+                        pixels.push((quad        ) as u8);
+                        pixels.push(((quad >>  8)) as u8);
+                    },
+                    3 => {
+                        pixels.push((quad        ) as u8);
+                        pixels.push(((quad >>  8)) as u8);
+                        pixels.push(((quad >> 16)) as u8);
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+    pixels
+}
 
 struct I8or16Array {
     data_size: u32,  // 8 or 16
@@ -98,6 +168,7 @@ pub struct ProjectDataReader<'a> {
     prefix_lower: String,
     prefix_upper: String,
     last_type_size: u32,
+    pixel_6bit_to_8bit: Vec<u8>,
 }
 
 fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
@@ -113,6 +184,18 @@ fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
 impl<'a> ProjectDataReader<'a> {
 
     fn new(source: &'a str, store: &'a mut DataAssetStore, logger: &'a mut StringLogger) -> Self {
+        let mut pixel_6bit_to_8bit = vec![0u8; 64];
+        for pix_6bit in 0..pixel_6bit_to_8bit.len() {
+            let r6 = pix_6bit & 0x03;
+            let g6 = (pix_6bit & 0x0c) >> 2;
+            let b6 = (pix_6bit & 0x30) >> 4;
+            let r8 = (r6 << 1) | (r6 >> 1);
+            let g8 = (g6 << 1) | (g6 >> 1);
+            let b8 = b6;
+            let pix_8bit = r8 | (g8 << 3) | (b8 << 6);
+            pixel_6bit_to_8bit[pix_6bit] = pix_8bit as u8;
+        }
+
         ProjectDataReader {
             logger,
             store,
@@ -122,6 +205,7 @@ impl<'a> ProjectDataReader<'a> {
             last_type_size: 0,
             prefix_lower: String::new(),
             prefix_upper: String::new(),
+            pixel_6bit_to_8bit,
 
             read_data: ReadData {
                 font_data: HashMap::new(),
@@ -256,6 +340,14 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
+    fn get_image_pixels(&self, data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
+        if self.store.vga_bits_per_pixel == 8 {
+            image_8bit_u32_to_pixels(data, width, height, num_items)
+        } else {
+            image_6bit_u32_to_pixels(data, width, height, num_items, &self.pixel_6bit_to_8bit)
+        }
+    }
+
     fn handle_pre_processor_define(&mut self, name: &str, value: &str) {
         self.logger.log(format!("-> ignoring define '{}' = '{}'", name, value));
     }
@@ -362,7 +454,19 @@ impl<'a> ProjectDataReader<'a> {
         Some(&ident[self.prefix_upper.len()..])
     }
 
-    fn read_project_prefix(&mut self) -> Result<()> {
+    fn set_project_prefix(&mut self, prefix: &str) {
+        self.logger.log(format!("-> got project prefix '{}'", prefix));
+        self.prefix_upper.push_str(prefix);
+        self.prefix_upper.push('_');
+        self.prefix_upper.make_ascii_uppercase();
+        self.prefix_lower.push_str(prefix);
+        self.prefix_lower.push('_');
+        self.prefix_lower.make_ascii_lowercase();
+        self.store.project_prefix = prefix.to_owned();
+    }
+
+    fn read_project_defines(&mut self) -> Result<()> {
+        let mut got_prefix = false;
         loop {
             let t = self.expect_token()?;
 
@@ -374,26 +478,48 @@ impl<'a> ProjectDataReader<'a> {
                         // #define
                         if let Some(name_prefix) = RE_VGA_SYNC_BITS.captures(name.as_str()) &&
                             let Some(prefix) = name_prefix.get(1) {
-                                // #define <PREFIX>_VGA_SYNC_BITS
+                                // #define <PREFIX>_DATA_VGA_SYNC_BITS
                                 match Self::parse_number(value.as_str()) {
                                     Some(vga_sync_bits) => {
                                         if vga_sync_bits > 0xff {
                                             return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), t.pos);
                                         }
-                                        self.logger.log(format!("-> got project prefix '{}'", prefix.as_str()));
+                                        if ! got_prefix {
+                                            self.set_project_prefix(prefix.as_str());
+                                            got_prefix = true;
+                                        } else if self.store.project_prefix != prefix.as_str() {
+                                            return error(format!("define for vga_sync_bits has invalid prefix: {}", name.as_str()), t.pos);
+                                        }
                                         self.logger.log(format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
-                                        self.prefix_upper.push_str(prefix.as_str());
-                                        self.prefix_upper.push('_');
-                                        self.prefix_upper.make_ascii_uppercase();
-                                        self.prefix_lower.push_str(prefix.as_str());
-                                        self.prefix_lower.push('_');
-                                        self.prefix_lower.make_ascii_lowercase();
                                         self.store.vga_sync_bits = vga_sync_bits as u8;
-                                        self.store.project_prefix = prefix.as_str().to_owned();
-                                        return Ok(());
+                                        continue;
                                     },
                                     None => {
                                         return error(format!("bad vga_sync_bits value: {}", value.as_str()), t.pos);
+                                    }
+                                }
+                            }
+                        if let Some(name_prefix) = RE_VGA_BITS_PER_PIXEL.captures(name.as_str()) &&
+                            let Some(prefix) = name_prefix.get(1) {
+                                // #define <PREFIX>_DATA_VGA_BITS_PER_PIXEL
+                                match Self::parse_number(value.as_str()) {
+                                    Some(vga_bits_per_pixel) => {
+                                        if vga_bits_per_pixel != 6 && vga_bits_per_pixel != 8 {
+                                            return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
+                                                                 vga_bits_per_pixel), t.pos);
+                                        }
+                                        if ! got_prefix {
+                                            self.set_project_prefix(prefix.as_str());
+                                            got_prefix = true;
+                                        } else if self.store.project_prefix != prefix.as_str() {
+                                            return error(format!("define for vga_bits_per_pixel has invalid prefix: {}", name.as_str()), t.pos);
+                                        }
+                                        self.logger.log(format!("-> got vga_bits_per_pixel {:#04x}", vga_bits_per_pixel));
+                                        self.store.vga_bits_per_pixel = vga_bits_per_pixel as u8;
+                                        continue;
+                                    },
+                                    None => {
+                                        return error(format!("bad vga_bits_per_pixel value: {}", value.as_str()), t.pos);
                                     }
                                 }
                             }
@@ -405,7 +531,11 @@ impl<'a> ProjectDataReader<'a> {
                 continue;
             }
 
-            return error(format!("must have define for vga_sync_bits before this: {}", &t), t.pos);
+            // anything other than pre-processor line:
+            if ! got_prefix {
+                return error(format!("must have define for vga_sync_bits before this: {}", &t), t.pos);
+            }
+            return self.unread(t);
         }
     }
 
@@ -1068,7 +1198,7 @@ impl<'a> ProjectDataReader<'a> {
                 width,
                 height,
                 num_tiles,
-                data,
+                pixels: self.get_image_pixels(data, width, height, num_tiles),
             };
             if let Some(id) = self.store.add_tileset_from(name.to_string(), data) {
                 self.read_data.tilesets.push(id);
@@ -1153,7 +1283,7 @@ impl<'a> ProjectDataReader<'a> {
                 width,
                 height,
                 num_frames: num_frames / div_ignore_mirrors,
-                data: &data[0..data.len() / div_ignore_mirrors as usize],
+                pixels: self.get_image_pixels(&data[0..data.len()/div_ignore_mirrors as usize], width, height, num_frames/div_ignore_mirrors),
             };
             if let Some(id) = self.store.add_sprite_from(name.to_string(), data) {
                 self.read_data.sprites.push(id);
@@ -1772,7 +1902,7 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     pub fn read_project(&mut self) -> Result<()> {
-        self.read_project_prefix()?;
+        self.read_project_defines()?;
 
         loop {
             let t = self.read()?;

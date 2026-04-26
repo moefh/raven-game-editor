@@ -142,41 +142,6 @@ pub trait GenericAsset {
     fn data_size(&self) -> usize;
 }
 
-fn image_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
-    const COLOR_BITS: u32 = 0b0011_1111;
-
-    let stride = width.div_ceil(4) as usize;
-    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
-    for y in 0 .. (height * num_items) as usize {
-        for x in 0..stride {
-            let quad = data[y*stride + x];
-            if x < stride-1 || width.is_multiple_of(4) {
-                pixels.push((quad         & COLOR_BITS) as u8);
-                pixels.push(((quad >>  8) & COLOR_BITS) as u8);
-                pixels.push(((quad >> 16) & COLOR_BITS) as u8);
-                pixels.push(((quad >> 24) & COLOR_BITS) as u8);
-            } else {
-                match width % 4 {
-                    1 => {
-                        pixels.push((quad         & COLOR_BITS) as u8);
-                    },
-                    2 => {
-                        pixels.push((quad         & COLOR_BITS) as u8);
-                        pixels.push(((quad >>  8) & COLOR_BITS) as u8);
-                    },
-                    3 => {
-                        pixels.push((quad         & COLOR_BITS) as u8);
-                        pixels.push(((quad >>  8) & COLOR_BITS) as u8);
-                        pixels.push(((quad >> 16) & COLOR_BITS) as u8);
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-    pixels
-}
-
 pub struct AssetList<T> {
     store: HashMap<DataAssetId, T>
 }
@@ -386,6 +351,7 @@ impl AssetIdCollection {
 pub struct DataAssetStore {
     next_id: u32,
 
+    pub vga_bits_per_pixel: u8,
     pub vga_sync_bits: u8,
     pub project_prefix: String,
     pub assets: AssetCollection,
@@ -396,6 +362,7 @@ impl DataAssetStore {
     pub fn new() -> Self {
         DataAssetStore {
             next_id: 0,
+            vga_bits_per_pixel: 6,
             vga_sync_bits: 0xc0,
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),

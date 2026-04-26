@@ -7,11 +7,11 @@ pub struct Sprite {
     pub data: Vec<u8>,
 }
 
-pub struct CreationData<'a> {
+pub struct CreationData {
     pub width: u32,
     pub height: u32,
     pub num_frames: u32,
-    pub data: &'a [u32],
+    pub pixels: Vec<u8>,
 }
 
 impl Sprite {
@@ -36,7 +36,7 @@ impl Sprite {
             width: data.width,
             height: data.height,
             num_frames: data.num_frames,
-            data: super::image_u32_to_pixels(data.data, data.width, data.height, data.num_frames),
+            data: data.pixels,
         }
     }
 }

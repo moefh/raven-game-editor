@@ -70,6 +70,7 @@ impl<'a> ProjectDataWriter<'a> {
             }
 
         self.write("\n");
+        self.write(format!("#define {}_DATA_VGA_BITS_PER_PIXEL {}\n", self.ident.prefix_upper, self.store.vga_bits_per_pixel));
         self.write(format!("#define {}_DATA_VGA_SYNC_BITS {:#04x}\n", self.ident.prefix_upper, self.store.vga_sync_bits));
 
         if let Ok(now) = local_time &&
@@ -97,8 +98,76 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn fix_pixel(&self, pixel: u8) -> u32 {
-        ((pixel & 0x3f) | self.store.vga_sync_bits) as u32
+    fn pixel_to_6bpp(&self, pixel: u8) -> u8 {
+        let r6 = (pixel >> 1) & 0x3;
+        let g6 = (pixel >> 4) & 0x3;
+        let b6 = (pixel >> 6) & 0x3;
+        let pix6 = r6 | (g6 << 2) | (b6 << 4);
+        (pix6 & 0x3f) | self.store.vga_sync_bits
+    }
+
+    fn copy_image_row(dest: &mut [u8], src: &[u8], mirror: bool) {
+        if mirror {
+            for (d, s) in dest.iter_mut().zip(src.iter().rev()) {
+                *d = *s;
+            }
+        } else {
+            for (d, s) in dest.iter_mut().zip(src.iter()) {
+                *d = *s;
+            }
+        }
+    }
+
+    fn write_image_item_6bits(&self, width: u32, height: u32, item_num: u32, pixels: &[u8], mirror: bool) {
+        let empty_pixel = self.store.vga_sync_bits as u32;
+        let empty_quad = empty_pixel | empty_pixel << 8 | empty_pixel << 16 | empty_pixel << 24;
+        let width = width as usize;
+        let height = height as usize;
+        let item_num = item_num as usize;
+        let stride = width.div_ceil(4);
+        let mut image_row = vec![self.store.vga_sync_bits; width];
+        for y in 0..height {
+            let index = (item_num * height + y) * width;
+            Self::copy_image_row(&mut image_row, &pixels[index..index+width], mirror);
+            for s in 0..stride {
+                if s.is_multiple_of(8) { self.write("\n  "); }
+                let mut quad = empty_quad | (self.pixel_to_6bpp(image_row[s*4]) as u32);
+                if width > s*4+1 { quad |= (self.pixel_to_6bpp(image_row[s*4 + 1]) as u32) <<  8; }
+                if width > s*4+2 { quad |= (self.pixel_to_6bpp(image_row[s*4 + 2]) as u32) << 16; }
+                if width > s*4+3 { quad |= (self.pixel_to_6bpp(image_row[s*4 + 3]) as u32) << 24; }
+                self.write(format!("{:#10x},", quad));
+            }
+        }
+        self.write("\n");
+    }
+
+    fn write_image_item_8bits(&self, width: u32, height: u32, item_num: u32, pixels: &[u8], mirror: bool) {
+        let width = width as usize;
+        let height = height as usize;
+        let item_num = item_num as usize;
+        let stride = width.div_ceil(4);
+        let mut image_row = vec![self.store.vga_sync_bits; width];
+        for y in 0..height {
+            let index = (item_num * height + y) * width;
+            Self::copy_image_row(&mut image_row, &pixels[index..index+width], mirror);
+            for s in 0..stride {
+                if s.is_multiple_of(8) { self.write("\n  "); }
+                let mut quad = image_row[s*4] as u32;
+                if width > s*4+1 { quad |= (image_row[s*4 + 1] as u32) <<  8; }
+                if width > s*4+2 { quad |= (image_row[s*4 + 2] as u32) << 16; }
+                if width > s*4+3 { quad |= (image_row[s*4 + 3] as u32) << 24; }
+                self.write(format!("{:#10x},", quad));
+            }
+        }
+        self.write("\n");
+    }
+
+    fn write_image_item(&self, width: u32, height: u32, item_num: u32, pixels: &[u8], mirror: bool) {
+        if self.store.vga_bits_per_pixel == 8 {
+            self.write_image_item_8bits(width, height, item_num, pixels, mirror);
+        } else {
+            self.write_image_item_6bits(width, height, item_num, pixels, mirror);
+        }
     }
 
     // =========================================================================
@@ -498,28 +567,9 @@ impl<'a> ProjectDataWriter<'a> {
     fn write_tileset_data(&self, tileset: &super::Tileset, name: &str) {
         self.write(format!("static const uint32_t {}_tileset_data_{}[] = {{\n",
                            self.ident.prefix_lower, name));
-
-        let empty_pixel = self.store.vga_sync_bits as u32;
-        let empty_quad = empty_pixel | empty_pixel << 8 | empty_pixel << 16 | empty_pixel << 24;
-
-        let width = tileset.width as usize;
-        let height = tileset.height as usize;
-        let num_tiles = tileset.num_tiles as usize;
-        let stride = width.div_ceil(4);
-        for tile_num in 0..num_tiles {
+        for tile_num in 0..tileset.num_tiles {
             self.write(format!("  // tile {}", tile_num));
-            for y in 0..height {
-                for s in 0..stride {
-                    if (y*stride + s).is_multiple_of(8) { self.write("\n  "); }
-                    let index = ((tile_num * height) + y) * width + s*4;
-                    let mut quad = empty_quad | self.fix_pixel(tileset.data[index]);
-                    if width > s*4+1 { quad |= (self.fix_pixel(tileset.data[index+1])) <<  8; }
-                    if width > s*4+2 { quad |= (self.fix_pixel(tileset.data[index+2])) << 16; }
-                    if width > s*4+3 { quad |= (self.fix_pixel(tileset.data[index+3])) << 24; }
-                    self.write(format!("{:#10x},", quad));
-                }
-            }
-            self.write("\n");
+            self.write_image_item(tileset.width, tileset.height, tile_num, &tileset.data, false);
         }
         self.write("};\n");
         self.write("\n");
@@ -557,41 +607,10 @@ impl<'a> ProjectDataWriter<'a> {
     // === SPRITE
     // =========================================================================
 
-    fn copy_image_row(dest: &mut [u8], src: &[u8], mirror: bool) {
-        if mirror {
-            for (d, s) in dest.iter_mut().zip(src.iter().rev()) {
-                *d = *s;
-            }
-        } else {
-            for (d, s) in dest.iter_mut().zip(src.iter()) {
-                *d = *s;
-            }
-        }
-    }
-
     fn write_sprite_frames(&self, sprite: &super::Sprite, mirror: bool) {
-        let empty_pixel = self.store.vga_sync_bits as u32;
-        let empty_quad = empty_pixel | empty_pixel << 8 | empty_pixel << 16 | empty_pixel << 24;
-        let width = sprite.width as usize;
-        let height = sprite.height as usize;
-        let num_frames = sprite.num_frames as usize;
-        let stride = width.div_ceil(4);
-        let mut image_row = vec![self.store.vga_sync_bits; width];
-        for frame_num in 0..num_frames {
+        for frame_num in 0..sprite.num_frames {
             self.write(format!("  // frame {}{}", frame_num, if mirror { " (mirror)" } else { "" }));
-            for y in 0..height {
-                let index = (frame_num * height + y) * width;
-                Self::copy_image_row(&mut image_row, &sprite.data[index..index+width], mirror);
-                for s in 0..stride {
-                    if s.is_multiple_of(8) { self.write("\n  "); }
-                    let mut quad = empty_quad | self.fix_pixel(image_row[s*4]);
-                    if width > s*4+1 { quad |= (self.fix_pixel(image_row[s*4 + 1])) <<  8; }
-                    if width > s*4+2 { quad |= (self.fix_pixel(image_row[s*4 + 2])) << 16; }
-                    if width > s*4+3 { quad |= (self.fix_pixel(image_row[s*4 + 3])) << 24; }
-                    self.write(format!("{:#10x},", quad));
-                }
-            }
-            self.write("\n");
+            self.write_image_item(sprite.width, sprite.height, frame_num, &sprite.data, mirror);
         }
     }
 
