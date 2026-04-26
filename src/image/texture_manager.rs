@@ -12,7 +12,7 @@ pub struct TextureManager {
 }
 
 impl TextureManager {
-    fn gen_color6_to_rgb_maps(opaque: &mut Vec<egui::Color32>, transp: &mut Vec<egui::Color32>) {
+    fn gen_color6_to_rgb_maps(opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
         for color in 0..MAX_COLORS {
             let r = (color as u8 >> 1) & 0x3;
             let g = (color as u8 >> 4) & 0x3;
@@ -26,7 +26,7 @@ impl TextureManager {
         }
     }
 
-    fn gen_color8_to_rgb_maps(opaque: &mut Vec<egui::Color32>, transp: &mut Vec<egui::Color32>) {
+    fn gen_color8_to_rgb_maps(opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
         for color in 0..MAX_COLORS {
             let r = (color as u8) & 0x7;
             let g = (color as u8 >> 3) & 0x7;

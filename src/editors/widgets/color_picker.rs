@@ -108,9 +108,9 @@ impl<'a> ColorPickerWidget6<'a> {
     }
 
     pub fn color_to_rgb(color: u8) -> egui::Color32 {
-        let r = (color as u8 >> 1) & 0x3;
-        let g = (color as u8 >> 4) & 0x3;
-        let b = (color as u8 >> 6) & 0x3;
+        let r = (color >> 1) & 0x3;
+        let g = (color >> 4) & 0x3;
+        let b = (color >> 6) & 0x3;
         let cr = (r << 6) | (r << 4) | (r << 2) | r;
         let cg = (g << 6) | (g << 4) | (g << 2) | g;
         let cb = (b << 6) | (b << 4) | (b << 2) | b;
@@ -378,7 +378,7 @@ impl<'a> ColorPickerWidget8<'a> {
                                         let x = ((pos.x - draw_rect.min.x) / COLOR_BLOCK_SIZE).floor() as i32;
                                         let y = ((pos.y - draw_rect.min.y) / COLOR_BLOCK_SIZE).floor() as i32;
                                         let index = y * 13 + x;
-                                        if x >= 0 && x < 13 && y >= 0 && index >= 0 && index < GRAD_PAL8.len() as i32 {
+                                        if (0..13).contains(&x) && y >= 0 && index >= 0 && index < GRAD_PAL8.len() as i32 {
                                             self.set_open_color(GRAD_PAL8[index as usize]);
                                         }
                                     }

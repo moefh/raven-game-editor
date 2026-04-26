@@ -56,7 +56,7 @@ impl MapSelectionDialog {
         let changed = changed || (size != room.maps.len());
 
         if changed {
-            room.maps.sort_by(|m1, m2| m1.map_id.cmp(&m2.map_id));
+            room.maps.sort_by_key(|m| m.map_id);
         }
         changed
     }

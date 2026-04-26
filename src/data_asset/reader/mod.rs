@@ -47,7 +47,7 @@ static RE_PRE_PROCESSOR_IF: LazyLock<Regex> = LazyLock::new(
 static RE_PRE_PROCESSOR_ENDIF: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#endif").unwrap());
 
-fn image_6bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32, pixel_mapping: &Vec<u8>) -> Vec<u8> {
+fn image_6bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32, pixel_mapping: &[u8]) -> Vec<u8> {
     const COLOR_BITS: u32 = 0b0011_1111;
 
     let stride = width.div_ceil(4) as usize;
@@ -89,23 +89,23 @@ fn image_8bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u3
         for x in 0..stride {
             let quad = data[y*stride + x];
             if x < stride-1 || width.is_multiple_of(4) {
-                pixels.push((quad        ) as u8);
-                pixels.push(((quad >>  8)) as u8);
-                pixels.push(((quad >> 16)) as u8);
-                pixels.push(((quad >> 24)) as u8);
+                pixels.push((quad      ) as u8);
+                pixels.push((quad >>  8) as u8);
+                pixels.push((quad >> 16) as u8);
+                pixels.push((quad >> 24) as u8);
             } else {
                 match width % 4 {
                     1 => {
-                        pixels.push((quad        ) as u8);
+                        pixels.push((quad      ) as u8);
                     },
                     2 => {
-                        pixels.push((quad        ) as u8);
-                        pixels.push(((quad >>  8)) as u8);
+                        pixels.push((quad      ) as u8);
+                        pixels.push((quad >>  8) as u8);
                     },
                     3 => {
-                        pixels.push((quad        ) as u8);
-                        pixels.push(((quad >>  8)) as u8);
-                        pixels.push(((quad >> 16)) as u8);
+                        pixels.push((quad      ) as u8);
+                        pixels.push((quad >>  8) as u8);
+                        pixels.push((quad >> 16) as u8);
                     },
                     _ => {},
                 }
@@ -185,15 +185,15 @@ impl<'a> ProjectDataReader<'a> {
 
     fn new(source: &'a str, store: &'a mut DataAssetStore, logger: &'a mut StringLogger) -> Self {
         let mut pixel_6bit_to_8bit = vec![0u8; 64];
-        for pix_6bit in 0..pixel_6bit_to_8bit.len() {
+        for (pix_6bit, pix_8bit) in pixel_6bit_to_8bit.iter_mut().enumerate() {
             let r6 = pix_6bit & 0x03;
             let g6 = (pix_6bit & 0x0c) >> 2;
             let b6 = (pix_6bit & 0x30) >> 4;
             let r8 = (r6 << 1) | (r6 >> 1);
             let g8 = (g6 << 1) | (g6 >> 1);
             let b8 = b6;
-            let pix_8bit = r8 | (g8 << 3) | (b8 << 6);
-            pixel_6bit_to_8bit[pix_6bit] = pix_8bit as u8;
+            *pix_8bit = (r8 | (g8 << 3) | (b8 << 6)) as u8;
+            //pixel_6bit_to_8bit[pix_6bit] = pix_8bit as u8;
         }
 
         ProjectDataReader {
