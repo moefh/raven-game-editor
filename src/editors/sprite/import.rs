@@ -112,7 +112,7 @@ impl ImportDialog {
                             ui.add(egui::Slider::new(&mut self.width, 0..=256));
                             ui.end_row();
 
-                            ui.label("Border:");
+                            ui.label("Height:");
                             ui.add(egui::Slider::new(&mut self.height, 0..=256));
                             ui.end_row();
 
