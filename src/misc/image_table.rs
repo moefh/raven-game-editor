@@ -98,6 +98,8 @@ image_table! {
     select: "../../assets/SelRectIcon.png",
     v_flip: "../../assets/VFlipIcon.png",
     h_flip: "../../assets/HFlipIcon.png",
+    rot_cw: "../../assets/CW90.png",
+    rot_ccw: "../../assets/CCW90.png",
     grid: "../../assets/GridIcon.png",
     transparency: "../../assets/TransparencyIcon.png",
     layer_fg: "../../assets/TilesFgIcon.png",

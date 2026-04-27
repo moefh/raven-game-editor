@@ -2,7 +2,7 @@ use super::colors;
 
 use crate::data_asset::PropFont;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ImagePixels {
     pub width: u32,
     pub height: u32,

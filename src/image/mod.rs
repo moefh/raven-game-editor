@@ -15,6 +15,11 @@ pub use image_pixels::{ImagePixels, ImagePixelsCollection};
 
 use crate::data_asset::DataAssetId;
 
+pub enum ImageRotation {
+    CW90,  // 90 degrees clockwise
+    CCW90, // 90 degrees counter-clockwise
+}
+
 #[derive(Copy, Clone)]
 pub struct ImageRect {
     pub x: u32,
@@ -44,6 +49,7 @@ impl ImageRect {
     }
 }
 
+#[derive(Debug)]
 pub struct ImageFragment {
     pub id: DataAssetId,
     pub pixels: ImagePixels,

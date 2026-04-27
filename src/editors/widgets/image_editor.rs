@@ -1,10 +1,11 @@
-use crate::image::{colors, TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect};
+use crate::image::{colors, TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect, ImageRotation};
 use crate::app::{WindowContext, KeyboardPressed};
 use crate::data_asset::GenericAsset;
 
 use super::super::ImageClipboardData;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
+#[derive(Debug)]
 pub enum ImageSelection {
     None,
     Rect(Pos2, Pos2),
@@ -235,6 +236,37 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         } else {
             asset.h_flip(self.selected_image);
             self.image_changed = true;
+        }
+    }
+
+    pub fn rotate(&mut self, asset: &mut ImageAsset, rotation: ImageRotation, bg_color: u8) {
+        if self.selection.is_empty() {
+            if asset.width() != asset.height() {   // empty selection with non-square image: float to rotate
+                self.tool = ImageDrawingTool::Select;
+                self.selection = ImageSelection::Rect(
+                    Pos2::ZERO, Pos2::new(asset.width() as f32, asset.height() as f32)
+                );
+                self.lift_selection(asset, bg_color);
+            }
+        } else if matches!(self.selection, ImageSelection::Rect(..)) {
+            self.lift_selection(asset, bg_color);  // float selected rectangle to rotate
+        }
+
+        match &self.selection {
+            ImageSelection::Fragment(pos, frag) => {
+                if let Some(rot_frag) = frag.rotate(asset.asset().id, 0, rotation) {
+                    let rot_pos = Pos2::new(
+                        pos.x + ((frag.pixels.width as f32 - frag.pixels.height as f32) / 2.0).round_ties_even(),
+                        pos.y + ((frag.pixels.height as f32 - frag.pixels.width as f32) / 2.0).round_ties_even(),
+                    );
+                    self.selection = ImageSelection::Fragment(rot_pos, rot_frag);
+                }
+            }
+
+            _ => if let Some(rot_frag) = asset.rotate(asset.asset().id, self.selected_image, rotation) {
+                asset.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
+                self.image_changed = true;
+            }
         }
     }
 

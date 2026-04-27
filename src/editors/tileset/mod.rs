@@ -6,7 +6,7 @@ mod export;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{colors, ImageCollection, ImagePixels, TextureSlot};
+use crate::image::{colors, ImageCollection, ImagePixels, TextureSlot, ImageRotation};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
@@ -268,11 +268,18 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.add(egui::Button::image(IMAGES.v_flip)).on_hover_text("Vertical Flip").clicked() {
+                if ui.add(egui::Button::image(IMAGES.v_flip)).on_hover_text("Flip vertically").clicked() {
                     self.image_editor.vflip(tileset, self.color_picker.state.right_color);
                 }
-                if ui.add(egui::Button::image(IMAGES.h_flip)).on_hover_text("Horizontal Flip").clicked() {
+                if ui.add(egui::Button::image(IMAGES.h_flip)).on_hover_text("Flip horizontally").clicked() {
                     self.image_editor.hflip(tileset, self.color_picker.state.right_color);
+                }
+                ui.add_space(5.0);
+                if ui.add(egui::Button::image(IMAGES.rot_cw)).on_hover_text("Rotate 90° clockwise").clicked() {
+                    self.image_editor.rotate(tileset, ImageRotation::CW90, self.color_picker.state.right_color);
+                }
+                if ui.add(egui::Button::image(IMAGES.rot_ccw)).on_hover_text("Rotate 90° counter-clockwise").clicked() {
+                    self.image_editor.rotate(tileset, ImageRotation::CCW90, self.color_picker.state.right_color);
                 }
                 ui.spacing_mut().item_spacing = spacing;
 

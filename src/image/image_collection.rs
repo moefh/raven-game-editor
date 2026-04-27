@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
-use super::{colors, TextureManager, TextureName, TextureNameId, TextureSlot, ImageRect, ImageFragment};
+use super::{colors, TextureManager, TextureName, TextureNameId, TextureSlot, ImageRect, ImageRotation, ImageFragment};
 use crate::data_asset::{DataAssetId, Tileset, Sprite, Font, PropFont};
 
 pub trait ImageCollection {
@@ -192,6 +192,26 @@ pub trait ImageCollection {
             data[top..top+width].clone_from_slice(&bot_line);
             data[bot..bot+width].clone_from_slice(&top_line);
         }
+    }
+
+    fn rotate(&self, id: DataAssetId, item: u32, rotation: ImageRotation) -> Option<ImageFragment> {
+        if item > self.num_items() { return None; }
+
+        let item = item as usize;
+        let width = self.width() as usize;
+        let height = self.height() as usize;
+        let data = &self.data()[item * width * height .. (item+1) * width * height];
+
+        let mut new_data = vec![0u8; width * height];
+        for y in 0..height {
+            for x in 0..width {
+                match rotation {
+                    ImageRotation::CW90 => { new_data[x*height + (height-1-y)] = data[y*width + x]; }
+                    ImageRotation::CCW90 => { new_data[(width-1-x)*height + y] = data[y*width + x]; }
+                }
+            }
+        }
+        Some(ImageFragment::new(id, self.height(), self.width(), new_data))
     }
 
     fn copy_fragment(&self, id: DataAssetId, item: u32, rect: ImageRect) -> Option<ImageFragment> {
