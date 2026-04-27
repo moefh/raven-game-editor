@@ -1,4 +1,5 @@
 mod properties;
+mod import;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
@@ -6,6 +7,7 @@ use crate::image::{ImageCollection, ImageCollectionIO, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use import::ImportDialog;
 use super::AssetEditorBase;
 use super::widgets::{ImageEditorWidget, FontViewWidget, FontPainter};
 
@@ -65,12 +67,14 @@ impl FontEditor {
 
 struct Dialogs {
     properties_dialog: PropertiesDialog,
+    import_dialog: ImportDialog,
 }
 
 impl Dialogs {
     pub fn new() -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
+            import_dialog: ImportDialog::new(),
         }
     }
 
@@ -78,6 +82,10 @@ impl Dialogs {
         if self.properties_dialog.open && self.properties_dialog.show(wc, font) {
             editor.force_reload_image = true;
             editor.image_editor.set_undo_target(font);
+        }
+        if self.import_dialog.open && self.import_dialog.show(wc, font) {
+            editor.image_editor.set_undo_target(font);
+            editor.image_editor.set_image_changed();
         }
     }
 }
@@ -124,6 +132,12 @@ impl Editor {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Font", |ui| {
                     ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Import...").clicked() {
+                            dialogs.import_dialog.set_open(wc, font);
+                        }
+                    });
+                    ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
                             wc.sys_dialogs.save_file(
@@ -147,10 +161,19 @@ impl Editor {
                         }
                     });
                 });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Invert colors").clicked() {
+                            for color in font.data.iter_mut() {
+                                *color = if *color == Font::FG_COLOR { Font::BG_COLOR } else { Font::FG_COLOR };
+                            }
+                            self.image_editor.set_image_changed();
+                        }
+                    });
+                });
             });
         });
 
-        // font test:
         egui::Panel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {

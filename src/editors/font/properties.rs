@@ -41,7 +41,7 @@ impl PropertiesDialog {
         let width = self.width as u32;
         let height = self.height as u32;
         if width != font.width || height != font.height {
-            font.resize(width, height, Font::NUM_CHARS, 0x0c);
+            font.resize(width, height, Font::NUM_CHARS, Font::BG_COLOR);
             font.width = width;
             font.height = height;
             self.image_changed = true;

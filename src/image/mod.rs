@@ -11,7 +11,7 @@ pub use texture_manager::TextureManager;
 pub use image_collection::ImageCollection;
 pub use image_collection_io::ImageCollectionIO;
 pub use static_image_store::StaticImageStore;
-pub use image_pixels::ImagePixels;
+pub use image_pixels::{ImagePixels, ImagePixelsCollection};
 
 use crate::data_asset::DataAssetId;
 

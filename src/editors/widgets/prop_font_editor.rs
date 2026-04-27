@@ -17,6 +17,10 @@ impl PropFontEditorWidget {
         }
     }
 
+    pub fn set_image_changed(&mut self) {
+        self.image_changed = true;
+    }
+
     pub fn with_selected_char(mut self, selected_char: u32) -> Self {
         self.selected_char = selected_char;
         self

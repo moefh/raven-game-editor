@@ -1,4 +1,4 @@
-use super::{colors, ImagePixels};
+use super::{colors, ImagePixels, ImagePixelsCollection};
 use crate::data_asset::{Tileset, Sprite, Font, PropFont};
 
 pub trait ImageCollectionIO {
@@ -125,6 +125,14 @@ impl ImageCollectionIO for ImagePixels {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { 1 }
+    fn data(&self) -> &Vec<u8> { &self.data }
+    fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
+}
+
+impl ImageCollectionIO for ImagePixelsCollection {
+    fn width(&self) -> u32 { self.width }
+    fn height(&self) -> u32 { self.height }
+    fn num_items(&self) -> u32 { self.num_items }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }

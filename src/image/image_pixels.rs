@@ -102,3 +102,22 @@ impl ImagePixels {
         Ok(())
     }
 }
+
+#[derive(Clone)]
+pub struct ImagePixelsCollection {
+    pub width: u32,
+    pub height: u32,
+    pub num_items: u32,
+    pub data: Vec<u8>,
+}
+
+impl ImagePixelsCollection {
+    pub fn new(width: u32, height: u32, num_items: u32) -> Self {
+        ImagePixelsCollection {
+            width,
+            height,
+            num_items,
+            data: vec![0u8; (width*height*num_items) as usize],
+        }
+    }
+}

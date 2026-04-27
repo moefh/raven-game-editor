@@ -37,7 +37,7 @@ impl PropertiesDialog {
 
         let height = self.height as u32;
         if height != prop_font.height {
-            prop_font.resize(height * 2, height, PropFont::NUM_CHARS, 0x0c);
+            prop_font.resize(height * 2, height, PropFont::NUM_CHARS, PropFont::BG_COLOR);
             prop_font.max_width = 2 * height;
             prop_font.height = height;
             for char_width in prop_font.char_widths.iter_mut() {

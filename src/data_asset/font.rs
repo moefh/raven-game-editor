@@ -25,7 +25,7 @@ impl Font {
             asset: super::DataAsset::new(super::DataAssetType::Font, id, name),
             width,
             height,
-            data: vec![0x0c; (width * height * Font::NUM_CHARS) as usize],
+            data: vec![Self::BG_COLOR; (width * height * Font::NUM_CHARS) as usize],
         }
     }
 

@@ -1,4 +1,5 @@
 mod properties;
+mod import;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
@@ -6,6 +7,7 @@ use crate::image::{ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{PropFont, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
+use import::ImportDialog;
 use super::AssetEditorBase;
 use super::widgets::{PropFontEditorWidget, FontViewWidget, FontPainter};
 
@@ -73,18 +75,24 @@ impl PropFontEditor {
 
 struct Dialogs {
     properties_dialog: PropertiesDialog,
+    import_dialog: ImportDialog,
 }
 
 impl Dialogs {
     fn new() -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
+            import_dialog: ImportDialog::new(),
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, prop_font: &mut PropFont) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, prop_font) {
-            editor.prop_font_editor.image_changed = true;
+            editor.prop_font_editor.set_image_changed();
+        }
+        if self.import_dialog.open && self.import_dialog.show(wc, prop_font) {
+            editor.prop_font_editor.selected_char = 0;
+            editor.prop_font_editor.set_image_changed();
         }
     }
 }
@@ -129,6 +137,12 @@ impl Editor {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Prop Font", |ui| {
                     ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
+                        if ui.button("Import...").clicked() {
+                            dialogs.import_dialog.set_open(wc, prop_font);
+                        }
+                    });
+                    ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
                         if ui.button("Export...").clicked() {
                             wc.sys_dialogs.save_file(
@@ -152,11 +166,20 @@ impl Editor {
                         }
                     });
                 });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Invert colors").clicked() {
+                            for color in prop_font.data.iter_mut() {
+                                *color = if *color == PropFont::FG_COLOR { PropFont::BG_COLOR } else { PropFont::FG_COLOR };
+                            }
+                            self.prop_font_editor.set_image_changed();
+                        }
+                    });
+                });
             });
         });
 
-        // font test:
-        egui::Panel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_pfont_test", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Edit:");

@@ -27,7 +27,7 @@ impl PropFont {
             asset: super::DataAsset::new(super::DataAssetType::PropFont, id, name),
             max_width,
             height,
-            data: vec![0x0c; (max_width * height * PropFont::NUM_CHARS) as usize],
+            data: vec![Self::BG_COLOR; (max_width * height * PropFont::NUM_CHARS) as usize],
             char_widths: vec![6; PropFont::NUM_CHARS as usize],
         }
     }
