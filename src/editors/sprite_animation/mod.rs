@@ -94,7 +94,7 @@ struct Editor {
     sprite_frames: Vec<SpriteAnimationFrame>,
     selected_sprite_frame: usize,
     color_picker: ColorPickerWidget,
-    image_editor: ImageEditorWidget,
+    image_editor: ImageEditorWidget<Sprite>,
 }
 
 impl Editor {
@@ -108,7 +108,7 @@ impl Editor {
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
             color_picker: ColorPickerWidget::new(colors::RED, colors::GREEN),
-            image_editor: ImageEditorWidget::new(),
+            image_editor: ImageEditorWidget::<Sprite>::new(),
         }
     }
 

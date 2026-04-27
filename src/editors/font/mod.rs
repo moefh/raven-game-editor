@@ -93,7 +93,7 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     force_reload_image: bool,
-    image_editor: ImageEditorWidget,
+    image_editor: ImageEditorWidget<Font>,
     font_view: FontViewWidget,
 }
 
@@ -102,7 +102,7 @@ impl Editor {
         Editor {
             asset_id,
             force_reload_image: false,
-            image_editor: ImageEditorWidget::new().with_selected_image('@' as u32 - Font::FIRST_CHAR),
+            image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR),
             font_view: FontViewWidget::new(),
         }
     }

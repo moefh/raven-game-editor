@@ -118,7 +118,7 @@ impl ImageDisplay {
     }
 }
 
-pub struct ImageEditorWidget {
+pub struct ImageEditorWidget<ImageAsset> {
     pub display: ImageDisplay,
     pub selection: ImageSelection,
     pub pick_left_color: Option<u8>,
@@ -130,11 +130,13 @@ pub struct ImageEditorWidget {
     tool_changed: bool,
     drag_mouse_origin: Pos2,
     drag_frag_origin: Pos2,
+    _marker: std::marker::PhantomData<ImageAsset>,
 }
 
-impl ImageEditorWidget {
+impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection + GenericAsset {
     pub fn new() -> Self {
         ImageEditorWidget {
+            _marker: std::marker::PhantomData::<ImageAsset>,
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
             tool: ImageDrawingTool::Pencil,
@@ -166,11 +168,11 @@ impl ImageEditorWidget {
         self.image_changed = true;
     }
 
-    pub fn set_undo_target(&mut self, asset: &(impl ImageCollection + GenericAsset)) {
+    pub fn set_undo_target(&mut self, asset: &ImageAsset) {
         self.undo_target = asset.copy_fragment(asset.asset().id, self.selected_image, ImageRect::from_image_item(asset));
     }
 
-    fn lift_selection(&mut self, asset: &mut (impl ImageCollection + GenericAsset), bg_color: u8) {
+    fn lift_selection(&mut self, asset: &mut ImageAsset, bg_color: u8) {
         if self.selection.is_floating() { return; } // already lifted
 
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.is_positive() {
@@ -186,7 +188,7 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn undo(&mut self, asset: &mut (impl ImageCollection + GenericAsset)) {
+    pub fn undo(&mut self, asset: &mut ImageAsset) {
         if let Some(frag) = self.undo_target.take() {
             asset.paste_fragment(self.selected_image, 0, 0, &frag, false);
             self.image_changed = true;
@@ -194,12 +196,12 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn delete_selection(&mut self, asset: &mut (impl ImageCollection + GenericAsset), fill_color: u8) {
+    pub fn delete_selection(&mut self, asset: &mut ImageAsset, fill_color: u8) {
         self.lift_selection(asset, fill_color);
         self.selection = ImageSelection::None;
     }
 
-    pub fn drop_selection(&mut self, asset: &mut (impl ImageCollection + GenericAsset)) {
+    pub fn drop_selection(&mut self, asset: &mut ImageAsset) {
         if let ImageSelection::Fragment(pos, frag) = &self.selection {
             let transparent = self.display.is_transparent();
             asset.paste_fragment(self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
@@ -208,7 +210,7 @@ impl ImageEditorWidget {
         self.selection = ImageSelection::None;
     }
 
-    pub fn vflip(&mut self, asset: &mut (impl ImageCollection + GenericAsset), bg_color: u8) {
+    pub fn vflip(&mut self, asset: &mut ImageAsset, bg_color: u8) {
         if matches!(self.selection, ImageSelection::Rect(..)) {
             self.lift_selection(asset, bg_color);
         }
@@ -222,7 +224,7 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn hflip(&mut self, asset: &mut (impl ImageCollection + GenericAsset), bg_color: u8) {
+    pub fn hflip(&mut self, asset: &mut ImageAsset, bg_color: u8) {
         if matches!(self.selection, ImageSelection::Rect(..)) {
             self.lift_selection(asset, bg_color);
         }
@@ -249,7 +251,7 @@ impl ImageEditorWidget {
         self.selected_image
     }
 
-    pub fn set_selected_image(&mut self, sel_image: u32, asset: &(impl ImageCollection + GenericAsset)) -> bool {
+    pub fn set_selected_image(&mut self, sel_image: u32, asset: &ImageAsset) -> bool {
         if self.selected_image != sel_image {
             self.selected_image = sel_image;
             self.set_undo_target(asset);
@@ -269,7 +271,7 @@ impl ImageEditorWidget {
         }
     }
 
-    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, asset: &mut (impl ImageCollection + GenericAsset),
+    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset,
                               resp: &egui::Response, colors: (u8, u8)) {
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             self.drag_mouse_origin = mouse_pos;
@@ -316,7 +318,7 @@ impl ImageEditorWidget {
         }
     }
 
-    fn pick_color(&mut self, x: i32, y: i32, asset: &mut (impl ImageCollection + GenericAsset), resp: &egui::Response) -> bool {
+    fn pick_color(&mut self, x: i32, y: i32, asset: &mut ImageAsset, resp: &egui::Response) -> bool {
         let mouse_in_image = x >= 0 && y >= 0 && (x as u32) < asset.width() && (y as u32) < asset.height();
         if ! mouse_in_image { return false; }
 
@@ -332,7 +334,7 @@ impl ImageEditorWidget {
         false
     }
 
-    fn handle_mouse(&mut self, mouse_pos: Pos2, asset: &mut (impl ImageCollection + GenericAsset), resp: &egui::Response, colors: (u8, u8)) {
+    fn handle_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset, resp: &egui::Response, colors: (u8, u8)) {
         let x = mouse_pos.x.floor() as i32;
         let y = mouse_pos.y.floor() as i32;
 
@@ -369,7 +371,7 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn copy(&mut self, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset)) {
+    pub fn copy(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset) {
         match &self.selection {
             ImageSelection::Rect(origin, end) => {
                 let sel_rect = Rect {
@@ -388,7 +390,7 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn cut(&mut self, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset), fill_color: u8) {
+    pub fn cut(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) {
         self.set_undo_target(asset);
         self.lift_selection(asset, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
@@ -396,7 +398,7 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset)) {
+    pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset) {
         if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
             self.tool = ImageDrawingTool::Select;
             self.set_undo_target(asset);
@@ -405,14 +407,14 @@ impl ImageEditorWidget {
         }
     }
 
-    pub fn paste_pixels(&mut self, asset: &mut (impl ImageCollection + GenericAsset), pixels: ImagePixels) {
+    pub fn paste_pixels(&mut self, asset: &mut ImageAsset, pixels: ImagePixels) {
         self.tool = ImageDrawingTool::Select;
         self.set_undo_target(asset);
         self.drop_selection(asset);
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset().id, pixels));
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset), fill_color: u8) {
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(asset);
@@ -438,7 +440,7 @@ impl ImageEditorWidget {
         image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut (impl ImageCollection + GenericAsset), colors: (u8, u8)) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, colors: (u8, u8)) {
         if self.image_changed {
             Self::update_texture(wc, asset);
             self.image_changed = false;

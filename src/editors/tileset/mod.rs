@@ -103,7 +103,7 @@ struct Editor {
     asset_id: DataAssetId,
     color_picker: ColorPickerWidget,
     image_picker: ImagePickerWidget,
-    image_editor: ImageEditorWidget,
+    image_editor: ImageEditorWidget<Tileset>,
 }
 
 impl Editor {
@@ -112,7 +112,7 @@ impl Editor {
             asset_id,
             color_picker: ColorPickerWidget::new(colors::RED, colors::BLUE),
             image_picker: ImagePickerWidget::new(),
-            image_editor: ImageEditorWidget::new(),
+            image_editor: ImageEditorWidget::<Tileset>::new(),
         }
     }
 

@@ -4,6 +4,74 @@ use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollectionIO, ImagePixelsCollection};
 use crate::data_asset::PropFont;
 
+trait PropFontFromImage {
+    fn calc_char_width(image: &ImagePixelsCollection, ch: u32) -> u8;
+    fn copy_char(&mut self, image: &ImagePixelsCollection, ch: u32);
+    fn load_from_image(&mut self, image: &ImagePixelsCollection);
+}
+
+impl PropFontFromImage for PropFont {
+    fn calc_char_width(image: &ImagePixelsCollection, ch: u32) -> u8 {
+        if image.width == 0 { return 0; }
+        if image.width > 255 { return 255; }
+
+        let ch = ch as usize;
+        let image_bg = image.data[0];
+        let width = image.width as usize;
+        let height = image.height as usize;
+
+        let char_len = width * height;
+        let char_off = ch * char_len;
+        let char_data = &image.data[char_off .. char_off+char_len];
+        let get_line_width = |y| {
+            let line = &char_data[y * width .. (y+1) * width];
+            for x in (1..width-1).rev() {
+                if  line[x] != image_bg {
+                    return (x+1) as u8;
+                }
+            }
+            1
+        };
+
+        (0..height).map(get_line_width).max().unwrap_or(1)
+    }
+
+    fn copy_char(&mut self, image: &ImagePixelsCollection, ch: u32) {
+        let ch = ch as usize;
+        let pfont_width = self.max_width as usize;
+        let char_width = self.char_widths[ch] as usize;
+        let img_width = image.width as usize;
+        let height = image.height as usize;
+        let image_bg = image.data[0];
+
+        let pfont_char_len = pfont_width * height;
+        let pfont_char_off = ch * pfont_char_len;
+        let pfont_char_data = &mut self.data[pfont_char_off .. pfont_char_off+pfont_char_len];
+        let img_char_len = img_width * height;
+        let img_char_off = ch * img_char_len;
+        let img_char_data = &image.data[img_char_off .. img_char_off+img_char_len];
+        for y in 0..height {
+            let src_line = &img_char_data[y * img_width .. (y+1) * img_width];
+            let dst_line = &mut pfont_char_data[y * pfont_width .. (y+1) * pfont_width];
+            for x in 0..char_width {
+                dst_line[x] = if src_line[x] == image_bg { PropFont::BG_COLOR } else { PropFont::FG_COLOR };
+            }
+        }
+    }
+
+    fn load_from_image(&mut self, image: &ImagePixelsCollection) {
+        self.max_width = 2 * image.height;
+        self.height = image.height;
+        self.data.resize((self.max_width * self.height * PropFont::NUM_CHARS) as usize, PropFont::BG_COLOR);
+        self.data[..].fill(PropFont::BG_COLOR);
+
+        for ch in 0..PropFont::NUM_CHARS {
+            self.char_widths[ch as usize] = Self::calc_char_width(image, ch);
+            self.copy_char(image, ch);
+        }
+    }
+}
+
 pub struct ImportDialog {
     pub open: bool,
     pub filename: Option<PathBuf>,
@@ -42,66 +110,6 @@ impl ImportDialog {
         wc.set_window_open(Self::id(), self.open);
     }
 
-    fn calc_prop_font_char_width(image: &ImagePixelsCollection, ch: u32) -> u8 {
-        if image.width == 0 { return 0; }
-        if image.width > 255 { return 255; }
-
-        let ch = ch as usize;
-        let image_bg = image.data[0];
-        let width = image.width as usize;
-        let height = image.height as usize;
-
-        let char_len = width * height;
-        let char_off = ch * char_len;
-        let char_data = &image.data[char_off .. char_off+char_len];
-        let get_line_width = |y| {
-            let line = &char_data[y * width .. (y+1) * width];
-            for x in (1..width-1).rev() {
-                if  line[x] != image_bg {
-                    return (x+1) as u8;
-                }
-            }
-            1
-        };
-
-        (0..height).map(get_line_width).max().unwrap_or(1)
-    }
-
-    fn copy_prop_font_char(pfont: &mut PropFont, image: &ImagePixelsCollection, ch: u32) {
-        let ch = ch as usize;
-        let pfont_width = pfont.max_width as usize;
-        let char_width = pfont.char_widths[ch] as usize;
-        let img_width = image.width as usize;
-        let height = image.height as usize;
-        let image_bg = image.data[0];
-
-        let pfont_char_len = pfont_width * height;
-        let pfont_char_off = ch * pfont_char_len;
-        let pfont_char_data = &mut pfont.data[pfont_char_off .. pfont_char_off+pfont_char_len];
-        let img_char_len = img_width * height;
-        let img_char_off = ch * img_char_len;
-        let img_char_data = &image.data[img_char_off .. img_char_off+img_char_len];
-        for y in 0..height {
-            let src_line = &img_char_data[y * img_width .. (y+1) * img_width];
-            let dst_line = &mut pfont_char_data[y * pfont_width .. (y+1) * pfont_width];
-            for x in 0..char_width {
-                dst_line[x] = if src_line[x] == image_bg { PropFont::BG_COLOR } else { PropFont::FG_COLOR };
-            }
-        }
-    }
-
-    fn load_prop_font_from_image(pfont: &mut PropFont, image: &ImagePixelsCollection) {
-        pfont.max_width = 2 * image.height;
-        pfont.height = image.height;
-        pfont.data.resize((pfont.max_width * pfont.height * PropFont::NUM_CHARS) as usize, PropFont::BG_COLOR);
-        pfont.data[..].fill(PropFont::BG_COLOR);
-
-        for ch in 0..PropFont::NUM_CHARS {
-            pfont.char_widths[ch as usize] = Self::calc_prop_font_char_width(image, ch);
-            Self::copy_prop_font_char(pfont, image, ch);
-        }
-    }
-
     fn confirm(&mut self, wc: &mut WindowContext, pfont: &mut PropFont) -> bool {
         if let Some(filename) = &self.filename {
             let mut image = ImagePixelsCollection::new(1, 1, 1);
@@ -110,7 +118,9 @@ impl ImportDialog {
                     if num_chars == PropFont::NUM_CHARS {
                         image.width = self.width;
                         image.height = self.height;
-                        Self::load_prop_font_from_image(pfont, &image);
+                        image.num_items = num_chars;
+                        //Self::load_prop_font_from_image(pfont, &image);
+                        pfont.load_from_image(&image);
                         true
                     } else {
                         wc.open_message_box(
