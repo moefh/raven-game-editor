@@ -16,6 +16,7 @@ pub struct CreationData {
 
 impl Sprite {
     pub const MIRROR_FRAMES: bool = true;
+    pub const EMPTY_COLOR: u8 = 0xff;
 
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let width = 32;
@@ -26,7 +27,7 @@ impl Sprite {
             width,
             height,
             num_frames,
-            data: vec![0x3f; (width*height*num_frames) as usize],
+            data: vec![Self::EMPTY_COLOR; (width*height*num_frames) as usize],
         }
     }
 

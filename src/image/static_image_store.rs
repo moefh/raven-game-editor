@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{StaticImageId, StaticImageData};
+use super::{StaticImageId, StaticImageData, ImagePixels};
 
 pub struct StaticImageStore {
     next_id: u32,
@@ -13,18 +13,6 @@ impl StaticImageStore {
             next_id: 0,
             images: HashMap::new(),
         }
-    }
-
-    fn image_to_pixels(image: ::image::RgbImage) -> Vec<u8> {
-        let mut data = Vec::new();
-
-        for pixel in image.pixels() {
-            data.push((pixel[0] >> 2) & 0b110000 |
-                      (pixel[1] >> 4) & 0b001100 |
-                      (pixel[2] >> 6) & 0b000011);
-        }
-
-        data
     }
 
     fn gen_id(&mut self) -> StaticImageId {
@@ -41,7 +29,7 @@ impl StaticImageStore {
 
         let id = self.gen_id();
         let num_items = image.height() / height;
-        let data = Self::image_to_pixels(image.to_rgb8());
+        let data = ImagePixels::rgb_image_to_pixels(image.to_rgb8());
         let image = StaticImageData::new(id, width, height, num_items, data);
         self.images.insert(id, image);
         id

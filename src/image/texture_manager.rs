@@ -14,50 +14,60 @@ pub struct TextureManager {
 impl TextureManager {
     fn gen_color6_to_rgb_maps(opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
         for color in 0..MAX_COLORS {
-            let r = (color as u8 >> 1) & 0x3;
-            let g = (color as u8 >> 4) & 0x3;
-            let b = (color as u8 >> 6) & 0x3;
+            let r = (color as u8 >> 1) & 0b11;
+            let g = (color as u8 >> 4) & 0b11;
+            let b = (color as u8 >> 6) & 0b11;
             let cr = (r << 6) | (r << 4) | (r << 2) | r;
             let cg = (g << 6) | (g << 4) | (g << 2) | g;
             let cb = (b << 6) | (b << 4) | (b << 2) | b;
             let rgb = egui::Color32::from_rgb(cr, cg, cb);
             opaque[color] = rgb;
-            transp[color] = if r==0 && g==3 && b == 0 { egui::Color32::TRANSPARENT } else { rgb };
+            transp[color] = if r==0 && g==0b11 && b == 0 { egui::Color32::TRANSPARENT } else { rgb };
         }
     }
 
     fn gen_color8_to_rgb_maps(opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
         for color in 0..MAX_COLORS {
-            let r = (color as u8) & 0x7;
-            let g = (color as u8 >> 3) & 0x7;
-            let b = (color as u8 >> 6) & 0x3;
-            let cr = (r << 5) | (r << 2) | (r >> 2) | r;
-            let cg = (g << 5) | (g << 2) | (g >> 2) | g;
+            let r = (color as u8) & 0b111;
+            let g = (color as u8 >> 3) & 0b111;
+            let b = (color as u8 >> 6) & 0b11;
+            let cr = (r << 5) | (r << 2) | (r >> 1);
+            let cg = (g << 5) | (g << 2) | (g >> 1);
             let cb = (b << 6) | (b << 4) | (b << 2) | b;
             let rgb = egui::Color32::from_rgb(cr, cg, cb);
             opaque[color] = rgb;
-            transp[color] = if r==0 && g==7 && b == 0 { egui::Color32::TRANSPARENT } else { rgb };
+            transp[color] = if r==0 && g==0b111 && b == 0 { egui::Color32::TRANSPARENT } else { rgb };
         }
     }
 
-    pub fn new(bits_per_pixel: u8) -> Self {
-        let mut tex_man = TextureManager {
-            textures: HashMap::new(),
-            color_to_rgb_opaque: vec![egui::Color32::BLACK; MAX_COLORS],
-            color_to_rgb_transp: vec![egui::Color32::BLACK; MAX_COLORS],
-            bits_per_pixel: 0,
+    fn create_color_to_rgb_maps(bits_per_pixel: u8) -> (Vec<egui::Color32>, Vec<egui::Color32>) {
+        let mut opaque = vec![egui::Color32::BLACK; MAX_COLORS];
+        let mut transp = vec![egui::Color32::BLACK; MAX_COLORS];
+        Self::gen_color_to_rgb_maps(bits_per_pixel, &mut opaque, &mut transp);
+        (opaque, transp)
+    }
+
+    fn gen_color_to_rgb_maps(bits_per_pixel: u8, opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
+        match bits_per_pixel {
+            8 => Self::gen_color8_to_rgb_maps(opaque, transp),
+            _ => Self::gen_color6_to_rgb_maps(opaque, transp),
         };
-        tex_man.set_bits_per_pixel(bits_per_pixel);
-        tex_man
+    }
+
+    pub fn new(bits_per_pixel: u8) -> Self {
+        let (color_to_rgb_opaque, color_to_rgb_transp) = Self::create_color_to_rgb_maps(bits_per_pixel);
+        TextureManager {
+            textures: HashMap::new(),
+            color_to_rgb_opaque,
+            color_to_rgb_transp,
+            bits_per_pixel,
+        }
     }
 
     pub fn set_bits_per_pixel(&mut self, bits_per_pixel: u8) {
         if self.bits_per_pixel != bits_per_pixel {
+            Self::gen_color_to_rgb_maps(bits_per_pixel, &mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp);
             self.bits_per_pixel = bits_per_pixel;
-            match self.bits_per_pixel {
-                8 => Self::gen_color8_to_rgb_maps(&mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp),
-                _ => Self::gen_color6_to_rgb_maps(&mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp),
-            };
             self.clear();
         }
     }

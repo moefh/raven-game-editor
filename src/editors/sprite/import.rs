@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::ImageCollection;
+use crate::image::ImageCollectionIO;
 use crate::data_asset::Sprite;
 
 pub struct ImportDialog {

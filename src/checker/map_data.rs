@@ -1,6 +1,6 @@
 use std::collections::{HashMap, BTreeMap};
 
-use crate::image::{ImageCollection, ImagePixels};
+use crate::image::{colors, ImageCollection};
 use crate::data_asset::{DataAssetId, DataAssetStore, MapData, Tileset};
 
 use super::{AssetProblem, MapLayer};
@@ -11,7 +11,7 @@ pub const SCREEN_HEIGHT: u32 = 240;
 /// Return a vector of bools indicating whether each tile is transparent or not
 fn build_tileset_transparency(tileset: &Tileset) -> Vec<bool> {
     (0..tileset.num_tiles).map(|tile| {
-        tileset.item_data(tile).contains(&ImagePixels::TRANSPARENT_COLOR)
+        tileset.item_data(tile).contains(&colors::TRANSPARENT)
     }).collect()
 }
 

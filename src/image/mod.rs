@@ -1,14 +1,19 @@
 mod image_collection;
+mod image_collection_io;
 mod texture_manager;
 mod static_image_store;
+mod image_pixels;
+pub mod colors;
 
 use egui::{Rect, Pos2};
 
 pub use texture_manager::TextureManager;
 pub use image_collection::ImageCollection;
+pub use image_collection_io::ImageCollectionIO;
 pub use static_image_store::StaticImageStore;
+pub use image_pixels::ImagePixels;
 
-use crate::data_asset::{DataAssetId, PropFont};
+use crate::data_asset::DataAssetId;
 
 #[derive(Copy, Clone)]
 pub struct ImageRect {
@@ -36,81 +41,6 @@ impl ImageRect {
             width: image.width(),
             height: image.height(),
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct ImagePixels {
-    width: u32,
-    height: u32,
-    data: Vec<u8>,
-}
-
-impl ImagePixels {
-    pub const TRANSPARENT_COLOR: u8 = 0b001100;
-
-    pub fn new(width: u32, height: u32, data: Vec<u8>) -> Self {
-        ImagePixels {
-            width,
-            height,
-            data,
-        }
-    }
-
-    pub fn rgba_to_pixel(data: &[u8]) -> u8 {
-        if data[3] >= 0x80 {
-            (data[2] >> 2) & 0b110000 |
-            (data[1] >> 4) & 0b001100 |
-            (data[0] >> 6) & 0b000011
-        } else {
-            ImagePixels::TRANSPARENT_COLOR
-        }
-    }
-
-    pub fn load_png(path: impl AsRef<std::path::Path>) -> Result<ImagePixels, Box<dyn std::error::Error>> {
-        let img = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
-        let width = img.width();
-        let height = img.height();
-        let mut data = Vec::with_capacity((width * height) as usize);
-        for pixel in img.pixels() {
-            data.push(Self::rgba_to_pixel(&pixel.0));
-        }
-        Ok(ImagePixels {
-            width,
-            height,
-            data,
-        })
-    }
-
-    pub fn save_prop_font_png(path: impl AsRef<std::path::Path>, pfont: &PropFont) -> Result<(), Box<dyn std::error::Error>> {
-        let dst_char_width = pfont.char_widths.iter().max().ok_or(std::io::Error::other("invalid prop font char width")).copied()? as u32;
-
-        let num_items_x = 16;
-        let num_items_y = PropFont::NUM_CHARS.div_ceil(num_items_x);
-        let dst_w = num_items_x * dst_char_width;
-        let dst_h = num_items_y * pfont.height;
-
-        let mut dst = vec![0u8; (4 * dst_w * dst_h) as usize];
-        for y_item in 0..num_items_y {
-            let dst_item_off_y = dst_w * y_item * pfont.height;
-            for x_item in 0..num_items_x {
-                if y_item * num_items_x + x_item >= PropFont::NUM_CHARS { break; }
-                let src_item_off = (y_item * num_items_x + x_item) * pfont.max_width * pfont.height;
-                for y in 0..pfont.height {
-                    let dst_off_y = dst_item_off_y + x_item * dst_char_width + dst_w * y;
-                    for x in 0..dst_char_width {
-                        let dst_off = (4 * (dst_off_y + x)) as usize;
-                        let src_off = (src_item_off + y * pfont.max_width + x) as usize;
-                        dst[dst_off  ] = 0;
-                        dst[dst_off+1] = if pfont.data[src_off] == PropFont::BG_COLOR { 0xff } else { 0 };
-                        dst[dst_off+2] = 0;
-                        dst[dst_off+3] = 0xff;
-                    }
-                }
-            }
-        }
-        ::image::save_buffer_with_format(path, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)?;
-        Ok(())
     }
 }
 

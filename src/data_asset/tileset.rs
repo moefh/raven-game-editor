@@ -16,6 +16,7 @@ pub struct CreationData {
 
 impl Tileset {
     pub const TILE_SIZE: u32 = 16;
+    pub const EMPTY_COLOR: u8 = 0xff;
 
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let num_tiles = 10;
@@ -24,7 +25,7 @@ impl Tileset {
             width: Self::TILE_SIZE,
             height: Self::TILE_SIZE,
             num_tiles,
-            data: vec![0x3f; (Self::TILE_SIZE*Self::TILE_SIZE*num_tiles) as usize],
+            data: vec![Self::EMPTY_COLOR; (Self::TILE_SIZE*Self::TILE_SIZE*num_tiles) as usize],
         }
     }
 

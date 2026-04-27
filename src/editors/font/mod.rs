@@ -2,7 +2,7 @@ mod properties;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, TextureSlot};
+use crate::image::{ImageCollection, ImageCollectionIO, TextureSlot};
 use crate::data_asset::{Font, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;

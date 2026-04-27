@@ -1,4 +1,4 @@
-use crate::image::{TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect};
+use crate::image::{colors, TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect};
 use crate::app::{WindowContext, KeyboardPressed};
 use crate::data_asset::GenericAsset;
 
@@ -176,7 +176,7 @@ impl ImageEditorWidget {
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.is_positive() {
             self.set_undo_target(asset);
             let image_rect = ImageRect::from_rect(sel_rect, asset);
-            let bg_color = if self.display.is_transparent() { ImagePixels::TRANSPARENT_COLOR } else { bg_color };
+            let bg_color = if self.display.is_transparent() { colors::TRANSPARENT } else { bg_color };
             if let Some(frag) = asset.cut_fragment(asset.asset().id, self.selected_image, image_rect, bg_color) {
                 self.selection = ImageSelection::Fragment(sel_rect.min, frag);
                 self.image_changed = true;

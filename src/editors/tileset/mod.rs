@@ -4,9 +4,9 @@ mod remove_tiles;
 mod import;
 mod export;
 
-use crate::misc::{colors, IMAGES};
+use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, ImagePixels, TextureSlot};
+use crate::image::{colors, ImageCollection, ImagePixels, TextureSlot};
 use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
