@@ -154,11 +154,12 @@ impl AboutDialog {
                 ui.add_space(12.0);
                 ui.add(egui::Image::new(IMAGES.pico).max_width(32.0).max_height(32.0));
                 ui.add_space(16.0);
-                ui.label("Copyright (C) 2025 MoeFH");
+                ui.label("Copyright (C) 2026 MoeFH");
                 ui.add_space(16.0);
                 ui.label("Source code:");
                 ui.add_space(5.0);
                 ui.hyperlink("https://github.com/moefh/raven-game-editor/");
+                ui.hyperlink("https://codeberg.org/moefh/raven-game-editor/");
                 ui.add_space(20.0);
                 if ui.button("Close").clicked() {
                     ui.close();
