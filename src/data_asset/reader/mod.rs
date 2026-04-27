@@ -184,17 +184,6 @@ fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
 impl<'a> ProjectDataReader<'a> {
 
     fn new(source: &'a str, store: &'a mut DataAssetStore, logger: &'a mut StringLogger) -> Self {
-        let mut pixel_6bit_to_8bit = vec![0u8; 64];
-        for (pix_6bit, pix_8bit) in pixel_6bit_to_8bit.iter_mut().enumerate() {
-            let r6 = pix_6bit & 0x03;
-            let g6 = (pix_6bit & 0x0c) >> 2;
-            let b6 = (pix_6bit & 0x30) >> 4;
-            let r8 = (r6 << 1) | (r6 >> 1);
-            let g8 = (g6 << 1) | (g6 >> 1);
-            let b8 = b6;
-            *pix_8bit = (r8 | (g8 << 3) | (b8 << 6)) as u8;
-            //pixel_6bit_to_8bit[pix_6bit] = pix_8bit as u8;
-        }
 
         ProjectDataReader {
             logger,
@@ -205,7 +194,7 @@ impl<'a> ProjectDataReader<'a> {
             last_type_size: 0,
             prefix_lower: String::new(),
             prefix_upper: String::new(),
-            pixel_6bit_to_8bit,
+            pixel_6bit_to_8bit: Self::gen_6bit_to_8bit_map(),
 
             read_data: ReadData {
                 font_data: HashMap::new(),
@@ -242,6 +231,20 @@ impl<'a> ProjectDataReader<'a> {
                 rooms_by_name: HashMap::new(),
             },
         }
+    }
+
+    fn gen_6bit_to_8bit_map() -> Vec<u8> {
+        let mut pixel_6bit_to_8bit = vec![0u8; 64];
+        for (pix_6bit, pix_8bit) in pixel_6bit_to_8bit.iter_mut().enumerate() {
+            let r6 = pix_6bit & 0x03;
+            let g6 = (pix_6bit & 0x0c) >> 2;
+            let b6 = (pix_6bit & 0x30) >> 4;
+            let r8 = (r6 << 1) | (r6 >> 1);
+            let g8 = (g6 << 1) | (g6 >> 1);
+            let b8 = b6;
+            *pix_8bit = (r8 | (g8 << 3) | (b8 << 6)) as u8;
+        }
+        pixel_6bit_to_8bit
     }
 
     fn read(&mut self) -> Result<Token> {
