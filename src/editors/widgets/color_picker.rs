@@ -73,7 +73,7 @@ const GRAD_PAL8: [u8; 78] = [
     // yellow
     0b00_001_001, 0b00_010_010, 0b00_011_011, 0b00_100_100, 0b00_101_101, 0b00_110_110,
     0b00_111_111,
-    0b00_111_111, 0b00_111_111, 0b01_111_111, 0b01_111_111, 0b10_111_111, 0b10_111_111,
+    0b01_111_111, 0b01_111_111, 0b01_111_111, 0b10_111_111, 0b10_111_111, 0b10_111_111,
 
     // magenta
     0b01_000_001, 0b01_000_010, 0b01_000_011, 0b01_000_100, 0b10_000_101, 0b10_000_110,
@@ -303,15 +303,41 @@ impl<'a> ColorPickerWidget8<'a> {
                     .show(|ui| {
                         // RGB values
                         ui.horizontal(|ui| {
-                            let open_color = self.get_open_color();
+                            let mut open_color = self.get_open_color();
+
+                            // R, G, B
                             let mut r = open_color & 7;
                             let mut g = (open_color >> 3) & 7;
                             let mut b = (open_color >> 6) & 3;
                             ui.add(egui::DragValue::new(&mut r).prefix("R ").speed(0.07).range(0..=7));
                             ui.add(egui::DragValue::new(&mut g).prefix("G ").speed(0.07).range(0..=7));
                             ui.add(egui::DragValue::new(&mut b).prefix("B ").speed(0.07).range(0..=3));
-                            ui.label(format!("binary: {:08b}  hex: {:02x}", open_color, open_color));
-                            self.set_open_color(r | (g << 3) | (b << 6));
+                            open_color = r | (g << 3) | (b << 6);
+
+                            ui.add_space(2.0);
+                            ui.separator();
+                            ui.add_space(2.0);
+
+                            // binary
+                            ui.add(egui::DragValue::new(&mut open_color)
+                                   .prefix("binary: ")
+                                   .custom_formatter(move |n, _|
+                                                     format!("{:02b}_{:03b}_{:03b}",
+                                                             n as i64 >> 6,
+                                                             (n as i64 >> 3) & 0x7,
+                                                             (n as i64) & 0x7))
+                                   .custom_parser(|s| i64::from_str_radix(&s.replace("_", ""), 2).map(|n| n as f64).ok())
+                                   .range(0..=255)
+                            );
+
+                            ui.add_space(2.0);
+                            ui.separator();
+                            ui.add_space(2.0);
+
+                            // hex
+                            ui.add(egui::DragValue::new(&mut open_color).prefix("hex: ").hexadecimal(2, true, true).range(0..=255));
+
+                            self.set_open_color(open_color);
                         });
 
                         // full palette
