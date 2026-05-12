@@ -1012,6 +1012,31 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === IMAGE SIZES
+    // =========================================================================
+
+    fn write_sprite_sizes(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === SPRITE SIZES\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        let mult_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
+        for id in self.store.asset_ids.sprites.iter() {
+            if let Some(sprite) = self.store.assets.sprites.get(id) {
+                let name = self.ident.get_asset_name(DataAssetType::Sprite, *id)?;
+                let name_upper = name.to_ascii_uppercase();
+                self.write(format!("#define {}_SPRITE_WIDTH_{} {}\n", self.ident.prefix_upper, name_upper, sprite.width));
+                self.write(format!("#define {}_SPRITE_HEIGHT_{} {}\n", self.ident.prefix_upper, name_upper, sprite.height));
+                self.write(format!("#define {}_SPRITE_STRIDE_{} {}\n", self.ident.prefix_upper, name_upper, sprite.width.div_ceil(4)));
+                self.write(format!("#define {}_SPRITE_FRAMES_{} {}\n", self.ident.prefix_upper, name_upper, sprite.num_frames * mult_mirrors));
+                self.write("\n");
+            }
+        }
+        Ok(())
+    }
+
+    // =========================================================================
     // === PROJECT
     // =========================================================================
 
@@ -1047,6 +1072,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_animation_names()?;
         self.write_room_item_names()?;
         self.write_asset_ids()?;
+        self.write_sprite_sizes()?;
 
         self.write_footer()?;
         Ok(())

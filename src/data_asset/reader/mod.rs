@@ -352,6 +352,12 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn handle_pre_processor_define(&mut self, name: &str, value: &str) {
+        if name.starts_with(&format!("{}SPRITE_WIDTH_", self.prefix_upper)) ||
+            name.starts_with(&format!("{}SPRITE_HEIGHT_", self.prefix_upper)) ||
+            name.starts_with(&format!("{}SPRITE_STRIDE_", self.prefix_upper)) ||
+            name.starts_with(&format!("{}SPRITE_FRAMES_", self.prefix_upper)) {
+                return;
+            }
         self.logger.log(format!("-> ignoring define '{}' = '{}'", name, value));
     }
 
