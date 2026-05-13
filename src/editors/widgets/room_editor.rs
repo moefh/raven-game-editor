@@ -250,25 +250,25 @@ impl RoomEditorWidget {
         None
     }
 
-    fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) -> Option<()> {
+    fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) {
         if resp.drag_stopped() {
             self.drag_stop();
-            return None;
+            return;
         }
 
         if self.drag_item.is_some() {
             if ! resp.dragged_by(egui::PointerButton::Primary) {
                 self.drag_stop();
-                return None;
+                return;
             }
             if let Some(border) = self.resize_border {
                 resp.ctx.set_cursor_icon(border.cursor());
                 if  self.resize_move(mouse_pos, room, border) {
-                    return None;
+                    return;
                 }
             }
             if self.drag_move(mouse_pos, room) {
-                return None;
+                return;
             }
             self.drag_stop();
         }
@@ -280,7 +280,7 @@ impl RoomEditorWidget {
             let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) &&
             let Some(rect) = Self::get_item_rect(self.selected_item, room, assets) {
                 self.resize_start(self.selected_item, border, rect, mouse_pos);
-                return None;
+                return;
             }
 
         // click/drag selected trigger/entity
@@ -290,7 +290,7 @@ impl RoomEditorWidget {
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
-                return None;
+                return;
             }
         }
 
@@ -303,7 +303,7 @@ impl RoomEditorWidget {
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
-                return None;
+                return;
             }
         }
 
@@ -316,7 +316,7 @@ impl RoomEditorWidget {
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
-                return None;
+                return;
             }
         }
 
@@ -329,12 +329,14 @@ impl RoomEditorWidget {
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
-                return None;
+                return;
             }
         }
 
-        self.selected_item = RoomItemRef::None;
-        None
+        // left-click nowhere deselects selected item
+        if resp.dragged_by(egui::PointerButton::Primary) {
+            self.selected_item = RoomItemRef::None;
+        }
     }
 
     pub fn set_zoom<F>(&mut self, zoom: f32, center_delta: Vec2, canvas_size: Vec2, get_to_canvas: &F, room_rect: Rect)
@@ -485,20 +487,22 @@ impl RoomEditorWidget {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 
+        let alt_key_pressed = ui.ctx().input(|i| i.modifiers).alt;
+
         // check hover
-        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
+        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() && ! alt_key_pressed {
             let mouse_pos = to_canvas.inverse() * hover_pos;
             self.handle_mouse_hover(&response, mouse_pos, room, assets);
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) {
+        if response.dragged_by(egui::PointerButton::Middle) || alt_key_pressed {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! alt_key_pressed {
             let click_pos = to_canvas.inverse() * pointer_pos;
             self.handle_mouse_down(&response, click_pos, room, assets);
         }

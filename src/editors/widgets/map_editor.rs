@@ -678,14 +678,16 @@ impl MapEditorWidget {
             self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom / TILE_SIZE).max(Vec2::ZERO);
         }
 
+        let alt_key_pressed = ui.ctx().input(|i| i.modifiers).alt;
+
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) {
+        if response.dragged_by(egui::PointerButton::Middle) || alt_key_pressed {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), map_size);
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! alt_key_pressed {
             self.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_fg, &canvas_to_map_bg);
         }
 
