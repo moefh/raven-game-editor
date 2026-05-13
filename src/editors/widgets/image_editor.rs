@@ -2,6 +2,7 @@ use crate::image::{colors, TextureSlot, ImageCollection, ImageFragment, ImagePix
 use crate::app::{WindowContext, KeyboardPressed};
 use crate::data_asset::GenericAsset;
 
+use crate::data_asset;
 use super::super::ImageClipboardData;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
@@ -73,6 +74,7 @@ pub enum ImageDrawingTool {
     Pencil,
     Fill,
     Select,
+    Collision,
 }
 
 #[derive(Clone, Copy)]
@@ -83,6 +85,7 @@ pub struct ImageDisplay {
 impl ImageDisplay {
     pub const GRID: u8        = 1 << 0;
     pub const TRANSPARENT: u8 = 1 << 1;
+    pub const COLLISION: u8   = 1 << 2;
 
     pub fn new(bits: u8) -> Self {
         ImageDisplay {
@@ -124,6 +127,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub selection: ImageSelection,
     pub pick_left_color: Option<u8>,
     pub pick_right_color: Option<u8>,
+    pub collision_rect: Option<data_asset::Rect>,
     tool: ImageDrawingTool,
     selected_image: u32,
     undo_target: Option<ImageFragment>,
@@ -140,6 +144,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             _marker: std::marker::PhantomData::<ImageAsset>,
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
+            collision_rect: None,
             tool: ImageDrawingTool::Pencil,
             selection: ImageSelection::None,
             pick_left_color: None,
@@ -154,6 +159,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     pub fn with_selected_image(mut self, selected_image: u32) -> Self {
         self.selected_image = selected_image;
+        self
+    }
+
+    pub fn with_image_display(mut self, display: ImageDisplay) -> Self {
+        self.display = display;
         self
     }
 
@@ -293,6 +303,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    pub fn set_collision_rect(&mut self, rect: Option<data_asset::Rect>) {
+        self.collision_rect = rect;
+    }
+
+    pub fn get_collision_rect(&mut self) -> Option<data_asset::Rect> {
+        self.collision_rect
+    }
+
     fn get_selected_color_for_click(resp: &egui::Response, colors: (u8, u8)) -> Option<u8> {
         if resp.dragged_by(egui::PointerButton::Primary) {
             Some(colors.0)
@@ -350,6 +368,28 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    fn handle_collision_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset, resp: &egui::Response) {
+        let make_rect = || { data_asset::Rect::new(0, 0, asset.width() as i32, asset.height() as i32) };
+
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, asset.get_item_size()).clamp(mouse_pos);
+        let mouse_pos = (mouse_pos.x.floor() as i32, mouse_pos.y.floor() as i32);
+        let rect = self.collision_rect.get_or_insert_with(make_rect);
+        if resp.dragged_by(egui::PointerButton::Primary) {
+            // set top-left
+            let dx = mouse_pos.0 - rect.x;
+            let dy = mouse_pos.1 - rect.y;
+            rect.x += dx;
+            rect.y += dy;
+            rect.w -= dx;
+            rect.h -= dy;
+        }
+        if resp.dragged_by(egui::PointerButton::Secondary) {
+            // set bottom-right
+            rect.w = mouse_pos.0 - rect.x;
+            rect.h = mouse_pos.1 - rect.y;
+        }
+    }
+
     fn pick_color(&mut self, x: i32, y: i32, asset: &mut ImageAsset, resp: &egui::Response) -> bool {
         let mouse_in_image = x >= 0 && y >= 0 && (x as u32) < asset.width() && (y as u32) < asset.height();
         if ! mouse_in_image { return false; }
@@ -399,6 +439,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
             ImageDrawingTool::Select => {
                 self.handle_selection_mouse(mouse_pos, asset, resp, colors);
+            }
+
+            ImageDrawingTool::Collision => {
+                self.handle_collision_mouse(mouse_pos, asset, resp);
             }
         }
     }
@@ -561,6 +605,16 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 super::paint_marching_ants(&painter, sel_rect, wc.settings);
                 wc.request_marching_ants_repaint();
             }
+        }
+
+        // draw collision
+        if self.display.has_bits(ImageDisplay::COLLISION) && let Some(col_rect) = self.collision_rect {
+            let image_to_canvas = canvas_to_image.inverse();
+            let col_rect = Rect {
+                min: image_to_canvas * Pos2::new(col_rect.x as f32, col_rect.y as f32),
+                max: image_to_canvas * Pos2::new((col_rect.x+col_rect.w) as f32, (col_rect.y+col_rect.h) as f32),
+            };
+            super::paint_ants(&painter, col_rect, wc.settings, 0);
         }
     }
 }

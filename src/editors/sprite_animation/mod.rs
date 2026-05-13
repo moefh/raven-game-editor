@@ -10,7 +10,7 @@ use crate::data_asset::{
 
 use properties::PropertiesDialog;
 use super::AssetEditorBase;
-use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView};
+use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView, ImageDisplay, ImageDrawingTool};
 
 enum EditorTabs {
     Sprite,
@@ -108,7 +108,8 @@ impl Editor {
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
             color_picker: ColorPickerWidget::new(colors::RED, colors::GREEN),
-            image_editor: ImageEditorWidget::<Sprite>::new(),
+            image_editor: ImageEditorWidget::<Sprite>::new().with_image_display(
+                ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID | ImageDisplay::COLLISION)),
         }
     }
 
@@ -132,6 +133,61 @@ impl Editor {
         };
 
         let asset_id = animation.asset.id;
+
+
+        // toolbar:
+        egui::Panel::top(format!("editor_panel_{}_toolbar", asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.label("Tool:");
+                ui.add_space(1.0);
+                if ui.add(egui::Button::image(IMAGES.pen)
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
+                    self.image_editor.set_tool(ImageDrawingTool::Pencil);
+                }
+                if ui.add(egui::Button::image(IMAGES.select)
+                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Collision)
+                          .frame_when_inactive(self.image_editor.get_tool() ==
+                                               ImageDrawingTool::Collision)).on_hover_text("Collision").clicked() {
+                    self.image_editor.set_tool(ImageDrawingTool::Collision);
+                }
+
+                ui.spacing_mut().item_spacing = spacing;
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                                  .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
+                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
+                            .on_hover_text("Grid").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::GRID);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.transparency)
+                                  .selected(self.image_editor.display.is_transparent())
+                                  .frame_when_inactive(self.image_editor.display.is_transparent()))
+                            .on_hover_text("Transparency").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.select)
+                                  .selected(self.image_editor.display.has_bits(ImageDisplay::COLLISION))
+                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::COLLISION)))
+                            .on_hover_text("Collision").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::COLLISION);
+                            }
+                        ui.add_space(1.0);
+                        ui.label("Display:");
+                        ui.spacing_mut().item_spacing = spacing;
+                    });
+                });
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
 
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
@@ -164,12 +220,16 @@ impl Editor {
                 .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
                 .and_then(|frame| frame.head_index)  {
                     self.image_editor.set_selected_image(image_item as u32, sprite);
+                    self.image_editor.set_collision_rect(Some(animation.clip_rect));
                     let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
                     self.image_editor.show(ui, wc, sprite, colors);
                     self.color_picker.maybe_set_colors(
                         self.image_editor.pick_left_color.take(),
                         self.image_editor.pick_right_color.take()
                     );
+                    if let Some(rect) = self.image_editor.get_collision_rect() {
+                        animation.clip_rect = rect;
+                    }
                 }
         });
     }
