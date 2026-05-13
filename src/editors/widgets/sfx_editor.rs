@@ -134,26 +134,45 @@ impl SfxEditorWidget {
             }
         }
 
+        // ====================================================
+        // == handle input
+
+        let keys_pressed = ui.ctx().input(|i| i.modifiers);
+
+        // check hover
+        if response.contains_pointer() && response.hovered() {
+            if keys_pressed.alt {
+                if response.dragged() {
+                    response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+                } else {
+                    response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+                }
+            } else if keys_pressed.ctrl {
+                response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
+            }
+        }
+
         // check zoom
-        if let (true, Some(hover_pos)) = (
-            response.contains_pointer(),
-            ui.input(|i| i.pointer.hover_pos()),
-        ) {
-            let zoom_delta = ui.input(|i| i.zoom_delta());  // or use i.smooth_scroll_delta if CTRL key is should not be required?
+        if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
+                (response.drag_delta().y * -0.01).exp()
+            } else {
+                ui.input(|i| i.zoom_delta())
+            };
             if zoom_delta != 1.0 {
                 self.zoom_by(zoom_delta, hover_pos.x - canvas_rect.min.x, canvas_rect.width(), samples);
             }
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) {
+        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
             self.first_sample -= response.drag_delta().x * self.samples_per_point;
             self.first_sample = self.first_sample.round();
             self.clip_scroll(canvas_rect.width(), samples);
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
             let pos = ((pointer_pos.x - canvas_rect.min.x) * self.samples_per_point + self.first_sample).floor();
             if response.dragged_by(egui::PointerButton::Primary) {
                 *loop_start = pos.max(0.0).min(samples.len() as f32);

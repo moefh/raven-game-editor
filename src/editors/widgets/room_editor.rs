@@ -243,11 +243,19 @@ impl RoomEditorWidget {
         self.resize_border = None;
     }
 
-    fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, _assets: &RoomEditorAssetLists) -> Option<()> {
-        if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) {
+    fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, _assets: &RoomEditorAssetLists) {
+        let keys_pressed = resp.ctx.input(|i| i.modifiers);
+        if keys_pressed.alt {
+            if resp.dragged() {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+            } else {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+            }
+        } else if keys_pressed.ctrl {
+            resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
+        } else if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
         }
-        None
     }
 
     fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) {
@@ -487,29 +495,36 @@ impl RoomEditorWidget {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 
-        let alt_key_pressed = ui.ctx().input(|i| i.modifiers).alt;
+        // ====================================================
+        // == handle input
+
+        let keys_pressed = ui.ctx().input(|i| i.modifiers);
 
         // check hover
-        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() && ! alt_key_pressed {
+        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
             let mouse_pos = to_canvas.inverse() * hover_pos;
             self.handle_mouse_hover(&response, mouse_pos, room, assets);
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || alt_key_pressed {
+        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() && ! alt_key_pressed {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
             let click_pos = to_canvas.inverse() * pointer_pos;
             self.handle_mouse_down(&response, click_pos, room, assets);
         }
 
         // check zoom (must be last)
         if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
-            let zoom_delta = ui.input(|i| i.zoom_delta());
+            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
+                (response.drag_delta().y * -0.01).exp()
+            } else {
+                ui.input(|i| i.zoom_delta())
+            };
             if zoom_delta != 1.0 {
                 self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min, canvas_rect.size(), &to_canvas_from_zoom, room_rect);
             }

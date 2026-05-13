@@ -666,28 +666,45 @@ impl MapEditorWidget {
             painter.rect_stroke(screen_rect, egui::CornerRadius::ZERO, stroke2, egui::StrokeKind::Middle);
         }
 
+        // ====================================================
+        // == handle input
+
+        let keys_pressed = ui.ctx().input(|i| i.modifiers);
+
+        // check hover
+        if response.contains_pointer() && response.hovered() {
+            if keys_pressed.alt {
+                if response.dragged() {
+                    response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+                } else {
+                    response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+                }
+            } else if keys_pressed.ctrl {
+                response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
+            }
+        }
+
         // check zoom
-        if let (true, Some(hover_pos)) = (
-            response.contains_pointer(),
-            ui.input(|i| i.pointer.hover_pos()),
-        ) {
-            let zoom_delta = ui.input(|i| i.zoom_delta());  // or use i.smooth_scroll_delta if CTRL key is should not be required?
+        if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
+                (response.drag_delta().y * -0.01).exp()
+            } else {
+                ui.input(|i| i.zoom_delta())
+            };
             if zoom_delta != 1.0 {
                 self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, map_data);
             }
             self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom / TILE_SIZE).max(Vec2::ZERO);
         }
 
-        let alt_key_pressed = ui.ctx().input(|i| i.modifiers).alt;
-
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || alt_key_pressed {
+        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), map_size);
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() && ! alt_key_pressed {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
             self.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_fg, &canvas_to_map_bg);
         }
 
