@@ -470,6 +470,13 @@ impl MapEditorWidget {
         }
     }
 
+    fn get_paste_position(&self) -> Pos2 {
+        Pos2 {
+            x: ((-self.scroll.x + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
+            y: ((-self.scroll.y + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
+        }
+    }
+
     pub fn paste(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
         match &wc.map_clipboard {
             MapClipboardData::MapLayerFragment(frag) => {
@@ -477,7 +484,7 @@ impl MapEditorWidget {
                 self.edit_layer = frag.layer;
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
-                self.selection = MapSelection::LayerFragment(Pos2::ZERO, frag.clone());
+                self.selection = MapSelection::LayerFragment(self.get_paste_position(), frag.clone());
             }
 
             MapClipboardData::MapWholeFragment(frag) => {
@@ -489,7 +496,7 @@ impl MapEditorWidget {
                 };
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
-                self.selection = MapSelection::WholeFragment(Pos2::ZERO, frag.clone());
+                self.selection = MapSelection::WholeFragment(self.get_paste_position(), frag.clone());
             }
 
             _ => {}
