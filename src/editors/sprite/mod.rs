@@ -67,12 +67,21 @@ impl Dialogs {
         }
     }
 
+    fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite, set_undo_target: bool) {
+        if editor.image_editor.get_selected_image() >= sprite.num_frames {
+            let selected_image = sprite.num_frames - 1;
+            editor.image_picker.selected_image = Some(selected_image);
+            let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, sprite);
+            if no_selection_change && set_undo_target {
+                editor.image_editor.set_undo_target(sprite);
+            }
+        }
+    }
+
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, sprite: &mut Sprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
-            editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
-            editor.image_editor.set_undo_target(sprite);
+            Self::ensure_valid_selected_image(editor, sprite, false);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
@@ -80,19 +89,14 @@ impl Dialogs {
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
-            editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite);
-            editor.image_editor.set_undo_target(sprite);
+            Self::ensure_valid_selected_image(editor, sprite, false);
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, sprite);
         }
         if self.import_dialog.open && self.import_dialog.show(wc, sprite) {
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(sprite.num_frames-1);
-            if ! editor.image_editor.set_selected_image(editor.image_picker.selected_image, sprite) {
-                editor.image_editor.set_undo_target(sprite);
-            }
-            editor.image_editor.set_image_changed();
+            Editor::reload_images(wc, sprite);
+            Self::ensure_valid_selected_image(editor, sprite, true);
         }
     }
 }
@@ -213,21 +217,21 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert, self.image_picker.selected_image,
+                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert, self.image_editor.get_selected_image(),
                                                                self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append, self.image_picker.selected_image,
+                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append, self.image_editor.get_selected_image(),
                                                                self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove frames...").clicked() {
-                            dialogs.rm_frames_dialog.set_open(wc, sprite, self.image_picker.selected_image);
+                            dialogs.rm_frames_dialog.set_open(wc, sprite, self.image_editor.get_selected_image());
                         }
                     });
                 });
@@ -329,7 +333,9 @@ impl Editor {
             self.image_picker.display = self.image_editor.display;
             let texture = sprite.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
             self.image_picker.show(ui, wc.settings, sprite, texture);
-            self.image_editor.set_selected_image(self.image_picker.selected_image, sprite);
+            if let Some(selected_image) = self.image_picker.selected_image {
+                self.image_editor.set_selected_image(selected_image, sprite);
+            }
         });
 
         // color picker:

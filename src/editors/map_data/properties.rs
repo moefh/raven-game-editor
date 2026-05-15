@@ -1,7 +1,7 @@
 use crate::app::WindowContext;
 use crate::data_asset::{MapData, Tileset, DataAssetId, AssetIdList, AssetList};
 
-fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_bg_w: u32, new_bg_h: u32, new_tile: u8) {
+fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, new_para_h: u32, new_tile: u8) {
     fn resize_tiles(tiles: &mut Vec<u8>, old_w: usize, old_h: usize, new_w: usize, new_h: usize, new_tile: u8) {
         for y in 0..usize::min(old_h, new_h) {
             if new_w < old_w {
@@ -24,14 +24,14 @@ fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_bg_w: u32, new
     let old_w = map_data.width as usize;
     let old_h = map_data.height as usize;
     resize_tiles(&mut map_data.fg_tiles, old_w, old_h, new_w, new_h, new_tile);
-    resize_tiles(&mut map_data.clip_tiles, old_w, old_h, new_w, new_h, new_tile);
+    resize_tiles(&mut map_data.bg_tiles, old_w, old_h, new_w, new_h, new_tile);
     resize_tiles(&mut map_data.fx_tiles, old_w, old_h, new_w, new_h, new_tile);
 
-    let new_bg_w = new_bg_w as usize;
-    let new_bg_h = new_bg_h as usize;
-    let old_bg_w = map_data.bg_width as usize;
-    let old_bg_h = map_data.bg_height as usize;
-    resize_tiles(&mut map_data.bg_tiles, old_bg_w, old_bg_h, new_bg_w, new_bg_h, new_tile);
+    let new_para_w = new_para_w as usize;
+    let new_para_h = new_para_h as usize;
+    let old_para_w = map_data.para_width as usize;
+    let old_para_h = map_data.para_height as usize;
+    resize_tiles(&mut map_data.para_tiles, old_para_w, old_para_h, new_para_w, new_para_h, new_tile);
 }
 
 pub struct PropertiesDialog {
@@ -40,8 +40,8 @@ pub struct PropertiesDialog {
     pub tileset_id: DataAssetId,
     pub width: f32,
     pub height: f32,
-    pub bg_width: f32,
-    pub bg_height: f32,
+    pub para_width: f32,
+    pub para_height: f32,
     pub new_tile: u8,
     pub resized: bool,
 }
@@ -54,8 +54,8 @@ impl PropertiesDialog {
             tileset_id,
             width: 0.0,
             height: 0.0,
-            bg_width: 0.0,
-            bg_height: 0.0,
+            para_width: 0.0,
+            para_height: 0.0,
             new_tile: 0,
             resized: false,
         }
@@ -71,8 +71,8 @@ impl PropertiesDialog {
         self.tileset_id = map_data.tileset_id;
         self.width = map_data.width as f32;
         self.height = map_data.height as f32;
-        self.bg_width = map_data.bg_width as f32;
-        self.bg_height = map_data.bg_height as f32;
+        self.para_width = map_data.para_width as f32;
+        self.para_height = map_data.para_height as f32;
         self.new_tile = new_tile;
         self.resized = false;
         self.open = true;
@@ -80,8 +80,8 @@ impl PropertiesDialog {
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
-        if self.width < self.bg_width || self.height < self.bg_height {
-            wc.open_message_box("Invalid Size", "The background must be smaller or the same size as the foreground.");
+        if self.width < self.para_width || self.height < self.para_height {
+            wc.open_message_box("Invalid Size", "The parallax must be smaller or the same size as the foreground.");
             self.resized = false;
             return false;
         }
@@ -92,14 +92,14 @@ impl PropertiesDialog {
 
         let width = self.width as u32;
         let height = self.height as u32;
-        let bg_width = self.bg_width as u32;
-        let bg_height = self.bg_height as u32;
-        if width != map_data.width || height != map_data.height || bg_width != map_data.bg_width || bg_height != map_data.bg_height {
-            resize_map(map_data, width, height, bg_width, bg_height, self.new_tile);
+        let para_width = self.para_width as u32;
+        let para_height = self.para_height as u32;
+        if width != map_data.width || height != map_data.height || para_width != map_data.para_width || para_height != map_data.para_height {
+            resize_map(map_data, width, height, para_width, para_height, self.new_tile);
             map_data.width = width;
             map_data.height = height;
-            map_data.bg_width = bg_width;
-            map_data.bg_height = bg_height;
+            map_data.para_width = para_width;
+            map_data.para_height = para_height;
             self.resized = true;
         } else {
             self.resized = false;
@@ -151,12 +151,12 @@ impl PropertiesDialog {
                             ui.add(egui::Slider::new(&mut self.height, 1.0..=512.0).step_by(1.0));
                             ui.end_row();
 
-                            ui.label("BG Width:");
-                            ui.add(egui::Slider::new(&mut self.bg_width, 1.0..=512.0).step_by(1.0));
+                            ui.label("Parallax Width:");
+                            ui.add(egui::Slider::new(&mut self.para_width, 1.0..=512.0).step_by(1.0));
                             ui.end_row();
 
-                            ui.label("BG Height:");
-                            ui.add(egui::Slider::new(&mut self.bg_height, 1.0..=512.0).step_by(1.0));
+                            ui.label("Parallax Height:");
+                            ui.add(egui::Slider::new(&mut self.para_height, 1.0..=512.0).step_by(1.0));
                             ui.end_row();
                         });
                 });

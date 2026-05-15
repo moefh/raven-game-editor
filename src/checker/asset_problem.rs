@@ -3,6 +3,7 @@ use crate::data_asset::{DataAssetId, Tileset};
 pub enum MapLayer {
     Foreground,
     Background,
+    Parallax,
 }
 
 impl MapLayer {
@@ -10,6 +11,7 @@ impl MapLayer {
         match self {
             MapLayer::Foreground => "foreground",
             MapLayer::Background => "background",
+            MapLayer::Parallax   => "parallax",
         }
     }
 }
@@ -18,8 +20,8 @@ pub enum AssetProblem {
     TilesetTooBig { num_tiles: u32 },
     MapTilesetInvalid { tileset_id: DataAssetId },
     MapTooSmall { width: u32, height: u32 },
-    MapBackgroundTooSmall { bg_width: u32, bg_height: u32 },
-    MapBackgroundTooBig { width: u32, height: u32, bg_width: u32, bg_height: u32 },
+    MapParallaxTooSmall { para_width: u32, para_height: u32 },
+    MapParallaxTooBig { width: u32, height: u32, para_width: u32, para_height: u32 },
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
     MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
@@ -52,21 +54,21 @@ impl AssetProblem {
                 ));
             }
 
-            AssetProblem::MapBackgroundTooSmall { bg_width, bg_height } => {
+            AssetProblem::MapParallaxTooSmall { para_width, para_height } => {
                 ui.label(format!(
-                    "  -> map background is too small: {}x{} (min is {}x{})",
-                    bg_width,
-                    bg_height,
+                    "  -> map parallax is too small: {}x{} (min is {}x{})",
+                    para_width,
+                    para_height,
                     super::map_data::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
                     super::map_data::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
                 ));
             }
 
-            AssetProblem::MapBackgroundTooBig { width, height, bg_width, bg_height } => {
+            AssetProblem::MapParallaxTooBig { width, height, para_width, para_height } => {
                 ui.label(format!(
-                    "  -> map background is too big: {}x{} (max is map size, which is {}x{})",
-                    bg_width,
-                    bg_height,
+                    "  -> map parallax is too big: {}x{} (max is map size, which is {}x{})",
+                    para_width,
+                    para_height,
                     width,
                     height
                 ));

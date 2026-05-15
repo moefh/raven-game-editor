@@ -1274,7 +1274,7 @@ impl<'a> ProjectDataReader<'a> {
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name), ident.pos)?;
                 };
-            if ! num_frames.is_multiple_of(2) {
+            if super::Sprite::MIRROR_FRAMES && ! num_frames.is_multiple_of(2) {
                 error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), t.pos)?;
             }
             let want_stride = width.div_ceil(4);  // (width+3)/4
@@ -1340,9 +1340,9 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let height = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let bg_width = self.read_number()? as u32;
+            let para_width = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let bg_height = self.read_number()? as u32;
+            let para_height = self.read_number()? as u32;
             self.expect_punct(',')?;
             let tileset_id = self.read_asset_index_reference("tilesets")?;
             self.expect_punct(',')?;
@@ -1361,12 +1361,18 @@ impl<'a> ProjectDataReader<'a> {
                     return error(format!("sprite data not found: '{}'", full_name), ident.pos)?;
                 };
 
+            let want_tiles_data_len = width * height * 3 + para_width * para_height;
+            if tiles_data.len() as u32 != want_tiles_data_len {
+                error(format!("unexpected map tiles data length: got {}, expected {} = {}*{}*3 + {}*{}",
+                              tiles_data.len(), want_tiles_data_len, width, height, para_width, para_height), t.pos)?;
+            }
+
             let data = super::map_data::CreationData {
                 tileset_id,
                 width,
                 height,
-                bg_width,
-                bg_height,
+                para_width,
+                para_height,
                 tiles: tiles_data,
             };
             if let Some(id) = self.store.add_map_from(name.to_string(), data) {

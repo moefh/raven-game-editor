@@ -88,15 +88,15 @@ pub fn paint_ants(painter: &egui::Painter, rect: egui::Rect, settings: &AppSetti
     }
 }
 
-fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u32 {
-    if matches!(layer, MapLayer::Background) && (x >= map_data.bg_width || y >= map_data.bg_height) { return 0xff; }
-    if x >= map_data.width || y >= map_data.height { return 0xff; }
+fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u8 {
+    if matches!(layer, MapLayer::Parallax) && (x >= map_data.para_width || y >= map_data.para_height) { return MapData::NO_TILE; }
+    if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
 
     match layer {
-        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize] as u32,
-        MapLayer::Clip => map_data.clip_tiles[(map_data.width * y + x) as usize] as u32,
-        MapLayer::Effects => map_data.fx_tiles[(map_data.width * y + x) as usize] as u32,
-        MapLayer::Background => map_data.bg_tiles[(map_data.bg_width * y + x) as usize] as u32,
-        _ => 0xff,
+        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize],
+        MapLayer::Background => map_data.bg_tiles[(map_data.width * y + x) as usize],
+        MapLayer::Effects    => map_data.fx_tiles[(map_data.width * y + x) as usize],
+        MapLayer::Parallax   => map_data.para_tiles[(map_data.para_width * y + x) as usize],
+        _ => MapData::NO_TILE,
     }
 }

@@ -16,49 +16,58 @@ fn build_tileset_transparency(tileset: &Tileset) -> Vec<bool> {
 }
 
 fn get_fg_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
-    if x >= map_data.width || y >= map_data.height { return 0xff; }
+    if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
     map_data.fg_tiles[(y*map_data.width + x) as usize]
 }
 
 fn get_bg_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
-    if x >= map_data.bg_width || y >= map_data.bg_height { return 0xff; }
-    map_data.bg_tiles[(y*map_data.bg_width + x) as usize]
+    if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
+    map_data.bg_tiles[(y*map_data.width + x) as usize]
+}
+
+fn get_para_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
+    if x >= map_data.para_width || y >= map_data.para_height { return MapData::NO_TILE; }
+    map_data.para_tiles[(y*map_data.para_width + x) as usize]
 }
 
 fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
-    // Build a map of all fg tile positions that may overlap a transparent bg (i.e., a bg with no tile set).
-    // Note that bg with a tile set is never transparent, because in bg a transparent pixel is drawn as green.
-    let pw = map_data.width - map_data.bg_width + 1;
-    let ph = map_data.height - map_data.bg_height + 1;
-    if pw + map_data.bg_width > map_data.width || ph + map_data.bg_height > map_data.height {
+    if map_data.para_width > map_data.width || map_data.para_height > map_data.height {
         // invalid size; this will be caught by another checker
         return;
     }
-    let mut fg_overlaps_transp_bg = vec![false; (map_data.width * map_data.height) as usize];
-    for y in 0..map_data.bg_height {
-        for x in 0..map_data.bg_width {
-            if get_bg_tile(map_data, x, y) != 0xff { continue; }
+
+    // Build a map of all fg tile positions that may overlap a transparent spot (i.e., a bg or parallax with no tile set).
+    // Note that bg or parallax with a tile set is never transparent, because in bg a transparent pixel is drawn as green.
+    let pw = map_data.width - map_data.para_width + 1;
+    let ph = map_data.height - map_data.para_height + 1;
+
+    let mut fg_overlaps_transp = vec![false; (map_data.width * map_data.height) as usize];
+    for y in 0..map_data.para_height {
+        for x in 0..map_data.para_width {
+            if get_para_tile(map_data, x, y) != MapData::NO_TILE { continue; }
             for py in 0..ph {
                 for px in 0..pw {
-                    fg_overlaps_transp_bg[((y+py)*map_data.width + x+px) as usize] = true;
+                    if get_bg_tile(map_data, x+px, y+py) == MapData::NO_TILE {
+                        fg_overlaps_transp[((y+py)*map_data.width + x+px) as usize] = true;
+                    }
                 }
             }
         }
     }
 
-    // For each fg tile position that can overlap a transparent bg, check if it contains a transparent tile.
+    // For each fg tile position that can overlap a transparent spot, check if it contains a transparent tile.
     let mut num_bad_tiles = 0;
     let mut first_bad_tile_x = 0;
     let mut first_bad_tile_y = 0;
     for y in 0..map_data.height {
         for x in 0..map_data.width {
-            if ! fg_overlaps_transp_bg[(y*map_data.width + x) as usize] { continue; }
-            let fg_tile = get_fg_tile(map_data, x, y) as usize;
-            if fg_tile != 0xff && fg_tile >= tileset_transp.len() {
+            if ! fg_overlaps_transp[(y*map_data.width + x) as usize] { continue; }
+            let fg_tile = get_fg_tile(map_data, x, y);
+            if fg_tile != MapData::NO_TILE && fg_tile as usize >= tileset_transp.len() {
                 // invalid fg tile; this will be caught by another checker
                 continue;
             }
-            if fg_tile == 0xff || tileset_transp[fg_tile] {
+            if fg_tile == MapData::NO_TILE || tileset_transp[fg_tile as usize] {
                 // bad map: fg has <no tile or tile with transparent pixel> that <can overlap a background with no tile>
                 if num_bad_tiles == 0 {
                     first_bad_tile_x = x;
@@ -82,17 +91,26 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
     for y in 0..map_data.height {
         for x in 0..map_data.width {
             let tile = get_fg_tile(map_data, x, y);
-            if tile != 0xff && tile as u32 >= tileset.num_tiles {
+            if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
                 problems.push(AssetProblem::MapInvalidTile { tile_x: x, tile_y: y, tile, layer: MapLayer::Foreground });
             }
         }
     }
 
-    for y in 0..map_data.bg_height {
-        for x in 0..map_data.bg_width {
+    for y in 0..map_data.height {
+        for x in 0..map_data.width {
             let tile = get_bg_tile(map_data, x, y);
-            if tile != 0xff && tile as u32 >= tileset.num_tiles {
+            if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
                 problems.push(AssetProblem::MapInvalidTile { tile_x: x, tile_y: y, tile, layer: MapLayer::Background });
+            }
+        }
+    }
+
+    for y in 0..map_data.para_height {
+        for x in 0..map_data.para_width {
+            let tile = get_para_tile(map_data, x, y);
+            if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
+                problems.push(AssetProblem::MapInvalidTile { tile_x: x, tile_y: y, tile, layer: MapLayer::Parallax });
             }
         }
     }
@@ -101,16 +119,16 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
 fn check_map_size(map_data: &MapData, problems: &mut Vec<AssetProblem>) {
     if (map_data.width * Tileset::TILE_SIZE) < SCREEN_WIDTH || (map_data.height * Tileset::TILE_SIZE) < SCREEN_HEIGHT {
         problems.push(AssetProblem::MapTooSmall { width: map_data.width, height: map_data.height });
-    } else if (map_data.bg_width * Tileset::TILE_SIZE) < SCREEN_WIDTH || (map_data.bg_height * Tileset::TILE_SIZE) < SCREEN_HEIGHT {
-        problems.push(AssetProblem::MapBackgroundTooSmall { bg_width: map_data.bg_width, bg_height: map_data.bg_height });
+    } else if (map_data.para_width * Tileset::TILE_SIZE) < SCREEN_WIDTH || (map_data.para_height * Tileset::TILE_SIZE) < SCREEN_HEIGHT {
+        problems.push(AssetProblem::MapParallaxTooSmall { para_width: map_data.para_width, para_height: map_data.para_height });
     }
 
-    if map_data.bg_width > map_data.width || map_data.bg_height > map_data.height {
-        problems.push(AssetProblem::MapBackgroundTooBig {
+    if map_data.para_width > map_data.width || map_data.para_height > map_data.height {
+        problems.push(AssetProblem::MapParallaxTooBig {
             width: map_data.width,
             height: map_data.height,
-            bg_width: map_data.bg_width,
-            bg_height: map_data.bg_height,
+            para_width: map_data.para_width,
+            para_height: map_data.para_height,
         });
     }
 }

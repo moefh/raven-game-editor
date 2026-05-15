@@ -6,13 +6,11 @@ use crate::image::{StaticImageId, StaticImageData, StaticImageStore};
 const TILE_SIZE: u32 = Tileset::TILE_SIZE;
 
 pub struct StaticImages {
-    clip_tiles_id: StaticImageId,
     fx_tiles_id: StaticImageId,
     store: StaticImageStore,
 }
 
 impl StaticImages {
-    pub fn clip_tiles(&self) -> &StaticImageData { self.image(self.clip_tiles_id) }
     pub fn fx_tiles(&self) -> &StaticImageData { self.image(self.fx_tiles_id) }
 
     fn image(&self, id: StaticImageId) -> &StaticImageData {
@@ -22,11 +20,9 @@ impl StaticImages {
 
 pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
     let mut store = StaticImageStore::new();
-    let clip_tiles_id = store.load_image("clip tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/CollisionBitmap.png"));
     let fx_tiles_id = store.load_image("effects tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
     StaticImages {
         store,
-        clip_tiles_id,
         fx_tiles_id,
     }
 });
@@ -105,7 +101,7 @@ image_table! {
     layer_fg: "../../assets/TilesFgIcon.png",
     layer_bg: "../../assets/TilesBgIcon.png",
     layer_fx: "../../assets/EffectsIcon.png",
-    layer_clip: "../../assets/CollisionIcon.png",
+    layer_parallax: "../../assets/ParallaxIcon.png",
     screen: "../../assets/ScreenIcon.png",
     log: "../../assets/LogIcon.png",
 

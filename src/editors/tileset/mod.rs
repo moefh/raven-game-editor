@@ -69,11 +69,21 @@ impl Dialogs {
        }
     }
 
+    fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset, set_undo_target: bool) {
+        if editor.image_editor.get_selected_image() >= tileset.num_tiles {
+            let selected_image = tileset.num_tiles - 1;
+            editor.image_picker.selected_image = Some(selected_image);
+            let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, tileset);
+            if no_selection_change && set_undo_target {
+                editor.image_editor.set_undo_target(tileset);
+            }
+        }
+    }
+
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             Editor::reload_images(wc, tileset);
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
-            editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+            self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
@@ -82,18 +92,14 @@ impl Dialogs {
         }
         if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
             Editor::reload_images(wc, tileset);
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
-            editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset);
+            self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, tileset);
         }
         if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
-            editor.image_picker.selected_image = editor.image_picker.selected_image.min(tileset.num_tiles-1);
-            if ! editor.image_editor.set_selected_image(editor.image_picker.selected_image, tileset) {
-                editor.image_editor.set_undo_target(tileset);
-            }
+            self.ensure_valid_selected_image(editor, tileset, true);
             editor.image_editor.set_image_changed();
         }
     }
@@ -215,21 +221,21 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.image_picker.selected_image,
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.image_editor.get_selected_image(),
                                                               self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.image_picker.selected_image,
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.image_editor.get_selected_image(),
                                                               self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove tiles...").clicked() {
-                            dialogs.rm_tiles_dialog.set_open(wc, tileset, self.image_picker.selected_image);
+                            dialogs.rm_tiles_dialog.set_open(wc, tileset, self.image_editor.get_selected_image());
                         }
                     });
                 });
@@ -332,7 +338,9 @@ impl Editor {
             self.image_picker.display = self.image_editor.display;
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
             self.image_picker.show(ui, wc.settings, tileset, texture);
-            self.image_editor.set_selected_image(self.image_picker.selected_image, tileset);
+            if let Some(selected_image) = self.image_picker.selected_image {
+                self.image_editor.set_selected_image(selected_image, tileset);
+            }
         });
 
         // color picker:

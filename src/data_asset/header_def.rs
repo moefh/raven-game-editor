@@ -73,15 +73,15 @@ struct $<PREFIX>_IMAGE {
 struct $<PREFIX>_MAP {
     int16_t w;
     int16_t h;
-    int16_t bg_w;
-    int16_t bg_h;
+    int16_t para_w;
+    int16_t para_h;
     const struct $<PREFIX>_IMAGE *tileset;
     const uint8_t *tiles;
 };
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_MAP */
 
-#ifndef $<PREFIX>_SKIP_STRUCT_SPRITE_ANIMATION
+#ifndef $<PREFIX>_SKIP_STRUCTS_SPRITE_ANIMATION
 
 struct $<PREFIX>_SPRITE_ANIMATION_LOOP {
     uint16_t offset;   // offset into animation frame_indices

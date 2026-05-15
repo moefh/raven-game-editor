@@ -84,6 +84,14 @@ impl Editor {
         }
     }
 
+    fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
+        if let Some(image_selection) = image_selection {
+            (image_selection & 0xff) as u8
+        } else {
+            MapData::NO_TILE
+        }
+    }
+
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, map_data: &mut MapData) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -94,7 +102,7 @@ impl Editor {
                             let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
-                            dlg.set_open(wc, map_data, self.image_picker.selected_image_right as u8);
+                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.selected_image_right));
                         }
                     });
                 });
@@ -176,18 +184,18 @@ impl Editor {
                         self.map_editor.display.toggle(MapDisplay::BACKGROUND);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.layer_clip)
-                          .selected(self.map_editor.display.has_bits(MapDisplay::CLIP))
-                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::CLIP)))
-                    .on_hover_text("Show collision").clicked() {
-                        self.map_editor.display.toggle(MapDisplay::CLIP);
-                    }
-
                 if ui.add(egui::Button::image(IMAGES.layer_fx)
                           .selected(self.map_editor.display.has_bits(MapDisplay::EFFECTS))
                           .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::EFFECTS)))
                     .on_hover_text("Show effects").clicked() {
                         self.map_editor.display.toggle(MapDisplay::EFFECTS);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.layer_parallax)
+                          .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX)))
+                    .on_hover_text("Show parallax").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::PARALLAX);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.screen)
@@ -275,20 +283,20 @@ impl Editor {
                         self.map_editor.display.set(MapDisplay::BACKGROUND);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.layer_clip)
-                          .selected(self.map_editor.edit_layer == MapLayer::Clip)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Clip))
-                    .on_hover_text("Edit collision").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Clip);
-                        self.map_editor.display.set(MapDisplay::CLIP);
-                    }
-
                 if ui.add(egui::Button::image(IMAGES.layer_fx)
                           .selected(self.map_editor.edit_layer == MapLayer::Effects)
                           .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Effects))
                     .on_hover_text("Edit effects").clicked() {
                         self.map_editor.set_edit_layer(MapLayer::Effects);
                         self.map_editor.display.set(MapDisplay::EFFECTS);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.layer_parallax)
+                          .selected(self.map_editor.edit_layer == MapLayer::Parallax)
+                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax))
+                    .on_hover_text("Edit parallax").clicked() {
+                        self.map_editor.set_edit_layer(MapLayer::Parallax);
+                        self.map_editor.display.set(MapDisplay::PARALLAX);
                     }
 
                 if ui.add(egui::Button::image(IMAGES.screen)
@@ -319,13 +327,13 @@ impl Editor {
                     }
 
                 if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.map_editor.tool == MapTool::SelectFgLayers)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectFgLayers))
-                    .on_hover_text("Select foreground layers").clicked() {
-                        self.map_editor.set_tool(MapTool::SelectFgLayers);
+                          .selected(self.map_editor.tool == MapTool::SelectFullLayers)
+                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers))
+                    .on_hover_text("Select normal layers").clicked() {
+                        self.map_editor.set_tool(MapTool::SelectFullLayers);
                     }
 
-                if map_data.width == map_data.bg_width && map_data.height == map_data.bg_height &&
+                if map_data.width == map_data.para_width && map_data.height == map_data.para_height &&
                     ui.add(egui::Button::image(IMAGES.select)
                            .selected(self.map_editor.tool == MapTool::SelectAllLayers)
                            .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
@@ -348,8 +356,8 @@ impl Editor {
                     map_data.data_size(),
                     map_data.width,
                     map_data.height,
-                    map_data.bg_width,
-                    map_data.bg_height
+                    map_data.para_width,
+                    map_data.para_height
                 ));
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
@@ -377,11 +385,6 @@ impl Editor {
                 ui.add_space(5.0);
                 self.image_picker.zoom = 4.0;
                 match self.map_editor.edit_layer {
-                    MapLayer::Clip => {
-                        let tiles = STATIC_IMAGES.clip_tiles();
-                        let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.show(ui, wc.settings, tiles, texture);
-                    }
                     MapLayer::Effects => {
                         let tiles = STATIC_IMAGES.fx_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
@@ -392,8 +395,8 @@ impl Editor {
                         self.image_picker.show(ui, wc.settings, tileset, texture);
                     }
                 }
-                self.map_editor.left_draw_tile = self.image_picker.selected_image;
-                self.map_editor.right_draw_tile = self.image_picker.selected_image_right;
+                self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.selected_image);
+                self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.selected_image_right);
             });
 
             // body:

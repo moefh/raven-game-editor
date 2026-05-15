@@ -7,8 +7,8 @@ use super::image_editor::ImageDisplay;
 pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,
     pub allow_second_selection: bool,
-    pub selected_image: u32,
-    pub selected_image_right: u32,
+    pub selected_image: Option<u32>,
+    pub selected_image_right: Option<u32>,
     pub zoom: f32,
     pub background_color: Option<Color32>,
     pub display: ImageDisplay,
@@ -20,8 +20,8 @@ impl ImagePickerWidget {
             allow_empty_selection: false,
             allow_second_selection: false,
             zoom: 1.0,
-            selected_image: 0,
-            selected_image_right: 0xff,
+            selected_image: Some(0),
+            selected_image_right: None,
             background_color: None,
             display: ImageDisplay::new(0),
         }
@@ -34,25 +34,25 @@ impl ImagePickerWidget {
         self
     }
 
-    fn sel_index_to_image(&self, sel_index: u32) -> u32 {
+    fn ui_pos_to_selection(&self, ui_pos: f32) -> Option<u32> {
         if self.allow_empty_selection {
-            if sel_index == 0 { 0xff} else { sel_index - 1 }
+            if ui_pos == 0.0 { None } else { Some((ui_pos - 1.0).floor() as u32) }
         } else {
-            sel_index
+            Some(ui_pos.floor().max(0.0) as u32)
         }
     }
 
-    fn image_to_sel_index(&self, image_index: u32) -> u32 {
-        if self.allow_empty_selection {
-            if image_index == 0xff { 0 } else { image_index + 1 }
+    fn selection_to_ui_pos(&self, selection: Option<u32>) -> f32 {
+        if let Some(index) = selection {
+            index as f32 + if self.allow_empty_selection { 1.0 } else { 0.0 }
         } else {
-            image_index
+            0.0
         }
     }
 
     fn draw_selection_rectangle(&self, painter: &egui::Painter, canvas_pos: Pos2, image_size: Vec2,
-                                selected_image: u32, color1: Color32, color2: Color32) {
-        let pos = canvas_pos + Vec2::new(0.0, (self.image_to_sel_index(selected_image) as f32) * image_size.y);
+                                selected_image: Option<u32>, color1: Color32, color2: Color32) {
+        let pos = canvas_pos + Vec2::new(0.0, self.selection_to_ui_pos(selected_image) * image_size.y);
         let sel_rect = Rect {
             min: pos,
             max: pos + image_size,
@@ -103,12 +103,12 @@ impl ImagePickerWidget {
             let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
             if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
                 let frame_size = self.zoom * image.get_item_size();
-                let num_items = image.num_items() + if self.allow_empty_selection { 1 } else { 0 };
-                let image_index = self.sel_index_to_image(u32::min((pos.y / frame_size.y).floor() as u32, num_items - 1));
+                let num_items = image.num_items() as i32 + if self.allow_empty_selection { 1 } else { 0 };
+                let selection = self.ui_pos_to_selection(f32::min((pos.y / frame_size.y).floor(), (num_items - 1) as f32));
                 if scroll.inner.dragged_by(egui::PointerButton::Primary) {
-                    self.selected_image = image_index;
+                    self.selected_image = selection;
                 } else if scroll.inner.dragged_by(egui::PointerButton::Secondary) {
-                    self.selected_image_right = image_index;
+                    self.selected_image_right = selection;
                 }
             }
         };

@@ -670,12 +670,12 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("static const uint8_t {}_map_tiles_{}[] = {{", self.ident.prefix_lower, name));
         self.write("\n  // foreground");
         self.write_map_tiles(&map_data.fg_tiles);
-        self.write("\n  // collision");
-        self.write_map_tiles(&map_data.clip_tiles);
-        self.write("\n  // effects");
-        self.write_map_tiles(&map_data.fx_tiles);
         self.write("\n  // background");
         self.write_map_tiles(&map_data.bg_tiles);
+        self.write("\n  // effects");
+        self.write_map_tiles(&map_data.fx_tiles);
+        self.write("\n  // parallax");
+        self.write_map_tiles(&map_data.para_tiles);
         self.write("\n};\n");
         self.write("\n");
     }
@@ -700,7 +700,7 @@ impl<'a> ProjectDataWriter<'a> {
                 let name = self.ident.get_asset_name(DataAssetType::MapData, *id)?;
                 let tileset_index = self.ident.get_asset_index(DataAssetType::Tileset, map_data.tileset_id)?;
                 self.write(format!("  {{ {}, {}, {}, {}, &{}_tilesets[{}], {}_map_tiles_{} }},\n",
-                                   map_data.width, map_data.height, map_data.bg_width, map_data.bg_height,
+                                   map_data.width, map_data.height, map_data.para_width, map_data.para_height,
                                    self.ident.prefix_lower, tileset_index,
                                    self.ident.prefix_lower, name));
             }
