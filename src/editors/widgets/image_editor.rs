@@ -516,6 +516,44 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
+    //painter, canvas_rect, wc.settings.image_bg_color, wc.settings.image_grid_color, image_zoom, asset
+    fn draw_background(painter: &egui::Painter, canvas_rect: Rect,
+                       bg_color: egui::Color32, grid_color: egui::Color32, zoom: f32, asset: &ImageAsset) {
+        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, bg_color);
+        if zoom < 3.0 { return; }
+
+        let stroke = egui::Stroke::new(1.0, grid_color);
+        let width = asset.width();
+        let height = asset.height();
+        let (x_min, y_min) = if width > height {
+            for x in 0..width-height {
+                let p1 = Vec2::new(x as f32, 0.0);
+                let p2 = Vec2::new((x + height) as f32, height as f32);
+                painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+            }
+            (width-height, 1)
+        } else if height > width {
+            for y in 0..height-width {
+                let p1 = Vec2::new(0.0, y as f32);
+                let p2 = Vec2::new(width as f32, (y + width) as f32);
+                painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+            }
+            (1, height-width)
+        } else {
+            (1, 0)
+        };
+        for x in x_min..width {
+            let p1 = Vec2::new(x as f32, 0.0);
+            let p2 = Vec2::new(width as f32, (width - x) as f32);
+            painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+        }
+        for y in y_min..height {
+            let p1 = Vec2::new(0.0, y as f32);
+            let p2 = Vec2::new((height - y) as f32, height as f32);
+            painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, colors: (u8, u8)) {
         if self.image_changed {
             Self::update_texture(wc, asset);
@@ -542,7 +580,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         );
 
         // draw background
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
+        Self::draw_background(&painter, canvas_rect, wc.settings.image_bg_color, wc.settings.image_grid_color, image_zoom, asset);
 
         // draw image
         let item_uv = asset.get_item_uv(self.selected_image);
@@ -570,7 +608,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let canvas_size = canvas_rect.size();
         let display_grid =
             self.display.has_bits(ImageDisplay::GRID) &&
-            (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 2.0);
+            (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 3.0);
         if display_grid {
             let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
             for y in 0..=asset.height() {
