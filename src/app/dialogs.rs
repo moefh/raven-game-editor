@@ -149,15 +149,18 @@ impl AboutDialog {
             sys_dialogs.block_ui(ui);
             ui.set_width(400.0);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("About Raven Game Editor");
+                ui.heading("About");
                 ui.separator();
-                ui.add_space(12.0);
-                ui.add(egui::Image::new(IMAGES.pico).max_width(32.0).max_height(32.0));
-                ui.add_space(16.0);
-                ui.label("Copyright (C) 2026 MoeFH");
-                ui.add_space(16.0);
+                ui.place(egui::Rect::from_min_size(ui.cursor().min + egui::Vec2::new(16.0, 16.0), egui::Vec2::new(32.0, 32.0)),
+                         egui::Image::new(IMAGES.pico).max_width(32.0).max_height(32.0));
+                ui.add_space(24.0);
+                ui.heading("Raven Game Editor");
+                ui.add_space(24.0);
+                ui.label("Author: MoeFH");
+                ui.label(format!("Build date: {}", env!("BUILD_DATE")));
+                ui.add_space(8.0);
                 ui.label("Source code:");
-                ui.add_space(5.0);
+                ui.add_space(4.0);
                 ui.hyperlink("https://github.com/moefh/raven-game-editor/");
                 ui.hyperlink("https://codeberg.org/moefh/raven-game-editor/");
                 ui.add_space(20.0);
