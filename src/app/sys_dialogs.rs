@@ -7,6 +7,7 @@ pub enum SysDialogResponse {
 }
 
 struct SysDialogResponseData {
+    egui_ctx: egui::Context,
     response: Option<SysDialogResponse>,
 }
 
@@ -16,10 +17,10 @@ struct SysDialogRequest {
 }
 
 impl SysDialogRequest {
-    fn new(request_id: String) -> Self {
+    fn new(request_id: String, egui_ctx: egui::Context) -> Self {
         SysDialogRequest {
             request_id,
-            response_data: Arc::new(Mutex::new(SysDialogResponseData { response: None })),
+            response_data: Arc::new(Mutex::new(SysDialogResponseData { egui_ctx, response: None })),
         }
     }
 
@@ -34,6 +35,7 @@ impl SysDialogRequest {
             Some(file) => Some(SysDialogResponse::File(file)),
             None => Some(SysDialogResponse::Cancel),
         };
+        data.egui_ctx.request_repaint();
     }
 
     fn save_file(file_dialog: rfd::FileDialog, response_data: Arc<Mutex<SysDialogResponseData>>) {
@@ -47,12 +49,14 @@ impl SysDialogRequest {
 }
 
 pub struct SysDialogs {
+    egui_ctx: egui::Context,
     request: Option<SysDialogRequest>,
 }
 
 impl SysDialogs {
-    pub fn new() -> Self {
+    pub fn new(egui_ctx: egui::Context) -> Self {
         SysDialogs {
+            egui_ctx,
             request: None,
         }
     }
@@ -102,7 +106,7 @@ impl SysDialogs {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
 
-        let request = SysDialogRequest::new(request_id);
+        let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
         thread::spawn(move || SysDialogRequest::open_file(file_dialog, response_data));
 
@@ -121,7 +125,7 @@ impl SysDialogs {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
 
-        let request = SysDialogRequest::new(request_id);
+        let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
         thread::spawn(move || SysDialogRequest::save_file(file_dialog, response_data));
 

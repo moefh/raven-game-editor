@@ -67,7 +67,7 @@ impl RavenEditorApp {
             filename: None,
             filename_changed: true,
             logger: StringLogger::new(SEND_LOG_TO_STDOUT),
-            sys_dialogs: sys_dialogs::SysDialogs::new(),
+            sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
             editors: editors::AssetEditors::new(),
             windows: windows::AppWindows::new(),
