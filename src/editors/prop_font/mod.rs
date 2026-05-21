@@ -148,8 +148,8 @@ impl Editor {
                             wc.sys_dialogs.save_file(
                                 Some(wc.egui.window),
                                 Self::export_dlg_id(prop_font),
+                                "prop_font",
                                 "Export Prop Font",
-                                wc.path_library.entry("pfont"),
                                 &[
                                     ("PNG files (*.png)", &["png"]),
                                     ("All files (*.*)", &["*"]),

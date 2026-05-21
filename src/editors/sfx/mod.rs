@@ -118,8 +118,8 @@ impl Editor {
                             wc.sys_dialogs.open_file(
                                 Some(wc.egui.window),
                                 format!("editor_{}", self.asset_id),
+                                "sfx",
                                 "Import WAVE file",
-                                wc.path_library.entry("sfx"),
                                 &[
                                     ("WAVE files (*.wav)", &["wav"]),
                                     ("All files (*.*)", &["*"]),

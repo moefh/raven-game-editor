@@ -7,22 +7,29 @@ use crate::data_asset::{Tokenizer, Token, TokenData};
 
 const APP_ID: &str = "raven-game-editor";
 
-fn get_storage_dir(app_id: &str) -> Option<PathBuf> {
+fn get_settings_dir() -> Option<PathBuf> {
     use egui::os::OperatingSystem as OS;
     match OS::from_target_os() {
         OS::Nix => std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .filter(|p| p.is_absolute())
             .or_else(|| std::env::home_dir().map(|p| p.join(".local").join("share")))
-            .map(|p| { p.join(app_id) }),
+            .map(|p| { p.join(APP_ID) }),
         OS::Mac => std::env::home_dir().map(|p| {
-            p.join("Library").join("Application Support").join(app_id)
+            p.join("Library").join("Application Support").join(APP_ID)
         }),
         OS::Windows => std::env::var_os("APPDATA")
             .map(PathBuf::from)
-            .map(|p| p.join(app_id)),
+            .map(|p| p.join(APP_ID)),
         _ => None,
     }
+}
+
+fn write_settings_file<P: AsRef<Path>>(filename: P, content: &str) -> Result<()> {
+    let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
+    std::fs::create_dir_all(&dir)?;
+    let filename = dir.join(filename.as_ref());
+    std::fs::write(&filename, content)
 }
 
 pub struct AppSettings {
@@ -58,18 +65,27 @@ impl AppSettings {
         }
     }
 
+    fn load_from_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
+        let config = std::fs::read_to_string(&filename)?;
+        let mut reader = AppSettingsReader::new(&config);
+        reader.read(self)
+    }
+
     pub fn load(&mut self, logger: &mut StringLogger) {
-        fn load_settings(app_id: &str, settings: &mut AppSettings, logger: &mut StringLogger) -> Result<()> {
-            let filename = get_storage_dir(app_id)
-                .ok_or(Error::other("can't figure out config directory"))?
-                .join(AppSettings::FILENAME);
-            logger.log(format!("Loading settings from '{}'", filename.display()));
-            let config = std::fs::read_to_string(&filename)?;
-            ConfigLoader::load_config(&config, settings)?;
-            Ok(())
-        }
-        if let Err(e) = load_settings(APP_ID, self, logger) {
-            logger.log(format!("ERROR loading settings: {}", e));
+        let settings_dir = match get_settings_dir() {
+            Some(dir) => { dir }
+            None => {
+                logger.log(format!("WARNING: can't find settings directory, settings won't be loaded"));
+                return;
+            }
+        };
+        let filename = settings_dir.join(Self::FILENAME);
+        logger.log(format!("Loading settings from '{}'", filename.display()));
+        match self.load_from_file(filename) {
+            Ok(_) => {}
+            Err(e) => {
+                logger.log(format!("ERROR reading settings: {}", e));
+            }
         }
     }
 
@@ -78,14 +94,7 @@ impl AppSettings {
     }
 
     pub fn save(&self, logger: &mut StringLogger) {
-        fn save_settings(app_id: &str, config: &str) -> Result<()> {
-            let dir = get_storage_dir(app_id).ok_or(Error::other("can't figure out config directory"))?;
-            std::fs::create_dir_all(&dir)?;
-            let filename = dir.join(AppSettings::FILENAME);
-            std::fs::write(&filename, config)
-        }
         let mut config = String::new();
-        config.push_str(&format!("// {} settings\n", APP_ID));
         config.push_str(&format!("zoom = {};\n", self.zoom));
         config.push_str(&format!("theme = \"{}\";\n", self.theme));
         config.push_str(&format!("image_bg_color = {};\n", Self::save_color(self.image_bg_color)));
@@ -98,24 +107,21 @@ impl AppSettings {
         config.push_str(&format!("marching_ants_colors = [ {}, {} ];\n",
                                  Self::save_color(self.marching_ants_color1),
                                  Self::save_color(self.marching_ants_color2)));
-        if let Err(e) = save_settings(APP_ID, &config) {
+        if let Err(e) = write_settings_file(Self::FILENAME, &config) {
             logger.log(format!("ERROR writing settings: '{}'", e));
         }
     }
 }
 
-struct ConfigLoader<'a> {
+struct AppSettingsReader<'a> {
     tok: Tokenizer<'a>,
-    settings: &'a mut AppSettings,
 }
 
-impl<'a> ConfigLoader<'a> {
-    fn load_config(config: &str, settings: &mut AppSettings) -> Result<()> {
-        let mut loader = ConfigLoader {
+impl<'a> AppSettingsReader<'a> {
+    fn new(config: &'a str) -> Self {
+        AppSettingsReader {
             tok: crate::data_asset::Tokenizer::new(config),
-            settings,
-        };
-        loader.load()
+        }
     }
 
     fn expect_punct(&mut self, ch: char) -> Result<Token> {
@@ -188,7 +194,7 @@ impl<'a> ConfigLoader<'a> {
         Ok(())
     }
 
-    fn load(&mut self) -> Result<()> {
+    fn read(&mut self, settings: &mut AppSettings) -> Result<()> {
         loop {
             let t = self.tok.read()?;
             if t.is_eof() { break; }
@@ -196,20 +202,20 @@ impl<'a> ConfigLoader<'a> {
             if let TokenData::Ident(ident) = t.data {
                 self.expect_punct('=')?;
                 match ident.as_str() {
-                    "theme" => { self.settings.theme = self.read_string_config()?; }
-                    "zoom" => { self.settings.zoom = self.read_number_config()?; }
-                    "image_bg_color" => { self.settings.image_bg_color = self.read_color_config()?; }
-                    "color_picker_bg_color" => { self.settings.color_picker_bg_color = self.read_color_config()?; }
-                    "image_grid_color" => { self.settings.image_grid_color = self.read_color_config()?; }
-                    "map_grid_color" => { self.settings.map_grid_color = self.read_color_config()?; }
-                    "marching_ants_delay" => { self.settings.marching_ants_delay = self.read_number_config()?; }
-                    "marching_ants_thickness" => { self.settings.marching_ants_thickness = self.read_number_config()?; }
-                    "marching_ants_dash_size" => { self.settings.marching_ants_dash_size = self.read_number_config()?; }
+                    "theme" => { settings.theme = self.read_string_config()?; }
+                    "zoom" => { settings.zoom = self.read_number_config()?; }
+                    "image_bg_color" => { settings.image_bg_color = self.read_color_config()?; }
+                    "color_picker_bg_color" => { settings.color_picker_bg_color = self.read_color_config()?; }
+                    "image_grid_color" => { settings.image_grid_color = self.read_color_config()?; }
+                    "map_grid_color" => { settings.map_grid_color = self.read_color_config()?; }
+                    "marching_ants_delay" => { settings.marching_ants_delay = self.read_number_config()?; }
+                    "marching_ants_thickness" => { settings.marching_ants_thickness = self.read_number_config()?; }
+                    "marching_ants_dash_size" => { settings.marching_ants_dash_size = self.read_number_config()?; }
                     "marching_ants_colors" => {
                         let mut colors = [egui::Color32::BLACK, egui::Color32::WHITE];
                         self.read_color_array_config(&mut colors)?;
-                        self.settings.marching_ants_color1 = colors[0];
-                        self.settings.marching_ants_color2 = colors[1];
+                        settings.marching_ants_color1 = colors[0];
+                        settings.marching_ants_color2 = colors[1];
                     }
                     _ => {
                         self.skip_config_value()?;
@@ -261,37 +267,43 @@ impl AppPathLibrary {
         }
     }
 
-    pub fn load(&mut self, logger: &mut StringLogger) {
-        fn load_paths(app_id: &str, library: &mut AppPathLibrary, logger: &mut StringLogger) -> Result<()> {
-            let filename = get_storage_dir(app_id)
-                .ok_or(Error::other("can't figure out config directory"))?
-                .join(AppPathLibrary::FILENAME);
-            logger.log(format!("Loading dirs from '{}'", filename.display()));
-            let config = std::fs::read_to_string(&filename)?;
-            let mut tok = crate::data_asset::Tokenizer::new(&config);
-            loop {
+    fn load_from_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
+        let config = std::fs::read_to_string(&filename)?;
+        let mut tok = crate::data_asset::Tokenizer::new(&config);
+        loop {
+            let t = tok.read()?;
+            if t.is_eof() { break; }
+            if let TokenData::Ident(name) = t.data {
                 let t = tok.read()?;
-                if t.is_eof() { break; }
-                if let TokenData::Ident(name) = t.data {
-                    let t = tok.read()?;
-                    if ! t.is_punct('=') {
-                        return Err(Error::other(format!("expected '=', found '{}' at line {}", t, t.pos.line)));
-                    }
-                    let t = tok.read()?;
-                    if let Some(dir) = t.get_string() {
-                        if name == "__last" {
-                            library.last = Some(dir.into());
-                        } else {
-                            library.paths.insert(name, dir.into());
-                        }
+                if ! t.is_punct('=') {
+                    return Err(Error::other(format!("expected '=', found '{}' at line {}", t, t.pos.line)));
+                }
+                let t = tok.read()?;
+                if let Some(dir) = t.get_string() {
+                    if name == "__last" {
+                        self.last = Some(dir.into());
                     } else {
-                        return Err(Error::other(format!("expected directory in quotes, found '{}' at line {}", t, t.pos.line)));
+                        self.paths.insert(name, dir.into());
                     }
+                } else {
+                    return Err(Error::other(format!("expected directory in quotes, found '{}' at line {}", t, t.pos.line)));
                 }
             }
-            Ok(())
         }
-        if let Err(e) = load_paths(APP_ID, self, logger) {
+        Ok(())
+    }
+
+    pub fn load(&mut self, logger: &mut StringLogger) {
+        let settings_dir = match get_settings_dir() {
+            Some(dir) => { dir }
+            None => {
+                logger.log(format!("WARNING: can't find settings directory, directories won't be loaded"));
+                return;
+            }
+        };
+        let filename = settings_dir.join(Self::FILENAME);
+        logger.log(format!("Loading dirs from '{}'", filename.display()));
+        if let Err(e) = self.load_from_file(filename) {
             logger.log(format!("ERROR loading dirs: {}", e));
         }
     }
@@ -309,22 +321,14 @@ impl AppPathLibrary {
     }
 
     pub fn save(&mut self, logger: &mut StringLogger) {
-        fn save_paths(app_id: &str, config: &str) -> Result<()> {
-            let dir = get_storage_dir(app_id).ok_or(Error::other("can't figure out config directory"))?;
-            std::fs::create_dir_all(&dir)?;
-            let filename = dir.join(AppPathLibrary::FILENAME);
-            std::fs::write(&filename, config)
-        }
-
         let mut config = String::new();
-        config.push_str(&format!("// {} paths\n", APP_ID));
         Self::save_entry(&mut config, "__last", self.last.as_ref());
         let mut names = Vec::from_iter(self.paths.keys().cloned());
         names.sort();
         for name in names {
             Self::save_entry(&mut config, &name, self.paths.get(&name));
         }
-        if let Err(e) = save_paths(APP_ID, &config) {
+        if let Err(e) = write_settings_file(Self::FILENAME, &config) {
             logger.log(format!("ERROR writing path library: '{}'", e));
         }
     }

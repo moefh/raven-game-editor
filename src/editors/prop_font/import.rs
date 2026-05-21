@@ -177,8 +177,8 @@ impl ImportDialog {
                                     wc.sys_dialogs.open_file(
                                         Some(wc.egui.window),
                                         format!("editor_{}_import_pfont", pfont.asset.id),
+                                        "prop_font",
                                         "Import PropFont",
-                                        wc.path_library.entry("pfont"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),

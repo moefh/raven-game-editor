@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
-use std::path::{Path, PathBuf};
 use crate::image::TextureManager;
-use crate::app::{AppDialogs, SysDialogs, AppSettings, AppPathLibrary};
+use crate::app::{AppDialogs, SysDialogs, AppSettings};
 use crate::data_asset::{DataAssetId, StringLogger};
 use crate::editors::{MapClipboardData, ImageClipboardData};
 
@@ -137,45 +135,6 @@ impl<'a> WindowEguiContext<'a> {
     }
 }
 
-pub struct PathLibraryEntry {
-    lib: Arc<Mutex<AppPathLibrary>>,
-    name: String,
-}
-
-impl PathLibraryEntry {
-    pub fn get<'a>(&'a self) -> Option<PathBuf> {
-        self.lib.lock().unwrap().get(&self.name)
-    }
-
-    pub fn set<P: AsRef<Path>>(&self, path: P) {
-        self.lib.lock().unwrap().set(&self.name, path);
-    }
-}
-
-#[derive(Clone)]
-pub struct PathLibrary {
-    pub lib: Arc<Mutex<AppPathLibrary>>,
-}
-
-impl PathLibrary {
-    pub fn new() -> Self {
-        PathLibrary {
-            lib: Arc::new(Mutex::new(AppPathLibrary::new())),
-        }
-    }
-
-    pub fn entry(&self, name: &str) -> PathLibraryEntry {
-        PathLibraryEntry {
-            lib: self.lib.clone(),
-            name: name.to_owned(),
-        }
-    }
-
-    pub fn save(&self, logger: &mut StringLogger) {
-        self.lib.lock().unwrap().save(logger);
-    }
-}
-
 pub struct WindowContext<'a> {
     pub window_space: egui::Rect,
     pub vga_bits_per_pixel: u8,
@@ -189,7 +148,6 @@ pub struct WindowContext<'a> {
     pub image_clipboard: ImageClipboardData,
     pub map_clipboard: MapClipboardData,
     pub keyboard_pressed: Option<KeyboardPressed>,
-    pub path_library: PathLibrary,
 }
 
 impl<'a> WindowContext<'a> {

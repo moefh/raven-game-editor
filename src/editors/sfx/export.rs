@@ -85,8 +85,8 @@ impl ExportDialog {
                                     wc.sys_dialogs.save_file(
                                         Some(wc.egui.window),
                                         export_dlg_id,
+                                        "sfx",
                                         "Export Sfx",
-                                        wc.path_library.entry("sfx"),
                                         &[
                                             ("WAVE files (*.wav)", &["wav"]),
                                             ("All files (*.*)", &["*"]),

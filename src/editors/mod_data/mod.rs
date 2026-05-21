@@ -145,8 +145,8 @@ impl Editor {
                                 wc.sys_dialogs.open_file(
                                     Some(wc.egui.window),
                                     format!("editor_{}_import_sample", self.asset_id),
+                                    "mod",
                                     "Import WAVE file",
-                                    wc.path_library.entry("mod"),
                                     &[
                                         ("WAVE files (*.wav)", &["wav"]),
                                         ("All files (*)", &[""]),
@@ -443,8 +443,8 @@ impl Editor {
                             wc.sys_dialogs.open_file(
                                 Some(wc.egui.window),
                                 format!("editor_{}_import_mod", self.asset_id),
+                                "mod",
                                 "Import MOD file",
-                                wc.path_library.entry("mod"),
                                 &[
                                     ("MOD files (*.mod)", &["mod"]),
                                     ("All files (*)", &[""]),
@@ -458,8 +458,8 @@ impl Editor {
                             wc.sys_dialogs.save_file(
                                 Some(wc.egui.window),
                                 format!("editor_{}_export_mod", self.asset_id),
+                                "mod",
                                 "Export MOD file",
-                                wc.path_library.entry("mod"),
                                 &[
                                     ("MOD files (*.mod)", &["mod"]),
                                     ("All files (*)", &[""]),

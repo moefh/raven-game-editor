@@ -75,8 +75,8 @@ impl ExportDialog {
                                     wc.sys_dialogs.save_file(
                                         Some(wc.egui.window),
                                         format!("editor_{}_export_sprite", sprite.asset.id),
+                                        "sprite",
                                         "Export Sprite",
-                                        wc.path_library.entry("sprite"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),

@@ -1,7 +1,27 @@
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use super::context::PathLibraryEntry;
+use crate::data_asset::StringLogger;
+use super::settings::AppPathLibrary;
+
+pub struct PathLibraryEntry {
+    path_id: String,
+    lib: Arc<Mutex<AppPathLibrary>>,
+}
+
+impl PathLibraryEntry {
+    fn new(path_id: &str, lib: Arc<Mutex<AppPathLibrary>>) -> Self {
+        PathLibraryEntry {
+            path_id: path_id.to_owned(),
+            lib,
+        }
+    }
+
+    pub fn set<P: AsRef<Path>>(&self, path: P) {
+        self.lib.lock().unwrap().set(&self.path_id, path);
+    }
+}
 
 pub enum SysDialogResponse {
     Cancel,
@@ -64,13 +84,15 @@ impl SysDialogRequest {
 pub struct SysDialogs {
     egui_ctx: egui::Context,
     request: Option<SysDialogRequest>,
+    path_library: Arc<Mutex<AppPathLibrary>>,
 }
 
 impl SysDialogs {
-    pub fn new(egui_ctx: egui::Context) -> Self {
+    pub fn new(egui_ctx: egui::Context, path_library: AppPathLibrary) -> Self {
         SysDialogs {
             egui_ctx,
             request: None,
+            path_library: Arc::new(Mutex::new(path_library)),
         }
     }
 
@@ -88,6 +110,22 @@ impl SysDialogs {
         } else {
             false
         }
+    }
+
+    pub fn load_paths(&mut self, logger: &mut StringLogger) {
+        self.path_library.lock().unwrap().load(logger);
+    }
+
+    pub fn save_paths(&mut self, logger: &mut StringLogger) {
+        self.path_library.lock().unwrap().save(logger);
+    }
+
+    pub fn get_path_for_id(&self, path_id: &str) -> Option<PathBuf> {
+        self.path_library.lock().unwrap().get(path_id)
+    }
+
+    pub fn set_path_for_id<P: AsRef<Path>>(&self, path_id: &str, path: P) {
+        self.path_library.lock().unwrap().set(path_id, path);
     }
 
     pub fn get_response_for<S: AsRef<str>>(&mut self, request_id: S) -> Option<SysDialogResponse> {
@@ -109,11 +147,11 @@ impl SysDialogs {
     }
 
     pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
-                     title: &str, path: PathLibraryEntry, filters: &[(&str, &[&str])]) -> bool {
+                     path_id: &str, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
-        if let Some(dir) = path.get() {
+        if let Some(dir) = self.get_path_for_id(path_id) {
             file_dialog = file_dialog.set_directory(dir);
         }
         if let Some(window) = window {
@@ -123,20 +161,21 @@ impl SysDialogs {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
 
+        let path_entry = PathLibraryEntry::new(path_id, self.path_library.clone());
         let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
-        thread::spawn(move || SysDialogRequest::open_file(file_dialog, path, response_data));
+        thread::spawn(move || SysDialogRequest::open_file(file_dialog, path_entry, response_data));
 
         self.request = Some(request);
         true
     }
 
     pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
-                     title: &str, path: PathLibraryEntry, filters: &[(&str, &[&str])]) -> bool {
+                     title: &str, path_id: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
-        if let Some(dir) = path.get() {
+        if let Some(dir) = self.get_path_for_id(path_id) {
             file_dialog = file_dialog.set_directory(dir);
         }
         if let Some(window) = window {
@@ -146,9 +185,10 @@ impl SysDialogs {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
 
+        let path_entry = PathLibraryEntry::new(path_id, self.path_library.clone());
         let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
-        thread::spawn(move || SysDialogRequest::save_file(file_dialog, path, response_data));
+        thread::spawn(move || SysDialogRequest::save_file(file_dialog, path_entry, response_data));
 
         self.request = Some(request);
         true

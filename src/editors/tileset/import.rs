@@ -90,8 +90,8 @@ impl ImportDialog {
                                     wc.sys_dialogs.open_file(
                                         Some(wc.egui.window),
                                         format!("editor_{}_import_tileset", tileset.asset.id),
+                                        "tileset",
                                         "Import Tileset",
-                                        wc.path_library.entry("tileset"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),

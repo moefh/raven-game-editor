@@ -90,8 +90,8 @@ impl ExportSampleDialog {
                                     wc.sys_dialogs.save_file(
                                         Some(wc.egui.window),
                                         export_dlg_id,
+                                        "mod",
                                         "Export MOD Sample",
-                                        wc.path_library.entry("mod"),
                                         &[
                                             ("WAVE files (*.wav)", &["wav"]),
                                             ("All files (*.*)", &["*"]),
