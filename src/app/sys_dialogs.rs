@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use super::context::PathLibraryEntry;
+
 pub enum SysDialogResponse {
     Cancel,
     File(std::path::PathBuf),
@@ -28,21 +30,31 @@ impl SysDialogRequest {
         self.response_data.lock().unwrap().response.is_none()
     }
 
-    fn open_file(file_dialog: rfd::FileDialog, response_data: Arc<Mutex<SysDialogResponseData>>) {
+    fn open_file(file_dialog: rfd::FileDialog, path_entry: PathLibraryEntry, response_data: Arc<Mutex<SysDialogResponseData>>) {
         let file = file_dialog.pick_file();
         let mut data = response_data.lock().unwrap();
         data.response = match file {
-            Some(file) => Some(SysDialogResponse::File(file)),
+            Some(file) => {
+                if let Some(dir) = file.parent() {
+                    path_entry.set(dir.to_path_buf());
+                }
+                Some(SysDialogResponse::File(file))
+            }
             None => Some(SysDialogResponse::Cancel),
         };
         data.egui_ctx.request_repaint();
     }
 
-    fn save_file(file_dialog: rfd::FileDialog, response_data: Arc<Mutex<SysDialogResponseData>>) {
+    fn save_file(file_dialog: rfd::FileDialog, path_entry: PathLibraryEntry, response_data: Arc<Mutex<SysDialogResponseData>>) {
         let file = file_dialog.save_file();
         let mut data = response_data.lock().unwrap();
         data.response = match file {
-            Some(file) => Some(SysDialogResponse::File(file)),
+            Some(file) => {
+                if let Some(dir) = file.parent() {
+                    path_entry.set(dir.to_path_buf());
+                }
+                Some(SysDialogResponse::File(file))
+            }
             None => Some(SysDialogResponse::Cancel),
         };
         data.egui_ctx.request_repaint();
@@ -96,10 +108,14 @@ impl SysDialogs {
         response
     }
 
-    pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
+                     title: &str, path: PathLibraryEntry, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
+        if let Some(dir) = path.get() {
+            file_dialog = file_dialog.set_directory(dir);
+        }
         if let Some(window) = window {
             file_dialog = file_dialog.set_parent(window);
         }
@@ -109,16 +125,20 @@ impl SysDialogs {
 
         let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
-        thread::spawn(move || SysDialogRequest::open_file(file_dialog, response_data));
+        thread::spawn(move || SysDialogRequest::open_file(file_dialog, path, response_data));
 
         self.request = Some(request);
         true
     }
 
-    pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
+                     title: &str, path: PathLibraryEntry, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
+        if let Some(dir) = path.get() {
+            file_dialog = file_dialog.set_directory(dir);
+        }
         if let Some(window) = window {
             file_dialog = file_dialog.set_parent(window);
         }
@@ -128,7 +148,7 @@ impl SysDialogs {
 
         let request = SysDialogRequest::new(request_id, self.egui_ctx.clone());
         let response_data = request.response_data.clone();
-        thread::spawn(move || SysDialogRequest::save_file(file_dialog, response_data));
+        thread::spawn(move || SysDialogRequest::save_file(file_dialog, path, response_data));
 
         self.request = Some(request);
         true

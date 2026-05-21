@@ -204,6 +204,7 @@ impl Editor {
                                 Some(wc.egui.window),
                                 import_frame_dlg_id,
                                 "Paste From File",
+                                wc.path_library.entry("sprite"),
                                 &[
                                     ("PNG files (*.png)", &["png"]),
                                     ("All files (*.*)", &["*"]),

@@ -208,6 +208,7 @@ impl Editor {
                                 Some(wc.egui.window),
                                 import_tile_dlg_id,
                                 "Paste From File",
+                                wc.path_library.entry("tileset"),
                                 &[
                                     ("PNG files (*.png)", &["png"]),
                                     ("All files (*.*)", &["*"]),

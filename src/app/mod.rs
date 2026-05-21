@@ -13,11 +13,11 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
-pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
+pub use context::{WindowContext, PathLibrary, WindowEguiContext, AppWindowTracker, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
-pub use settings::AppSettings;
+pub use settings::{AppSettings, AppPathLibrary};
 
 const SEND_LOG_TO_STDOUT: bool = false;
 
@@ -51,6 +51,7 @@ pub struct RavenEditorApp {
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
     settings: AppSettings,
+    path_library: PathLibrary,
     confirmation_dialog_action: ConfirmationDialogAction,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
@@ -74,11 +75,13 @@ impl RavenEditorApp {
             tex_manager: TextureManager::new(6),
             sound_player: SoundPlayer::new(),
             settings: AppSettings::new(),
+            path_library: PathLibrary::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
         };
         app.settings.load(&mut app.logger);
+        app.path_library.lib.lock().unwrap().load(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
@@ -135,6 +138,9 @@ impl RavenEditorApp {
     }
 
     pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
+        if let Some(dir) = path.as_ref().parent() {
+            self.path_library.entry("project").set(dir);
+        }
         let mut store = crate::data_asset::DataAssetStore::new();
         match crate::data_asset::read_project(path.as_ref(), &mut store, &mut self.logger) {
             Ok(()) => {
@@ -206,6 +212,7 @@ impl RavenEditorApp {
             Some(window),
             "save_project_as".to_owned(),
             "Save Project As",
+            self.path_library.entry("project"),
             &[
                 ("Raven project files (*.h)", &["h"]),
                 ("All files (*.*)", &["*"]),
@@ -394,6 +401,7 @@ impl RavenEditorApp {
                                 Some(window),
                                 "open_project".to_owned(),
                                 "Open Project",
+                                self.path_library.entry("project"),
                                 &[
                                     ("Raven project files (*.h)", &["h"]),
                                     ("All files (*.*)", &["*"]),
@@ -452,6 +460,7 @@ impl RavenEditorApp {
                                 Some(window),
                                 "export_header".to_owned(),
                                 "Export Header File",
+                                self.path_library.entry("project"),
                                 &[
                                     ("Header files (*.h)", &["h"]),
                                     ("All files (*.*)", &["*"]),
@@ -507,6 +516,7 @@ impl RavenEditorApp {
                         Some(window),
                         "open_project".to_owned(),
                         "Open Project",
+                        self.path_library.entry("project"),
                         &[
                             ("Raven project files (*.h)", &["h"]),
                             ("All files (*.*)", &["*"]),
@@ -644,6 +654,7 @@ impl RavenEditorApp {
             map_clipboard: self.map_clipboard.take(),
             image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),
+            path_library: self.path_library.clone(),
         };
 
         for tileset in self.store.assets.tilesets.iter_mut() {
@@ -745,6 +756,10 @@ impl eframe::App for RavenEditorApp {
                 _ => { /* println!("{:?}", event); */ }
             };
         }
+    }
+
+    fn on_exit(&mut self) {
+        self.path_library.save(&mut self.logger);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {

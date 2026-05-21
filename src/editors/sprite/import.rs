@@ -99,6 +99,7 @@ impl ImportDialog {
                                         Some(wc.egui.window),
                                         format!("editor_{}_import_sprite", sprite.asset.id),
                                         "Import Sprite",
+                                        wc.path_library.entry("sprite"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),

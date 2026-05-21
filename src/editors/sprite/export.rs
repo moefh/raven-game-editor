@@ -76,6 +76,7 @@ impl ExportDialog {
                                         Some(wc.egui.window),
                                         format!("editor_{}_export_sprite", sprite.asset.id),
                                         "Export Sprite",
+                                        wc.path_library.entry("sprite"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),

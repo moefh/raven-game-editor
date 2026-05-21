@@ -91,6 +91,7 @@ impl ExportSampleDialog {
                                         Some(wc.egui.window),
                                         export_dlg_id,
                                         "Export MOD Sample",
+                                        wc.path_library.entry("mod"),
                                         &[
                                             ("WAVE files (*.wav)", &["wav"]),
                                             ("All files (*.*)", &["*"]),

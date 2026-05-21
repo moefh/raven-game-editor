@@ -144,6 +144,7 @@ impl Editor {
                                 Some(wc.egui.window),
                                 Self::export_dlg_id(font),
                                 "Export Font",
+                                wc.path_library.entry("font"),
                                 &[
                                     ("PNG files (*.png)", &["png"]),
                                     ("All files (*.*)", &["*"]),

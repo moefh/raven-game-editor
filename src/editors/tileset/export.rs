@@ -76,6 +76,7 @@ impl ExportDialog {
                                         Some(wc.egui.window),
                                         format!("editor_{}_export_tileset", tileset.asset.id),
                                         "Export Tileset",
+                                        wc.path_library.entry("tileset"),
                                         &[
                                             ("PNG files (*.png)", &["png"]),
                                             ("All files (*.*)", &["*"]),
