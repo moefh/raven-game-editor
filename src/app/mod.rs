@@ -26,9 +26,7 @@ const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
-pub const NO_IMAGE_MENU_SIZE: f32 = 19.0;
 pub const IMAGE_MENU_SIZE: f32 = 14.0;
-pub const NO_IMAGE_TREE_SIZE: f32 = 25.0;
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
 pub const IMAGE_TREE_CTX_MENU_SIZE: f32 = 16.0;
 
@@ -411,7 +409,7 @@ impl RavenEditorApp {
                         }
                     });
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
+                        ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Save As...").clicked() {
                             self.save_as(window);
                         }
@@ -463,7 +461,7 @@ impl RavenEditorApp {
                     });
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.add_space(NO_IMAGE_MENU_SIZE);
+                        ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                         if ui.button("Run Check (F5)").clicked() {
                             self.windows.open_check();
                             self.windows.check.run_check(&self.store);

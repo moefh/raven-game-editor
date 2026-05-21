@@ -325,7 +325,7 @@ impl Editor {
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            ui.add_space(crate::app::NO_IMAGE_TREE_SIZE);
+                            ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
                             if ui.button("Remove entity").clicked() {
                                 rm_entity = Some(ent_index);
                             }
@@ -375,7 +375,7 @@ impl Editor {
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            ui.add_space(crate::app::NO_IMAGE_TREE_SIZE);
+                            ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
                             if ui.button("Remove trigger").clicked() {
                                 rm_trigger = Some(trg_index);
                             }
