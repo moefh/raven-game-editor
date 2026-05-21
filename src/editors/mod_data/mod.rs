@@ -1,5 +1,6 @@
 mod properties;
 mod export_sample;
+mod transpose;
 
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
@@ -11,6 +12,7 @@ use crate::data_asset::{ModData, DataAssetId, GenericAsset};
 
 use properties::PropertiesDialog;
 use export_sample::ExportSampleDialog;
+use transpose::TransposeDialog;
 use super::AssetEditorBase;
 use super::widgets::SfxEditorWidget;
 
@@ -53,6 +55,7 @@ impl ModDataEditor {
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     export_sample_dialog: ExportSampleDialog,
+    transpose_dialog: TransposeDialog,
 }
 
 impl Dialogs {
@@ -60,6 +63,7 @@ impl Dialogs {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             export_sample_dialog: ExportSampleDialog::new(),
+            transpose_dialog: TransposeDialog::new(),
         }
     }
 
@@ -69,6 +73,9 @@ impl Dialogs {
         }
         if self.export_sample_dialog.open {
             self.export_sample_dialog.show(wc, mod_data);
+        }
+        if self.transpose_dialog.open {
+            self.transpose_dialog.show(wc, mod_data);
         }
     }
 }
@@ -465,6 +472,14 @@ impl Editor {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
                             dialogs.properties_dialog.set_open(wc, mod_data);
+                        }
+                    });
+                });
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
+                        if ui.button("Transpose...").clicked() {
+                            dialogs.transpose_dialog.set_open(wc, mod_data);
                         }
                     });
                 });
