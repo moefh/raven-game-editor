@@ -45,6 +45,7 @@ impl SysDialogRequest {
             Some(file) => Some(SysDialogResponse::File(file)),
             None => Some(SysDialogResponse::Cancel),
         };
+        data.egui_ctx.request_repaint();
     }
 }
 
