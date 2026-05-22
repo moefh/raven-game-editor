@@ -362,7 +362,7 @@ impl DataAssetStore {
     pub fn new() -> Self {
         DataAssetStore {
             next_id: 0,
-            vga_bits_per_pixel: 0,
+            vga_bits_per_pixel: 8,
             vga_sync_bits: 0xc0,
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),
