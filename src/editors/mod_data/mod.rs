@@ -17,6 +17,7 @@ use super::AssetEditorBase;
 use super::widgets::SfxEditorWidget;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
+const MAX_VOLUME: u8 = 64;
 
 enum EditorTabs {
     Samples,
@@ -170,10 +171,10 @@ impl Editor {
         egui::Panel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show_inside(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
-                let mut loop_start = sample.loop_start as f32;
-                let mut loop_end = (sample.loop_start + sample.loop_len) as f32;
-                let mut volume = sample.volume as f32;
-                let mut finetune = sample.finetune as f32;
+                let mut loop_start = sample.loop_start;
+                let mut loop_end = sample.loop_start + sample.loop_len;
+                let mut volume = sample.volume;
+                let mut finetune = sample.finetune;
 
                 egui::Grid::new(format!("editor_{}_sample_grid", self.asset_id)).num_columns(2).show(ui, |ui| {
                     // properties
@@ -194,19 +195,19 @@ impl Editor {
                             ui.end_row();
 
                             ui.label("Loop start:");
-                            ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sample_data.len() as f32));
+                            ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0..=sample_data.len() as u32));
                             ui.end_row();
 
                             ui.label("Loop end:");
-                            ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sample_data.len() as f32));
+                            ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sample_data.len() as u32));
                             ui.end_row();
 
                             ui.label("Volume:");
-                            ui.add(egui::DragValue::new(&mut volume).speed(1.0).range(0.0..=63.0));
+                            ui.add(egui::DragValue::new(&mut volume).speed(1.0).range(0..=MAX_VOLUME));
                             ui.end_row();
 
                             ui.label("Finetune:");
-                            ui.add(egui::DragValue::new(&mut finetune).speed(1.0).range(-8.0..=7.0));
+                            ui.add(egui::DragValue::new(&mut finetune).speed(1.0).range(-8..=7));
                             ui.end_row();
                         });
                     });
@@ -231,10 +232,10 @@ impl Editor {
                     });
                 });
 
-                sample.loop_start = loop_start as u32;
-                sample.loop_len = (loop_end - loop_start).max(0.0) as u32;
-                sample.volume = volume.clamp(0.0, 63.0) as u8;
-                sample.finetune = finetune.clamp(-8.0, 7.0) as i8;
+                sample.loop_start = loop_start;
+                sample.loop_len = if loop_end < loop_start { 0 } else { loop_end - loop_start };
+                sample.volume = volume.clamp(0, MAX_VOLUME);
+                sample.finetune = finetune.clamp(-8, 7);
             }
         });
 
@@ -411,6 +412,9 @@ impl Editor {
             sample.bits_per_sample = wav_file.bits_per_sample;
             sample.loop_start = 0;
             sample.loop_len = 0;
+            if sample.volume == 0 {
+                sample.volume = MAX_VOLUME;
+            }
             Ok(())
         });
 
