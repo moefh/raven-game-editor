@@ -33,8 +33,7 @@ impl SfxEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
-        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
-        let title = format!("{} - SFX{}", sfx.asset.name, modified);
+        let title = AssetEditorBase::window_title("SFX", &sfx.asset.name, self.base.is_dirty());
         let ret = self.base.create_window(wc, &title, [400.0, 220.0], [500.0, 220.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
         });

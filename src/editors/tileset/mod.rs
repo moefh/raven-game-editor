@@ -40,8 +40,7 @@ impl TilesetEditor {
         self.dialogs.show(wc, &mut self.editor, tileset);
 
         let is_dirty = self.base.is_dirty();
-        let modified = if is_dirty { " - (modified)" } else { "" };
-        let title = format!("{} - Tileset{}", tileset.asset.name, modified);
+        let title = AssetEditorBase::window_title("Tileset", &tileset.asset.name, is_dirty);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
         let ret = self.base.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, tileset, is_dirty);

@@ -39,8 +39,7 @@ impl SpriteEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         self.dialogs.show(wc, &mut self.editor, sprite);
 
-        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
-        let title = format!("{} - Sprite{}", sprite.asset.name, modified);
+        let title = AssetEditorBase::window_title("Sprite", &sprite.asset.name, self.base.is_dirty());
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
         let ret = self.base.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, sprite);

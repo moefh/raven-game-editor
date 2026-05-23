@@ -99,6 +99,14 @@ impl AssetEditorBase {
         }
     }
 
+    fn window_title(asset_type: &str, asset_name: &str, modified: bool) -> String {
+        if modified {
+            format!("[{}] {} <*>", asset_type, asset_name)
+        } else {
+            format!("[{}] {}", asset_type, asset_name)
+        }
+    }
+
     fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str,
                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);

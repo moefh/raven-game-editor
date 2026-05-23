@@ -54,8 +54,7 @@ impl SpriteAnimationEditor {
     pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
-        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
-        let title = format!("{} - Animation{}", animation.asset.name, modified);
+        let title = AssetEditorBase::window_title("Animation", &animation.asset.name, self.base.is_dirty());
         let ret = self.base.create_window(wc, &title, [450.0, 400.0], [500.0, 400.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
