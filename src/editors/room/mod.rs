@@ -106,11 +106,12 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
 
-        let title = format!("{} - Room", room.asset.name);
-        let window = self.base.create_window(wc, &title);
-        window.min_size([400.0, 300.0]).default_size([600.0, 400.0]).show(wc.egui.ctx, |ui| {
+        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
+        let title = format!("{} - Room{}", room.asset.name, modified);
+        let ret = self.base.create_window(wc, &title, [400.0, 300.0], [600.0, 400.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
+        self.base.save_window(wc, &ret);
     }
 }
 

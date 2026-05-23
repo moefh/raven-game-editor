@@ -33,13 +33,12 @@ impl MapDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
-        let title = format!("{} - Map", map_data.asset.name);
-        let window = self.base.create_window(wc, &title);
-        let min_size = egui::Vec2::new(500.0, 200.0);
-        let default_size = egui::Vec2::new(630.0, 380.0);
-        window.min_size(min_size).default_size(default_size).show(wc.egui.ctx, |ui| {
+        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
+        let title = format!("{} - Map{}", map_data.asset.name, modified);
+        let ret = self.base.create_window(wc, &title, [500.0, 200.0], [630.0, 380.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
+        self.base.save_window(wc, &ret);
     }
 }
 

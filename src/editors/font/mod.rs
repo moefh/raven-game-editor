@@ -57,11 +57,12 @@ impl FontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         self.dialogs.show(wc, &mut self.editor, font);
 
-        let title = format!("{} - Font", font.asset.name);
-        let window = self.base.create_window(wc, &title);
-        window.min_size([300.0, 250.0]).default_size([400.0, 350.0]).show(wc.egui.ctx, |ui| {
+        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
+        let title = format!("{} - Font{}", font.asset.name, modified);
+        let ret = self.base.create_window(wc, &title, [300.0, 250.0], [400.0, 350.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });
+        self.base.save_window(wc, &ret);
     }
 }
 

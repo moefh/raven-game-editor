@@ -45,11 +45,12 @@ impl ModDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
-        let title = format!("{} - MOD", mod_data.asset.name);
-        let window = self.base.create_window(wc, &title);
-        window.min_size([600.0, 300.0]).default_size([600.0, 300.0]).show(wc.egui.ctx, |ui| {
+        let modified = if self.base.is_dirty() { " - (modified)" } else { "" };
+        let title = format!("{} - MOD{}", mod_data.asset.name, modified);
+        let ret = self.base.create_window(wc, &title, [600.0, 300.0], [600.0, 300.0]).show(wc.egui.ctx, |ui| {
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });
+        self.base.save_window(wc, &ret);
     }
 }
 

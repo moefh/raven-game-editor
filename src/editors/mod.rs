@@ -24,10 +24,19 @@ use crate::data_asset::{DataAssetId, MapData};
 use crate::image::{ImagePixels, ImageCollection};
 use egui::{Pos2, Rect};
 
+enum MaximizedState {
+    Maximized,
+    UnmaxRequested,
+    UnmaxSizeReset,
+    Normal,
+}
+
 pub struct AssetEditorBase {
     pub id: DataAssetId,
     pub egui_id: egui::Id,
     pub open: bool,
+    maximized_state: MaximizedState,
+    window_rect: egui::Rect,
     saved_hash: u64,
     cur_hash: u64,
 }
@@ -38,6 +47,8 @@ impl AssetEditorBase {
             id,
             open,
             egui_id: egui::Id::new(format!("editor_{}", id)),
+            maximized_state: MaximizedState::Normal,
+            window_rect: egui::Rect::ZERO,
             saved_hash: 0,
             cur_hash: 0,
         }
@@ -66,12 +77,38 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str) -> egui::Window<'a> {
+    fn save_window<T>(&mut self, wc: &crate::app::WindowContext, show_resp: &Option<egui::InnerResponse<Option<T>>>) {
+        if let Some(resp) = show_resp {
+            if matches!(self.maximized_state, MaximizedState::Normal) {
+                self.window_rect = resp.response.rect;
+            }
+            if wc.is_editor_on_top(self.id) {
+                let ctrl_up = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::ArrowUp);
+                if resp.response.ctx.input_mut(|i| i.consume_shortcut(&ctrl_up)) {
+                    match self.maximized_state {
+                        MaximizedState::Maximized => {
+                            self.maximized_state = MaximizedState::UnmaxRequested;
+                        }
+                        MaximizedState::Normal => {
+                            self.maximized_state = MaximizedState::Maximized;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str,
+                         min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
         let default_rect = egui::Rect {
             min: default_pos,
-            max: default_pos + egui::Vec2::new(400.0, 240.0),
+            max: default_pos + default_size.into(),
         };
+        if self.window_rect.max.x == self.window_rect.min.x || self.window_rect.max.y == self.window_rect.min.x {
+            self.window_rect = default_rect;
+        }
 
         let selected = wc.is_editor_on_top(self.id);
         let title_bg = match wc.egui.ctx.theme() {
@@ -82,14 +119,49 @@ impl AssetEditorBase {
             .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
             .fill(title_bg);
-        egui::Window::new(title)
-            .id(self.egui_id)
-            .frame(frame)
-            .enabled(! wc.sys_dialogs.has_open_dialog())
-            .default_rect(default_rect)
-            .max_size(wc.window_space.size())
-            .constrain_to(wc.window_space)
-            .open(&mut self.open)
+        if self.open && ! matches!(self.maximized_state, MaximizedState::Normal) {
+            let (win_rect, constrain_rect) = match self.maximized_state {
+                MaximizedState::Maximized => {
+                    let win_rect = egui::Rect {
+                        min: wc.window_space.min + egui::Vec2::new(-10.0, 0.0),
+                        max: wc.window_space.max + egui::Vec2::new(-6.0, 0.0),
+                    };
+                    (win_rect, wc.window_space)
+                }
+                MaximizedState::UnmaxRequested => {
+                    self.maximized_state = MaximizedState::UnmaxSizeReset;
+                    let rect = self.window_rect;
+                    (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
+                }
+                _ => {
+                    self.maximized_state = MaximizedState::Normal;
+                    let rect = self.window_rect;
+                    (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
+                }
+            };
+            egui::Window::new(title)
+                .id(self.egui_id)
+                .frame(frame)
+                .fade_in(false)
+                .fade_out(false)
+                .enabled(! wc.sys_dialogs.has_open_dialog())
+                .fixed_rect(win_rect)
+                .constrain_to(constrain_rect)
+                .collapsible(false)
+                .open(&mut self.open)
+        } else {
+            egui::Window::new(title)
+                .id(self.egui_id)
+                .fade_in(false)
+                .fade_out(false)
+                .frame(frame)
+                .enabled(! wc.sys_dialogs.has_open_dialog())
+                .default_rect(default_rect)
+                .min_size(min_size)
+                .max_size(wc.window_space.size())
+                .constrain_to(wc.window_space)
+                .open(&mut self.open)
+        }
     }
 }
 
