@@ -137,7 +137,7 @@ pub struct MapEditorWidget {
     pub right_draw_tile: u8,
     pub hover_pos: Vec2,
     pub custom_grid_color: Option<Color32>,
-    pub screen_display_pos: Vec2,
+    pub screen_display_pos: Pos2,
     pub selection: MapSelection,
     drag_mouse_origin: Pos2,
     drag_frag_origin: Pos2,
@@ -159,7 +159,7 @@ impl MapEditorWidget {
             right_draw_tile: MapData::NO_TILE,
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
-            screen_display_pos: Vec2::splat(TILE_SIZE/zoom),
+            screen_display_pos: Pos2::new(TILE_SIZE/zoom, TILE_SIZE/zoom),
             selection: MapSelection::None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
@@ -379,6 +379,17 @@ impl MapEditorWidget {
 
     fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
                     canvas_to_map_full: &emath::RectTransform, canvas_to_map_para: &emath::RectTransform) {
+        if matches!(self.edit_layer, MapLayer::Screen) {
+            //let mouse_pos = canvas_to_map_full * pointer_pos;
+            if response.drag_started() {
+                self.drag_mouse_origin = pointer_pos;
+                self.drag_frag_origin = self.screen_display_pos;
+            } else {
+                self.screen_display_pos = self.drag_frag_origin + (pointer_pos - self.drag_mouse_origin);
+            }
+            return;
+        }
+
         match self.tool {
             MapTool::Pencil => {
                 if let Some(tile) = self.get_selected_tile_for_click(response) {
@@ -392,7 +403,7 @@ impl MapEditorWidget {
                             self.set_para_layer_tile(canvas_to_map_para * pointer_pos, tile, map_data);
                         }
                         MapLayer::Screen => {
-                            self.screen_display_pos = (canvas_to_map_full * pointer_pos * TILE_SIZE - 0.5 * SCREEN_SIZE).to_vec2();
+                            self.screen_display_pos = canvas_to_map_full * pointer_pos * TILE_SIZE - 0.5 * SCREEN_SIZE;
                         }
                     }
                 }
@@ -668,7 +679,7 @@ impl MapEditorWidget {
         if self.display.has_bits(MapDisplay::SCREEN) {
             let stroke1 = egui::Stroke::new(3.0, Color32::PURPLE);
             let stroke2 = egui::Stroke::new(1.0, Color32::YELLOW);
-            let pos = canvas_rect.min + self.zoom * self.screen_display_pos + self.scroll;
+            let pos = canvas_rect.min + self.zoom * self.screen_display_pos.to_vec2() + self.scroll;
             let screen_rect = Rect {
                 min: pos,
                 max: pos + self.zoom * SCREEN_SIZE,
