@@ -380,12 +380,16 @@ impl MapEditorWidget {
     fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
                     canvas_to_map_full: &emath::RectTransform, canvas_to_map_para: &emath::RectTransform) {
         if matches!(self.edit_layer, MapLayer::Screen) {
-            //let mouse_pos = canvas_to_map_full * pointer_pos;
+            let mouse_pos = canvas_to_map_full * pointer_pos * TILE_SIZE;
             if response.drag_started() {
-                self.drag_mouse_origin = pointer_pos;
+                let display_rect = egui::Rect::from_min_size(self.screen_display_pos, SCREEN_SIZE);
+                if ! display_rect.contains(mouse_pos) {
+                    self.screen_display_pos = mouse_pos - 0.5 * SCREEN_SIZE;
+                }
+                self.drag_mouse_origin = mouse_pos;
                 self.drag_frag_origin = self.screen_display_pos;
             } else {
-                self.screen_display_pos = self.drag_frag_origin + (pointer_pos - self.drag_mouse_origin);
+                self.screen_display_pos = self.drag_frag_origin + (mouse_pos - self.drag_mouse_origin);
             }
             return;
         }
@@ -402,9 +406,7 @@ impl MapEditorWidget {
                             if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_para_layer_tile(canvas_to_map_para * pointer_pos, tile, map_data);
                         }
-                        MapLayer::Screen => {
-                            self.screen_display_pos = canvas_to_map_full * pointer_pos * TILE_SIZE - 0.5 * SCREEN_SIZE;
-                        }
+                        _ => {}
                     }
                 }
             }
