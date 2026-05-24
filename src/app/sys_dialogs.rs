@@ -171,7 +171,7 @@ impl SysDialogs {
     }
 
     pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
-                     title: &str, path_id: &str, filters: &[(&str, &[&str])]) -> bool {
+                     path_id: &str, title: &str, filters: &[(&str, &[&str])]) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
