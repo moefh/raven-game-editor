@@ -123,11 +123,12 @@ impl AssetEditorBase {
             egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.global_style().visuals.window_fill },
             egui::Theme::Dark => if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) },
         };
-        let frame = egui::Frame::window(&wc.egui.ctx.global_style())
+        let mut frame = egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
             .fill(title_bg);
         if self.open && ! matches!(self.maximized_state, MaximizedState::Normal) {
+            frame = frame.corner_radius(0.0);
             let (win_rect, constrain_rect) = match self.maximized_state {
                 MaximizedState::Maximized => {
                     let win_rect = egui::Rect {
@@ -150,8 +151,6 @@ impl AssetEditorBase {
             egui::Window::new(title)
                 .id(self.egui_id)
                 .frame(frame)
-                .fade_in(false)
-                .fade_out(false)
                 .enabled(! wc.sys_dialogs.has_open_dialog())
                 .fixed_rect(win_rect)
                 .constrain_to(constrain_rect)
@@ -160,8 +159,6 @@ impl AssetEditorBase {
         } else {
             egui::Window::new(title)
                 .id(self.egui_id)
-                .fade_in(false)
-                .fade_out(false)
                 .frame(frame)
                 .enabled(! wc.sys_dialogs.has_open_dialog())
                 .default_rect(default_rect)
