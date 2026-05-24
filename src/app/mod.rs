@@ -93,6 +93,9 @@ impl RavenEditorApp {
     }
 
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
+        if self.settings.start_maximized {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(true));
+        }
         egui_extras::install_image_loaders(ctx);
         crate::add_font(ctx);
         ctx.options_mut(|opt: &mut egui::Options| {
