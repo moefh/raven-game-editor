@@ -19,8 +19,6 @@ pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 pub use settings::{AppSettings, AppPathLibrary};
 
-const SEND_LOG_TO_STDOUT: bool = false;
-
 const MENU_HEIGHT: f32 = 22.0;
 const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
@@ -58,13 +56,14 @@ pub struct RavenEditorApp {
 
 impl RavenEditorApp {
 
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings) -> Self {
         let mut app = RavenEditorApp {
+            logger,
+            settings,
             reset_egui_context: false,
             store: DataAssetStore::new(),
             filename: None,
             filename_changed: true,
-            logger: StringLogger::new(SEND_LOG_TO_STDOUT),
             sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone(), AppPathLibrary::new()),
             dialogs: dialogs::AppDialogs::new(),
             editors: editors::AssetEditors::new(),
@@ -73,20 +72,18 @@ impl RavenEditorApp {
             map_clipboard: MapClipboardData::Empty,
             tex_manager: TextureManager::new(6),
             sound_player: SoundPlayer::new(),
-            settings: AppSettings::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
         };
-        app.settings.load(&mut app.logger);
         app.sys_dialogs.load_paths(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
     }
 
-    pub fn from_file<P: AsRef<std::path::Path>>(cc: &eframe::CreationContext<'_>, path: P) -> Self {
-        let mut app = Self::new(cc);
+    pub fn from_file<P: AsRef<std::path::Path>>(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings, path: P) -> Self {
+        let mut app = Self::new(cc, logger, settings);
         app.open(&path);
         app
     }

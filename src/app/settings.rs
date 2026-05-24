@@ -35,6 +35,7 @@ fn write_settings_file<P: AsRef<Path>>(filename: P, content: &str) -> Result<()>
 pub struct AppSettings {
     pub theme: String,
     pub zoom: u32,
+    pub start_maximized: bool,
     pub image_bg_color: egui::Color32,
     pub color_picker_bg_color: egui::Color32,
     pub image_grid_color: egui::Color32,
@@ -53,6 +54,7 @@ impl AppSettings {
         AppSettings {
             theme: String::from("system"),
             zoom: 100,
+            start_maximized: false,
             image_bg_color: egui::Color32::from_rgb(0xe0, 0xff, 0xff),
             color_picker_bg_color: egui::Color32::from_rgb(0xe0, 0xe0, 0xe0),
             image_grid_color: egui::Color32::BLACK,
@@ -65,13 +67,19 @@ impl AppSettings {
         }
     }
 
-    fn load_from_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
+    pub fn load(logger: &mut StringLogger) -> Self {
+        let mut settings = AppSettings::new();
+        settings.read(logger);
+        settings
+    }
+
+    fn read_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
         let config = std::fs::read_to_string(&filename)?;
         let mut reader = AppSettingsReader::new(&config);
         reader.read(self)
     }
 
-    pub fn load(&mut self, logger: &mut StringLogger) {
+    pub fn read(&mut self, logger: &mut StringLogger) {
         let settings_dir = match get_settings_dir() {
             Some(dir) => { dir }
             None => {
@@ -81,7 +89,7 @@ impl AppSettings {
         };
         let filename = settings_dir.join(Self::FILENAME);
         logger.log(format!("Loading settings from '{}'", filename.display()));
-        match self.load_from_file(filename) {
+        match self.read_file(filename) {
             Ok(_) => {}
             Err(e) => {
                 logger.log(format!("ERROR reading settings: {}", e));
@@ -97,6 +105,7 @@ impl AppSettings {
         let mut config = String::new();
         config.push_str(&format!("zoom = {};\n", self.zoom));
         config.push_str(&format!("theme = \"{}\";\n", self.theme));
+        config.push_str(&format!("start_maximized = {};\n", if self.start_maximized { 1 } else { 0 }));
         config.push_str(&format!("image_bg_color = {};\n", Self::save_color(self.image_bg_color)));
         config.push_str(&format!("color_picker_bg_color = {};\n", Self::save_color(self.color_picker_bg_color)));
         config.push_str(&format!("image_grid_color = {};\n", Self::save_color(self.image_grid_color)));
@@ -204,6 +213,7 @@ impl<'a> AppSettingsReader<'a> {
                 match ident.as_str() {
                     "theme" => { settings.theme = self.read_string_config()?; }
                     "zoom" => { settings.zoom = self.read_number_config()?; }
+                    "start_maximized" => { settings.start_maximized = self.read_number_config()? != 0; }
                     "image_bg_color" => { settings.image_bg_color = self.read_color_config()?; }
                     "color_picker_bg_color" => { settings.color_picker_bg_color = self.read_color_config()?; }
                     "image_grid_color" => { settings.image_grid_color = self.read_color_config()?; }

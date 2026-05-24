@@ -8,7 +8,10 @@ mod editors;
 mod checker;
 mod app;
 
-use crate::app::RavenEditorApp;
+use crate::app::{RavenEditorApp, AppSettings};
+use crate::data_asset::StringLogger;
+
+const SEND_LOG_TO_STDOUT: bool = false;
 
 static FONT_BYTES: &[u8] = include_bytes!("../assets/fonts/ComicMono.ttf");
 
@@ -50,7 +53,14 @@ fn load_icon() -> Option<egui::IconData> {
 }
 
 fn main() -> eframe::Result {
-    let mut viewport = egui::ViewportBuilder::default().with_inner_size([1800.0, 900.0]);
+    let mut logger = StringLogger::new(SEND_LOG_TO_STDOUT);
+    let settings = AppSettings::load(&mut logger);
+    let mut viewport = egui::ViewportBuilder::default().with_clamp_size_to_monitor_size(true);
+    if settings.start_maximized {
+        viewport = viewport.with_inner_size([10000.0, 10000.0]);
+    } else {
+        viewport = viewport.with_inner_size([1800.0, 900.0]);
+    }
     if let Some(icon) = load_icon() {
         viewport = viewport.with_icon(icon);
     }
@@ -69,8 +79,8 @@ fn main() -> eframe::Result {
         Box::new(|cc| {
             Ok(Box::new(
                 match filename {
-                    Some(filename) => RavenEditorApp::from_file(cc, filename),
-                    None => RavenEditorApp::new(cc),
+                    Some(filename) => RavenEditorApp::from_file(cc, logger, settings, filename),
+                    None => RavenEditorApp::new(cc, logger, settings),
                 }
             ))
         })

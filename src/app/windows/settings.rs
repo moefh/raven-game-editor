@@ -52,6 +52,10 @@ impl SettingsWindow {
                                 wc.settings.zoom = (ui.ctx().zoom_factor() * 100.0).round() as u32;
                             }
                             ui.end_row();
+
+                            ui.label("Start maximized:");
+                            ui.checkbox(&mut wc.settings.start_maximized, "");
+                            ui.end_row();
                         });
                 });
 
