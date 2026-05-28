@@ -190,6 +190,9 @@ impl RavenEditorApp {
         for sprite in self.store.assets.sprites.iter_mut() {
             if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) { editor.prepare_for_saving(sprite); }
         }
+        for pal_sprite in self.store.assets.pal_sprites.iter_mut() {
+            if let Some(editor) = self.editors.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.prepare_for_saving(pal_sprite); }
+        }
         for anim in self.store.assets.animations.iter_mut() {
             if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
                 editor.prepare_for_saving(anim, &mut self.store.assets.sprites);
@@ -315,6 +318,9 @@ impl RavenEditorApp {
             }
             DataAssetType::Sprite => {
                 self.store.add_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sprite(id)))
+            }
+            DataAssetType::PalSprite => {
+                self.store.add_pal_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_pal_sprite(id)))
             }
             DataAssetType::SpriteAnimation => {
                 if let Some(sprite_id) = self.store.asset_ids.sprites.get_first() {
@@ -693,6 +699,11 @@ impl RavenEditorApp {
         for sprite in self.store.assets.sprites.iter_mut() {
             if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) {
                 editor.show(&mut win_ctx, sprite);
+            }
+        }
+        for pal_sprite in self.store.assets.pal_sprites.iter_mut() {
+            if let Some(editor) = self.editors.pal_sprites.get_mut(&pal_sprite.asset.id) {
+                editor.show(&mut win_ctx, pal_sprite);
             }
         }
         for anim in self.store.assets.animations.iter_mut() {

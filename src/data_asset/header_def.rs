@@ -68,6 +68,19 @@ struct $<PREFIX>_IMAGE {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_IMAGE */
 
+#ifndef $<PREFIX>_SKIP_STRUCTS_PAL_SPRITE
+
+struct $<PREFIX>_PAL_SPRITE {
+    int16_t width;
+    int16_t height;
+    int16_t num_frames;
+    uint16_t bpp;
+    uint8_t palette[16];
+    const uint32_t *data;
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_PAL_SPRITE */
+
 #ifndef $<PREFIX>_SKIP_STRUCTS_MAP
 
 struct $<PREFIX>_MAP {

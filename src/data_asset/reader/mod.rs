@@ -24,6 +24,7 @@ const C_KEYWORDS : &[&str] = &[
 const C_STRUCT_NAMES : &[&str] = &[
     "FONT",
     "PROP_FONT",
+    "PAL_SPRITE",
     "MOD_CELL",
     "MOD_DATA",
     "SFX",
@@ -115,6 +116,30 @@ fn image_8bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u3
     pixels
 }
 
+fn pal_image_to_pixels(data: &[u8], palette: &[u8], width: u32, height: u32, num_items: u32, bits_per_pixel: u32) -> Vec<u8> {
+    let width = width as usize;
+    let height = height as usize;
+    let num_items = num_items as usize;
+    let bits_per_pixel = bits_per_pixel as usize;
+    let pixels_per_byte = 8 / bits_per_pixel;
+    let stride = (width * bits_per_pixel).div_ceil(8);
+    let palette_index_mask = (1u8 << bits_per_pixel) - 1;
+
+    let mut pixels = vec![0u8; width * height * num_items];
+    for y in 0 .. height * num_items {
+        let mut block = 0u8;
+        for x in 0 .. width {
+            if x % pixels_per_byte == 0 {
+                block = data[y * stride + x/pixels_per_byte];
+            }
+            pixels[y * width + x] = palette[(block & palette_index_mask) as usize];
+            block >>= bits_per_pixel;
+        }
+    }
+
+    pixels
+}
+
 struct I8or16Array {
     data_size: u32,  // 8 or 16
     data: Vec<i16>,  // elements will be left shift by 8 if size==8
@@ -129,6 +154,7 @@ pub struct ReadData {
     sfx_sample_data: HashMap<String,I8or16Array>,
     tileset_data: HashMap<String,Vec<u32>>,
     sprite_data: HashMap<String,Vec<u32>>,
+    pal_sprite_data: HashMap<String,Vec<u8>>,
     map_tiles: HashMap<String,Vec<u8>>,
     animation_frames: HashMap<String,Vec<u8>>,
     room_maps: HashMap<String,Vec<RoomMap>>,
@@ -142,6 +168,7 @@ pub struct ReadData {
     sfxs: Vec<DataAssetId>,
     tilesets: Vec<DataAssetId>,
     sprites: Vec<DataAssetId>,
+    pal_sprites: Vec<DataAssetId>,
     maps: Vec<DataAssetId>,
     animations: Vec<DataAssetId>,
     rooms: Vec<DataAssetId>,
@@ -153,6 +180,7 @@ pub struct ReadData {
     sfxs_by_name_id: HashMap<String, DataAssetId>,
     tilesets_by_name_id: HashMap<String, DataAssetId>,
     sprites_by_name_id: HashMap<String, DataAssetId>,
+    pal_sprites_by_name_id: HashMap<String, DataAssetId>,
     maps_by_name_id: HashMap<String, DataAssetId>,
     animations_by_name_id: HashMap<String, DataAssetId>,
     rooms_by_name_id: HashMap<String, DataAssetId>,
@@ -204,6 +232,7 @@ impl<'a> ProjectDataReader<'a> {
                 sfx_sample_data: HashMap::new(),
                 tileset_data: HashMap::new(),
                 sprite_data: HashMap::new(),
+                pal_sprite_data: HashMap::new(),
                 map_tiles: HashMap::new(),
                 animation_frames: HashMap::new(),
                 room_maps: HashMap::new(),
@@ -216,6 +245,7 @@ impl<'a> ProjectDataReader<'a> {
                 sfxs: Vec::new(),
                 tilesets: Vec::new(),
                 sprites: Vec::new(),
+                pal_sprites: Vec::new(),
                 maps: Vec::new(),
                 animations: Vec::new(),
                 rooms: Vec::new(),
@@ -226,6 +256,7 @@ impl<'a> ProjectDataReader<'a> {
                 sfxs_by_name_id: HashMap::new(),
                 tilesets_by_name_id: HashMap::new(),
                 sprites_by_name_id: HashMap::new(),
+                pal_sprites_by_name_id: HashMap::new(),
                 maps_by_name_id: HashMap::new(),
                 animations_by_name_id: HashMap::new(),
                 rooms_by_name_id: HashMap::new(),
@@ -1309,6 +1340,90 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     // =======================================================================================
+    // === PALETTED SPRITE
+    // =======================================================================================
+
+    fn read_pal_sprite_data(&mut self, name_id: &str) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+
+        let data = self.read_u8_array()?;
+
+        self.expect_punct(';')?;
+
+        self.logger.log(format!("-> got pal_sprite data '{}'", name_id));
+        self.read_data.pal_sprite_data.insert(name_id.to_string(), data);
+
+        Ok(())
+    }
+
+    fn read_pal_sprites(&mut self) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        loop {
+            let t = self.expect_any_punct("'{' or '}'")?;
+            if t.is_punct('}') { break; }
+            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
+
+            let width = self.read_number()? as u32;
+            self.expect_punct(',')?;
+            let height = self.read_number()? as u32;
+            self.expect_punct(',')?;
+            let num_frames = self.read_number()? as u32;
+            self.expect_punct(',')?;
+            let bits_per_pixel = self.read_number()? as u32;
+            self.expect_punct(',')?;
+            let palette = self.read_u8_array()?;
+            self.expect_punct(',')?;
+            let ident = self.expect_any_ident("pal_sprite data identifier")?;
+            self.expect_punct('}')?;
+            self.expect_punct(',')?;
+
+            let full_name_id = match ident.get_ident() {
+                Some(ident) => ident,
+                None => { return error_expected("pal_sprite_data_...", &t)?; },
+            };
+            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "pal_sprite_data") &&
+                let Some(data) = self.read_data.pal_sprite_data.get(name_id) {
+                    (name_id, data)
+                } else {
+                    return error(format!("pal_sprite data not found: '{}'", full_name_id), ident.pos)?;
+                };
+            let want_len = (width * bits_per_pixel).div_ceil(8) * height * num_frames;
+            if data.len() as u32 != want_len {
+                error(format!("unexpected pal_sprite data length: got {}, expected {} = {}*{}*{}",
+                              data.len(), want_len, (width * bits_per_pixel).div_ceil(8), height, num_frames), t.pos)?;
+            }
+            if palette.len() < (1<<bits_per_pixel) {
+                error(format!("unexpected pal_sprite palette length: got {}, expected {}", palette.len(), 1<<bits_per_pixel), t.pos)?;
+            }
+            let pixels = pal_image_to_pixels(data, &palette, width, height, num_frames, bits_per_pixel);
+            let data = super::pal_sprite::CreationData {
+                width,
+                height,
+                num_frames,
+                bits_per_pixel,
+                palette,
+                pixels,
+            };
+            if let Some(id) = self.store.add_pal_sprite_from(DataAsset::identifier_to_name(name_id), data) {
+                self.read_data.pal_sprites.push(id);
+                self.read_data.pal_sprites_by_name_id.insert(name_id.to_string(), id);
+                self.logger.log(format!("  -> added PAL_SPRITE '{}' id={}", name_id, id));
+            } else {
+                return error(format!("error adding pal_sprite '{}'", name_id), ident.pos)?;
+            }
+        }
+
+        self.expect_punct(';')?;
+        Ok(())
+    }
+
+    // =======================================================================================
     // === MAP
     // =======================================================================================
 
@@ -1990,6 +2105,16 @@ impl<'a> ProjectDataReader<'a> {
             }
             if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "sprites") {
                 self.read_sprites()?;
+                continue;
+            }
+
+            // paletted sprite stuff
+            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "pal_sprite_data") {
+                self.read_pal_sprite_data(name)?;
+                continue;
+            }
+            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "pal_sprites") {
+                self.read_pal_sprites()?;
                 continue;
             }
 

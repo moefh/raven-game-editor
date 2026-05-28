@@ -183,6 +183,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.undo_target = asset.copy_fragment(asset.asset().id, self.selected_image, ImageRect::from_image_item(asset));
     }
 
+    pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
+        if let ImageSelection::Fragment(_, frag) = &mut self.selection {
+            if frag.pixels.force_palette(palette, color_to_palette_index_map) {
+                frag.set_changed();
+            }
+        }
+    }
+
     fn lift_selection(&mut self, asset: &mut ImageAsset, bg_color: u8) {
         if self.selection.is_floating() { return; } // already lifted
 
@@ -490,25 +498,29 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset().id, pixels));
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) {
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) -> bool {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(asset);
-            return;
+            return false;
         }
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
             self.delete_selection(asset, fill_color);
-            return;
+            return false;
         }
 
         match wc.keyboard_pressed.take() {
+            Some(KeyboardPressed::CtrlV) => {
+                self.paste(wc, asset);
+                return true;
+            }
             Some(KeyboardPressed::CtrlC) => { self.copy(wc, asset); }
             Some(KeyboardPressed::CtrlX) => { self.cut(wc, asset, fill_color); }
-            Some(KeyboardPressed::CtrlV) => { self.paste(wc, asset); }
             None => {}
         }
+        false
     }
 
     fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {

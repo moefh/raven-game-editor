@@ -18,6 +18,19 @@ impl ImagePixels {
         }
     }
 
+    pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) -> bool {
+        let mut changed = false;
+        for pixel in self.data.iter_mut() {
+            let pal_index = color_to_palette_index_map[*pixel as usize] as usize;
+            let new_pixel = palette[pal_index % palette.len()];
+            if *pixel != new_pixel {
+                *pixel = new_pixel;
+                changed = true;
+            }
+        }
+        changed
+    }
+
     pub fn pixel_to_rgba(pixel: u8) -> [u8; 4] {
         let r = (pixel     ) & 0b111;
         let g = (pixel >> 3) & 0b111;

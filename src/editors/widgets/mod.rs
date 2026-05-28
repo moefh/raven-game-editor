@@ -1,4 +1,5 @@
 mod color_picker;
+mod pal_color_picker;
 mod map_editor;
 mod sfx_editor;
 mod sprite_frame_list_view;
@@ -21,6 +22,7 @@ pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;
 pub const SCREEN_SIZE: Vec2 = Vec2::new(320.0, 240.0);
 
 pub use color_picker::{*};
+pub use pal_color_picker::{*};
 pub use map_editor::{*};
 pub use sfx_editor::{*};
 pub use sprite_frame_list_view::{*};

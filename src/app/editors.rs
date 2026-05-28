@@ -2,9 +2,17 @@ use std::collections::HashMap;
 
 use crate::data_asset::{DataAssetId, DataAssetStore};
 use crate::editors::{
-    AssetEditorBase, TilesetEditor, MapDataEditor, RoomEditor,
-    SpriteEditor, SpriteAnimationEditor, SfxEditor, ModDataEditor,
-    FontEditor, PropFontEditor,
+    AssetEditorBase,
+    TilesetEditor,
+    MapDataEditor,
+    RoomEditor,
+    SpriteEditor,
+    PalSpriteEditor,
+    SpriteAnimationEditor,
+    SfxEditor,
+    ModDataEditor,
+    FontEditor,
+    PropFontEditor,
 };
 
 pub struct AssetEditors {
@@ -13,6 +21,7 @@ pub struct AssetEditors {
     pub maps: HashMap<DataAssetId, MapDataEditor>,
     pub rooms: HashMap<DataAssetId, RoomEditor>,
     pub sprites: HashMap<DataAssetId, SpriteEditor>,
+    pub pal_sprites: HashMap<DataAssetId, PalSpriteEditor>,
     pub animations: HashMap<DataAssetId, SpriteAnimationEditor>,
     pub sfxs: HashMap<DataAssetId, SfxEditor>,
     pub mods: HashMap<DataAssetId, ModDataEditor>,
@@ -28,6 +37,7 @@ impl AssetEditors {
             maps: HashMap::new(),
             rooms: HashMap::new(),
             sprites: HashMap::new(),
+            pal_sprites: HashMap::new(),
             animations: HashMap::new(),
             sfxs: HashMap::new(),
             mods: HashMap::new(),
@@ -42,6 +52,7 @@ impl AssetEditors {
         self.maps.clear();
         self.rooms.clear();
         self.sprites.clear();
+        self.pal_sprites.clear();
         self.animations.clear();
         self.sfxs.clear();
         self.mods.clear();
@@ -54,6 +65,7 @@ impl AssetEditors {
         for id in store.asset_ids.maps.iter().copied() { self.add_map(id); }
         for id in store.asset_ids.rooms.iter().copied() { self.add_room(id); }
         for id in store.asset_ids.sprites.iter().copied() { self.add_sprite(id); }
+        for id in store.asset_ids.pal_sprites.iter().copied() { self.add_pal_sprite(id); }
         for id in store.asset_ids.animations.iter().copied() { self.add_animation(id); }
         for id in store.asset_ids.sfxs.iter().copied() { self.add_sfx(id); }
         for id in store.asset_ids.mods.iter().copied() { self.add_mod(id); }
@@ -67,6 +79,7 @@ impl AssetEditors {
         if let Some(editor) = self.maps.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.rooms.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.sprites.get(&id) { return Some(&editor.base); }
+        if let Some(editor) = self.pal_sprites.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.animations.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.sfxs.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.mods.get(&id) { return Some(&editor.base); }
@@ -80,6 +93,7 @@ impl AssetEditors {
         if let Some(editor) = self.maps.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.rooms.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.sprites.get_mut(&id) { return Some(&mut editor.base); }
+        if let Some(editor) = self.pal_sprites.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.animations.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.sfxs.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.mods.get_mut(&id) { return Some(&mut editor.base); }
@@ -93,6 +107,7 @@ impl AssetEditors {
         if let Some(editor) = self.maps.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.rooms.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
+        if let Some(editor) = self.pal_sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.animations.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.sfxs.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.mods.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
@@ -130,6 +145,14 @@ impl AssetEditors {
         let egui_id = editor.base.egui_id;
         self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
         self.sprites.insert(id, editor);
+        egui_id
+    }
+
+    pub fn add_pal_sprite(&mut self, id: DataAssetId) -> egui::Id {
+        let editor = PalSpriteEditor::new(id, false);
+        let egui_id = editor.base.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
+        self.pal_sprites.insert(id, editor);
         egui_id
     }
 
@@ -186,6 +209,9 @@ impl AssetEditors {
         for sprite in store.assets.sprites.iter() {
             if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.update_dirty(sprite); }
         }
+        for pal_sprite in store.assets.pal_sprites.iter() {
+            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.update_dirty(pal_sprite); }
+        }
         for anim in store.assets.animations.iter() {
             if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.update_dirty(anim); }
         }
@@ -216,6 +242,9 @@ impl AssetEditors {
         for sprite in store.assets.sprites.iter() {
             if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.clear_dirty(sprite); }
         }
+        for pal_sprite in store.assets.pal_sprites.iter() {
+            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.clear_dirty(pal_sprite); }
+        }
         for anim in store.assets.animations.iter() {
             if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.clear_dirty(anim); }
         }
@@ -238,6 +267,7 @@ impl AssetEditors {
         if self.maps.values().any(|e| e.base.is_dirty()) { return true; }
         if self.rooms.values().any(|e| e.base.is_dirty()) { return true; }
         if self.sprites.values().any(|e| e.base.is_dirty()) { return true; }
+        if self.pal_sprites.values().any(|e| e.base.is_dirty()) { return true; }
         if self.animations.values().any(|e| e.base.is_dirty()) { return true; }
         if self.sfxs.values().any(|e| e.base.is_dirty()) { return true; }
         if self.mods.values().any(|e| e.base.is_dirty()) { return true; }

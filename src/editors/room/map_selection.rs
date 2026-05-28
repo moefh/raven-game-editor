@@ -122,33 +122,6 @@ impl MapSelectionDialog {
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }
                     if display_map.is_some() { self.display_map_id = display_map; }
-                    /*
-                    ui.add_space(5.0);
-                    ui.label("Available maps:");
-                    ui.add_space(5.0);
-                    egui::ScrollArea::both().auto_shrink([false, true]).show(ui, |ui| {
-                        for &map_id in all_map_ids.iter() {
-                            if let Some(map) = maps.get(&map_id) {
-                                ui.horizontal(|ui| {
-                                    let mut checked = self.sel_map_ids.contains(&map_id);
-                                    let old_checked = checked;
-                                    ui.add(egui::Checkbox::without_text(&mut checked));
-                                    if checked != old_checked {
-                                        self.display_map_id = Some(map_id);
-                                        if checked {
-                                            self.sel_map_ids.insert(map_id);
-                                        } else  {
-                                            self.sel_map_ids.remove(&map_id);
-                                        }
-                                    }
-                                    if ui.button(&map.asset.name).clicked() {
-                                        self.display_map_id = Some(map_id);
-                                    }
-                                });
-                            }
-                        }
-                });
-                    */
                 });
 
             egui::CentralPanel::default().show_inside(ui, |ui| {

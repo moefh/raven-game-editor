@@ -44,6 +44,14 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.sprite,
     },
     AssetDef {
+        asset_type: DataAssetType::PalSprite,
+        default_name_prefix: "pal_sprite",
+        add_menu_item: "Add Paletted Sprite",
+        remove_menu_item: "Delete Paletted Sprite",
+        tree_root_item: "Paletted Sprites",
+        image: IMAGE_REFS.sprite,
+    },
+    AssetDef {
         asset_type: DataAssetType::SpriteAnimation,
         default_name_prefix: "animation",
         add_menu_item: "Add Animation",

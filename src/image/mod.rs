@@ -65,6 +65,10 @@ impl ImageFragment {
         }
     }
 
+    pub fn set_changed(&mut self) {
+        self.changed = true;
+    }
+
     pub fn from_pixels(id: DataAssetId, pixels: ImagePixels) -> Self {
         ImageFragment {
             id,

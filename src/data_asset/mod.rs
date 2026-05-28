@@ -3,6 +3,7 @@ mod map_data;
 mod room;
 mod sprite;
 mod sprite_animation;
+mod pal_sprite;
 mod sfx;
 mod mod_data;
 mod font;
@@ -22,6 +23,7 @@ pub use tileset::Tileset;
 pub use map_data::MapData;
 pub use room::{Room, RoomMap, RoomEntity, RoomTrigger, RoomItem};
 pub use sprite::Sprite;
+pub use pal_sprite::{PalSprite, PalSpriteDepth};
 pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame};
 pub use sfx::Sfx;
 pub use mod_data::{MOD_PERIOD_TABLE, ModData, ModSample, ModCell};
@@ -97,6 +99,7 @@ pub enum DataAssetType {
     MapData,
     Room,
     Sprite,
+    PalSprite,
     SpriteAnimation,
     Sfx,
     ModData,
@@ -111,6 +114,7 @@ impl DataAssetType {
             DataAssetType::MapData => "map",
             DataAssetType::Room => "room",
             DataAssetType::Sprite => "sprite",
+            DataAssetType::PalSprite => "pal_sprite",
             DataAssetType::SpriteAnimation => "animation",
             DataAssetType::Sfx => "sfx",
             DataAssetType::ModData => "mod",
@@ -234,6 +238,7 @@ pub struct AssetCollection {
     pub maps: AssetList<MapData>,
     pub rooms: AssetList<Room>,
     pub sprites: AssetList<Sprite>,
+    pub pal_sprites: AssetList<PalSprite>,
     pub animations: AssetList<SpriteAnimation>,
     pub sfxs: AssetList<Sfx>,
     pub mods: AssetList<ModData>,
@@ -248,6 +253,7 @@ impl AssetCollection {
             maps: AssetList::new(),
             rooms: AssetList::new(),
             sprites: AssetList::new(),
+            pal_sprites: AssetList::new(),
             animations: AssetList::new(),
             sfxs: AssetList::new(),
             mods: AssetList::new(),
@@ -261,6 +267,7 @@ impl AssetCollection {
         if let Some(v) = self.maps.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.rooms.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.sprites.get(&asset_id) { return Some(&v.asset); }
+        if let Some(v) = self.pal_sprites.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.animations.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.sfxs.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.mods.get(&asset_id) { return Some(&v.asset); }
@@ -275,6 +282,7 @@ impl AssetCollection {
         if let Some(v) = self.maps.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.rooms.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
+        if let Some(v) = self.pal_sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.animations.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.sfxs.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.mods.get_mut(&asset_id) { return Some(&mut v.asset); }
@@ -311,6 +319,7 @@ impl AssetCollection {
         let sum = self.maps.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.rooms.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.sprites.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.pal_sprites.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.animations.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.sfxs.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.mods.iter().fold(sum, |sum, a| sum + a.data_size());
@@ -324,6 +333,7 @@ pub struct AssetIdCollection {
     pub maps: AssetIdList,
     pub rooms: AssetIdList,
     pub sprites: AssetIdList,
+    pub pal_sprites: AssetIdList,
     pub animations: AssetIdList,
     pub sfxs: AssetIdList,
     pub mods: AssetIdList,
@@ -338,6 +348,7 @@ impl AssetIdCollection {
             maps: AssetIdList::new(),
             rooms: AssetIdList::new(),
             sprites: AssetIdList::new(),
+            pal_sprites: AssetIdList::new(),
             animations: AssetIdList::new(),
             sfxs: AssetIdList::new(),
             mods: AssetIdList::new(),
@@ -352,6 +363,7 @@ impl AssetIdCollection {
             DataAssetType::MapData => self.maps.iter(),
             DataAssetType::Room => self.rooms.iter(),
             DataAssetType::Sprite => self.sprites.iter(),
+            DataAssetType::PalSprite => self.pal_sprites.iter(),
             DataAssetType::SpriteAnimation => self.animations.iter(),
             DataAssetType::Sfx => self.sfxs.iter(),
             DataAssetType::ModData => self.mods.iter(),
@@ -394,6 +406,7 @@ impl DataAssetStore {
             self.assets.maps.store.len() +
             self.assets.rooms.store.len() +
             self.assets.sprites.store.len() +
+            self.assets.pal_sprites.store.len() +
             self.assets.animations.store.len() +
             self.assets.sfxs.store.len() +
             self.assets.mods.store.len() +
@@ -406,6 +419,7 @@ impl DataAssetStore {
         if let Some(v) = self.assets.maps.remove(&id) { self.asset_ids.maps.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.rooms.remove(&id) { self.asset_ids.rooms.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sprites.remove(&id) { self.asset_ids.sprites.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.pal_sprites.remove(&id) { self.asset_ids.pal_sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.animations.remove(&id) { self.asset_ids.animations.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sfxs.remove(&id) { self.asset_ids.sfxs.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.mods.remove(&id) { self.asset_ids.mods.remove_id(id); return Some(v.asset); }
@@ -473,6 +487,20 @@ impl DataAssetStore {
         let id = self.gen_id();
         self.asset_ids.sprites.push(id);
         self.assets.sprites.insert(id, Sprite::from_data(id, name, data));
+        Some(id)
+    }
+
+    pub fn add_pal_sprite(&mut self, name: String) -> Option<DataAssetId> {
+        let id = self.gen_id();
+        self.asset_ids.pal_sprites.push(id);
+        self.assets.pal_sprites.insert(id, PalSprite::new(id, name));
+        Some(id)
+    }
+
+    pub fn add_pal_sprite_from(&mut self, name: String, data: pal_sprite::CreationData) -> Option<DataAssetId> {
+        let id = self.gen_id();
+        self.asset_ids.pal_sprites.push(id);
+        self.assets.pal_sprites.insert(id, PalSprite::from_data(id, name, data));
         Some(id)
     }
 

@@ -656,6 +656,78 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === PALETTED SPRITE
+    // =========================================================================
+
+    fn write_pal_sprite_frames(&self, pal_sprite: &super::PalSprite) {
+        let bits_per_pixel = pal_sprite.depth.bits_per_pixel();
+        let stride = (pal_sprite.width * bits_per_pixel).div_ceil(8);
+        let pixels_per_byte = 8 / bits_per_pixel;
+
+        for frame_num in 0..pal_sprite.num_frames {
+            self.write(format!("  // frame {}", frame_num));
+            for y in 0..pal_sprite.height {
+                self.write("\n  ");
+                for byte_num in 0..stride {
+                    let block_index = pixels_per_byte * ((frame_num * pal_sprite.height + y) * stride + byte_num);
+                    let mut block = 0u8;
+                    for pix_num in 0..pixels_per_byte {
+                        let color = pal_sprite.data[(block_index + pix_num) as usize];
+                        block |= pal_sprite.color_to_palette_index(color) << (pix_num * bits_per_pixel);
+                    }
+                    self.write(format!("{:#04x},", block));
+                }
+            }
+            self.write("\n");
+        }
+    }
+
+    fn write_pal_sprite_data(&self, pal_sprite: &super::PalSprite, name_id: &str) {
+        self.write(format!("static const uint8_t {}_pal_sprite_data_{}[] = {{\n",
+                           self.ident.prefix_lower, name_id));
+        self.write_pal_sprite_frames(pal_sprite);
+        self.write("};\n");
+        self.write("\n");
+    }
+
+    fn write_pal_sprites(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === PALETTED SPRITES\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        for id in self.store.asset_ids.pal_sprites.iter() {
+            if let Some(pal_sprite) = self.store.assets.pal_sprites.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::PalSprite, *id)?;
+                self.write_pal_sprite_data(pal_sprite, name_id);
+            }
+        }
+
+        self.log(format!("-> writing {} pal_sprites", self.store.asset_ids.pal_sprites.len()));
+        self.write(format!("const struct {}_PAL_SPRITE {}_pal_sprites[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
+        for id in self.store.asset_ids.pal_sprites.iter() {
+            if let Some(pal_sprite) = self.store.assets.pal_sprites.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::PalSprite, *id)?;
+                self.write("  {\n");
+                self.write(format!("    {}, {}, {}, {},\n",  pal_sprite.width, pal_sprite.height,
+                                   pal_sprite.num_frames, pal_sprite.depth.bits_per_pixel()));
+                self.write("    { ");
+                for color in &pal_sprite.palette {
+                    self.write(format!("{:#04x},", color));
+                }
+                self.write(" },\n");
+                self.write(format!("    {}_pal_sprite_data_{}\n",
+                                   self.ident.prefix_lower, name_id));
+                self.write("  },\n");
+            }
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    // =========================================================================
     // === MAP
     // =========================================================================
 
@@ -1033,6 +1105,19 @@ impl<'a> ProjectDataWriter<'a> {
                 self.write("\n");
             }
         }
+
+        for id in self.store.asset_ids.pal_sprites.iter() {
+            if let Some(pal_sprite) = self.store.assets.pal_sprites.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::PalSprite, *id)?;
+                let name_id_upper = name_id.to_ascii_uppercase();
+                self.write(format!("#define {}_PAL_SPRITE_WIDTH_{} {}\n", self.ident.prefix_upper, name_id_upper, pal_sprite.width));
+                self.write(format!("#define {}_PAL_SPRITE_HEIGHT_{} {}\n", self.ident.prefix_upper, name_id_upper, pal_sprite.height));
+                self.write(format!("#define {}_PAL_SPRITE_FRAMES_{} {}\n", self.ident.prefix_upper, name_id_upper, pal_sprite.num_frames));
+                self.write(format!("#define {}_PAL_SPRITE_DEPTH_{} {}\n", self.ident.prefix_upper, name_id_upper,
+                                   pal_sprite.depth.bits_per_pixel()));
+                self.write("\n");
+            }
+        }
         Ok(())
     }
 
@@ -1045,6 +1130,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.ident.add_assets(DataAssetType::MapData, self.store);
         self.ident.add_assets(DataAssetType::Room, self.store);
         self.ident.add_assets(DataAssetType::Sprite, self.store);
+        self.ident.add_assets(DataAssetType::PalSprite, self.store);
         self.ident.add_assets(DataAssetType::SpriteAnimation, self.store);
         self.ident.add_assets(DataAssetType::Sfx, self.store);
         self.ident.add_assets(DataAssetType::ModData, self.store);
@@ -1059,6 +1145,7 @@ impl<'a> ProjectDataWriter<'a> {
 
         self.write_fonts()?;
         self.write_prop_fonts()?;
+        self.write_pal_sprites()?;
         self.write_mods()?;
         self.write_sfxs()?;
         self.write_tilesets()?;
