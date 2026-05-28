@@ -56,7 +56,7 @@ impl SysDialogRequest {
         data.response = match file {
             Some(file) => {
                 if let Some(dir) = file.parent() {
-                    path_entry.set(dir.to_path_buf());
+                    path_entry.set(dir);
                 }
                 Some(SysDialogResponse::File(file))
             }
@@ -71,7 +71,7 @@ impl SysDialogRequest {
         data.response = match file {
             Some(file) => {
                 if let Some(dir) = file.parent() {
-                    path_entry.set(dir.to_path_buf());
+                    path_entry.set(dir);
                 }
                 Some(SysDialogResponse::File(file))
             }

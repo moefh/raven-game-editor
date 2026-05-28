@@ -83,7 +83,7 @@ impl AppSettings {
         let settings_dir = match get_settings_dir() {
             Some(dir) => { dir }
             None => {
-                logger.log(format!("WARNING: can't find settings directory, settings won't be loaded"));
+                logger.log("WARNING: can't find settings directory, settings won't be loaded");
                 return;
             }
         };
@@ -257,7 +257,7 @@ impl AppPathLibrary {
         let path = path.as_ref().to_path_buf();
 
         // save to <last>
-        let last = self.last.get_or_insert_with(|| PathBuf::new());
+        let last = self.last.get_or_insert_with(PathBuf::new);
         last.clear();
         last.push(path.as_path());
 
@@ -268,7 +268,7 @@ impl AppPathLibrary {
     pub fn get(&mut self, name: &str) -> Option<PathBuf> {
         match self.paths.get(name) {
             Some(p) => {                // got path; save it to <last> and return
-                let last = self.last.get_or_insert_with(|| PathBuf::new());
+                let last = self.last.get_or_insert_with(PathBuf::new);
                 last.clear();
                 last.push(p.as_path());
                 Some(p.clone())
@@ -307,7 +307,7 @@ impl AppPathLibrary {
         let settings_dir = match get_settings_dir() {
             Some(dir) => { dir }
             None => {
-                logger.log(format!("WARNING: can't find settings directory, directories won't be loaded"));
+                logger.log("WARNING: can't find settings directory, directories won't be loaded");
                 return;
             }
         };
@@ -320,7 +320,7 @@ impl AppPathLibrary {
 
     fn save_entry(config: &mut String, name: &str, path: Option<&PathBuf>) -> bool {
         if let Some(path) = path && let Some(dir) = path.to_str() && ! dir.contains('\n') {
-            config.push_str(&name);
+            config.push_str(name);
             config.push_str(" = \"");
             config.push_str(&dir.replace("\\", "\\\\").replace("\"", "\\\""));
             config.push_str("\"\n");

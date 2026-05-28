@@ -143,11 +143,11 @@ impl TransposeDialog {
         if semitones == 0 {
             String::new()
         } else if semitones.abs() == 12 {
-            format!("(octave)")
+            "(octave)".to_owned()
         } else if semitones.abs() % 12 == 0 {
             format!("({} octaves)", semitones.abs() / 12)
         } else if semitones.abs() < 12 {
-            format!("({})", Self::INTERVAL_NAMES[semitones.abs() as usize])
+            format!("({})", Self::INTERVAL_NAMES[semitones.unsigned_abs() as usize])
         } else if semitones.abs() <= 24 {
             format!("({} and 1 octave)", Self::INTERVAL_NAMES[(semitones.abs() % 12) as usize])
         } else {
@@ -178,17 +178,17 @@ impl TransposeDialog {
     fn filter_cell(&self, cell: ModCell, cell_chan: u8, filter_period: u16) -> bool {
         if cell.period == 0 { return false; }
         match self.note_filter_cmp {
-            NoteFilter::AtOrAbove => if cell.period > filter_period { return false; }  // note_1 > note_2 => period_1 < period_2
-            NoteFilter::AtOrBelow => if cell.period < filter_period { return false; }  // note_1 < note_2 => period_1 > period_2
+            NoteFilter::AtOrAbove if cell.period > filter_period => { return false; }  // note_1 > note_2 => period_1 < period_2
+            NoteFilter::AtOrBelow if cell.period < filter_period => { return false; }  // note_1 < note_2 => period_1 > period_2
             _ => {}
         }
         match self.sample_filter_cmp {
-            SampleFilter::NoSample => if cell.sample != 0 { return false; }
-            SampleFilter::Sample => if cell.sample != self.sample_filter_sample { return false; }
+            SampleFilter::NoSample if cell.sample != 0 => { return false; }
+            SampleFilter::Sample if cell.sample != self.sample_filter_sample => { return false; }
             _ => {}
         }
         match self.chan_filter_cmp {
-            ChannelFilter::Channel => if cell_chan != self.chan_filter_channel { return false; }
+            ChannelFilter::Channel if cell_chan != self.chan_filter_channel => { return false; }
             _ => {}
         }
         true
@@ -229,7 +229,7 @@ impl TransposeDialog {
     }
 
     fn get_sample_name(mod_data: &ModData, sample: u8) -> String {
-        if sample <= 0 { return "INVALID".to_owned(); }
+        if sample == 0 { return "INVALID".to_owned(); }
         if mod_data.samples[(sample - 1) as usize].len == 0 {
             format!("sample {} (empty)", sample)
         } else {

@@ -233,7 +233,7 @@ impl Editor {
                 });
 
                 sample.loop_start = loop_start;
-                sample.loop_len = if loop_end < loop_start { 0 } else { loop_end - loop_start };
+                sample.loop_len = loop_end.saturating_sub(loop_start);
                 sample.volume = volume.clamp(0, MAX_VOLUME);
                 sample.finetune = finetune.clamp(-8, 7);
             }
