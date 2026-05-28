@@ -1,3 +1,4 @@
+mod asset_tree;
 mod context;
 mod sys_dialogs;
 mod dialogs;
@@ -13,6 +14,7 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
+pub use asset_tree::{AssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
 pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
@@ -34,6 +36,22 @@ enum ConfirmationDialogAction {
     NewProject,
 }
 
+pub struct AssetTreeActions {
+    pub remove_asset: Option<DataAssetId>,
+    pub toggle_asset_open: Option<DataAssetId>,
+    pub add_asset_at: Option<AssetTreeNodeId>,
+}
+
+impl AssetTreeActions {
+    pub fn new() -> Self {
+        AssetTreeActions {
+            remove_asset: None,
+            toggle_asset_open: None,
+            add_asset_at: None,
+        }
+    }
+}
+
 pub struct RavenEditorApp {
     reset_egui_context: bool,
     store: DataAssetStore,
@@ -52,6 +70,7 @@ pub struct RavenEditorApp {
     confirmation_dialog_action: ConfirmationDialogAction,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
+    asset_tree: AssetTree,
 }
 
 impl RavenEditorApp {
@@ -75,6 +94,7 @@ impl RavenEditorApp {
             confirmation_dialog_action: ConfirmationDialogAction::None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
+            asset_tree: AssetTree::new(),
         };
         app.sys_dialogs.load_paths(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
@@ -246,11 +266,14 @@ impl RavenEditorApp {
         self.filename_changed = true;
     }
 
-    fn new_asset_name(&self, asset_type: DataAssetType) -> String {
+    fn new_asset_name(&self, asset_type: DataAssetType, given_prefix: Option<String>) -> String {
         if let Some(prefix) = ASSET_DEFS.iter().find(|def| def.asset_type == asset_type).map(|def| def.default_name_prefix) {
             let mut num = 1;
             loop {
-                let name = format!("{}{}", prefix, num);
+                let name = match &given_prefix {
+                    Some(s) => { format!("{}___{}{}", s, prefix, num) }
+                    None => { format!("_{}{}", prefix, num) }
+                };
                 if ! self.store.asset_ids
                     .ids_of_type(asset_type)
                     .any(|&id| self.store.assets.get_asset(id).is_some_and(|a| a.name == name)) {
@@ -274,28 +297,28 @@ impl RavenEditorApp {
         }
     }
 
-    fn add_asset(&mut self, asset_type: DataAssetType) {
+    fn add_asset(&mut self, asset_type: DataAssetType, name_prefix: Option<String>) {
         let added = match asset_type {
             DataAssetType::Tileset => {
-                self.store.add_tileset(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_tileset(id)))
+                self.store.add_tileset(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_tileset(id)))
             }
             DataAssetType::MapData => {
                 if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
-                    self.store.add_map(self.new_asset_name(asset_type), tileset_id).map(|id| (id, self.editors.add_map(id)))
+                    self.store.add_map(self.new_asset_name(asset_type, name_prefix), tileset_id).map(|id| (id, self.editors.add_map(id)))
                 } else {
                     self.open_message_box("No Tileset Available", "You must create a tileset first!");
                     None
                 }
             }
             DataAssetType::Room => {
-                self.store.add_room(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_room(id)))
+                self.store.add_room(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_room(id)))
             }
             DataAssetType::Sprite => {
-                self.store.add_sprite(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_sprite(id)))
+                self.store.add_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sprite(id)))
             }
             DataAssetType::SpriteAnimation => {
                 if let Some(sprite_id) = self.store.asset_ids.sprites.get_first() {
-                    self.store.add_animation(self.new_asset_name(asset_type), sprite_id).map(|id| {
+                    self.store.add_animation(self.new_asset_name(asset_type, name_prefix), sprite_id).map(|id| {
                         (id, self.editors.add_animation(id))
                     })
                 } else {
@@ -304,16 +327,16 @@ impl RavenEditorApp {
                 }
             }
             DataAssetType::Sfx => {
-                self.store.add_sfx(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_sfx(id)))
+                self.store.add_sfx(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sfx(id)))
             }
             DataAssetType::ModData => {
-                self.store.add_mod(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_mod(id)))
+                self.store.add_mod(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_mod(id)))
             }
             DataAssetType::Font => {
-                self.store.add_font(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_font(id)))
+                self.store.add_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_font(id)))
             }
             DataAssetType::PropFont => {
-                self.store.add_prop_font(self.new_asset_name(asset_type)).map(|id| (id, self.editors.add_prop_font(id)))
+                self.store.add_prop_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_prop_font(id)))
             }
         };
 
@@ -440,7 +463,7 @@ impl RavenEditorApp {
                         ui.horizontal(|ui| {
                             ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
                             if ui.button(asset_def.add_menu_item).clicked() {
-                                self.add_asset(asset_def.asset_type);
+                                self.add_asset(asset_def.asset_type, None);
                             }
                         });
                     }
@@ -553,70 +576,63 @@ impl RavenEditorApp {
     }
 
     fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
+        self.asset_tree.update(&self.store);
         egui::Panel::left("asset_tree").resizable(false).exact_size(ASSET_TREE_PANEL_WIDTH).show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
-                    let mut remove_asset: Option<DataAssetId> = None;
-                    let mut toggle_open: Option<DataAssetId> = None;
-                    let mut add_asset = false;
-                    let tree_node_id = ui.make_persistent_id(asset_def.id);
-
-                    let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
-                    let mut toggle_node_open = false;
-                    let mut header_resp = node.show_header(ui, |ui| {
-                        let header = ui.add(egui::Label::new(asset_def.tree_root_item).selectable(false).sense(egui::Sense::click()));
-                        egui::Popup::context_menu(&header).show(|ui| {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                       .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                if ui.button(asset_def.add_menu_item).clicked() {
-                                    add_asset = true;
-                                }
-                            });
-                        });
-                        toggle_node_open = header.clicked();
-                    });
-                    if toggle_node_open {
-                        header_resp.toggle();
-                    }
-                    header_resp.body(|ui| {
-                        for &id in self.store.asset_ids.ids_of_type(asset_def.asset_type) {
-                            if let Some(asset) = self.store.assets.get_asset_mut(id) {
+                    let mut folder_actions = AssetTreeActions::new();
+                    let mut item_actions = AssetTreeActions::new();
+                    if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
+                        let mut folder_menu = |header: &egui::Response, folder: &AssetTreeContainer| {
+                            egui::Popup::context_menu(header).show(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_TREE_SIZE)));
-                                    let button = ui.button(&asset.name);
-                                    if button.clicked() {
-                                        toggle_open = Some(id);
+                                    ui.add(egui::Image::new(include_ref_image!(asset_def.image))
+                                           .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                    if ui.button(asset_def.add_menu_item).clicked() {
+                                        folder_actions.add_asset_at = Some(folder.node_id);
                                     }
-                                    egui::Popup::context_menu(&button).show(|ui| {
-                                        ui.horizontal(|ui| {
-                                            ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                                   .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                            if ui.button(asset_def.add_menu_item).clicked() {
-                                                add_asset = true;
-                                            }
-                                        });
-                                        ui.separator();
-                                        ui.horizontal(|ui| {
-                                            ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                            if ui.button(asset_def.remove_menu_item).clicked() {
-                                                remove_asset = Some(id);
-                                            }
-                                        });
+                                });
+                            });
+                        };
+                        let mut show_item = |ui: &mut egui::Ui, folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
+                            ui.horizontal(|ui| {
+                                ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_TREE_SIZE)));
+                                let button = ui.button(&asset_item.name);
+                                if button.clicked() {
+                                    item_actions.toggle_asset_open = Some(asset_item.id);
+                                }
+                                egui::Popup::context_menu(&button).show(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
+                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                        if ui.button(asset_def.add_menu_item).clicked() {
+                                            item_actions.add_asset_at = Some(folder.node_id);
+                                        }
+                                    });
+                                    ui.separator();
+                                    ui.horizontal(|ui| {
+                                        ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                        if ui.button(asset_def.remove_menu_item).clicked() {
+                                            item_actions.remove_asset = Some(asset_item.id);
+                                        }
                                     });
                                 });
-                            }
+                            });
+                        };
+                        tree.show_inside("project", ui, &mut folder_menu, &mut show_item);
+                    }
+                    for actions in &[folder_actions, item_actions] {
+                        if let Some(tree_node_id) = actions.add_asset_at {
+                            self.add_asset(asset_def.asset_type, self.asset_tree.get_node_name(asset_def.asset_type, tree_node_id));
                         }
-                    });
-                    if add_asset {
-                        self.add_asset(asset_def.asset_type);
-                    }
-                    if let Some(toggle_open_id) = toggle_open && let Some(editor) = self.editors.get_editor_mut(toggle_open_id) {
-                        editor.open = !editor.open;
-                    }
-                    if let Some(remove_asset_id) = remove_asset {
-                        self.remove_asset(remove_asset_id);
+                        if let Some(toggle_open_id) = actions.toggle_asset_open &&
+                            let Some(editor) = self.editors.get_editor_mut(toggle_open_id) {
+                                editor.open = !editor.open;
+                            }
+                        if let Some(remove_asset_id) = actions.remove_asset {
+                            self.remove_asset(remove_asset_id);
+                        }
                     }
                 }
             });
@@ -626,7 +642,7 @@ impl RavenEditorApp {
     fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
-            // big empty space where project windows will hover
+            // big empty space where project windows will be placed
         });
         let content_rect = ui.ctx().content_rect();
         let window_space = egui::Rect {

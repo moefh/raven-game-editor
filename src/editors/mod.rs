@@ -100,10 +100,11 @@ impl AssetEditorBase {
     }
 
     fn window_title(asset_type: &str, asset_name: &str, modified: bool) -> String {
+        let name = asset_name.replace("__", "/");
         if modified {
-            format!("[{}] {} <*>", asset_type, asset_name)
+            format!("[{}] {} <*>", asset_type, name)
         } else {
-            format!("[{}] {}", asset_type, asset_name)
+            format!("[{}] {}", asset_type, name)
         }
     }
 

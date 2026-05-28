@@ -104,7 +104,7 @@ impl RoomEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
+        self.dialogs.show(wc, &mut self.editor, room, assets);
 
         let title = AssetEditorBase::window_title("Room", &room.asset.name, self.base.is_dirty());
         let ret = self.base.create_window(wc, &title, [400.0, 300.0], [600.0, 400.0]).show(wc.egui.ctx, |ui| {
@@ -127,13 +127,12 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, room: &mut Room,
-            asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, room: &mut Room, assets: &RoomEditorAssetLists) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, room);
         }
         if self.map_selection_dialog.open &&
-            self.map_selection_dialog.show(wc, room, &asset_ids.maps, assets.maps, assets.tilesets) &&
+            self.map_selection_dialog.show(wc, room, assets.maps, assets.tilesets) &&
             editor.room_editor.selected_item.is_map() {
                 editor.room_editor.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
             }
@@ -582,7 +581,7 @@ impl Editor {
                     let (add_entity, sel_entity, rm_entity) = self.show_entity_tree(ui, room);
                     let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
 
-                    if change_maps { dialogs.map_selection_dialog.set_open(wc, room); }
+                    if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
                     if add_entity { self.add_entity(wc, room, &asset_ids.animations); }
                     if add_trigger { self.add_trigger(room); }
                     if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }

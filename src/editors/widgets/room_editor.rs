@@ -328,6 +328,17 @@ impl RoomEditorWidget {
             }
         }
 
+        // click/drag selected map
+        if self.selected_item.is_map() {
+            let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
+            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
+                if resp.drag_started() {
+                    self.drag_start(self.selected_item, rect.min, mouse_pos);
+                }
+                return;
+            }
+        }
+
         // click/drag map under the cursor
         for index in 0..room.maps.len() {
             let item = RoomItemRef::Map(index);

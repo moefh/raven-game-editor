@@ -2,7 +2,6 @@ use crate::misc::IMAGE_REFS;
 use crate::data_asset::DataAssetType;
 
 pub struct AssetDef {
-    pub id: &'static str,
     pub asset_type: DataAssetType,
     pub default_name_prefix: &'static str,
     pub add_menu_item: &'static str,
@@ -13,7 +12,6 @@ pub struct AssetDef {
 
 pub const ASSET_DEFS : &[AssetDef] = &[
     AssetDef {
-        id: "tileset_asset_def",
         asset_type: DataAssetType::Tileset,
         default_name_prefix: "tileset",
         add_menu_item: "Add Tileset",
@@ -22,7 +20,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.tileset,
     },
     AssetDef {
-        id: "map_asset_def",
         asset_type: DataAssetType::MapData,
         default_name_prefix: "map",
         add_menu_item: "Add Map",
@@ -31,7 +28,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.map_data,
     },
     AssetDef {
-        id: "room_asset_def",
         asset_type: DataAssetType::Room,
         default_name_prefix: "room",
         add_menu_item: "Add Room",
@@ -40,7 +36,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.room,
     },
     AssetDef {
-        id: "sprite_asset_def",
         asset_type: DataAssetType::Sprite,
         default_name_prefix: "sprite",
         add_menu_item: "Add Sprite",
@@ -49,7 +44,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.sprite,
     },
     AssetDef {
-        id: "animation_asset_def",
         asset_type: DataAssetType::SpriteAnimation,
         default_name_prefix: "animation",
         add_menu_item: "Add Animation",
@@ -58,7 +52,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.animation,
     },
     AssetDef {
-        id: "sfx_asset_def",
         asset_type: DataAssetType::Sfx,
         default_name_prefix: "sfx",
         add_menu_item: "Add SFX",
@@ -67,7 +60,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.sfx,
     },
     AssetDef {
-        id: "mod_asset_def",
         asset_type: DataAssetType::ModData,
         default_name_prefix: "mod",
         add_menu_item: "Add MOD",
@@ -76,7 +68,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.mod_data,
     },
     AssetDef {
-        id: "font_asset_def",
         asset_type: DataAssetType::Font,
         default_name_prefix: "font",
         add_menu_item: "Add Font",
@@ -85,7 +76,6 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.font,
     },
     AssetDef {
-        id: "prop_asset_def",
         asset_type: DataAssetType::PropFont,
         default_name_prefix: "prop_font",
         add_menu_item: "Add Prop Font",
