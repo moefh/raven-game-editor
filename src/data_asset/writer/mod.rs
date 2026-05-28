@@ -10,7 +10,7 @@ use std::sync::LazyLock;
 
 use ident_store::{*};
 
-use super::{StringLogger, DataAssetStore, DataAssetId, DataAssetType, AssetIdList};
+use super::{StringLogger, DataAssetStore, DataAssetId, DataAssetType, DataAsset, AssetIdList};
 
 static RE_UNNAMED_LOOP: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^loop_[0-9]+$").unwrap());
@@ -28,7 +28,7 @@ struct ModSampleRef {
 struct AnimationInfo {
     add_foot: bool,
     loop_offsets: Vec<usize>,
-    loop_names: HashMap<usize,String>,
+    loop_index_to_name_id: HashMap<usize,String>,
 }
 
 struct ProjectDataWriter<'a> {
@@ -210,9 +210,9 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.fonts.iter() {
             if let Some(font) = self.store.assets.fonts.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Font, *id)?;
-                self.log(format!("-> writing font data for '{}'", name));
-                self.write_font_data(font, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Font, *id)?;
+                self.log(format!("-> writing font data for '{}'", name_id));
+                self.write_font_data(font, name_id);
             }
         }
 
@@ -220,8 +220,8 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_FONT {}_fonts[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.fonts.iter() {
             if let Some(font) = self.store.assets.fonts.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Font, *id)?;
-                self.write(format!("  {{ {}, {}, {}_font_data_{} }},\n", font.width, font.height, self.ident.prefix_lower, name));
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Font, *id)?;
+                self.write(format!("  {{ {}, {}, {}_font_data_{} }},\n", font.width, font.height, self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -233,8 +233,8 @@ impl<'a> ProjectDataWriter<'a> {
     // === PROP FONT
     // =========================================================================
 
-    fn write_prop_font_data(&self, font: &super::PropFont, name: &str) -> Vec::<u16> {
-        self.write(format!("static const uint8_t {}_prop_font_data_{}[] = {{\n", self.ident.prefix_lower, name));
+    fn write_prop_font_data(&self, font: &super::PropFont, name_id: &str) -> Vec::<u16> {
+        self.write(format!("static const uint8_t {}_prop_font_data_{}[] = {{\n", self.ident.prefix_lower, name_id));
         let mut char_offset = 0;
         let mut char_offsets = Vec::<u16>::new();
         for ch in 0..super::PropFont::NUM_CHARS {
@@ -277,9 +277,9 @@ impl<'a> ProjectDataWriter<'a> {
         let mut font_char_offsets = HashMap::<DataAssetId, Vec<u16>>::new();
         for id in self.store.asset_ids.prop_fonts.iter() {
             if let Some(font) = self.store.assets.prop_fonts.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::PropFont, *id)?;
-                self.log(format!("-> writing prop font data for '{}'", name));
-                let char_offsets = self.write_prop_font_data(font, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::PropFont, *id)?;
+                self.log(format!("-> writing prop font data for '{}'", name_id));
+                let char_offsets = self.write_prop_font_data(font, name_id);
                 font_char_offsets.insert(*id, char_offsets);
             }
         }
@@ -288,13 +288,13 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_PROP_FONT {}_prop_fonts[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.prop_fonts.iter() {
             if let Some(font) = self.store.assets.prop_fonts.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::PropFont, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::PropFont, *id)?;
                 let char_offsets = font_char_offsets.get(id).ok_or_else(|| {
                     Error::other(format!("can't find char offset for pfont '{}'", id))
                 })?;
                 self.write("  {\n");
                 self.write(format!("    {},\n", font.height));
-                self.write(format!("    {}_prop_font_data_{},\n", self.ident.prefix_lower, name));
+                self.write(format!("    {}_prop_font_data_{},\n", self.ident.prefix_lower, name_id));
                 self.write("    {  // char widths");
                 for ch in 0..super::PropFont::NUM_CHARS {
                     if ch.is_multiple_of(24) { self.write("\n      "); }
@@ -378,7 +378,7 @@ impl<'a> ProjectDataWriter<'a> {
         all_samples
     }
 
-    fn write_mod_samples_data(&self, mod_data: &super::ModData, name: &str, sample_refs: &[ModSampleRef]) {
+    fn write_mod_samples_data(&self, mod_data: &super::ModData, name_id: &str, sample_refs: &[ModSampleRef]) {
         for (index, sample) in mod_data.samples.iter().enumerate() {
             if let Some(sample_ref) = sample_refs.get(index) {
                 if sample_ref.mod_id != mod_data.asset.id || sample_ref.sample_index != index {
@@ -386,7 +386,7 @@ impl<'a> ProjectDataWriter<'a> {
                 }
                 if let Some(data) = &sample.data {
                     self.write(format!("static const int{}_t {}_mod_samples_{}_sample{:02}[] = {{",
-                                       sample.bits_per_sample, self.ident.prefix_lower, name, index+1));
+                                       sample.bits_per_sample, self.ident.prefix_lower, name_id, index+1));
                     for (i, spl) in data.iter().enumerate() {
                         if i.is_multiple_of(16) { self.write("\n  "); }
                         if sample.bits_per_sample == 16 {
@@ -402,9 +402,9 @@ impl<'a> ProjectDataWriter<'a> {
         }
     }
 
-    fn write_mod_pattern(&self, mod_data: &super::ModData, name: &str) {
+    fn write_mod_pattern(&self, mod_data: &super::ModData, name_id: &str) {
         self.write(format!("static const struct {}_MOD_CELL {}_mod_pattern_{}[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower, name));
+                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         let num_channels = mod_data.num_channels as usize;
         let num_patterns = mod_data.pattern.len().div_ceil(64 * num_channels);
         for pattern_num in 0..num_patterns {
@@ -441,10 +441,10 @@ impl<'a> ProjectDataWriter<'a> {
                 continue;
             }
             if let Some(sample_ref) = sample_refs.get(index) {
-                let sample_ref_mod_name = self.ident.get_asset_name(DataAssetType::ModData, sample_ref.mod_id)?;
+                let sample_ref_mod_name_id = self.ident.get_asset_name_id(DataAssetType::ModData, sample_ref.mod_id)?;
                 self.write(format!(" {{ .data{} = {}_mod_samples_{}_sample{:02} }}, }},\n",
                                    sample.bits_per_sample, self.ident.prefix_lower,
-                                   sample_ref_mod_name, sample_ref.sample_index+1));
+                                   sample_ref_mod_name_id, sample_ref.sample_index+1));
             }
         }
         Ok(())
@@ -460,19 +460,19 @@ impl<'a> ProjectDataWriter<'a> {
         let mod_sample_refs = self.get_mod_sample_refs();
         for id in self.store.asset_ids.mods.iter() {
             if let Some(mod_data) = self.store.assets.mods.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::ModData, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::ModData, *id)?;
                 let sample_refs = mod_sample_refs.get(id).ok_or_else(|| {
                     Error::other(format!("can't find sample refs for mod {}", id))
                 })?;
-                self.write_mod_samples_data(mod_data, name, sample_refs);
+                self.write_mod_samples_data(mod_data, name_id, sample_refs);
             }
         }
 
         // patterns
         for id in self.store.asset_ids.mods.iter() {
             if let Some(mod_data) = self.store.assets.mods.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::ModData, *id)?;
-                self.write_mod_pattern(mod_data, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::ModData, *id)?;
+                self.write_mod_pattern(mod_data, name_id);
             }
         }
 
@@ -481,7 +481,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_MOD_DATA {}_mods[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.mods.iter() {
             if let Some(mod_data) = self.store.assets.mods.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::ModData, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::ModData, *id)?;
                 self.write("  {\n");
                 self.write("    // samples:\n");
                 self.write("    {\n");
@@ -502,7 +502,7 @@ impl<'a> ProjectDataWriter<'a> {
                 self.write("    // pattern:\n");
                 self.write(format!("    {}, {}_mod_pattern_{},\n",
                                    mod_data.pattern.len().div_ceil(64*mod_data.num_channels as usize),
-                                   self.ident.prefix_lower, name));
+                                   self.ident.prefix_lower, name_id));
                 self.write("  },\n");
             }
         }
@@ -516,9 +516,9 @@ impl<'a> ProjectDataWriter<'a> {
     // === SFX
     // =========================================================================
 
-    fn write_sfx_data(&self, sfx: &super::Sfx, name: &str) {
+    fn write_sfx_data(&self, sfx: &super::Sfx, name_id: &str) {
         self.write(format!("static const int{}_t {}_sfx_samples_{}[] = {{",
-                           sfx.bits_per_sample, self.ident.prefix_lower, name));
+                           sfx.bits_per_sample, self.ident.prefix_lower, name_id));
         for (i, spl) in sfx.samples.iter().enumerate() {
             if i.is_multiple_of(16) { self.write("\n  "); }
             if sfx.bits_per_sample == 16 {
@@ -539,8 +539,8 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.sfxs.iter() {
             if let Some(sfx) = self.store.assets.sfxs.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Sfx, *id)?;
-                self.write_sfx_data(sfx, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Sfx, *id)?;
+                self.write_sfx_data(sfx, name_id);
             }
         }
 
@@ -548,10 +548,10 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_SFX {}_sfxs[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.sfxs.iter() {
             if let Some(sfx) = self.store.assets.sfxs.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Sfx, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Sfx, *id)?;
                 self.write(format!("  {{{:>6},{:>5},{:>5}, {}, {{ .spl{} = {}_sfx_samples_{} }} }},\n",
                                    sfx.len, sfx.loop_start, sfx.loop_len, sfx.bits_per_sample,
-                                   sfx.bits_per_sample, self.ident.prefix_lower, name));
+                                   sfx.bits_per_sample, self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -564,9 +564,9 @@ impl<'a> ProjectDataWriter<'a> {
     // === TILESET
     // =========================================================================
 
-    fn write_tileset_data(&self, tileset: &super::Tileset, name: &str) {
+    fn write_tileset_data(&self, tileset: &super::Tileset, name_id: &str) {
         self.write(format!("static const uint32_t {}_tileset_data_{}[] = {{\n",
-                           self.ident.prefix_lower, name));
+                           self.ident.prefix_lower, name_id));
         for tile_num in 0..tileset.num_tiles {
             self.write(format!("  // tile {}", tile_num));
             self.write_image_item(tileset.width, tileset.height, tile_num, &tileset.data, false);
@@ -583,8 +583,8 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.tilesets.iter() {
             if let Some(tileset) = self.store.assets.tilesets.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Tileset, *id)?;
-                self.write_tileset_data(tileset, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Tileset, *id)?;
+                self.write_tileset_data(tileset, name_id);
             }
         }
 
@@ -592,10 +592,10 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_IMAGE {}_tilesets[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.tilesets.iter() {
             if let Some(tileset) = self.store.assets.tilesets.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Tileset, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Tileset, *id)?;
                 self.write(format!("  {{ {}, {}, {}, {}, {}_tileset_data_{} }},\n",
                                    tileset.width, tileset.height, tileset.width.div_ceil(4), tileset.num_tiles,
-                                   self.ident.prefix_lower, name));
+                                   self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -614,9 +614,9 @@ impl<'a> ProjectDataWriter<'a> {
         }
     }
 
-    fn write_sprite_data(&self, sprite: &super::Sprite, name: &str) {
+    fn write_sprite_data(&self, sprite: &super::Sprite, name_id: &str) {
         self.write(format!("static const uint32_t {}_sprite_data_{}[] = {{\n",
-                           self.ident.prefix_lower, name));
+                           self.ident.prefix_lower, name_id));
         self.write_sprite_frames(sprite, false);
         if super::Sprite::MIRROR_FRAMES {
             self.write_sprite_frames(sprite, true);
@@ -633,8 +633,8 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.sprites.iter() {
             if let Some(sprite) = self.store.assets.sprites.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Sprite, *id)?;
-                self.write_sprite_data(sprite, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
+                self.write_sprite_data(sprite, name_id);
             }
         }
 
@@ -643,10 +643,10 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_IMAGE {}_sprites[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.sprites.iter() {
             if let Some(sprite) = self.store.assets.sprites.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Sprite, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
                 self.write(format!("  {{ {}, {}, {}, {}, {}_sprite_data_{} }},\n",
                                    sprite.width, sprite.height, sprite.width.div_ceil(4), sprite.num_frames * mult_mirrors,
-                                   self.ident.prefix_lower, name));
+                                   self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -666,8 +666,8 @@ impl<'a> ProjectDataWriter<'a> {
         }
     }
 
-    fn write_map_data(&self, map_data: &super::MapData, name: &str) {
-        self.write(format!("static const uint8_t {}_map_tiles_{}[] = {{", self.ident.prefix_lower, name));
+    fn write_map_data(&self, map_data: &super::MapData, name_id: &str) {
+        self.write(format!("static const uint8_t {}_map_tiles_{}[] = {{", self.ident.prefix_lower, name_id));
         self.write("\n  // foreground");
         self.write_map_tiles(&map_data.fg_tiles);
         self.write("\n  // background");
@@ -688,8 +688,8 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.maps.iter() {
             if let Some(map_data) = self.store.assets.maps.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::MapData, *id)?;
-                self.write_map_data(map_data, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::MapData, *id)?;
+                self.write_map_data(map_data, name_id);
             }
         }
 
@@ -697,12 +697,12 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("const struct {}_MAP {}_maps[] = {{\n", self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.maps.iter() {
             if let Some(map_data) = self.store.assets.maps.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::MapData, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::MapData, *id)?;
                 let tileset_index = self.ident.get_asset_index(DataAssetType::Tileset, map_data.tileset_id)?;
                 self.write(format!("  {{ {}, {}, {}, {}, &{}_tilesets[{}], {}_map_tiles_{} }},\n",
                                    map_data.width, map_data.height, map_data.para_width, map_data.para_height,
                                    self.ident.prefix_lower, tileset_index,
-                                   self.ident.prefix_lower, name));
+                                   self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -715,19 +715,19 @@ impl<'a> ProjectDataWriter<'a> {
     // === SPRITE ANIMATION
     // =========================================================================
 
-    fn write_animation_frames(&self, anim: &super::SpriteAnimation, name: &str) -> AnimationInfo {
+    fn write_animation_frames(&self, anim: &super::SpriteAnimation, name_id: &str) -> AnimationInfo {
         let add_foot = anim.loops.iter().any(|l| l.frame_indices.iter().any(|f| f.foot_index.is_some()));
         let mut loop_offsets = Vec::new();
-        let mut loop_names = HashMap::new();
+        let mut loop_index_to_name_id = HashMap::new();
 
         self.write(format!("static const uint8_t {}_sprite_animation_frames_{}[] = {{\n",
-                           self.ident.prefix_lower, name));
+                           self.ident.prefix_lower, name_id));
         let mut offset = 0;
         for (loop_index, aloop) in anim.loops.iter().enumerate() {
-            let use_loop_name = if aloop.name == "names" { "names0" } else { &aloop.name };
-            IdentStore::add_unique_name(loop_index, use_loop_name, &mut loop_names);
+            let use_loop_name_id = if aloop.name_id == "names" { "names0" } else { &aloop.name_id };
+            IdentStore::add_unique_name_id(loop_index, use_loop_name_id, &mut loop_index_to_name_id);
             if aloop.frame_indices.is_empty() { continue; }
-            self.write(format!("  // {}\n  ", aloop.name));
+            self.write(format!("  // {}\n  ", aloop.name_id));
             for frame in aloop.frame_indices.iter() {
                 self.write(format!("{:#04x},", frame.head_index.unwrap_or(0xff)));
                 if add_foot {
@@ -744,7 +744,7 @@ impl<'a> ProjectDataWriter<'a> {
         AnimationInfo {
             add_foot,
             loop_offsets,
-            loop_names,
+            loop_index_to_name_id,
         }
     }
 
@@ -757,9 +757,9 @@ impl<'a> ProjectDataWriter<'a> {
         //let mut info = HashMap::new();
         for id in self.store.asset_ids.animations.iter() {
             if let Some(anim) = self.store.assets.animations.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::SpriteAnimation, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
                 //info.insert(*id, self.write_animation_frames(anim, name));
-                self.animation_info.insert(*id, self.write_animation_frames(anim, name));
+                self.animation_info.insert(*id, self.write_animation_frames(anim, name_id));
             }
         }
 
@@ -768,13 +768,13 @@ impl<'a> ProjectDataWriter<'a> {
                            self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.animations.iter() {
             if let Some(anim) = self.store.assets.animations.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::SpriteAnimation, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
                 let sprite_index = self.ident.get_asset_index(DataAssetType::Sprite, anim.sprite_id)?;
                 let info = self.animation_info.get(id).ok_or_else(|| {
                     Error::other(format!("can't find info for animation {}", id))
                 })?;
                 self.write("  {\n");
-                self.write(format!("    {}_sprite_animation_frames_{},\n", self.ident.prefix_lower, name));
+                self.write(format!("    {}_sprite_animation_frames_{},\n", self.ident.prefix_lower, name_id));
                 self.write(format!("    &{}_sprites[{}],\n", self.ident.prefix_lower, sprite_index));
                 self.write(format!("    {{ {}, {}, {}, {} }},\n", anim.clip_rect.x, anim.clip_rect.y, anim.clip_rect.w, anim.clip_rect.h));
                 self.write(format!("    {},\n", if info.add_foot { 1 } else { 0 }));
@@ -782,12 +782,12 @@ impl<'a> ProjectDataWriter<'a> {
                 self.write("    {\n");
                 let mut last_offset = 0;
                 for (loop_index, aloop) in anim.loops.iter().enumerate() {
-                    let loop_name = info.loop_names.get(&loop_index).ok_or_else(|| {
+                    let loop_name_id = info.loop_index_to_name_id.get(&loop_index).ok_or_else(|| {
                         Error::other(format!("can't find loop name {} for animation {}", loop_index, id))
                     })?;
                     let loop_offset = info.loop_offsets.get(loop_index).copied().unwrap_or(last_offset);
                     if ! aloop.frame_indices.is_empty() {
-                        self.write(format!("      {{ {:>5}, {:>5} }}, // {}\n", loop_offset, aloop.frame_indices.len(), loop_name));
+                        self.write(format!("      {{ {:>5}, {:>5} }}, // {}\n", loop_offset, aloop.frame_indices.len(), loop_name_id));
                     } else {
                         self.write(format!("      {{ {:>5}, {:>5} }},\n", loop_offset, aloop.frame_indices.len()));
                     }
@@ -811,14 +811,14 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.animations.iter() {
             if let Some(anim) = self.store.assets.animations.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::SpriteAnimation, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
                 let info = self.animation_info.get(id).ok_or_else(|| {
                     Error::other(format!("error reading loop names for animation {}", id))
                 })?;
-                let name_upper = name.to_ascii_uppercase();
+                let name_id_upper = name_id.to_ascii_uppercase();
                 let mut num_named_loops = 0;
                 for loop_index in (0..anim.loops.len()).rev() {
-                    let loop_name = info.loop_names.get(&loop_index).ok_or_else(|| {
+                    let loop_name = info.loop_index_to_name_id.get(&loop_index).ok_or_else(|| {
                         Error::other(format!("error reading name for loop {} of animation {}", loop_index, id))
                     })?;
                     if ! RE_UNNAMED_LOOP.is_match(loop_name) {
@@ -828,13 +828,13 @@ impl<'a> ProjectDataWriter<'a> {
                 }
                 if num_named_loops == 0 { continue; }
 
-                self.write(format!("enum {}_SPRITE_ANIMATION_{}_LOOP_NAMES {{\n", self.ident.prefix_upper, name_upper));
+                self.write(format!("enum {}_SPRITE_ANIMATION_{}_LOOP_NAMES {{\n", self.ident.prefix_upper, name_id_upper));
                 for loop_index in 0..num_named_loops {
-                    let loop_name = info.loop_names.get(&loop_index).ok_or_else(|| {
+                    let loop_name_id = info.loop_index_to_name_id.get(&loop_index).ok_or_else(|| {
                         Error::other(format!("error reading name for loop {} of animation {}", loop_index, id))
                     })?;
-                    let loop_name_upper = loop_name.to_ascii_uppercase();
-                    self.write(format!("  {}_SPRITE_ANIMATION_{}_LOOP_{},\n", self.ident.prefix_upper, name_upper, loop_name_upper));
+                    let loop_name_id_upper = loop_name_id.to_ascii_uppercase();
+                    self.write(format!("  {}_SPRITE_ANIMATION_{}_LOOP_{},\n", self.ident.prefix_upper, name_id_upper, loop_name_id_upper));
                 }
                 self.write("};\n");
                 self.write("\n");
@@ -848,9 +848,9 @@ impl<'a> ProjectDataWriter<'a> {
     // === ROOM
     // =========================================================================
 
-    fn write_room_maps(&self, room: &super::Room, name: &str) -> Result<()> {
+    fn write_room_maps(&self, room: &super::Room, name_id: &str) -> Result<()> {
         self.write(format!("static const struct {}_ROOM_MAP_INFO {}_room_maps_{}[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower, name));
+                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for room_map in room.maps.iter() {
             let map_index = self.ident.get_asset_index(DataAssetType::MapData, room_map.map_id)?;
             self.write(format!("  {{ {}, {}, &{}_maps[{}] }},\n", room_map.x, room_map.y, self.ident.prefix_lower, map_index));
@@ -861,9 +861,9 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_entities(&self, room: &super::Room, name: &str) -> Result<()> {
+    fn write_room_entities(&self, room: &super::Room, name_id: &str) -> Result<()> {
         self.write(format!("static const struct {}_ROOM_ENTITY_INFO {}_room_entities_{}[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower, name));
+                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for ent in room.entities.iter() {
             let anim_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, ent.animation_id)?;
             self.write(format!("  {{ {}, {}, &{}_sprite_animations[{}], {}, {}, {}, {} }},\n",
@@ -876,9 +876,9 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_triggers(&self, room: &super::Room, name: &str) {
+    fn write_room_triggers(&self, room: &super::Room, name_id: &str) {
         self.write(format!("static const struct {}_ROOM_TRIGGER_INFO {}_room_triggers_{}[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower, name));
+                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for trg in room.triggers.iter() {
             self.write(format!("  {{ {}, {}, {}, {}, {}, {}, {}, {} }},\n",
                                trg.x, trg.y, trg.width, trg.height, trg.data0, trg.data1, trg.data2, trg.data3));
@@ -895,10 +895,10 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.rooms.iter() {
             if let Some(room) = self.store.assets.rooms.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Room, *id)?;
-                self.write_room_maps(room, name)?;
-                self.write_room_entities(room, name)?;
-                self.write_room_triggers(room, name);
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+                self.write_room_maps(room, name_id)?;
+                self.write_room_entities(room, name_id)?;
+                self.write_room_triggers(room, name_id);
             }
         }
 
@@ -907,10 +907,10 @@ impl<'a> ProjectDataWriter<'a> {
                            self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.rooms.iter() {
             if let Some(room) = self.store.assets.rooms.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Room, *id)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
                 self.write(format!("  {{ {}, {}, {}, {}_room_maps_{}, {}_room_entities_{}, {}_room_triggers_{} }},\n",
                                    room.maps.len(), room.entities.len(), room.triggers.len(),
-                                   self.ident.prefix_lower, name, self.ident.prefix_lower, name, self.ident.prefix_lower, name));
+                                   self.ident.prefix_lower, name_id, self.ident.prefix_lower, name_id, self.ident.prefix_lower, name_id));
             }
         }
         self.write("};\n");
@@ -919,17 +919,17 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_entity_names(&self, room: &super::Room, name_upper: &str) -> Result<()> {
-        let mut namespace = HashMap::new();
+    fn write_room_entity_names(&self, room: &super::Room, name_id_upper: &str) -> Result<()> {
+        let mut index_to_name_id = HashMap::new();
 
-        self.write(format!("enum {}_ROOM_{}_ENT_NAMES {{\n", self.ident.prefix_upper, name_upper));
+        self.write(format!("enum {}_ROOM_{}_ENT_NAMES {{\n", self.ident.prefix_upper, name_id_upper));
         for (index, ent) in room.entities.iter().enumerate() {
-            let use_name = if ent.name == "names" { "names0" } else { &ent.name };
-            IdentStore::add_unique_name(index, use_name, &mut namespace);
-            let ent_name = namespace.get(&index).ok_or_else(|| {
+            let use_name_id = if ent.name_id == "names" { "names0" } else { &ent.name_id };
+            IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
+            let ent_name_id = index_to_name_id.get(&index).ok_or_else(|| {
                 Error::other(format!("error reading name of entity {} room {}", index, room.asset.id))
             })?;
-            self.write(format!("  {}_ROOM_{}_ENT_{},\n", self.ident.prefix_upper, name_upper, &ent_name.to_ascii_uppercase()));
+            self.write(format!("  {}_ROOM_{}_ENT_{},\n", self.ident.prefix_upper, name_id_upper, &ent_name_id.to_ascii_uppercase()));
         }
         self.write("};\n");
         self.write("\n");
@@ -937,17 +937,17 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_trigger_names(&self, room: &super::Room, name_upper: &str) -> Result<()> {
-        let mut namespace = HashMap::new();
+    fn write_room_trigger_names(&self, room: &super::Room, name_id_upper: &str) -> Result<()> {
+        let mut index_to_name_id = HashMap::new();
 
-        self.write(format!("enum {}_ROOM_{}_TRG_NAMES {{\n", self.ident.prefix_upper, name_upper));
+        self.write(format!("enum {}_ROOM_{}_TRG_NAMES {{\n", self.ident.prefix_upper, name_id_upper));
         for (index, trg) in room.triggers.iter().enumerate() {
-            let use_name = if trg.name == "names" { "names0" } else { &trg.name };
-            IdentStore::add_unique_name(index, use_name, &mut namespace);
-            let trg_name = namespace.get(&index).ok_or_else(|| {
+            let use_name_id = if trg.name_id == "names" { "names0" } else { &trg.name_id };
+            IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
+            let trg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
                 Error::other(format!("error reading name of trigger {} room {}", index, room.asset.id))
             })?;
-            self.write(format!("  {}_ROOM_{}_TRG_{},\n", self.ident.prefix_upper, name_upper, &trg_name.to_ascii_uppercase()));
+            self.write(format!("  {}_ROOM_{}_TRG_{},\n", self.ident.prefix_upper, name_id_upper, &trg_name_id.to_ascii_uppercase()));
         }
         self.write("};\n");
         self.write("\n");
@@ -963,10 +963,10 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.rooms.iter() {
             if let Some(room) = self.store.assets.rooms.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Room, *id)?;
-                let name_upper = name.to_ascii_uppercase();
-                self.write_room_entity_names(room, &name_upper)?;
-                self.write_room_trigger_names(room, &name_upper)?;
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+                let name_id_upper = name_id.to_ascii_uppercase();
+                self.write_room_entity_names(room, &name_id_upper)?;
+                self.write_room_trigger_names(room, &name_id_upper)?;
             }
         }
 
@@ -980,9 +980,9 @@ impl<'a> ProjectDataWriter<'a> {
     fn write_asset_ids_for(&self, asset_ids: &AssetIdList, asset_type: DataAssetType, type_name: &str) -> Result<()> {
         self.write(format!("enum {}_{}_IDS {{\n", self.ident.prefix_upper, type_name));
         for id in asset_ids.iter() {
-            let name = self.ident.get_asset_name(asset_type, *id)?;
-            let name_upper = name.to_ascii_uppercase();
-            self.write(format!("  {}_{}_ID_{},\n", self.ident.prefix_upper, type_name, name_upper));
+            let name_id = self.ident.get_asset_name_id(asset_type, *id)?;
+            let name_id_upper = name_id.to_ascii_uppercase();
+            self.write(format!("  {}_{}_ID_{},\n", self.ident.prefix_upper, type_name, name_id_upper));
         }
         self.write(format!("  {}_{}_COUNT,\n", self.ident.prefix_upper, type_name));
 
@@ -1024,12 +1024,12 @@ impl<'a> ProjectDataWriter<'a> {
         let mult_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
         for id in self.store.asset_ids.sprites.iter() {
             if let Some(sprite) = self.store.assets.sprites.get(id) {
-                let name = self.ident.get_asset_name(DataAssetType::Sprite, *id)?;
-                let name_upper = name.to_ascii_uppercase();
-                self.write(format!("#define {}_SPRITE_WIDTH_{} {}\n", self.ident.prefix_upper, name_upper, sprite.width));
-                self.write(format!("#define {}_SPRITE_HEIGHT_{} {}\n", self.ident.prefix_upper, name_upper, sprite.height));
-                self.write(format!("#define {}_SPRITE_STRIDE_{} {}\n", self.ident.prefix_upper, name_upper, sprite.width.div_ceil(4)));
-                self.write(format!("#define {}_SPRITE_FRAMES_{} {}\n", self.ident.prefix_upper, name_upper, sprite.num_frames * mult_mirrors));
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
+                let name_id_upper = name_id.to_ascii_uppercase();
+                self.write(format!("#define {}_SPRITE_WIDTH_{} {}\n", self.ident.prefix_upper, name_id_upper, sprite.width));
+                self.write(format!("#define {}_SPRITE_HEIGHT_{} {}\n", self.ident.prefix_upper, name_id_upper, sprite.height));
+                self.write(format!("#define {}_SPRITE_STRIDE_{} {}\n", self.ident.prefix_upper, name_id_upper, sprite.width.div_ceil(4)));
+                self.write(format!("#define {}_SPRITE_FRAMES_{} {}\n", self.ident.prefix_upper, name_id_upper, sprite.num_frames*mult_mirrors));
                 self.write("\n");
             }
         }

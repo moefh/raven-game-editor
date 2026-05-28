@@ -9,7 +9,7 @@ pub struct RoomMap {
 #[allow(unused)]
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomEntity {
-    pub name: String,
+    pub name_id: String,
     pub x: i16,
     pub y: i16,
     pub animation_id: super::DataAssetId,
@@ -22,7 +22,7 @@ pub struct RoomEntity {
 #[allow(unused)]
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomTrigger {
-    pub name: String,
+    pub name_id: String,
     pub x: i16,
     pub y: i16,
     pub width: i16,
@@ -90,7 +90,7 @@ impl super::GenericAsset for Room {
 
 #[allow(unused)]
 pub trait RoomItem {
-    fn name(&self) -> &str;
+    fn name_id(&self) -> &str;
     fn x(&self) -> i16;
     fn y(&self) -> i16;
     fn data0(&self) -> u16;
@@ -100,7 +100,7 @@ pub trait RoomItem {
 }
 
 impl RoomItem for RoomEntity {
-    fn name(&self) -> &str { &self.name }
+    fn name_id(&self) -> &str { &self.name_id }
     fn x(&self) -> i16 { self.x }
     fn y(&self) -> i16 { self.y }
     fn data0(&self) -> u16 { self.data0 }
@@ -110,7 +110,7 @@ impl RoomItem for RoomEntity {
 }
 
 impl RoomItem for RoomTrigger {
-    fn name(&self) -> &str { &self.name }
+    fn name_id(&self) -> &str { &self.name_id }
     fn x(&self) -> i16 { self.x }
     fn y(&self) -> i16 { self.y }
     fn data0(&self) -> u16 { self.data0 }

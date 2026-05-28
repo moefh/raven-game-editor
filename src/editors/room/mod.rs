@@ -168,19 +168,19 @@ impl Editor {
         *value = value_f.clamp(min, max) as u16;
     }
 
-    fn get_new_item_name(items: &[impl RoomItem], base: &str) -> String {
+    fn get_new_item_name_id(items: &[impl RoomItem], base: &str) -> String {
         use std::fmt::Write;
 
         let mut num: usize = 1;
-        let mut new_name = String::new();
+        let mut new_name_id = String::new();
         loop {
-            new_name.clear();
-            new_name.push_str(base);
-            if write!(new_name, "{}", num).is_err() { break; }
-            if ! items.iter().any(|e| e.name() == new_name) { break; }
+            new_name_id.clear();
+            new_name_id.push_str(base);
+            if write!(new_name_id, "{}", num).is_err() { break; }
+            if ! items.iter().any(|e| e.name_id() == new_name_id) { break; }
             num += 1;
         }
-        new_name
+        new_name_id
     }
 
     fn add_entity(&mut self, wc: &mut WindowContext, room: &mut Room, animations: &AssetIdList) {
@@ -193,9 +193,9 @@ impl Editor {
         };
 
         self.room_editor.selected_item = RoomItemRef::Entity(room.entities.len());
-        let name = Self::get_new_item_name(&room.entities, "entity");
+        let name_id = Self::get_new_item_name_id(&room.entities, "entity");
         room.entities.push(RoomEntity {
-            name,
+            name_id,
             x: 0,
             y: 0,
             animation_id,
@@ -217,9 +217,9 @@ impl Editor {
 
     fn add_trigger(&mut self, room: &mut Room) {
         self.room_editor.selected_item = RoomItemRef::Trigger(room.triggers.len());
-        let name = Self::get_new_item_name(&room.triggers, "trigger");
+        let name_id = Self::get_new_item_name_id(&room.triggers, "trigger");
         room.triggers.push(RoomTrigger {
-            name,
+            name_id,
             x: 0,
             y: 0,
             width: 32,
@@ -311,7 +311,7 @@ impl Editor {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
                     let mut selected = self.room_editor.selected_item.is_the_entity(ent_index);
-                    let resp = ui.toggle_value(&mut selected, &ent.name);
+                    let resp = ui.toggle_value(&mut selected, &ent.name_id);
                     if resp.clicked() || resp.secondary_clicked() {
                         sel_entity = Some(ent_index);
                     }
@@ -361,7 +361,7 @@ impl Editor {
                 ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
                     let mut selected = self.room_editor.selected_item.is_the_trigger(trg_index);
-                    let resp = ui.toggle_value(&mut selected, &trg.name);
+                    let resp = ui.toggle_value(&mut selected, &trg.name_id);
                     if resp.clicked() || resp.secondary_clicked() {
                         sel_trigger = Some(trg_index);
                     }
@@ -434,7 +434,7 @@ impl Editor {
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
                     ui.label("Name:");
-                    ui.text_edit_singleline(&mut entity.name);
+                    ui.text_edit_singleline(&mut entity.name_id);
                     ui.end_row();
 
                     ui.label("Anim:");
@@ -494,7 +494,7 @@ impl Editor {
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
                     ui.label("Name:");
-                    ui.text_edit_singleline(&mut trigger.name);
+                    ui.text_edit_singleline(&mut trigger.name_id);
                     ui.end_row();
 
                     ui.label("X:");

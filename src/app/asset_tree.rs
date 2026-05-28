@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, DataAsset, GenericAsset, AssetList};
 use crate::misc::asset_defs::ASSET_DEFS;
 
-pub const ASSET_NAME_SEPARATOR: &str = "__";
-
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct AssetTreeNodeId {
     id: u32,
@@ -152,10 +150,10 @@ impl AssetTreeContainer {
     }
 
     fn update_asset(&mut self, asset: &DataAsset, id_generator: &mut AssetTreeNodeIdGenerator) {
-        if ! asset.name.contains(ASSET_NAME_SEPARATOR) {  // avoid splitting the string if we can
+        if ! asset.name.contains(DataAsset::PATH_SEPARATOR) {  // avoid splitting the string if we can
             self.insert_asset(asset.id, &asset.name);
         } else {
-            let name_parts: Vec<&str> = asset.name.split(ASSET_NAME_SEPARATOR).collect();
+            let name_parts: Vec<&str> = asset.name.split(DataAsset::PATH_SEPARATOR).collect();
             self.insert(asset.id, &name_parts, id_generator);
         }
     }
@@ -175,7 +173,7 @@ impl AssetTreeContainer {
     pub fn get_node_name(&self, node_id: AssetTreeNodeId) -> Option<String> {
         let mut parts = Vec::new();
         if self.get_node_name_parts(node_id, &mut parts) && ! parts.is_empty() {
-            Some(parts.into_iter().rev().collect::<Vec<String>>().join(ASSET_NAME_SEPARATOR))
+            Some(parts.into_iter().rev().collect::<Vec<String>>().join(DataAsset::PATH_SEPARATOR))
         } else {
             None
         }

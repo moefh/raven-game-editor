@@ -253,7 +253,7 @@ impl Editor {
                     .spacing([4.0, 4.0])
                     .show(ui, |ui| {
                         ui.label("Name:");
-                        ui.text_edit_singleline(&mut aloop.name);
+                        ui.text_edit_singleline(&mut aloop.name_id);
                         ui.end_row();
 
                         ui.label("Length:");
@@ -392,7 +392,7 @@ impl Editor {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (loop_index, aloop) in animation.loops.iter().enumerate() {
-                    let response = ui.selectable_label(self.selected_loop == loop_index, &aloop.name);
+                    let response = ui.selectable_label(self.selected_loop == loop_index, &aloop.name_id);
                     if response.clicked() {
                         self.select_loop(loop_index);
                     }

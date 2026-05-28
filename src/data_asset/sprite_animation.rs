@@ -6,7 +6,7 @@ pub struct SpriteAnimationFrame {
 
 #[derive(Clone, std::hash::Hash)]
 pub struct SpriteAnimationLoop {
-    pub name: String,
+    pub name_id: String,
     pub frame_indices: Vec<SpriteAnimationFrame>,
 }
 
@@ -41,7 +41,7 @@ impl SpriteAnimation {
         let mut loops = Vec::new();
         for loop_index in 0..Self::NUM_LOOPS {
             loops.push(SpriteAnimationLoop {
-                name: format!("loop {}", loop_index),
+                name_id: format!("loop {}", loop_index),
                 frame_indices: if loop_index == 0 {
                     vec![SpriteAnimationFrame { head_index: Some(0), foot_index: None }]
                 } else {
@@ -74,7 +74,7 @@ impl SpriteAnimation {
                 frame_indices.push(SpriteAnimationFrame { head_index, foot_index });
             }
             loops.push(SpriteAnimationLoop {
-                name: String::new(),
+                name_id: String::new(),
                 frame_indices,
             });
         }

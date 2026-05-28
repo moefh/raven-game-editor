@@ -128,12 +128,23 @@ pub struct DataAsset {
 }
 
 impl DataAsset {
+    pub const PATH_SEPARATOR: &str = "/";
+    const IDENTIFIER_PATH_SEPARATOR: &str = "__";
+
     fn new(asset_type: DataAssetType, id: DataAssetId, name: String) -> Self {
         DataAsset {
             asset_type,
             id,
             name,
         }
+    }
+
+    fn name_to_identifier(name: &str) -> String {
+        name.replace(Self::PATH_SEPARATOR, Self::IDENTIFIER_PATH_SEPARATOR)
+    }
+
+    fn identifier_to_name(identifier: &str) -> String {
+        identifier.replace(Self::IDENTIFIER_PATH_SEPARATOR, Self::PATH_SEPARATOR)
     }
 }
 
