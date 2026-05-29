@@ -115,6 +115,9 @@ impl AssetTreeContainer {
     fn insert_asset(&mut self, asset_id: DataAssetId, name: &str) {
         match self.assets.iter_mut().find(|asset| asset.id == asset_id) {
             Some(asset) => {
+                if asset.name != name {
+                    asset.name = name.to_owned();
+                }
                 asset.mark_used();
             }
             None => {
