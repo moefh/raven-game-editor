@@ -94,7 +94,7 @@ impl PropertiesDialog {
 
                             ui.label("Color Depth:");
                             egui::ComboBox::from_id_salt(format!("editor_{}_depth_combo", pal_sprite.asset.id))
-                                .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), pal_sprite.depth.num_colors()))
+                                .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), self.depth.num_colors()))
                                 .width(50.0)
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp1, "1 bpp (2 colors)");
