@@ -245,7 +245,7 @@ pub trait ImageCollection {
 
     fn paste_fragment(&mut self, item: u32, x: i32, y: i32, frag: &ImageFragment, transparent: bool) {
         if (x > 0 &&   x  as u32 >= self.width()) || (y > 0 &&   y  as u32 >= self.height()) { return; }
-        if (x < 0 && (-x) as u32 >= self.width()) || (y < 0 && (-y) as u32 >= self.height()) { return; }
+        if (x < 0 && (-x) as u32 >= frag.width()) || (y < 0 && (-y) as u32 >= frag.height()) { return; }
 
         let mut src_x = 0;
         let mut src_y = 0;

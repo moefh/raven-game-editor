@@ -169,6 +169,7 @@ impl Editor {
                 }
             };
             self.image_editor.paste_pixels(pal_sprite, image);
+            self.image_editor.force_palette(&pal_sprite.palette, &pal_sprite.color_to_palette_index_map);
         }
 
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
