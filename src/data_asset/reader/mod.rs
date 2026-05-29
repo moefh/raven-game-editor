@@ -1398,8 +1398,8 @@ impl<'a> ProjectDataReader<'a> {
                 error(format!("unexpected pal_sprite data length: got {}, expected {} = {}*{}*{}",
                               data.len(), want_len, (width * bits_per_pixel).div_ceil(8), height, num_frames), t.pos)?;
             }
-            if palette.len() < (1<<bits_per_pixel) {
-                error(format!("unexpected pal_sprite palette length: got {}, expected {}", palette.len(), 1<<bits_per_pixel), t.pos)?;
+            if palette.len() != 16 {
+                error(format!("invalid palette length: {} (must be 16)", palette.len()), t.pos)?;
             }
             let pixels = pal_image_to_pixels(data, &palette, width, height, num_frames, bits_per_pixel);
             let data = super::pal_sprite::CreationData {
