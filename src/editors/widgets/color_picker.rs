@@ -2,6 +2,7 @@ use std::sync;
 use egui::{Vec2, Sense, Rect, Pos2};
 
 use crate::app::WindowContext;
+use crate::image::colors::{color_to_rgb, color_to_rgb_contrast};
 
 const CLOSE_PICKER_ON_CLICK: bool = false;
 const MIN_PICKER_WIDTH: f32 = 112.0;
@@ -107,16 +108,6 @@ impl<'a> ColorPickerWidget6<'a> {
         }
     }
 
-    pub fn color_to_rgb(color: u8) -> egui::Color32 {
-        let r = (color >> 1) & 0x3;
-        let g = (color >> 4) & 0x3;
-        let b = (color >> 6) & 0x3;
-        let cr = (r << 6) | (r << 4) | (r << 2) | r;
-        let cg = (g << 6) | (g << 4) | (g << 2) | g;
-        let cb = (b << 6) | (b << 4) | (b << 2) | b;
-        egui::Color32::from_rgb(cr, cg, cb)
-    }
-
     fn draw_palette(painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8]) {
         let item_w = rect.width() / (dims.0 as f32);
         let item_h = rect.height() / (dims.1 as f32);
@@ -127,7 +118,7 @@ impl<'a> ColorPickerWidget6<'a> {
                     max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
                 };
                 let color_index = (y*dims.0+x) as usize;
-                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, Self::color_to_rgb(palette[color_index]));
+                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(palette[color_index]));
             }
         }
     }
@@ -241,28 +232,6 @@ impl<'a> ColorPickerWidget8<'a> {
         }
     }
 
-    fn get_contrast_color(color: u8) -> egui::Color32 {
-        let r = (color & 0x7) as f32;
-        let g = ((color >> 3) & 0x7) as f32;
-        let b = (((color >> 5) & 0x6) | (color >> 7)) as f32;
-        let brightness = r*0.3 + g*0.8 + b*0.1;
-        if brightness < 4.5 {
-            egui::Color32::WHITE
-        } else {
-            egui::Color32::BLACK
-        }
-    }
-
-    pub fn color_to_rgb(color: u8) -> egui::Color32 {
-        let r = color & 0x7;
-        let g = (color >> 3) & 0x7;
-        let b = (color >> 6) & 0x3;
-        let cr = (r << 5) | (r << 2) | (r >> 2);
-        let cg = (g << 5) | (g << 2) | (g >> 2);
-        let cb = (b << 6) | (b << 4) | (b << 2) | b;
-        egui::Color32::from_rgb(cr, cg, cb)
-    }
-
     fn draw_palette(painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8], sel_color: Option<u8>) {
         let item_w = rect.width() / (dims.0 as f32);
         let item_h = rect.height() / (dims.1 as f32);
@@ -273,9 +242,9 @@ impl<'a> ColorPickerWidget8<'a> {
                     max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
                 };
                 let color = palette[(y*dims.0+x) as usize];
-                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, Self::color_to_rgb(color));
+                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
                 if let Some(sel_color) = sel_color && sel_color == color {
-                    let stroke = egui::Stroke::new(1.0, Self::get_contrast_color(color));
+                    let stroke = egui::Stroke::new(1.0, color_to_rgb_contrast(color));
                     painter.rect_stroke(item_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
                 }
             }
