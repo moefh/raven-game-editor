@@ -664,15 +664,17 @@ impl<'a> ProjectDataWriter<'a> {
         let stride = (pal_sprite.width * bits_per_pixel).div_ceil(8);
         let pixels_per_byte = 8 / bits_per_pixel;
 
+        let mut src_index = 0;
         for frame_num in 0..pal_sprite.num_frames {
             self.write(format!("  // frame {}", frame_num));
-            for y in 0..pal_sprite.height {
+            for _ in 0..pal_sprite.height {
                 self.write("\n  ");
                 for byte_num in 0..stride {
-                    let block_index = pixels_per_byte * ((frame_num * pal_sprite.height + y) * stride + byte_num);
                     let mut block = 0u8;
                     for pix_num in 0..pixels_per_byte {
-                        let color = pal_sprite.data[(block_index + pix_num) as usize];
+                        if byte_num * pixels_per_byte + pix_num >= pal_sprite.width { break; }
+                        let color = pal_sprite.data[src_index];
+                        src_index += 1;
                         block |= pal_sprite.color_to_palette_index(color) << (pix_num * bits_per_pixel);
                     }
                     self.write(format!("{:#04x},", block));
