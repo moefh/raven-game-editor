@@ -6,6 +6,15 @@ use crate::data_asset;
 use super::super::ImageClipboardData;
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
+pub enum ImageEditorAction {
+    None,
+    Undo,
+    Cut,
+    Copy,
+    Paste,
+    Select,
+}
+
 #[derive(Debug)]
 pub enum ImageSelection {
     None,
@@ -86,6 +95,8 @@ impl ImageDisplay {
     pub const GRID: u8        = 1 << 0;
     pub const TRANSPARENT: u8 = 1 << 1;
     pub const COLLISION: u8   = 1 << 2;
+
+    pub fn grid_only() -> Self { ImageDisplay::new(Self::GRID) }
 
     pub fn new(bits: u8) -> Self {
         ImageDisplay {
@@ -184,11 +195,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
-        if let ImageSelection::Fragment(_, frag) = &mut self.selection {
-            if frag.pixels.force_palette(palette, color_to_palette_index_map) {
+        if let ImageSelection::Fragment(_, frag) = &mut self.selection &&
+            frag.pixels.force_palette(palette, color_to_palette_index_map) {
                 frag.set_changed();
             }
-        }
     }
 
     fn lift_selection(&mut self, asset: &mut ImageAsset, bg_color: u8) {
@@ -498,29 +508,60 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset().id, pixels));
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) -> bool {
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(asset);
-            return false;
+            return ImageEditorAction::Undo;
+        }
+
+        let ctrl_a = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::A);
+        if ui.input_mut(|i| i.consume_shortcut(&ctrl_a)) {
+            if self.tool != ImageDrawingTool::Select {
+                // don't call set_tool() because it will cause show() to drop the selection next time it runs
+                self.tool = ImageDrawingTool::Select;
+            }
+            let width = asset.width() as f32;
+            let height = asset.height() as f32;
+            match self.selection {
+                ImageSelection::None => {
+                    self.selection = ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height));
+                }
+                ImageSelection::Rect(origin, end) => {
+                    self.selection = if origin.x == 0.0 && origin.y == 0.0 && end.x == width && end.y == height {
+                        ImageSelection::None
+                    } else {
+                        ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height))
+                    };
+                }
+                _ => {}
+            }
+            return ImageEditorAction::Select;
         }
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
             self.delete_selection(asset, fill_color);
-            return false;
+            return ImageEditorAction::None;
         }
 
         match wc.keyboard_pressed.take() {
             Some(KeyboardPressed::CtrlV) => {
                 self.paste(wc, asset);
-                return true;
+                ImageEditorAction::Paste
             }
-            Some(KeyboardPressed::CtrlC) => { self.copy(wc, asset); }
-            Some(KeyboardPressed::CtrlX) => { self.cut(wc, asset, fill_color); }
-            None => {}
+            Some(KeyboardPressed::CtrlC) => {
+                self.copy(wc, asset);
+                ImageEditorAction::Copy
+            }
+            Some(KeyboardPressed::CtrlX) => {
+                self.cut(wc, asset, fill_color);
+                ImageEditorAction::Cut
+            }
+            None => {
+                ImageEditorAction::None
+            }
         }
-        false
     }
 
     fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {

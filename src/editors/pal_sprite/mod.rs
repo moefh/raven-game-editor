@@ -1,21 +1,31 @@
 mod properties;
 mod add_frames;
 mod remove_frames;
+mod edit_palette;
 mod import;
 mod export;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ ImageCollection, ImagePixels, TextureSlot, ImageRotation};
+use crate::image::{ImageCollection, ImagePixels, TextureSlot, ImageRotation};
 use crate::data_asset::{DataAssetId, PalSprite, GenericAsset};
 
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
+use edit_palette::EditPaletteDialog;
 use import::ImportDialog;
 use export::ExportDialog;
 use super::AssetEditorBase;
-use super::widgets::{PalColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
+use super::widgets::{
+    PalColorPickerWidget,
+    PalColorPickerAction,
+    ImagePickerWidget,
+    ImageEditorWidget,
+    ImageEditorAction,
+    ImageDrawingTool,
+    ImageDisplay,
+};
 
 pub struct PalSpriteEditor {
     pub base: AssetEditorBase,
@@ -52,6 +62,7 @@ struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_frames_dialog: AddFramesDialog,
     rm_frames_dialog: RemoveFramesDialog,
+    edit_pal_dialog: EditPaletteDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
 }
@@ -62,6 +73,7 @@ impl Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
             rm_frames_dialog: RemoveFramesDialog::new(),
+            edit_pal_dialog: EditPaletteDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
         }
@@ -91,6 +103,10 @@ impl Dialogs {
             Editor::reload_images(wc, pal_sprite);
             Self::ensure_valid_selected_image(editor, pal_sprite, false);
         }
+        if self.edit_pal_dialog.open && self.edit_pal_dialog.show(wc, pal_sprite) {
+            Editor::reload_images(wc, pal_sprite);
+            Self::ensure_valid_selected_image(editor, pal_sprite, false);
+        }
         if self.export_dialog.open {
             self.export_dialog.show(wc, pal_sprite);
         }
@@ -114,7 +130,7 @@ impl Editor {
             asset_id,
             color_picker: PalColorPickerWidget::new(0, 1),
             image_picker: ImagePickerWidget::new(),
-            image_editor: ImageEditorWidget::<PalSprite>::new(),
+            image_editor: ImageEditorWidget::<PalSprite>::new().with_image_display(ImageDisplay::grid_only()),
         }
     }
 
@@ -261,6 +277,15 @@ impl Editor {
                             dialogs.rm_frames_dialog.set_open(wc, pal_sprite, self.image_editor.get_selected_image());
                         }
                     });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        if ui.button("Edit palette...").clicked() {
+                            dialogs.edit_pal_dialog.set_open(wc, pal_sprite);
+                        }
+                    });
                 });
             });
         });
@@ -322,12 +347,6 @@ impl Editor {
                             .on_hover_text("Grid").clicked() {
                                 self.image_editor.toggle_display(ImageDisplay::GRID);
                             }
-                        if ui.add(egui::Button::image(IMAGES.transparency)
-                                  .selected(self.image_editor.display.is_transparent())
-                                  .frame_when_inactive(self.image_editor.display.is_transparent()))
-                            .on_hover_text("Transparency").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
-                            }
                         ui.add_space(1.0);
                         ui.label("Display:");
                         ui.spacing_mut().item_spacing = spacing;
@@ -340,7 +359,6 @@ impl Editor {
 
     pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollection) {
         asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, pal_sprite: &mut PalSprite) {
@@ -368,7 +386,10 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc, &pal_sprite.palette[0..pal_sprite.depth.num_colors() as usize]);
+            let action = self.color_picker.show(ui, wc, &pal_sprite.palette[0..pal_sprite.depth.num_colors() as usize]);
+            if matches!(action, PalColorPickerAction::EditPalette) {
+                dialogs.edit_pal_dialog.set_open(wc, pal_sprite);
+            }
         });
 
         // image:
@@ -383,9 +404,11 @@ impl Editor {
         });
 
         // keyboard shortcuts
-        if wc.is_editor_on_top(self.asset_id) &&
-            self.image_editor.handle_keyboard(ui, wc, pal_sprite, self.get_right_color(pal_sprite)) {
+        if wc.is_editor_on_top(self.asset_id) {
+            let action = self.image_editor.handle_keyboard(ui, wc, pal_sprite, self.get_right_color(pal_sprite));
+            if matches!(action, ImageEditorAction::Paste) {
                 self.force_palette(pal_sprite);
             }
+        }
     }
 }

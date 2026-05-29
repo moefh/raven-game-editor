@@ -56,7 +56,7 @@ impl PalSprite {
         let height = 32;
         let num_frames = 1;
         let depth = PalSpriteDepth::from_bits_per_pixel(1);
-        let palette = Self::make_palette(depth);
+        let palette = Self::gen_palette(depth);
         let color_to_palette_index_map = Self::gen_color_to_palette_index_map(&palette);
         PalSprite {
             asset: super::DataAsset::new(super::DataAssetType::PalSprite, id, name),
@@ -87,27 +87,21 @@ impl PalSprite {
         changed
     }
 
-    fn resize_palette(mut pal: Vec<u8>) -> Vec<u8> {
-        pal.resize(16, Self::EMPTY_COLOR);
-        pal
-    }
-
     pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        let palette = Self::resize_palette(data.palette);
-        let color_to_palette_index_map = Self::gen_color_to_palette_index_map(&palette);
+        let color_to_palette_index_map = Self::gen_color_to_palette_index_map(&data.palette);
         PalSprite {
             asset: super::DataAsset::new(super::DataAssetType::PalSprite, id, name),
             width: data.width,
             height: data.height,
             num_frames: data.num_frames,
             depth: PalSpriteDepth::from_bits_per_pixel(data.bits_per_pixel),
-            palette,
+            palette: data.palette,
             color_to_palette_index_map,
             data: data.pixels,
         }
     }
 
-    pub fn make_palette(depth: PalSpriteDepth) -> Vec<u8> {
+    fn gen_palette(depth: PalSpriteDepth) -> Vec<u8> {
         let mut colors = vec![0u8; 16];
         match depth {
             PalSpriteDepth::Bpp1 => { colors[1] = 0xff; }
@@ -131,7 +125,7 @@ impl PalSprite {
         colors
     }
 
-    fn gen_color_to_palette_index_map(palette: &[u8]) -> Vec<u8> {
+    pub fn calculate_color_to_palette_index_map(map: &mut [u8], palette: &[u8]) {
         let color_distance = |color1, color2| {
             let r1 = color1 & 0x7u8;
             let g1 = (color1 >> 3) & 0x7u8;
@@ -147,21 +141,24 @@ impl PalSprite {
             (dr*dr + dg*dg + db*db).sqrt()
         };
 
-        let mut best_indices = vec![0u8; 256];
-        for (color, best_index) in best_indices.iter_mut().enumerate() {
+        for (color, map_to_index) in map.iter_mut().enumerate() {
             let best_match = palette.iter().enumerate().min_by(|(_, c1), (_, c2)| {
                 let d1 = color_distance(*c1, (color & 0xff) as u8);
                 let d2 = color_distance(*c2, (color & 0xff) as u8);
                 d1.total_cmp(&d2)
             });
             if let Some((best_pal_index, _)) = best_match {
-                *best_index = (best_pal_index & 0xff) as u8;
+                *map_to_index = (best_pal_index & 0xff) as u8;
             } else {
-                *best_index = 0;
+                *map_to_index = 0;
             }
         }
+    }
 
-        best_indices
+    pub fn gen_color_to_palette_index_map(palette: &[u8]) -> Vec<u8> {
+        let mut map = vec![0u8; 256];
+        Self::calculate_color_to_palette_index_map(&mut map, palette);
+        map
     }
 }
 

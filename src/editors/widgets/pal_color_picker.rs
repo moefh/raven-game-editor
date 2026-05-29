@@ -1,8 +1,16 @@
 use egui::{Vec2, Sense, Rect, Pos2};
 
 use crate::app::WindowContext;
+use crate::image::colors::color_to_rgb;
 
 const MIN_PICKER_WIDTH: f32 = 112.0;
+
+pub enum PalColorPickerAction {
+    None,
+    EditPalette,
+    ChangeSelectedLeftColor,
+    ChangeSelectedRightColor,
+}
 
 pub struct PalColorPickerState {
     pub left_index: u8,
@@ -32,22 +40,16 @@ impl PalColorPickerWidget {
         }
     }
 
-    fn set_color_index(&mut self, index: u8, response: &egui::Response) {
+    fn set_color_index(&mut self, index: u8, response: &egui::Response) -> PalColorPickerAction {
         if response.dragged_by(egui::PointerButton::Primary) {
             self.state.left_index = index;
+            PalColorPickerAction::ChangeSelectedLeftColor
         } else if response.dragged_by(egui::PointerButton::Secondary) {
             self.state.right_index = index;
+            PalColorPickerAction::ChangeSelectedRightColor
+        } else {
+            PalColorPickerAction::None
         }
-    }
-
-    pub fn color_to_rgb(color: u8) -> egui::Color32 {
-        let r = color & 0x7;
-        let g = (color >> 3) & 0x7;
-        let b = (color >> 6) & 0x3;
-        let cr = (r << 5) | (r << 2) | (r >> 2);
-        let cg = (g << 5) | (g << 2) | (g >> 2);
-        let cb = (b << 6) | (b << 4) | (b << 2) | b;
-        egui::Color32::from_rgb(cr, cg, cb)
     }
 
     fn check_pick(pos: Pos2, rect: Rect, item: Vec2) -> Option<usize> {
@@ -68,12 +70,12 @@ impl PalColorPickerWidget {
                     max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
                 };
                 let color_index = (y*dims.0+x) as usize;
-                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, Self::color_to_rgb(palette[color_index]));
+                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(palette[color_index]));
             }
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, palette: &[u8]) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, palette: &[u8]) -> PalColorPickerAction {
         let min_size = Vec2::splat(MIN_PICKER_WIDTH).max(Vec2::new(MIN_PICKER_WIDTH, ui.available_size().y));
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let full_rect = response.rect;
@@ -90,6 +92,9 @@ impl PalColorPickerWidget {
             palette[self.state.right_index as usize % palette.len()],
         ];
 
+        // edit palette button
+        let edit_pal_rect = Rect::from_min_size(Pos2::new(left, sel_rect.max.y + 2.0 * border), Vec2::new(width, 24.0));
+
         // palette
         let (pal_colors_x, pal_colors_y) = if palette.len() <= 8 {
             (palette.len() as i32, 1)
@@ -98,24 +103,30 @@ impl PalColorPickerWidget {
             ((palette.len() / h) as i32, h as i32)
         };
         let pal_item_size = Vec2::splat(width / pal_colors_x as f32);
-        let pal_start = Pos2::new(left, sel_rect.max.y + border);
+        let pal_start = Pos2::new(left, edit_pal_rect.max.y + border);
         let pal_rect = Rect {
             min: pal_start,
             max: pal_start + Vec2::new(pal_colors_x as f32 * pal_item_size.x, pal_colors_y as f32 * pal_item_size.y),
         };
-
         let pal_dims = (pal_colors_x, pal_colors_y);
 
         let bg_rect = full_rect.with_max_y(pal_rect.max.y + border);
 
+        // show stuff:
+        let mut action = PalColorPickerAction::None;
+
         painter.rect_filled(bg_rect, egui::CornerRadius::same(8), wc.settings.color_picker_bg_color);
         Self::draw_palette(&painter, sel_rect, sel_dims, sel_colors);
+        if ui.place(edit_pal_rect, egui::Button::new("Edit Palette")).clicked() {
+            action = PalColorPickerAction::EditPalette;
+        }
         Self::draw_palette(&painter, pal_rect, pal_dims, palette);
 
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
-            if let Some(index) = Self::check_pick(pointer_pos, pal_rect, pal_item_size) {
-                self.set_color_index((index & 0xff) as u8, &response);
+        if let Some(pointer_pos) = response.interact_pointer_pos() &&
+            let Some(index) = Self::check_pick(pointer_pos, pal_rect, pal_item_size) {
+                action = self.set_color_index((index & 0xff) as u8, &response);
             }
-        }
+
+        action
     }
 }
