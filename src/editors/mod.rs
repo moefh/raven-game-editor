@@ -23,7 +23,7 @@ pub use prop_font::PropFontEditor;
 
 use crate::misc::calc_hash;
 use crate::data_asset::{DataAssetId, MapData};
-use crate::image::{ImagePixels, ImageCollection};
+use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
 use egui::{Pos2, Rect};
 
 enum MaximizedState {
@@ -31,6 +31,27 @@ enum MaximizedState {
     UnmaxRequested,
     UnmaxSizeReset,
     Normal,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum ImageSlicingMethodOption {
+    BySize,
+    ByNumber,
+}
+
+impl ImageSlicingMethodOption {
+    pub fn from_slicing_method(method: &ImageSlicingMethod) -> Self {
+        match method {
+            ImageSlicingMethod::BySize{..} => ImageSlicingMethodOption::BySize,
+            ImageSlicingMethod::ByNumber{..} => ImageSlicingMethodOption::ByNumber,
+        }
+    }
+    pub fn text(&self) -> &str {
+        match self {
+            ImageSlicingMethodOption::BySize{..} => "by size",
+            ImageSlicingMethodOption::ByNumber{..} => "by number",
+        }
+    }
 }
 
 pub struct AssetEditorBase {

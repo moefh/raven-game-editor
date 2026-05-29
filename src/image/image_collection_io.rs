@@ -1,20 +1,60 @@
 use super::{colors, ImagePixels, ImagePixelsCollection};
 use crate::data_asset::{Tileset, Sprite, PalSprite, Font, PropFont};
 
+pub enum ImageSlicingMethod {
+    BySize { width: u32, height: u32 },
+    ByNumber { nx: u32, ny: u32 },
+}
+
+impl ImageSlicingMethod {
+    pub fn by_size(width: u32, height: u32) -> Self {
+        ImageSlicingMethod::BySize { width, height }
+    }
+
+    pub fn by_number(nx: u32, ny: u32) -> Self {
+        ImageSlicingMethod::ByNumber { nx, ny }
+    }
+}
+
 pub trait ImageCollectionIO {
     fn width(&self) -> u32;
     fn height(&self) -> u32;
     fn num_items(&self) -> u32;
+    fn set_width(&mut self, width: u32);
+    fn set_height(&mut self, height: u32);
+    fn set_num_items(&mut self, num_items: u32);
     fn data(&self) -> &Vec<u8>;
     fn data_mut(&mut self) -> &mut Vec<u8>;
 
-    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, width: u32, height: u32, border: u32, space_between: u32)
-                      -> Result<u32, Box<dyn std::error::Error>> {
+    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, slicing: &ImageSlicingMethod, border: u32, space_between: u32)
+                      -> Result<(), Box<dyn std::error::Error>> {
         let src = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
         let src_data = src.as_raw();
 
-        let nx = (src.width() - 2*border + space_between).div_ceil(width + space_between);
-        let ny = (src.height() - 2*border + space_between).div_ceil(height + space_between);
+        let (nx, ny, width, height) = match *slicing {
+            ImageSlicingMethod::BySize { width, height } => {
+                let nx = (src.width() - 2*border + space_between) / (width + space_between);
+                let ny = (src.height() - 2*border + space_between) / (height + space_between);
+                (nx, ny, width, height)
+            }
+            ImageSlicingMethod::ByNumber { nx, ny } => {
+                let width = if nx <= 1 {
+                    src.width()  - 2*border
+                } else {
+                    (src.width()  - 2*border - (nx - 1) * space_between) / nx
+                };
+                let height = if ny <= 1 {
+                    src.height() - 2*border
+                } else {
+                    (src.height() - 2*border - (ny - 1) * space_between) / ny
+                };
+                (nx, ny, width, height)
+            }
+        };
+        let nx = nx.max(1);
+        let ny = ny.max(1);
+        let width = width.max(1);
+        let height = height.max(1);
 
         let dst_data = self.data_mut();
         if dst_data.len() != (nx * ny) as usize {
@@ -36,7 +76,10 @@ pub trait ImageCollectionIO {
                 }
             }
         }
-        Ok(nx * ny)
+        self.set_width(width);
+        self.set_height(height);
+        self.set_num_items(nx * ny);
+        Ok(())
     }
 
     fn save_image_png(&self, path: impl AsRef<std::path::Path>, num_items_x: u32) -> Result<(), Box<dyn std::error::Error>> {
@@ -93,6 +136,9 @@ impl ImageCollectionIO for Sprite {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_frames }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, num_items: u32) { self.num_frames = num_items; }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -101,6 +147,9 @@ impl ImageCollectionIO for PalSprite {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_frames }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, num_items: u32) { self.num_frames = num_items; }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -109,6 +158,9 @@ impl ImageCollectionIO for Tileset {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_tiles }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, num_items: u32) { self.num_tiles = num_items; }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -117,6 +169,9 @@ impl ImageCollectionIO for Font {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { Font::NUM_CHARS }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -125,6 +180,9 @@ impl ImageCollectionIO for PropFont {
     fn width(&self) -> u32 { self.max_width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { PropFont::NUM_CHARS }
+    fn set_width(&mut self, _width: u32) { }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -133,6 +191,9 @@ impl ImageCollectionIO for ImagePixels {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { 1 }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }
@@ -141,6 +202,9 @@ impl ImageCollectionIO for ImagePixelsCollection {
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_items }
+    fn set_width(&mut self, width: u32) { self.width = width; }
+    fn set_height(&mut self, height: u32) { self.height = height; }
+    fn set_num_items(&mut self, num_items: u32) { self.num_items = num_items; }
     fn data(&self) -> &Vec<u8> { &self.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.data }
 }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollectionIO, ImagePixelsCollection};
+use crate::image::{ImageCollectionIO, ImagePixelsCollection, ImageSlicingMethod};
 use crate::data_asset::Font;
 
 pub struct ImportDialog {
@@ -52,18 +52,19 @@ impl ImportDialog {
     fn confirm(&mut self, wc: &mut WindowContext, font: &mut Font) -> bool {
         if let Some(filename) = &self.filename {
             let mut image = ImagePixelsCollection::new(1, 1, 1);
-            match image.load_image_png(filename, self.width, self.height, self.border, self.space_between) {
-                Ok(num_chars) => {
-                    if num_chars == Font::NUM_CHARS {
-                        font.width = self.width;
-                        font.height = self.height;
+            let slicing = ImageSlicingMethod::by_size(self.width, self.height);
+            match image.load_image_png(filename, &slicing, self.border, self.space_between) {
+                Ok(()) => {
+                    if image.num_items == Font::NUM_CHARS {
+                        font.width = image.width;
+                        font.height = image.height;
                         font.data = std::mem::take(&mut image.data);
                         Self::fix_font_colors(font);
                         true
                     } else {
                         wc.open_message_box(
                             "Error importing font",
-                            format!("Invalid font image: found {} characters, required {}.", num_chars, Font::NUM_CHARS),
+                            format!("Invalid font image: found {} characters, required {}.", image.num_items, Font::NUM_CHARS),
                         );
                         false
                     }

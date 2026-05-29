@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollectionIO, ImagePixelsCollection};
+use crate::image::{ImageCollectionIO, ImagePixelsCollection, ImageSlicingMethod};
 use crate::data_asset::PropFont;
 
 trait PropFontFromImage {
@@ -113,19 +113,16 @@ impl ImportDialog {
     fn confirm(&mut self, wc: &mut WindowContext, pfont: &mut PropFont) -> bool {
         if let Some(filename) = &self.filename {
             let mut image = ImagePixelsCollection::new(1, 1, 1);
-            match image.load_image_png(filename, self.width, self.height, self.border, self.space_between) {
-                Ok(num_chars) => {
-                    if num_chars == PropFont::NUM_CHARS {
-                        image.width = self.width;
-                        image.height = self.height;
-                        image.num_items = num_chars;
-                        //Self::load_prop_font_from_image(pfont, &image);
+            let slicing = ImageSlicingMethod::by_size(self.width, self.height);
+            match image.load_image_png(filename, &slicing, self.border, self.space_between) {
+                Ok(()) => {
+                    if image.num_items == PropFont::NUM_CHARS {
                         pfont.load_from_image(&image);
                         true
                     } else {
                         wc.open_message_box(
                             "Error importing font",
-                            format!("Invalid font image: found {} characters, required {}.", num_chars, PropFont::NUM_CHARS),
+                            format!("Invalid font image: found {} characters, required {}.", image.num_items, PropFont::NUM_CHARS),
                         );
                         false
                     }

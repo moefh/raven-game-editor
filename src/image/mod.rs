@@ -9,7 +9,7 @@ use egui::{Rect, Pos2};
 
 pub use texture_manager::TextureManager;
 pub use image_collection::ImageCollection;
-pub use image_collection_io::ImageCollectionIO;
+pub use image_collection_io::{ImageCollectionIO, ImageSlicingMethod};
 pub use static_image_store::StaticImageStore;
 pub use image_pixels::{ImagePixels, ImagePixelsCollection};
 

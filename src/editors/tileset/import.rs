@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::ImageCollectionIO;
+use crate::image::{ImageCollectionIO, ImageSlicingMethod};
 use crate::data_asset::Tileset;
 
 pub struct ImportDialog {
@@ -38,9 +38,9 @@ impl ImportDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if let Some(filename) = &self.filename {
-            match tileset.load_image_png(filename, Tileset::TILE_SIZE, Tileset::TILE_SIZE, self.border, self.space_between) {
-                Ok(num_tiles) => {
-                    tileset.num_tiles = num_tiles;
+            let slicing = ImageSlicingMethod::by_size(Tileset::TILE_SIZE, Tileset::TILE_SIZE);
+            match tileset.load_image_png(filename, &slicing, self.border, self.space_between) {
+                Ok(()) => {
                     true
                 }
                 Err(e) => {
