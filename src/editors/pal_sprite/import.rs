@@ -81,13 +81,13 @@ impl ImportDialog {
         // copy the palette to the sprite and re-calculate color-to-index map
         let num_colors = num_colors.min(colors.len());
         pal_sprite.palette[0..num_colors].copy_from_slice(&colors);
-        if num_colors < 16 {
-            for color in pal_sprite.palette[num_colors..16].iter_mut() {
+        if num_colors < pal_sprite.palette.len() {
+            for color in pal_sprite.palette[num_colors..].iter_mut() {
                 *color = 0;
             }
         }
         pal_sprite.depth = depth;
-        PalSprite::calculate_color_to_palette_index_map(&mut pal_sprite.color_to_palette_index_map, &pal_sprite.palette);
+        pal_sprite.recalculate_color_to_palette_index_map();
 
         // force whole image to the new palette
         pal_sprite.force_palette();

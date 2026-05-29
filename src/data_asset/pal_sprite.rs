@@ -74,6 +74,10 @@ impl PalSprite {
         self.color_to_palette_index_map[color as usize]
     }
 
+    pub fn recalculate_color_to_palette_index_map(&mut self) {
+        Self::calculate_color_to_palette_index_map(&mut self.color_to_palette_index_map, &self.palette);
+    }
+
     pub fn force_palette(&mut self) -> bool {
         let mut changed = false;
         for pixel in self.data.iter_mut() {

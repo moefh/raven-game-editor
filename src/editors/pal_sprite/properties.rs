@@ -57,6 +57,12 @@ impl PropertiesDialog {
             pal_sprite.height = height;
             pal_sprite.num_frames = num_frames;
             pal_sprite.depth = self.depth;
+            if (pal_sprite.depth.num_colors() as usize) < pal_sprite.palette.len() {
+                let num_colors = pal_sprite.depth.num_colors() as usize;
+                for color in pal_sprite.palette[num_colors..].iter_mut() { *color = 0; }
+                pal_sprite.recalculate_color_to_palette_index_map();
+                pal_sprite.force_palette();
+            }
             self.image_changed = true;
         }
     }
