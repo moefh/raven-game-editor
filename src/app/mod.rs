@@ -274,7 +274,7 @@ impl RavenEditorApp {
             let mut num = 1;
             loop {
                 let name = match &given_prefix {
-                    Some(s) => { format!("{}___{}{}", s, prefix, num) }
+                    Some(s) => { format!("{}/_{}{}", s, prefix, num) }
                     None => { format!("_{}{}", prefix, num) }
                 };
                 if ! self.store.asset_ids
