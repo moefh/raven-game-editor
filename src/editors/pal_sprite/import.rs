@@ -2,17 +2,34 @@ use std::path::PathBuf;
 
 use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollectionIO, ImageSlicingMethod};
-use crate::data_asset::PalSprite;
+use crate::data_asset::{PalSprite, PalSpriteDepth};
 
 use super::super::ImageSlicingMethodOption;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ImportPaletteOption {
+    KeepCurrent,
+    GenerateNew,
+}
+
+impl ImportPaletteOption {
+    fn text(&self) -> &str {
+        match self {
+            ImportPaletteOption::KeepCurrent => "keep current",
+            ImportPaletteOption::GenerateNew => "generate new",
+        }
+    }
+}
+
 pub struct ImportDialog {
     pub open: bool,
-    pub filename: Option<PathBuf>,
-    pub display_filename: Option<String>,
-    pub slicing_method: ImageSlicingMethod,
-    pub border: u32,
-    pub space_between: u32,
+    filename: Option<PathBuf>,
+    display_filename: Option<String>,
+    slicing_method: ImageSlicingMethod,
+    border: u32,
+    space_between: u32,
+    import_palette: ImportPaletteOption,
+    palette_depth: PalSpriteDepth,
 }
 
 impl ImportDialog {
@@ -24,6 +41,8 @@ impl ImportDialog {
             slicing_method: ImageSlicingMethod::by_number(1, 1),
             border: 0,
             space_between: 0,
+            import_palette: ImportPaletteOption::GenerateNew,
+            palette_depth: PalSpriteDepth::Bpp4,
         }
     }
 
@@ -37,14 +56,55 @@ impl ImportDialog {
         self.slicing_method = ImageSlicingMethod::by_number(1, 1);
         self.border = 0;
         self.space_between = 0;
+        self.import_palette = ImportPaletteOption::GenerateNew;
+        self.palette_depth = PalSpriteDepth::Bpp4;
         self.open = true;
         wc.set_window_open(Self::id(), self.open);
+    }
+
+    fn generate_palette(pal_sprite: &mut PalSprite, depth: PalSpriteDepth) {
+        // count how many times each color appears in the image
+        let mut color_histogram = vec![0u32; 256];
+        for color in pal_sprite.data.iter() {
+            let color = *color as usize;
+            color_histogram[color] = color_histogram[color].saturating_add(1);
+        }
+
+        // sort the most used colors first
+        let mut colors = color_histogram.into_iter().enumerate().map(|(c, n)| (c, n)).collect::<Vec<(usize, u32)>>();
+        colors.sort_by_key(|(_, num)| -(*num as i64));
+
+        // pick however many colors we need
+        let num_colors = depth.num_colors() as usize;
+        let colors = colors.into_iter().filter(|(_, n)| *n != 0).take(num_colors).map(|(c, _)| (c & 0xff) as u8).collect::<Vec<u8>>();
+
+        // copy the palette to the sprite and re-calculate color-to-index map
+        let num_colors = num_colors.min(colors.len());
+        pal_sprite.palette[0..num_colors].copy_from_slice(&colors);
+        if num_colors < 16 {
+            for color in pal_sprite.palette[num_colors..16].iter_mut() {
+                *color = 0;
+            }
+        }
+        pal_sprite.depth = depth;
+        PalSprite::calculate_color_to_palette_index_map(&mut pal_sprite.color_to_palette_index_map, &pal_sprite.palette);
+
+        // force whole image to the new palette
+        pal_sprite.force_palette();
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
         if let Some(filename) = &self.filename {
             match pal_sprite.load_image_png(filename, &self.slicing_method, self.border, self.space_between) {
                 Ok(()) => {
+                    match self.import_palette {
+                        ImportPaletteOption::KeepCurrent => {
+                            pal_sprite.force_palette();
+                        }
+                        ImportPaletteOption::GenerateNew => {
+                            Self::generate_palette(pal_sprite, self.palette_depth);
+                        }
+                    }
                     true
                 }
                 Err(e) => {
@@ -60,6 +120,14 @@ impl ImportDialog {
         } else {
             wc.open_message_box("Filename Needed", "You need to select a filename to import.");
             false
+        }
+    }
+
+    fn visibility_ui_builder(visible: bool) -> egui::UiBuilder {
+        if visible {
+            egui::UiBuilder::new()
+        } else {
+            egui::UiBuilder::new().invisible()
         }
     }
 
@@ -155,6 +223,33 @@ impl ImportDialog {
 
                             ui.label("Space between:");
                             ui.add(egui::Slider::new(&mut self.space_between, 0..=32));
+                            ui.end_row();
+
+                            ui.label("Palette:");
+                            ui.horizontal(|ui| {
+                                egui::ComboBox::from_id_salt(format!("editor_{}_import_combo_palette", pal_sprite.asset.id))
+                                    .selected_text(self.import_palette.text())
+                                    .width(50.0)
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut self.import_palette,
+                                                            ImportPaletteOption::GenerateNew,
+                                                            ImportPaletteOption::GenerateNew.text());
+                                        ui.selectable_value(&mut self.import_palette,
+                                                            ImportPaletteOption::KeepCurrent,
+                                                            ImportPaletteOption::KeepCurrent.text());
+                                    });
+                                ui.scope_builder(Self::visibility_ui_builder(self.import_palette == ImportPaletteOption::GenerateNew), |ui| {
+                                    egui::ComboBox::from_id_salt(format!("editor_{}_import_depth_combo", pal_sprite.asset.id))
+                                        .selected_text(format!("{} bpp ({} colors)", self.palette_depth.bits_per_pixel(),
+                                                               self.palette_depth.num_colors()))
+                                        .width(50.0)
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut self.palette_depth, PalSpriteDepth::Bpp1, "1 bpp (2 colors)");
+                                            ui.selectable_value(&mut self.palette_depth, PalSpriteDepth::Bpp2, "2 bpp (4 colors)");
+                                            ui.selectable_value(&mut self.palette_depth, PalSpriteDepth::Bpp4, "4 bpp (16 colors)");
+                                        });
+                                });
+                            });
                             ui.end_row();
                         });
                 });
