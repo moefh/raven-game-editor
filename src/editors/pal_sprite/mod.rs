@@ -105,6 +105,7 @@ impl Dialogs {
         }
         if self.edit_pal_dialog.open && self.edit_pal_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
+            editor.image_editor.set_undo_target(pal_sprite);
             Self::ensure_valid_selected_image(editor, pal_sprite, false);
         }
         if self.export_dialog.open {

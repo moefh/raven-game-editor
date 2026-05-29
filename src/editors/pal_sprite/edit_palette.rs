@@ -20,50 +20,71 @@ impl SetPaletteOptions {
 }
 
 enum PalettePreset {
-    BlackAndWhite,
+    White2,
+    Red2,
+    Green2,
+    Blue2,
     Red4,
     Green4,
     Blue4,
+    Gray4,
     Ega16,
+    Red16,
+    Green16,
+    Blue16,
+    Yellow16,
 }
 
 impl PalettePreset {
     fn text(&self) -> &'static str {
         match self {
-            PalettePreset::BlackAndWhite => "black&white",
-            PalettePreset::Red4          => "Red",
-            PalettePreset::Green4        => "Green",
-            PalettePreset::Blue4         => "Blue",
-            PalettePreset::Ega16         => "EGA",
+            PalettePreset::White2   => "Black & White",
+            PalettePreset::Red2     => "Red",
+            PalettePreset::Green2   => "Green",
+            PalettePreset::Blue2    => "Blue",
+            PalettePreset::Red4     => "Red",
+            PalettePreset::Green4   => "Green",
+            PalettePreset::Blue4    => "Blue",
+            PalettePreset::Gray4    => "Gray",
+            PalettePreset::Ega16    => "EGA default",
+            PalettePreset::Red16    => "Red",
+            PalettePreset::Green16  => "Green",
+            PalettePreset::Blue16   => "Blue",
+            PalettePreset::Yellow16 => "Yellow",
         }
     }
 
     fn colors(&self) -> &'static [u8] {
         match self {
-            PalettePreset::BlackAndWhite => &[0b00_000_000, 0b11_111_111],
+            PalettePreset::White2  => &[0b00_000_000, 0b11_111_111],
+            PalettePreset::Red2    => &[0b00_000_000, 0b00_000_111],
+            PalettePreset::Green2  => &[0b00_000_000, 0b00_111_000],
+            PalettePreset::Blue2   => &[0b00_000_000, 0b11_000_000],
 
             PalettePreset::Red4   => &[0b00_000_000, 0b00_000_001, 0b00_000_100, 0b00_000_111],
             PalettePreset::Green4 => &[0b00_000_000, 0b00_001_000, 0b00_100_000, 0b00_111_000],
             PalettePreset::Blue4  => &[0b00_000_000, 0b01_000_000, 0b10_000_000, 0b11_000_000],
+            PalettePreset::Gray4  => &[0b00_000_000, 0b01_010_010, 0b10_100_100, 0b11_111_111],
 
             PalettePreset::Ega16 => &[
-                0b00_000_000,
-                0b10_000_000,
-                0b00_101_000,
-                0b10_101_000,
-                0b00_000_101,
-                0b10_000_101,
-                0b00_101_101,
-                0b10_101_101,
-
-                0b01_010_010,
-                0b11_010_010,
-                0b01_111_010,
-                0b11_111_010,
-                0b01_010_111,
-                0b11_010_111,
-                0b01_111_111,
-                0b11_111_111,
+                0b00_000_000, 0b10_000_000, 0b00_101_000, 0b10_101_000, 0b00_000_101, 0b10_000_101, 0b00_101_101, 0b10_101_101,
+                0b01_010_010, 0b11_010_010, 0b01_111_010, 0b11_111_010, 0b01_010_111, 0b11_010_111, 0b01_111_111, 0b11_111_111,
+            ],
+            PalettePreset::Red16 => &[
+                0b00_000_000, 0b00_000_001, 0b00_000_010, 0b00_000_011, 0b00_000_100, 0b00_000_101, 0b00_000_110, 0b00_000_111,
+                0b00_001_111, 0b01_010_111, 0b01_011_111, 0b10_100_111, 0b10_101_111, 0b10_110_111, 0b11_110_111, 0b11_111_111,
+            ],
+            PalettePreset::Green16 => &[
+                0b00_000_000, 0b00_001_000, 0b00_010_000, 0b00_011_000, 0b00_100_000, 0b00_101_000, 0b00_110_000, 0b00_111_000,
+                0b00_111_001, 0b01_111_010, 0b01_111_011, 0b10_111_100, 0b10_111_101, 0b10_111_110, 0b11_111_110, 0b11_111_111,
+            ],
+            PalettePreset::Blue16 => &[
+                0b00_000_000, 0b01_000_000, 0b10_000_000, 0b11_000_000, 0b10_001_001, 0b10_010_010, 0b10_011_011, 0b10_100_100,
+                0b10_101_101, 0b11_001_001, 0b11_010_010, 0b11_011_011, 0b11_100_100, 0b11_101_101, 0b11_110_110, 0b11_111_111,
+            ],
+            PalettePreset::Yellow16 => &[
+                0b00_000_000, 0b00_001_001, 0b00_010_010, 0b00_011_011, 0b00_100_100, 0b00_101_101, 0b00_110_110, 0b00_111_111,
+                0b01_100_111, 0b01_101_111, 0b01_110_111, 0b01_111_111, 0b01_111_110, 0b01_111_111, 0b10_111_111, 0b11_111_111,
             ],
         }
     }
@@ -71,20 +92,33 @@ impl PalettePreset {
     fn load(&self, palette: &mut [u8]) {
         let c = self.colors();
         palette[0..c.len()].copy_from_slice(c);
+        if palette.len() > c.len() {
+            for color in palette[c.len()..].iter_mut() {
+                *color = c[0];
+            }
+        }
     }
 
     fn presets_for_depth(depth: PalSpriteDepth) -> &'static [PalettePreset] {
         match depth {
             PalSpriteDepth::Bpp1 => &[
-                PalettePreset::BlackAndWhite,
+                PalettePreset::White2,
+                PalettePreset::Red2,
+                PalettePreset::Green2,
+                PalettePreset::Blue2,
             ],
             PalSpriteDepth::Bpp2 => &[
                 PalettePreset::Red4,
                 PalettePreset::Green4,
                 PalettePreset::Blue4,
+                PalettePreset::Gray4,
             ],
             PalSpriteDepth::Bpp4 => &[
                 PalettePreset::Ega16,
+                PalettePreset::Red16,
+                PalettePreset::Green16,
+                PalettePreset::Blue16,
+                PalettePreset::Yellow16,
             ],
         }
     }
@@ -175,7 +209,9 @@ impl EditPaletteDialog {
                         let button = ui.add(egui::Button::new("Load Preset..."));
                         egui::Popup::menu(&button).show(|ui| {
                             for preset in PalettePreset::presets_for_depth(self.depth) {
-                                if ui.button(preset.text()).clicked() { preset.load(&mut self.palette); }
+                                if ui.add(egui::Button::new(preset.text()).wrap_mode(egui::TextWrapMode::Extend)).clicked() {
+                                    preset.load(&mut self.palette);
+                                }
                             }
                         });
                     });
@@ -215,7 +251,7 @@ impl EditPaletteDialog {
                         .num_columns(2)
                         .spacing([8.0, 8.0])
                         .show(ui, |ui| {
-                            ui.label("Color Depth:");
+                            ui.label("Color depth:");
                             egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_depth_combo", pal_sprite.asset.id))
                                 .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), pal_sprite.depth.num_colors()))
                                 .width(50.0)
