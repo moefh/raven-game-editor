@@ -48,8 +48,8 @@ impl ImageSlicingMethodOption {
     }
     pub fn text(&self) -> &str {
         match self {
-            ImageSlicingMethodOption::BySize{..} => "by size",
-            ImageSlicingMethodOption::ByNumber{..} => "by number",
+            ImageSlicingMethodOption::BySize => "by size",
+            ImageSlicingMethodOption::ByNumber => "by number",
         }
     }
 }
