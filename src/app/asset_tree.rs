@@ -198,7 +198,7 @@ impl AssetTreeContainer {
         }
         header_resp.body(|ui| {
             for tree in &self.containers {
-                tree.show_inside(id_prefix, ui, self.assets.len() == 0, folder_menu, show_item);
+                tree.show_inside(id_prefix, ui, self.assets.is_empty(), folder_menu, show_item);
             }
             for asset_node in &self.assets {
                 show_item(ui, self, asset_node);

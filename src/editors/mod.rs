@@ -112,17 +112,13 @@ impl AssetEditorBase {
     fn show_window(&mut self, wc: &mut WindowContext, title: &str,
                    min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
                    show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
-        let resp = self.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
+        let resp = self.create_window(wc, title, min_size, default_size).show(wc.egui.ctx, |ui| {
             let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 1 });
             let close = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add(egui::Label::new(title).selectable(false));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked() {
-                            true
-                        } else {
-                            false
-                        }
+                        ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked()
                     }).inner
                 }).inner
             }).inner;

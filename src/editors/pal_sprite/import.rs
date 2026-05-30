@@ -71,7 +71,7 @@ impl ImportDialog {
         }
 
         // sort the most used colors first
-        let mut colors = color_histogram.into_iter().enumerate().map(|(c, n)| (c, n)).collect::<Vec<(usize, u32)>>();
+        let mut colors = color_histogram.into_iter().enumerate().collect::<Vec<(usize, u32)>>();
         colors.sort_by_key(|(_, num)| -(*num as i64));
 
         // pick however many colors we need
