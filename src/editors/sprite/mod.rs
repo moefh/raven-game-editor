@@ -41,10 +41,9 @@ impl SpriteEditor {
 
         let title = AssetEditorBase::window_title("Sprite", &sprite.asset.name, self.base.is_dirty());
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
-        let ret = self.base.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, sprite);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 
@@ -324,7 +323,8 @@ impl Editor {
         // footer:
         egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes [{} frames]", sprite.data_size(), sprite.num_frames));
+            ui.label(format!("{} bytes [{}x{}, {} frame{}]", sprite.data_size(),
+                             sprite.width, sprite.height, sprite.num_frames, if sprite.num_frames > 1 { "s" } else { "" }));
         });
 
         // item picker:

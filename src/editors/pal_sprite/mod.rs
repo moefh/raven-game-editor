@@ -51,10 +51,9 @@ impl PalSpriteEditor {
 
         let title = AssetEditorBase::window_title("Paletted Sprite", &pal_sprite.asset.name, self.base.is_dirty());
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(pal_sprite);
-        let ret = self.base.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, pal_sprite);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 
@@ -370,7 +369,9 @@ impl Editor {
         // footer:
         egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            ui.label(format!("{} bytes [{} frames]", pal_sprite.data_size(), pal_sprite.num_frames));
+            ui.label(format!("{} bytes [{}x{}, {} bpp, {} frame{}]", pal_sprite.data_size(),
+                             pal_sprite.width, pal_sprite.height, pal_sprite.depth.bits_per_pixel(),
+                             pal_sprite.num_frames, if pal_sprite.num_frames > 1 { "s" } else { "" }));
         });
 
         // item picker:

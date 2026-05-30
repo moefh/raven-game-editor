@@ -34,10 +34,9 @@ impl MapDataEditor {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
         let title = AssetEditorBase::window_title("Map", &map_data.asset.name, self.base.is_dirty());
-        let ret = self.base.create_window(wc, &title, [500.0, 200.0], [630.0, 380.0]).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, [500.0, 200.0], [630.0, 380.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 

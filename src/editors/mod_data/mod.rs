@@ -46,10 +46,9 @@ impl ModDataEditor {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
         let title = AssetEditorBase::window_title("MOD", &mod_data.asset.name, self.base.is_dirty());
-        let ret = self.base.create_window(wc, &title, [600.0, 300.0], [600.0, 300.0]).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, [600.0, 300.0], [600.0, 300.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 

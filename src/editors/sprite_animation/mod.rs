@@ -55,10 +55,9 @@ impl SpriteAnimationEditor {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
         let title = AssetEditorBase::window_title("Animation", &animation.asset.name, self.base.is_dirty());
-        let ret = self.base.create_window(wc, &title, [450.0, 400.0], [500.0, 400.0]).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, [450.0, 400.0], [500.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 

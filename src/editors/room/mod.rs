@@ -107,10 +107,9 @@ impl RoomEditor {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
         let title = AssetEditorBase::window_title("Room", &room.asset.name, self.base.is_dirty());
-        let ret = self.base.create_window(wc, &title, [400.0, 300.0], [600.0, 400.0]).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, [400.0, 300.0], [600.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 

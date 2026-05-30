@@ -21,9 +21,10 @@ pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
-use crate::misc::calc_hash;
+use crate::misc::{calc_hash, IMAGES};
 use crate::data_asset::{DataAssetId, MapData};
 use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
+use crate::app::WindowContext;
 use egui::{Pos2, Rect};
 
 enum MaximizedState {
@@ -100,8 +101,38 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    fn save_window<T>(&mut self, wc: &crate::app::WindowContext, show_resp: &Option<egui::InnerResponse<Option<T>>>) {
-        if let Some(resp) = show_resp {
+    fn window_title(asset_type: &str, asset_name: &str, modified: bool) -> String {
+        if modified {
+            format!("[{}] {} <*>", asset_type, asset_name)
+        } else {
+            format!("[{}] {}", asset_type, asset_name)
+        }
+    }
+
+    fn show_window(&mut self, wc: &mut WindowContext, title: &str,
+                   min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
+                   show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
+        let resp = self.create_window(wc, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
+            let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 1 });
+            let close = frame.show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(title).selectable(false));
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked() {
+                            true
+                        } else {
+                            false
+                        }
+                    }).inner
+                }).inner
+            }).inner;
+            show_fn(ui, wc);
+            close
+        });
+
+        if let Some(resp) = resp {
+            if let Some(true) = resp.inner { self.open = false; }
             if matches!(self.maximized_state, MaximizedState::Normal) {
                 self.window_rect = resp.response.rect;
             }
@@ -122,15 +153,7 @@ impl AssetEditorBase {
         }
     }
 
-    fn window_title(asset_type: &str, asset_name: &str, modified: bool) -> String {
-        if modified {
-            format!("[{}] {} <*>", asset_type, asset_name)
-        } else {
-            format!("[{}] {}", asset_type, asset_name)
-        }
-    }
-
-    fn create_window<'a>(&'a mut self, wc: &crate::app::WindowContext, title: &str,
+    fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str,
                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
         let default_rect = egui::Rect {
@@ -143,12 +166,20 @@ impl AssetEditorBase {
 
         let selected = wc.is_editor_on_top(self.id);
         let title_bg = match wc.egui.ctx.theme() {
-            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.global_style().visuals.window_fill },
-            egui::Theme::Dark => if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) },
+            egui::Theme::Light => if selected {
+                egui::Color32::from_rgb(0xe0, 0xe0, 0xe0)
+            } else {
+                wc.egui.ctx.global_style().visuals.window_fill
+            },
+            egui::Theme::Dark => if selected {
+                egui::Color32::from_rgb(0, 0x20, 0x40)
+            } else {
+                egui::Color32::from_rgb(0, 0x10, 0x20)
+            },
         };
         let mut frame = egui::Frame::window(&wc.egui.ctx.global_style())
-            .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
-            .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
+            .outer_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 })
+            .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 0 })
             .fill(title_bg);
         if self.open && ! matches!(self.maximized_state, MaximizedState::Normal) {
             frame = frame.corner_radius(0.0);
@@ -178,6 +209,7 @@ impl AssetEditorBase {
                 .fixed_rect(win_rect)
                 .constrain_to(constrain_rect)
                 .collapsible(false)
+                .title_bar(false)
                 .open(&mut self.open)
         } else {
             egui::Window::new(title)
@@ -188,6 +220,8 @@ impl AssetEditorBase {
                 .min_size(min_size)
                 .max_size(wc.window_space.size())
                 .constrain_to(wc.window_space)
+                .collapsible(false)
+                .title_bar(false)
                 .open(&mut self.open)
         }
     }

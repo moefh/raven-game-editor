@@ -34,10 +34,9 @@ impl SfxEditor {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
         let title = AssetEditorBase::window_title("SFX", &sfx.asset.name, self.base.is_dirty());
-        let ret = self.base.create_window(wc, &title, [400.0, 220.0], [500.0, 220.0]).show(wc.egui.ctx, |ui| {
+        self.base.show_window(wc, &title, [400.0, 220.0], [500.0, 220.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
         });
-        self.base.save_window(wc, &ret);
     }
 }
 
