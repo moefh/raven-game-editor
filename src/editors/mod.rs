@@ -146,8 +146,8 @@ impl AssetEditorBase {
                         }
 
                         let image = match maximized_state {
-                            MaximizedState::Maximized => { egui::Image::new(IMAGES.maximize) }
-                            _ => { egui::Image::new(IMAGES.un_maximize) }
+                            MaximizedState::Maximized => { egui::Image::new(IMAGES.un_maximize) }
+                            _ => { egui::Image::new(IMAGES.maximize) }
                         };
                         if ui.add(image.sense(egui::Sense::click())).clicked() && action == EditorWindowAction::None {
                             action = EditorWindowAction::ToggleMaximize;
