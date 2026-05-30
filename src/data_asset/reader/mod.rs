@@ -395,10 +395,17 @@ impl<'a> ProjectDataReader<'a> {
             name_id.starts_with(&format!("{}PAL_SPRITE_DEPTH_", self.prefix_upper)) {
                 return;
             }
+
+        if name_id == format!("{}DATA_SAVE_TIMESTAMP", self.prefix_upper) { return; }
+
         self.logger.log(format!("-> ignoring define '{}' = '{}'", name_id, value));
     }
 
     fn handle_pre_processor_if(&mut self, line: &str) {
+
+        if line == format!("#if {}DATA_BYTES", self.prefix_upper) { return; }
+        if line == format!("#endif /* {}DATA_BYTES */", self.prefix_upper) { return; }
+
         self.logger.log(format!("-> ignoring pre-processor if line: {}", line));
     }
 

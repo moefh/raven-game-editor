@@ -1078,6 +1078,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_asset_ids_for(&self.store.asset_ids.sfxs, DataAssetType::Sfx, "SFX")?;
         self.write_asset_ids_for(&self.store.asset_ids.tilesets, DataAssetType::Tileset, "TILESET")?;
         self.write_asset_ids_for(&self.store.asset_ids.sprites, DataAssetType::Sprite, "SPRITE")?;
+        self.write_asset_ids_for(&self.store.asset_ids.pal_sprites, DataAssetType::PalSprite, "PAL_SPRITE")?;
         self.write_asset_ids_for(&self.store.asset_ids.maps, DataAssetType::MapData, "MAP")?;
         self.write_asset_ids_for(&self.store.asset_ids.animations, DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
         self.write_asset_ids_for(&self.store.asset_ids.rooms, DataAssetType::Room, "ROOM")?;
