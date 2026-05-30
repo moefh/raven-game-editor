@@ -86,6 +86,8 @@ image_table! {
     info: "../../assets/InfoIcon.png",
     header: "../../assets/HeaderIcon.png",
     close: "../../assets/Close.png",
+    maximize: "../../assets/MaximizeIcon.png",
+    un_maximize: "../../assets/UnmaximizeIcon.png",
     blank: "../../assets/BlankIcon.png",
 
     // buttons

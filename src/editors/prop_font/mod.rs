@@ -69,7 +69,7 @@ impl PropFontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, prop_font: &mut PropFont) {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
-        let title = AssetEditorBase::window_title("Prop Font", &prop_font.asset.name, self.base.is_dirty());
+        let title = self.base.window_title("Prop Font", prop_font);
         self.base.show_window(wc, &title, [350.0, 250.0], [400.0, 350.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });

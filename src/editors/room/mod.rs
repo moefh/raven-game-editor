@@ -106,7 +106,7 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
-        let title = AssetEditorBase::window_title("Room", &room.asset.name, self.base.is_dirty());
+        let title = self.base.window_title("Room", room);
         self.base.show_window(wc, &title, [400.0, 300.0], [600.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });

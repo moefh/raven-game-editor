@@ -22,11 +22,19 @@ pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
 use crate::misc::{calc_hash, IMAGES};
-use crate::data_asset::{DataAssetId, MapData};
+use crate::data_asset::{DataAssetId, MapData, GenericAsset};
 use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
 use crate::app::WindowContext;
 use egui::{Pos2, Rect};
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum EditorWindowAction {
+    None,
+    Close,
+    ToggleMaximize,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum MaximizedState {
     Maximized,
     UnmaxRequested,
@@ -101,35 +109,67 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    fn window_title(asset_type: &str, asset_name: &str, modified: bool) -> String {
-        if modified {
-            format!("[{}] {} <*>", asset_type, asset_name)
+    fn window_title(&self, asset_type: &str, asset: &impl GenericAsset) -> String {
+        if self.is_dirty() {
+            format!("<{}> {} (modified)", asset_type, asset.asset().name)
         } else {
-            format!("[{}] {}", asset_type, asset_name)
+            format!("<{}> {}", asset_type, asset.asset().name)
+        }
+    }
+
+    fn toggle_maximized(&mut self) {
+        match self.maximized_state {
+            MaximizedState::Maximized => {
+                self.maximized_state = MaximizedState::UnmaxRequested;
+            }
+            MaximizedState::Normal => {
+                self.maximized_state = MaximizedState::Maximized;
+            }
+            _ => {}
         }
     }
 
     fn show_window(&mut self, wc: &mut WindowContext, title: &str,
                    min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
                    show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
+        let maximized_state = self.maximized_state;
         let resp = self.create_window(wc, title, min_size, default_size).show(wc.egui.ctx, |ui| {
             let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 1 });
-            let close = frame.show(ui, |ui| {
+            let action = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add(egui::Label::new(title).selectable(false));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked()
+                        let mut action = EditorWindowAction::None;
+
+                        if ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked() {
+                            action = EditorWindowAction::Close;
+                        }
+
+                        let image = match maximized_state {
+                            MaximizedState::Maximized => { egui::Image::new(IMAGES.maximize) }
+                            _ => { egui::Image::new(IMAGES.un_maximize) }
+                        };
+                        if ui.add(image.sense(egui::Sense::click())).clicked() && action == EditorWindowAction::None {
+                            action = EditorWindowAction::ToggleMaximize;
+                        }
+
+                        action
                     }).inner
                 }).inner
             }).inner;
+
             show_fn(ui, wc);
-            close
+            action
         });
 
         if let Some(resp) = resp {
             // close window if show() above returned true
-            if let Some(true) = resp.inner {
-                self.open = false;
+            if let Some(action) = resp.inner {
+                match action {
+                    EditorWindowAction::None => {}
+                    EditorWindowAction::Close => { self.open = false; }
+                    EditorWindowAction::ToggleMaximize => { self.toggle_maximized(); }
+                }
             }
 
             // save window position/size if not maximized
@@ -141,15 +181,7 @@ impl AssetEditorBase {
             if wc.is_editor_on_top(self.id) {
                 let ctrl_up = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::ArrowUp);
                 if resp.response.ctx.input_mut(|i| i.consume_shortcut(&ctrl_up)) {
-                    match self.maximized_state {
-                        MaximizedState::Maximized => {
-                            self.maximized_state = MaximizedState::UnmaxRequested;
-                        }
-                        MaximizedState::Normal => {
-                            self.maximized_state = MaximizedState::Maximized;
-                        }
-                        _ => {}
-                    }
+                    self.toggle_maximized();
                 }
             }
         }

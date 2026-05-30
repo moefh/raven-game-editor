@@ -33,7 +33,7 @@ impl MapDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
-        let title = AssetEditorBase::window_title("Map", &map_data.asset.name, self.base.is_dirty());
+        let title = self.base.window_title("Map", map_data);
         self.base.show_window(wc, &title, [500.0, 200.0], [630.0, 380.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });

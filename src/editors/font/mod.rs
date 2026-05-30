@@ -61,7 +61,7 @@ impl FontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         self.dialogs.show(wc, &mut self.editor, font);
 
-        let title = AssetEditorBase::window_title("Font", &font.asset.name, self.base.is_dirty());
+        let title = self.base.window_title("Font", font);
         self.base.show_window(wc, &title, [300.0, 250.0], [400.0, 350.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });

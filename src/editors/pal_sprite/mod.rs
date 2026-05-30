@@ -49,7 +49,7 @@ impl PalSpriteEditor {
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) {
         self.dialogs.show(wc, &mut self.editor, pal_sprite);
 
-        let title = AssetEditorBase::window_title("Paletted Sprite", &pal_sprite.asset.name, self.base.is_dirty());
+        let title = self.base.window_title("Paletted Sprite", pal_sprite);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(pal_sprite);
         self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, pal_sprite);
