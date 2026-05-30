@@ -626,7 +626,7 @@ impl RavenEditorApp {
                                 });
                             });
                         };
-                        tree.show_inside("project", ui, &mut folder_menu, &mut show_item);
+                        tree.show_inside("project", ui, true, &mut folder_menu, &mut show_item);
                     }
                     for actions in &[folder_actions, item_actions] {
                         if let Some(tree_node_id) = actions.add_asset_at {

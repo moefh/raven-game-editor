@@ -117,7 +117,6 @@ impl AssetEditorBase {
             let close = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add(egui::Label::new(title).selectable(false));
-
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked() {
                             true
@@ -132,10 +131,17 @@ impl AssetEditorBase {
         });
 
         if let Some(resp) = resp {
-            if let Some(true) = resp.inner { self.open = false; }
+            // close window if show() above returned true
+            if let Some(true) = resp.inner {
+                self.open = false;
+            }
+
+            // save window position/size if not maximized
             if matches!(self.maximized_state, MaximizedState::Normal) {
                 self.window_rect = resp.response.rect;
             }
+
+            // consume CTRL+UP to maximize/unmaximize
             if wc.is_editor_on_top(self.id) {
                 let ctrl_up = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::ArrowUp);
                 if resp.response.ctx.input_mut(|i| i.consume_shortcut(&ctrl_up)) {

@@ -117,7 +117,7 @@ impl MapSelectionDialog {
                                 }
                             });
                         };
-                        map_tree.show_inside(&format!("map_sel_{}", asset_id), ui, &mut folder_menu, &mut show_item);
+                        map_tree.show_inside(&format!("map_sel_{}", asset_id), ui, true, &mut folder_menu, &mut show_item);
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }
