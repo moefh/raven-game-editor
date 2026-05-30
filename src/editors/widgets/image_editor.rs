@@ -139,11 +139,12 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub pick_left_color: Option<u8>,
     pub pick_right_color: Option<u8>,
     pub collision_rect: Option<data_asset::Rect>,
+    pub selection_enabled: bool,
     tool: ImageDrawingTool,
     selected_image: u32,
     undo_target: Option<ImageFragment>,
     image_changed: bool,
-    tool_changed: bool,
+    drop_selection_next_show: bool,
     drag_mouse_origin: Pos2,
     drag_frag_origin: Pos2,
     _marker: std::marker::PhantomData<ImageAsset>,
@@ -163,8 +164,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
             undo_target: None,
+            selection_enabled: true,
             image_changed: false,
-            tool_changed: false,
+            drop_selection_next_show: false,
         }
     }
 
@@ -175,6 +177,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     pub fn with_image_display(mut self, display: ImageDisplay) -> Self {
         self.display = display;
+        self
+    }
+
+    pub fn with_selection_enabled(mut self, selection_enabled: bool) -> Self {
+        self.selection_enabled = selection_enabled;
         self
     }
 
@@ -303,8 +310,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn set_tool(&mut self, tool: ImageDrawingTool) {
+        self.set_tool_without_dropping_selection(tool);
+        self.drop_selection_next_show = true;
+    }
+
+    pub fn set_tool_without_dropping_selection(&mut self, tool: ImageDrawingTool) {
         self.tool = tool;
-        self.tool_changed = true;
     }
 
     pub fn get_selected_image(&self) -> u32 {
@@ -515,28 +526,29 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             return ImageEditorAction::Undo;
         }
 
-        let ctrl_a = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::A);
-        if ui.input_mut(|i| i.consume_shortcut(&ctrl_a)) {
-            if self.tool != ImageDrawingTool::Select {
-                // don't call set_tool() because it will cause show() to drop the selection next time it runs
-                self.tool = ImageDrawingTool::Select;
-            }
-            let width = asset.width() as f32;
-            let height = asset.height() as f32;
-            match self.selection {
-                ImageSelection::None => {
-                    self.selection = ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height));
+        if self.selection_enabled {
+            let ctrl_a = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::A);
+            if ui.input_mut(|i| i.consume_shortcut(&ctrl_a)) {
+                if self.tool != ImageDrawingTool::Select {
+                    self.set_tool_without_dropping_selection(ImageDrawingTool::Select);
                 }
-                ImageSelection::Rect(origin, end) => {
-                    self.selection = if origin.x == 0.0 && origin.y == 0.0 && end.x == width && end.y == height {
-                        ImageSelection::None
-                    } else {
-                        ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height))
-                    };
+                let width = asset.width() as f32;
+                let height = asset.height() as f32;
+                match self.selection {
+                    ImageSelection::None => {
+                        self.selection = ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height));
+                    }
+                    ImageSelection::Rect(origin, end) => {
+                        self.selection = if origin.x == 0.0 && origin.y == 0.0 && end.x == width && end.y == height {
+                            ImageSelection::None
+                        } else {
+                            ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height))
+                        };
+                    }
+                    _ => {}
                 }
-                _ => {}
+                return ImageEditorAction::Select;
             }
-            return ImageEditorAction::Select;
         }
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
@@ -546,22 +558,22 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
 
         match wc.keyboard_pressed.take() {
-            Some(KeyboardPressed::CtrlV) => {
+            Some(KeyboardPressed::CtrlV) if self.selection_enabled => {
                 self.paste(wc, asset);
-                ImageEditorAction::Paste
+                return ImageEditorAction::Paste;
             }
-            Some(KeyboardPressed::CtrlC) => {
+            Some(KeyboardPressed::CtrlC) if self.selection_enabled => {
                 self.copy(wc, asset);
-                ImageEditorAction::Copy
+                return ImageEditorAction::Copy;
             }
-            Some(KeyboardPressed::CtrlX) => {
+            Some(KeyboardPressed::CtrlX) if self.selection_enabled => {
                 self.cut(wc, asset, fill_color);
-                ImageEditorAction::Cut
+                return ImageEditorAction::Cut;
             }
-            None => {
-                ImageEditorAction::None
-            }
+            _ => {}
         }
+
+        ImageEditorAction::None
     }
 
     fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {
@@ -674,8 +686,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             }
         }
 
-        if self.tool_changed {
-            self.tool_changed = false;
+        if self.drop_selection_next_show {
+            self.drop_selection_next_show = false;
             self.drop_selection(asset);
         }
 

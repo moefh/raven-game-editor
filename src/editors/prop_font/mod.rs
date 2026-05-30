@@ -70,7 +70,7 @@ impl PropFontEditor {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
         let title = self.base.window_title("Prop Font", prop_font);
-        self.base.show_window(wc, &title, [350.0, 250.0], [400.0, 350.0], |ui, wc| {
+        self.base.show_window(wc, &title, [450.0, 250.0], [450.0, 350.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });
     }
@@ -202,6 +202,7 @@ impl Editor {
                             }
                         }
                     });
+
                 ui.add_space(5.0);
                 ui.separator();
                 ui.add_space(5.0);
@@ -211,7 +212,6 @@ impl Editor {
                     *v > 1 {
                         *v -= 1;
                     }
-
                 ui.label(format!("{}", self.prop_font_editor.get_selected_char_width(prop_font)));
                 if ui.button("\u{2795}").clicked() &&
                     let Some(v) = prop_font.char_widths.get_mut(self.prop_font_editor.selected_char as usize) &&
@@ -219,7 +219,21 @@ impl Editor {
                         *v += 1;
                     }
 
+                ui.add_space(5.0);
                 ui.separator();
+                ui.add_space(5.0);
+
+                ui.label("Zoom:");
+                egui::ComboBox::from_id_salt(format!("editor_{}_zoom_combo", prop_font.asset.id))
+                    .selected_text(format!("{}x", self.font_view.zoom))
+                    .width(50.0)
+                    .show_ui(ui, |ui| {
+                        for z in 2..=10 {
+                            ui.selectable_value(&mut self.font_view.zoom, z as f32, format!("{}x", z));
+                        }
+                    });
+
+                ui.add_space(5.0);
 
                 ui.label("Sample:");
                 ui.text_edit_singleline(&mut self.font_view.text);

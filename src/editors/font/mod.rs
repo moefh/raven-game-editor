@@ -105,7 +105,7 @@ impl Editor {
         Editor {
             asset_id,
             force_reload_image: false,
-            image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR),
+            image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR).with_selection_enabled(false),
             font_view: FontViewWidget::new(),
         }
     }
@@ -200,6 +200,18 @@ impl Editor {
                     });
 
                 ui.separator();
+
+                ui.label("Zoom:");
+                egui::ComboBox::from_id_salt(format!("editor_{}_zoom_combo", font.asset.id))
+                    .selected_text(format!("{}x", self.font_view.zoom))
+                    .width(50.0)
+                    .show_ui(ui, |ui| {
+                        for z in 2..=10 {
+                            ui.selectable_value(&mut self.font_view.zoom, z as f32, format!("{}x", z));
+                        }
+                    });
+
+                ui.add_space(4.0);
 
                 ui.label("Sample:");
                 ui.text_edit_singleline(&mut self.font_view.text);
