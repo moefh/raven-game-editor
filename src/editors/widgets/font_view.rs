@@ -3,6 +3,7 @@ use egui::{Vec2, Pos2, Rect};
 use crate::app::WindowContext;
 
 pub trait FontPainter {
+    fn font_height(&self) -> f32;
     fn measure(&self, height: f32, text: &str) -> f32;
     fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: Pos2, height: f32) -> f32;
 }
@@ -13,6 +14,7 @@ pub struct FontViewWidget {
 
 impl FontViewWidget {
     const BORDER: f32 = 2.0;
+    const MIN_HEIGHT: f32 = 30.0;
     const SCROLLBAR_HEIGHT: f32 = 10.0;
 
     pub fn new() -> Self {
@@ -23,7 +25,9 @@ impl FontViewWidget {
 
     pub fn show(&self, ui: &mut egui::Ui, wc: &mut WindowContext, font_painter: &impl FontPainter) {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: true, mouse_wheel: true };
-        let height = 30.0;
+        let font_height = font_painter.font_height();
+        let zoom = ((Self::MIN_HEIGHT - 2.0 * Self::BORDER) / font_height).ceil();
+        let height = zoom * font_height;
         let width = font_painter.measure(height - 2.0 * Self::BORDER, &self.text);
         egui::ScrollArea::horizontal()
             .auto_shrink([false, true])

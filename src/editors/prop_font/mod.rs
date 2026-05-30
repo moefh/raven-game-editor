@@ -14,6 +14,10 @@ use super::widgets::{PropFontEditorWidget, FontViewWidget, FontPainter};
 use egui::{Pos2, Rect};
 
 impl FontPainter for PropFont {
+    fn font_height(&self) -> f32 {
+        self.height as f32
+    }
+
     fn measure(&self, height: f32, text: &str) -> f32 {
         let zoom = height / self.height as f32;
         text.chars().fold(0.0, |size, ch| {

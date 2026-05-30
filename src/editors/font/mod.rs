@@ -12,6 +12,10 @@ use super::AssetEditorBase;
 use super::widgets::{ImageEditorWidget, FontViewWidget, FontPainter};
 
 impl FontPainter for Font {
+    fn font_height(&self) -> f32 {
+        self.height as f32
+    }
+
     fn measure(&self, height: f32, text: &str) -> f32 {
         let zoom = height / self.height as f32;
         text.chars().fold(0.0, |size, _ch| {

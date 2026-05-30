@@ -282,7 +282,7 @@ impl Editor {
                     ui.separator();
 
                     ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
+                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
                         if ui.button("Edit palette...").clicked() {
                             dialogs.edit_pal_dialog.set_open(wc, pal_sprite);
                         }
