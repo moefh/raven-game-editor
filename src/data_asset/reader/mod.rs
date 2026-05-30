@@ -389,6 +389,12 @@ impl<'a> ProjectDataReader<'a> {
             name_id.starts_with(&format!("{}SPRITE_FRAMES_", self.prefix_upper)) {
                 return;
             }
+        if name_id.starts_with(&format!("{}PAL_SPRITE_WIDTH_", self.prefix_upper)) ||
+            name_id.starts_with(&format!("{}PAL_SPRITE_HEIGHT_", self.prefix_upper)) ||
+            name_id.starts_with(&format!("{}PAL_SPRITE_FRAMES_", self.prefix_upper)) ||
+            name_id.starts_with(&format!("{}PAL_SPRITE_DEPTH_", self.prefix_upper)) {
+                return;
+            }
         self.logger.log(format!("-> ignoring define '{}' = '{}'", name_id, value));
     }
 
