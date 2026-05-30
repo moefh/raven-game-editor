@@ -25,6 +25,8 @@ pub enum AssetProblem {
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
     MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
+    PalSpriteTooBig { num_frames: u32 },
+    PalSpriteColorOutOfPalette { frame_num: u32, num_pixels: u64 },
     RoomWithNoMaps,
     RoomInvalidMapId { map_id: DataAssetId },
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
@@ -95,6 +97,15 @@ impl AssetProblem {
 
             AssetProblem::SpriteTooBig { num_frames } => {
                 ui.label(format!("  -> sprite has too many frames: {} (max is 255)", num_frames));
+            }
+
+            AssetProblem::PalSpriteTooBig { num_frames } => {
+                ui.label(format!("  -> palette sprite has too many frames: {} (max is 255)", num_frames));
+            }
+
+            AssetProblem::PalSpriteColorOutOfPalette { frame_num, num_pixels } => {
+                ui.label(format!("  -> palette sprite has colors not in palette (first bad frame: {}, total {} pixels)",
+                                 frame_num, num_pixels));
             }
 
             AssetProblem::RoomWithNoMaps => {

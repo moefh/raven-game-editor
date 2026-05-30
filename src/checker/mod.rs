@@ -2,6 +2,7 @@ mod asset_problem;
 mod tileset;
 mod map_data;
 mod sprite;
+mod pal_sprite;
 mod mod_data;
 mod room;
 
@@ -33,6 +34,7 @@ impl CheckResult {
         tileset::check_tilesets(&mut asset_problems, store);
         map_data::check_maps(&mut asset_problems, store);
         sprite::check_sprites(&mut asset_problems, store);
+        pal_sprite::check_pal_sprites(&mut asset_problems, store);
         mod_data::check_mods(&mut asset_problems, store);
         room::check_rooms(&mut asset_problems, store);
 
