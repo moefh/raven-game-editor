@@ -112,6 +112,7 @@ image_table! {
     map_data: "../../assets/MapIcon.png",
     room: "../../assets/RoomIcon.png",
     sprite: "../../assets/SpriteIcon.png",
+    pal_sprite: "../../assets/PalSpriteIcon.png",
     animation: "../../assets/AnimationIcon.png",
     sfx: "../../assets/SfxIcon.png",
     mod_data: "../../assets/MODicon.png",

@@ -49,7 +49,7 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         add_menu_item: "Add Paletted Sprite",
         remove_menu_item: "Delete Paletted Sprite",
         tree_root_item: "Paletted Sprites",
-        image: IMAGE_REFS.sprite,
+        image: IMAGE_REFS.pal_sprite,
     },
     AssetDef {
         asset_type: DataAssetType::SpriteAnimation,
