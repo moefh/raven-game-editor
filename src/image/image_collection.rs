@@ -1,3 +1,5 @@
+use core::range::Range;
+
 use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
@@ -83,6 +85,53 @@ pub trait ImageCollection {
             data[index] = color;
             true
         }
+    }
+
+    fn shift_pixels(&mut self, item: u32, dx: i32, dy: i32, wrap: bool, fill_color: u8) {
+        let width = self.width() as usize;
+        let height = self.height() as usize;
+        let item = item as usize;
+        let abs_dx = dx.unsigned_abs() as usize % width;
+        let abs_dy = dy.unsigned_abs() as usize % height;
+
+        let data = &mut self.data_mut()[item * width * height .. (item+1) * width * height];
+
+        // x
+        let ((src1, dst1), (src2, dst2)) = {
+            let (a1, b1) = (Range::from(0..width-abs_dx), Range::from(abs_dx..width));
+            let (a2, b2) = (Range::from(width-abs_dx..width), Range::from(0..abs_dx));
+            if dx > 0 {
+                ((a1, b1), (a2, b2))
+            } else {
+                ((b1, a1), (b2, a2))
+            }
+        };
+        let mut buf = vec![fill_color; src2.end-src2.start];
+        for y in 0..height {
+            let data = &mut data[y*width..(y+1)*width];
+            if wrap {
+                buf.copy_from_slice(&data[src2]);
+            }
+            data.copy_within(src1, dst1.start);
+            data[dst2].copy_from_slice(&buf);
+        }
+
+        // y
+        let ((src1, dst1), (src2, dst2)) = {
+            let (a1, b1) = (0 .. (height-abs_dy)*width, abs_dy*width .. height*width);
+            let (a2, b2) = ((height-abs_dy)*width .. height*width, 0 .. abs_dy*width);
+            if dy > 0 {
+                ((a1, b1), (a2, b2))
+            } else {
+                ((b1, a1), (b2, a2))
+            }
+        };
+        let mut buf = vec![fill_color; width*abs_dy];
+        if wrap {
+            buf.copy_from_slice(&data[src2]);
+        }
+        data.copy_within(src1, dst1.start);
+        data[dst2].copy_from_slice(&buf);
     }
 
     fn resize(&mut self, new_width: u32, new_height: u32, new_num_items: u32, new_pixel: u8) {

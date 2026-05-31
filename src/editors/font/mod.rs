@@ -62,7 +62,7 @@ impl FontEditor {
         self.dialogs.show(wc, &mut self.editor, font);
 
         let title = self.base.window_title("Font", font);
-        self.base.show_window(wc, &title, [300.0, 250.0], [400.0, 350.0], |ui, wc| {
+        self.base.show_window(wc, &title, [300.0, 350.0], [400.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });
     }
@@ -124,13 +124,12 @@ impl Editor {
         format!("editor_{}_export_font", font.asset.id)
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) &&
-            let Err(e) = font.save_font_png(&filename, 16) {
-                wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
-            }
+    fn shift_image(&mut self, font: &mut Font, dx: i32, dy: i32) {
+        font.shift_pixels(self.image_editor.get_selected_image(), dx, dy, true, Font::BG_COLOR);
+        self.image_editor.set_image_changed();
+    }
 
-        // header:
+    fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Font", |ui| {
@@ -177,8 +176,10 @@ impl Editor {
                 });
             });
         });
+    }
 
-        egui::Panel::top(format!("editor_panel_{}_font_test", self.asset_id)).show_inside(ui, |ui| {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, font: &mut Font) {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Edit:");
@@ -199,9 +200,32 @@ impl Editor {
                         }
                     });
 
+                ui.add_space(4.0);
                 ui.separator();
+                ui.add_space(4.0);
 
-                ui.label("Zoom:");
+                if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
+                    self.shift_image(font, 0, -1);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_down)).on_hover_text("Shift Down").clicked() {
+                    self.shift_image(font, 0, 1);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_left)).on_hover_text("Shift Left").clicked() {
+                    self.shift_image(font, -1, 0);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
+                    self.shift_image(font, 1, 0);
+                }
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_samplebar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, font: &mut Font) {
+        egui::Panel::top(format!("editor_panel_{}_samplebar", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.label("Sample:");
                 egui::ComboBox::from_id_salt(format!("editor_{}_zoom_combo", font.asset.id))
                     .selected_text(format!("{}x", self.font_view.zoom))
                     .width(50.0)
@@ -210,17 +234,22 @@ impl Editor {
                             ui.selectable_value(&mut self.font_view.zoom, z as f32, format!("{}x", z));
                         }
                     });
-
-                ui.add_space(4.0);
-
-                ui.label("Sample:");
                 ui.text_edit_singleline(&mut self.font_view.text);
             });
-
-            ui.add_space(8.0);
+            ui.add_space(4.0);
             self.font_view.show(ui, wc, font);
-            ui.add_space(2.0);
         });
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) &&
+            let Err(e) = font.save_font_png(&filename, 16) {
+                wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
+            }
+
+        self.show_menubar(ui, wc, dialogs, font);
+        self.show_toolbar(ui, wc, font);
+        self.show_samplebar(ui, wc, font);
 
         // footer:
         egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {

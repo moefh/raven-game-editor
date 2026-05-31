@@ -70,7 +70,7 @@ impl PropFontEditor {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
         let title = self.base.window_title("Prop Font", prop_font);
-        self.base.show_window(wc, &title, [450.0, 250.0], [450.0, 350.0], |ui, wc| {
+        self.base.show_window(wc, &title, [450.0, 300.0], [450.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });
     }
@@ -129,13 +129,7 @@ impl Editor {
         format!("editor_{}_export_pfont", pfont.asset.id)
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
-            let Err(e) = ImagePixels::save_prop_font_png(&filename, prop_font) {
-                wc.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
-            }
-
-        // header:
+    fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Prop Font", |ui| {
@@ -182,8 +176,10 @@ impl Editor {
                 });
             });
         });
+    }
 
-        egui::Panel::top(format!("editor_panel_{}_pfont_test", self.asset_id)).show_inside(ui, |ui| {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, prop_font: &mut PropFont) {
+        egui::Panel::top(format!("editor_panel_{}_pfont_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Edit:");
@@ -223,7 +219,16 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                ui.label("Zoom:");
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_samplebar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) {
+        egui::Panel::top(format!("editor_panel_{}_pfont_sample", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.label("Sample:");
                 egui::ComboBox::from_id_salt(format!("editor_{}_zoom_combo", prop_font.asset.id))
                     .selected_text(format!("{}x", self.font_view.zoom))
                     .width(50.0)
@@ -232,17 +237,22 @@ impl Editor {
                             ui.selectable_value(&mut self.font_view.zoom, z as f32, format!("{}x", z));
                         }
                     });
-
-                ui.add_space(5.0);
-
-                ui.label("Sample:");
                 ui.text_edit_singleline(&mut self.font_view.text);
             });
-
-            ui.add_space(8.0);
+            ui.add_space(4.0);
             self.font_view.show(ui, wc, prop_font);
-            ui.add_space(2.0);
         });
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
+            let Err(e) = ImagePixels::save_prop_font_png(&filename, prop_font) {
+                wc.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
+            }
+
+        self.show_menubar(ui, wc, dialogs, prop_font);
+        self.show_toolbar(ui, wc, prop_font);
+        self.show_samplebar(ui, wc, prop_font);
 
         // footer:
         egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
