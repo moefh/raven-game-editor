@@ -1048,6 +1048,41 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === SCRIPTS
+    // =========================================================================
+
+    fn write_scripts(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === ROOM SCRIPTS\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        self.write(format!("#if {}_ADD_ROOM_SCRIPTS\n", self.ident.prefix_upper));
+        self.write("\n");
+
+        for id in self.store.asset_ids.rooms.iter() {
+            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+            self.write(format!("extern const struct {}_ROOM_SCRIPT {}_room_script_{};\n",
+                               self.ident.prefix_upper, self.ident.prefix_lower, name_id));
+        }
+
+        self.write("\n");
+        self.write(format!("const struct {}_ROOM_SCRIPT *{}_room_script_table[] = {{\n",
+                           self.ident.prefix_upper, self.ident.prefix_lower));
+        for id in self.store.asset_ids.rooms.iter() {
+            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+            self.write(format!("  &{}_room_script_{},\n", self.ident.prefix_lower, name_id));
+        }
+        self.write("};\n");
+
+        self.write("\n");
+        self.write(format!("#endif /* {}_ADD_ROOM_SCRIPTS */\n", self.ident.prefix_upper));
+        self.write("\n");
+
+        Ok(())
+    }
+
+    // =========================================================================
     // === ASSET IDS
     // =========================================================================
 
@@ -1156,6 +1191,8 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_maps()?;
         self.write_sprite_animations()?;
         self.write_rooms()?;
+
+        self.write_scripts()?;
 
         self.write_data_end()?;
 

@@ -16,6 +16,7 @@ use super::{
 
 const C_KEYWORDS : &[&str] = &[
     "static",
+    "extern",
     "const",
     "struct",
     "enum",
@@ -406,6 +407,9 @@ impl<'a> ProjectDataReader<'a> {
         if line == format!("#if {}DATA_BYTES", self.prefix_upper) { return; }
         if line == format!("#endif /* {}DATA_BYTES */", self.prefix_upper) { return; }
 
+        if line == format!("#if {}ADD_ROOM_SCRIPTS", self.prefix_upper) { return; }
+        if line == format!("#endif /* {}ADD_ROOM_SCRIPTS */", self.prefix_upper) { return; }
+
         self.logger.log(format!("-> ignoring pre-processor if line: {}", line));
     }
 
@@ -476,6 +480,14 @@ impl<'a> ProjectDataReader<'a> {
         let ident_no_type = &ident_no_prefix[type_name_id.len()..];
         if ! ident_no_type.starts_with("_") { return None; }
         Some(&ident_no_type[1..])
+    }
+
+    // compare to "<PREFIX>_<NAME>"
+    fn is_global_upper(&self, ident: &str, name_id: &str) -> bool {
+        if let Some(ident_name_id) = self.get_global_upper(ident) {
+            return ident_name_id == name_id;
+        }
+        false
     }
 
     // starts with "<PREFIX>_<TYPE_NAME>_"
@@ -768,7 +780,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got font data '{}'", name_id));
+        //self.logger.log(format!("-> got font data '{}'", name_id));
         self.read_data.font_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -780,6 +792,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading FONT assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -835,7 +848,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got font data '{}'", name_id));
+        //self.logger.log(format!("-> got font data '{}'", name_id));
         self.read_data.prop_font_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -847,7 +860,8 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        loop {
+        self.logger.log("-> reading PROP_FONT assets");
+         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
@@ -912,7 +926,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got mod sample data '{}'", name_id));
+        //self.logger.log(format!("-> got mod sample data '{}'", name_id));
         self.read_data.mod_sample_data.insert(name_id.to_string(), data);
         Ok(())
     }
@@ -951,7 +965,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got mod pattern '{}'", name_id));
+        //self.logger.log(format!("-> got mod pattern '{}'", name_id));
         self.read_data.mod_patterns.insert(name_id.to_string(), pattern);
         Ok(())
     }
@@ -1082,6 +1096,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading MOD assets");
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -1110,7 +1125,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got sfx sample data '{}'", name_id));
+        //self.logger.log(format!("-> got sfx sample data '{}'", name_id));
         self.read_data.sfx_sample_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -1122,6 +1137,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading SFX assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1194,7 +1210,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got tileset data '{}'", name_id));
+        //self.logger.log(format!("-> got tileset data '{}'", name_id));
         self.read_data.tileset_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -1206,6 +1222,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading TILESET assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1280,7 +1297,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got sprite data '{}'", name_id));
+        //self.logger.log(format!("-> got sprite data '{}'", name_id));
         self.read_data.sprite_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -1292,6 +1309,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading SPRITE assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1365,7 +1383,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got pal_sprite data '{}'", name_id));
+        //self.logger.log(format!("-> got pal_sprite data '{}'", name_id));
         self.read_data.pal_sprite_data.insert(name_id.to_string(), data);
 
         Ok(())
@@ -1377,6 +1395,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading PAL_SPRITE assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1449,7 +1468,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got map tiles '{}'", name_id));
+        //self.logger.log(format!("-> got map tiles '{}'", name_id));
         self.read_data.map_tiles.insert(name_id.to_string(), data);
         Ok(())
     }
@@ -1460,6 +1479,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading MAP assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1530,7 +1550,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got sprite animations frames '{}'", name_id));
+        //self.logger.log(format!("-> got sprite animations frames '{}'", name_id));
         self.read_data.animation_frames.insert(name_id.to_string(), data);
         Ok(())
     }
@@ -1568,6 +1588,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading SPRITE_ANIMATION assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1660,7 +1681,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got room maps '{}'", name_id));
+        //self.logger.log(format!("-> got room maps '{}'", name_id));
         self.read_data.room_maps.insert(name_id.to_string(), maps);
         Ok(())
     }
@@ -1708,7 +1729,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got room entities '{}'", name_id));
+        //self.logger.log(format!("-> got room entities '{}'", name_id));
         self.read_data.room_entities.insert(name_id.to_string(), entities);
         Ok(())
     }
@@ -1759,7 +1780,7 @@ impl<'a> ProjectDataReader<'a> {
         }
         self.expect_punct(';')?;
 
-        self.logger.log(format!("-> got room triggers '{}'", name_id));
+        //self.logger.log(format!("-> got room triggers '{}'", name_id));
         self.read_data.room_triggers.insert(name_id.to_string(), triggers);
         Ok(())
     }
@@ -1770,6 +1791,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
+        self.logger.log("-> reading ROOM assets");
         loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
@@ -1848,6 +1870,67 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     // =======================================================================================
+    // === ROOM SCRIPTS
+    // =======================================================================================
+
+    fn read_room_script_declaration(&mut self, script_ident: Token) -> Result<()> {
+        if let Some(ident) = script_ident.get_ident() {
+            if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script") &&
+                ! self.read_data.rooms_by_name_id.contains_key(name_id) {
+                    return error(format!("unknown room '{}' in script declaration", name_id), script_ident.pos)?;
+                }
+            self.expect_punct(';')?;
+            Ok(())
+        } else {
+            error_expected("'*' or room script identifier", &script_ident)
+        }
+    }
+
+    fn read_room_script_table(&mut self) -> Result<()> {
+        self.expect_any_ident("room script table identifier")?;
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        self.logger.log("-> reading room script table");
+        loop {
+            let next = self.expect_any_punct("'&' or '}'")?;
+            if next.is_punct('}') { break; }
+            if ! next.is_punct('&') {
+                return error_expected("'&' or '}'", &next)?;
+            }
+            let script_ident = self.expect_any_ident("room script identifier")?;
+            if let Some(ident) = script_ident.get_ident() {
+                if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script") {
+                    if self.read_data.rooms_by_name_id.contains_key(name_id) {
+                        self.logger.log(format!("  -> got room script for '{}'", name_id));
+                    } else {
+                        return error(format!("unknown room '{}' in script table", name_id), script_ident.pos)?;
+                    }
+                } else {
+                    return error(format!("invalid room script identifier: '{}'", ident), script_ident.pos)?;
+                }
+            } else {
+                return error("error reading room script identifier", script_ident.pos)?;
+            }
+            self.expect_punct(',')?;
+        }
+        self.expect_punct(';')?;
+
+        Ok(())
+    }
+
+    fn read_room_script_declaration_or_table(&mut self) -> Result<()> {
+        let t = self.expect_token()?;
+        if t.is_punct('*') {
+            self.read_room_script_table()
+        } else {
+            self.read_room_script_declaration(t)
+        }
+    }
+
+    // =======================================================================================
     // === NAMES
     // =======================================================================================
 
@@ -1909,10 +1992,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: animation id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}':", animation.asset.name));
+        self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}'", animation.asset.name));
         for (index, name_id) in names.iter().enumerate() {
             if let Some(anim_loop) = animation.loops.get_mut(index) {
-                self.logger.log(format!("  -> {}", name_id));
+                //self.logger.log(format!("  -> {}", name_id));
                 anim_loop.name_id.push_str(name_id);
             } else {
                 return error(format!("animation '{}' doesn't have loop {}", animation.asset.name, index), pos);
@@ -1942,10 +2025,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading ROOM ENTITY names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading ROOM ENTITY names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(ent) = room.entities.get_mut(index) {
-                self.logger.log(format!("  -> {}", name_id));
+                //self.logger.log(format!("  -> {}", name_id));
                 ent.name_id.push_str(name_id);
             } else {
                 return error(format!("room '{}' doesn't have entity {}", room.asset.name, index), pos);
@@ -1962,10 +2045,10 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading ROOM TRIGGER names for '{}':", room.asset.name));
+        self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(trg) = room.triggers.get_mut(index) {
-                self.logger.log(format!("  -> {}", name_id));
+                //self.logger.log(format!("  -> {}", name_id));
                 trg.name_id.push_str(name_id);
             } else {
                 return error(format!("room '{}' doesn't have trigger {}", room.asset.name, index), pos);
@@ -2179,6 +2262,12 @@ impl<'a> ProjectDataReader<'a> {
                 if ident == "int16_t" { self.last_type_size = 16; continue; }
                 if ident == "uint32_t" { self.last_type_size = 32; continue; }
                 if ident == "int32_t" { self.last_type_size = 32; continue; }
+
+                // room script declaration/table
+                if self.is_global_upper(ident, "ROOM_SCRIPT") {
+                    self.read_room_script_declaration_or_table()?;
+                    continue;
+                }
 
                 // asset ids
                 if ident.ends_with("IDS") {
