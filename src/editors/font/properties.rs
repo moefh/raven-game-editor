@@ -6,8 +6,8 @@ pub struct PropertiesDialog {
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
-    pub width: f32,
-    pub height: f32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl PropertiesDialog {
@@ -16,8 +16,8 @@ impl PropertiesDialog {
             image_changed: false,
             open: false,
             name: String::new(),
-            width: 0.0,
-            height: 0.0,
+            width: 0,
+            height: 0,
         }
     }
 
@@ -28,8 +28,8 @@ impl PropertiesDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, font: &Font) {
         self.name.clear();
         self.name.push_str(&font.asset.name);
-        self.width = font.width as f32;
-        self.height = font.height as f32;
+        self.width = font.width;
+        self.height = font.height;
         self.open = true;
         wc.set_window_open(Self::id(), self.open);
     }
@@ -38,12 +38,10 @@ impl PropertiesDialog {
         font.asset.name.clear();
         font.asset.name.push_str(&self.name);
 
-        let width = self.width as u32;
-        let height = self.height as u32;
-        if width != font.width || height != font.height {
-            font.resize(width, height, Font::NUM_CHARS, Font::BG_COLOR);
-            font.width = width;
-            font.height = height;
+        if self.width != font.width || self.height != font.height {
+            font.resize(self.width, self.height, Font::NUM_CHARS, Font::BG_COLOR);
+            font.width = self.width;
+            font.height = self.height;
             self.image_changed = true;
         }
     }
@@ -66,11 +64,11 @@ impl PropertiesDialog {
                             ui.end_row();
 
                             ui.label("Width:");
-                            ui.add(egui::Slider::new(&mut self.width, 4.0..=48.0).step_by(1.0));
+                            ui.add(egui::Slider::new(&mut self.width, 4..=48).step_by(1.0));
                             ui.end_row();
 
                             ui.label("Height:");
-                            ui.add(egui::Slider::new(&mut self.height, 4.0..=48.0).step_by(1.0));
+                            ui.add(egui::Slider::new(&mut self.height, 4..=48).step_by(1.0));
                             ui.end_row();
                         });
                 });
