@@ -55,7 +55,7 @@ impl SfxEditorWidget {
         if self.first_sample < 0.0 { self.first_sample = 0.0; }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, samples: &[i16], loop_start: &mut f32, loop_end: &mut f32, height: f32) {
+    pub fn show(&mut self, ui: &mut egui::Ui, samples: &[i16], loop_start: &mut u32, loop_end: &mut u32, height: f32) {
         let ask_size = if height <= 0.0 {
             Vec2::new(100.0, 50.0).max(ui.available_size())
         } else {
@@ -114,12 +114,12 @@ impl SfxEditorWidget {
         }
 
         // draw loop start marker
-        let loop_start_pos = self.get_marker_pos(*loop_start);
+        let loop_start_pos = self.get_marker_pos((*loop_start) as f32);
         let loop_start_stroke = egui::Stroke::new(3.0, Color32::BLUE);
         painter.vline(samples_x_start + loop_start_pos, canvas_rect.y_range(), loop_start_stroke);
 
         // draw loop end marker
-        let loop_end_pos = self.get_marker_pos(*loop_end);
+        let loop_end_pos = self.get_marker_pos((*loop_end) as f32);
         let loop_end_stroke = egui::Stroke::new(3.0, Color32::RED);
         painter.vline(samples_x_start + loop_end_pos, canvas_rect.y_range(), loop_end_stroke);
 
@@ -175,9 +175,9 @@ impl SfxEditorWidget {
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
             let pos = ((pointer_pos.x - canvas_rect.min.x) * self.samples_per_point + self.first_sample).floor();
             if response.dragged_by(egui::PointerButton::Primary) {
-                *loop_start = pos.max(0.0).min(samples.len() as f32);
+                *loop_start = pos.clamp(0.0, samples.len() as f32) as u32;
             } else if response.dragged_by(egui::PointerButton::Secondary) {
-                *loop_end = pos.max(0.0).min(samples.len() as f32);
+                *loop_end = pos.clamp((*loop_start) as f32, samples.len() as f32) as u32;
             }
         }
     }

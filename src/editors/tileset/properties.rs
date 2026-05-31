@@ -6,7 +6,7 @@ pub struct PropertiesDialog {
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
-    pub num_tiles: f32,
+    pub num_tiles: u32,
     pub sel_color: u8,
 }
 
@@ -16,7 +16,7 @@ impl PropertiesDialog {
             image_changed: false,
             open: false,
             name: String::new(),
-            num_tiles: 0.0,
+            num_tiles: 0,
             sel_color: 0,
         }
     }
@@ -28,7 +28,7 @@ impl PropertiesDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset, sel_color: u8) {
         self.name.clear();
         self.name.push_str(&tileset.asset.name);
-        self.num_tiles = tileset.num_tiles as f32;
+        self.num_tiles = tileset.num_tiles;
         self.sel_color = sel_color;
         self.open = true;
         wc.set_window_open(Self::id(), self.open);
@@ -37,8 +37,8 @@ impl PropertiesDialog {
     fn confirm(&mut self, tileset: &mut Tileset) {
         tileset.asset.name.clear();
         tileset.asset.name.push_str(&self.name);
-        if self.num_tiles as u32 != tileset.num_tiles {
-            tileset.resize(tileset.width, tileset.height, self.num_tiles as u32, self.sel_color);
+        if self.num_tiles != tileset.num_tiles {
+            tileset.resize(tileset.width, tileset.height, self.num_tiles, self.sel_color);
             self.image_changed = true;
         }
     }
@@ -61,7 +61,7 @@ impl PropertiesDialog {
                             ui.end_row();
 
                             ui.label("Num tiles:");
-                            ui.add(egui::Slider::new(&mut self.num_tiles, 1.0..=255.0).step_by(1.0));
+                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=255).step_by(1.0));
                             ui.end_row();
                         });
                 });

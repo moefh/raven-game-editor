@@ -242,13 +242,9 @@ impl Editor {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
-                let mut loop_start = sample.loop_start as f32;
-                let mut loop_end = (sample.loop_start + sample.loop_len) as f32;
-
-                self.sfx_editor.show(ui, sample_data, &mut loop_start, &mut loop_end, 0.0);
-
-                sample.loop_start = loop_start.max(0.0) as u32;
-                sample.loop_len = (loop_end - loop_start).max(0.0) as u32;
+                let mut loop_end = sample.loop_start + sample.loop_len;
+                self.sfx_editor.show(ui, sample_data, &mut sample.loop_start, &mut loop_end, 0.0);
+                sample.loop_len = loop_end.saturating_sub(sample.loop_start)
             }
         });
     }

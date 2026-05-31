@@ -104,8 +104,8 @@ impl Editor {
             self.import_wav(wc, &filename, sfx);
         }
 
-        let mut loop_start = sfx.loop_start as f32;
-        let mut loop_end = (sfx.loop_start + sfx.loop_len) as f32;
+        let mut loop_start = sfx.loop_start;
+        let mut loop_end = sfx.loop_start + sfx.loop_len;
 
         // header:
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
@@ -171,11 +171,11 @@ impl Editor {
                     ui.end_row();
 
                     ui.label("Loop start:");
-                    ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0.0..=sfx.samples.len() as f32));
+                    ui.add(egui::DragValue::new(&mut loop_start).speed(1.0).range(0..=sfx.samples.len() as u32));
                     ui.end_row();
 
                     ui.label("Loop end:");
-                    ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as f32));
+                    ui.add(egui::DragValue::new(&mut loop_end).speed(1.0).range(loop_start..=sfx.samples.len() as u32));
                     ui.end_row();
                 });
             });
@@ -203,7 +203,7 @@ impl Editor {
             self.sfx_editor.show(ui, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
         });
 
-        sfx.loop_start = loop_start.max(0.0) as u32;
-        sfx.loop_len = (loop_end - loop_start).max(0.0) as u32;
+        sfx.loop_start = loop_start;
+        sfx.loop_len = loop_end.saturating_sub(loop_start);
     }
 }

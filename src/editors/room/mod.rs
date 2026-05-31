@@ -151,22 +151,6 @@ impl Editor {
         }
     }
 
-    fn edit_prop_i16(ui: &mut egui::Ui, value: &mut i16, min: i16, max: i16) {
-        let min = min as f32;
-        let max = max as f32;
-        let mut value_f = *value as f32;
-        ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
-        *value = value_f.clamp(min, max) as i16;
-    }
-
-    fn edit_prop_u16(ui: &mut egui::Ui, value: &mut u16, min: u16, max: u16) {
-        let min = min as f32;
-        let max = max as f32;
-        let mut value_f = *value as f32;
-        ui.add(egui::DragValue::new(&mut value_f).speed(1.0).range(min..=max));
-        *value = value_f.clamp(min, max) as u16;
-    }
-
     fn get_new_item_name_id(items: &[impl RoomItem], base: &str) -> String {
         use std::fmt::Write;
 
@@ -408,13 +392,8 @@ impl Editor {
                     ui.label(map_name);
                     ui.end_row();
 
-                    ui.label("X:");
-                    Self::edit_prop_u16(ui, &mut room_map.x, 0, 2048);
-                    ui.end_row();
-
-                    ui.label("Y:");
-                    Self::edit_prop_u16(ui, &mut room_map.y, 0, 2048);
-                    ui.end_row();
+                    ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
+                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
                 });
         });
         None
@@ -453,29 +432,13 @@ impl Editor {
                         });
                     ui.end_row();
 
-                    ui.label("X:");
-                    Self::edit_prop_i16(ui, &mut entity.x, -256, i16::MAX);
-                    ui.end_row();
+                    ui.label("X:"); ui.add(egui::DragValue::new(&mut entity.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
+                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut entity.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
 
-                    ui.label("Y:");
-                    Self::edit_prop_i16(ui, &mut entity.y, -256, i16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data0:");
-                    Self::edit_prop_u16(ui, &mut entity.data0, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data1:");
-                    Self::edit_prop_u16(ui, &mut entity.data1, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data2:");
-                    Self::edit_prop_u16(ui, &mut entity.data2, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data3:");
-                    Self::edit_prop_u16(ui, &mut entity.data3, 0, u16::MAX);
-                    ui.end_row();
+                    ui.label("Data0:"); ui.add(egui::DragValue::new(&mut entity.data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data1:"); ui.add(egui::DragValue::new(&mut entity.data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data2:"); ui.add(egui::DragValue::new(&mut entity.data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data3:"); ui.add(egui::DragValue::new(&mut entity.data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 });
         });
         None
@@ -496,37 +459,16 @@ impl Editor {
                     ui.text_edit_singleline(&mut trigger.name_id);
                     ui.end_row();
 
-                    ui.label("X:");
-                    Self::edit_prop_i16(ui, &mut trigger.x, -256, i16::MAX);
-                    ui.end_row();
+                    ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
+                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
 
-                    ui.label("Y:");
-                    Self::edit_prop_i16(ui, &mut trigger.y, -256, i16::MAX);
-                    ui.end_row();
+                    ui.label("Width:");  ui.add(egui::DragValue::new(&mut trigger.width ).speed(1.0).range(0..=i16::MAX)); ui.end_row();
+                    ui.label("Height:"); ui.add(egui::DragValue::new(&mut trigger.height).speed(1.0).range(0..=i16::MAX)); ui.end_row();
 
-                    ui.label("Width:");
-                    Self::edit_prop_i16(ui, &mut trigger.width, 0, i16::MAX);
-                    ui.end_row();
-
-                    ui.label("Height:");
-                    Self::edit_prop_i16(ui, &mut trigger.height, 0, i16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data0:");
-                    Self::edit_prop_u16(ui, &mut trigger.data0, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data1:");
-                    Self::edit_prop_u16(ui, &mut trigger.data1, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data2:");
-                    Self::edit_prop_u16(ui, &mut trigger.data2, 0, u16::MAX);
-                    ui.end_row();
-
-                    ui.label("Data3:");
-                    Self::edit_prop_u16(ui, &mut trigger.data3, 0, u16::MAX);
-                    ui.end_row();
+                    ui.label("Data0:"); ui.add(egui::DragValue::new(&mut trigger.data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data1:"); ui.add(egui::DragValue::new(&mut trigger.data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data2:"); ui.add(egui::DragValue::new(&mut trigger.data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                    ui.label("Data3:"); ui.add(egui::DragValue::new(&mut trigger.data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 });
         });
         None
