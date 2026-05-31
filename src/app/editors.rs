@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{DataAssetId, DataAssetStore};
+use crate::data_asset::{DataAssetId, DataAssetType, DataAssetStore};
 use crate::editors::{
     AssetEditorBase,
     TilesetEditor,
@@ -114,6 +114,21 @@ impl AssetEditors {
         if let Some(editor) = self.fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.prop_fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         false
+    }
+
+    pub fn add_asset(&mut self, id: DataAssetId, asset_type: DataAssetType) -> egui::Id {
+        match asset_type {
+            DataAssetType::Tileset => self.add_tileset(id),
+            DataAssetType::MapData => self.add_map(id),
+            DataAssetType::Room => self.add_room(id),
+            DataAssetType::Sprite => self.add_sprite(id),
+            DataAssetType::PalSprite => self.add_pal_sprite(id),
+            DataAssetType::SpriteAnimation => self.add_animation(id),
+            DataAssetType::Sfx => self.add_sfx(id),
+            DataAssetType::ModData => self.add_mod(id),
+            DataAssetType::Font => self.add_font(id),
+            DataAssetType::PropFont => self.add_prop_font(id),
+        }
     }
 
     pub fn add_tileset(&mut self, id: DataAssetId) -> egui::Id {

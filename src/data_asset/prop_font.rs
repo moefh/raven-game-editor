@@ -67,6 +67,18 @@ impl PropFont {
     }
 }
 
+impl super::DuplicableAsset<PropFont> for PropFont {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        PropFont {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            max_width: self.max_width,
+            height: self.height,
+            data: self.data.clone(),
+            char_widths: self.char_widths.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for PropFont {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

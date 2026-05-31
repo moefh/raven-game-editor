@@ -42,6 +42,18 @@ impl Sprite {
     }
 }
 
+impl super::DuplicableAsset<Sprite> for Sprite {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        Sprite {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            width: self.width,
+            height: self.height,
+            num_frames: self.num_frames,
+            data: self.data.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for Sprite {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

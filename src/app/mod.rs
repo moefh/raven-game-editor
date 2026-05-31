@@ -38,6 +38,7 @@ enum ConfirmationDialogAction {
 
 pub struct AssetTreeActions {
     pub remove_asset: Option<DataAssetId>,
+    pub duplicate_asset: Option<DataAssetId>,
     pub toggle_asset_open: Option<DataAssetId>,
     pub add_asset_at: Option<AssetTreeNodeId>,
 }
@@ -46,6 +47,7 @@ impl AssetTreeActions {
     pub fn new() -> Self {
         AssetTreeActions {
             remove_asset: None,
+            duplicate_asset: None,
             toggle_asset_open: None,
             add_asset_at: None,
         }
@@ -297,6 +299,20 @@ impl RavenEditorApp {
             self.store.remove_asset(id);
             self.editors.remove_editor(id);
             self.window_tracker.remove_editor(id);
+        }
+    }
+
+    fn duplicate_asset(&mut self, id: DataAssetId, asset_type: DataAssetType) {
+        let dup_name = if let Some(asset) = self.store.assets.get_asset(id) {
+            format!("{}_copy", asset.name)
+        } else {
+            self.new_asset_name(asset_type, None)
+        };
+        if let Some(dup_id) = self.store.duplicate_asset(id, &dup_name) {
+            let egui_id = self.editors.add_asset(dup_id, asset_type);
+            self.window_tracker.add_editor(egui_id, dup_id);
+        } else {
+            self.open_message_box("Error", "Couldn't duplicate asset.");
         }
     }
 
@@ -618,6 +634,13 @@ impl RavenEditorApp {
                                     });
                                     ui.separator();
                                     ui.horizontal(|ui| {
+                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
+                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                        if ui.button(asset_def.duplicate_menu_item).clicked() {
+                                            item_actions.duplicate_asset = Some(asset_item.id);
+                                        }
+                                    });
+                                    ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.remove_menu_item).clicked() {
                                             item_actions.remove_asset = Some(asset_item.id);
@@ -638,6 +661,9 @@ impl RavenEditorApp {
                             }
                         if let Some(remove_asset_id) = actions.remove_asset {
                             self.remove_asset(remove_asset_id);
+                        }
+                        if let Some(asset_id) = actions.duplicate_asset {
+                            self.duplicate_asset(asset_id, asset_def.asset_type);
                         }
                     }
                 }

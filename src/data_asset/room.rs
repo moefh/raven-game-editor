@@ -67,6 +67,17 @@ impl Room {
     }
 }
 
+impl super::DuplicableAsset<Room> for Room {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        Room {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            maps: self.maps.clone(),
+            triggers: self.triggers.clone(),
+            entities: self.entities.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for Room {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

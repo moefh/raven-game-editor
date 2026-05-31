@@ -38,7 +38,18 @@ impl Tileset {
             data: data.pixels,
         }
     }
+}
 
+impl super::DuplicableAsset<Tileset> for Tileset {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        Tileset {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            width: self.width,
+            height: self.height,
+            num_tiles: self.num_tiles,
+            data: self.data.clone(),
+        }
+    }
 }
 
 impl super::GenericAsset for Tileset {

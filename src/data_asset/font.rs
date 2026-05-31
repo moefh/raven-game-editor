@@ -55,6 +55,17 @@ impl Font {
     }
 }
 
+impl super::DuplicableAsset<Font> for Font {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        Font {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            width: self.width,
+            height: self.height,
+            data: self.data.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for Font {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

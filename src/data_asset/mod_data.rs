@@ -8,7 +8,7 @@ pub const MOD_PERIOD_TABLE : &[u16] = &[
     53,50,47,45,42,40,37,35,33,31,30,28,
 ];
 
-#[derive(std::hash::Hash)]
+#[derive(Clone, std::hash::Hash)]
 pub struct ModSample {
     pub len: u32,
     pub loop_start: u32,
@@ -120,6 +120,18 @@ impl ModData {
         pattern[3] = ModCell { sample: 0, period: 0, effect: 0xF78 };
         pattern[16] = ModCell { sample: 0, period: 0, effect: 0xD00 };
         pattern
+    }
+}
+
+impl super::DuplicableAsset<ModData> for ModData {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        ModData {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            num_channels: self.num_channels,
+            samples: self.samples.clone(),
+            pattern: self.pattern.clone(),
+            song_positions: self.song_positions.clone(),
+        }
     }
 }
 

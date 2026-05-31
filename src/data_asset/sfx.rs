@@ -56,6 +56,19 @@ impl Sfx {
 
 }
 
+impl super::DuplicableAsset<Sfx> for Sfx {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        Sfx {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            len: self.len,
+            loop_start: self.loop_start,
+            loop_len: self.loop_len,
+            bits_per_sample: self.bits_per_sample,
+            samples: self.samples.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for Sfx {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

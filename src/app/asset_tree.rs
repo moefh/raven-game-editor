@@ -35,9 +35,9 @@ pub struct AssetTreeItem {
 }
 
 impl AssetTreeItem {
-    fn new(id: DataAssetId, name: String) -> Self {
+    fn new(asset: &DataAsset, name: String) -> Self {
         AssetTreeItem {
-            id,
+            id: asset.id,
             name,
             used: true,
         }
@@ -112,27 +112,27 @@ impl AssetTreeContainer {
         }
     }
 
-    fn insert_asset(&mut self, asset_id: DataAssetId, name: &str) {
-        match self.assets.iter_mut().find(|asset| asset.id == asset_id) {
-            Some(asset) => {
-                if asset.name != name {
-                    asset.name = name.to_owned();
+    fn insert_asset(&mut self, asset: &DataAsset, name: &str) {
+        match self.assets.iter_mut().find(|a| a.id == asset.id) {
+            Some(a) => {
+                if a.name != name {
+                    a.name = name.to_owned();
                 }
-                asset.mark_used();
+                a.mark_used();
             }
             None => {
-                self.assets.push(AssetTreeItem::new(asset_id, name.to_owned()));
+                self.assets.push(AssetTreeItem::new(asset, name.to_owned()));
             }
         }
         self.mark_used();
     }
 
-    fn insert(&mut self, asset_id: DataAssetId, name_parts: &[&str], id_generator: &mut AssetTreeNodeIdGenerator) {
+    fn insert(&mut self, asset: &DataAsset, name_parts: &[&str], id_generator: &mut AssetTreeNodeIdGenerator) {
         match name_parts {
             &[] => {}
 
             &[name] => {
-                self.insert_asset(asset_id, name);
+                self.insert_asset(asset, name);
             }
 
             name_parts => {
@@ -146,7 +146,7 @@ impl AssetTreeContainer {
                         self.containers.push_mut(child)
                     }
                 };
-                child.insert(asset_id, &name_parts[1..], id_generator);
+                child.insert(asset, &name_parts[1..], id_generator);
                 self.mark_used();
             }
         }
@@ -154,10 +154,10 @@ impl AssetTreeContainer {
 
     fn update_asset(&mut self, asset: &DataAsset, id_generator: &mut AssetTreeNodeIdGenerator) {
         if ! asset.name.contains(DataAsset::PATH_SEPARATOR) {  // avoid splitting the string if we can
-            self.insert_asset(asset.id, &asset.name);
+            self.insert_asset(asset, &asset.name);
         } else {
             let name_parts: Vec<&str> = asset.name.split(DataAsset::PATH_SEPARATOR).collect();
-            self.insert(asset.id, &name_parts, id_generator);
+            self.insert(asset, &name_parts, id_generator);
         }
     }
 

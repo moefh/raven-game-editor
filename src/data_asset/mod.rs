@@ -143,6 +143,14 @@ impl DataAsset {
         }
     }
 
+    fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> Self {
+        DataAsset {
+            asset_type: self.asset_type,
+            id: dup_id,
+            name: dup_name,
+        }
+    }
+
     fn name_to_identifier(name: &str) -> String {
         name.replace(Self::PATH_SEPARATOR, Self::IDENTIFIER_PATH_SEPARATOR)
     }
@@ -150,6 +158,10 @@ impl DataAsset {
     fn identifier_to_name(identifier: &str) -> String {
         identifier.replace(Self::IDENTIFIER_PATH_SEPARATOR, Self::PATH_SEPARATOR)
     }
+}
+
+pub(crate) trait DuplicableAsset<T> {
+    fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> T;
 }
 
 pub trait GenericAsset {
@@ -194,6 +206,24 @@ impl<T> AssetList<T> {
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.store.values_mut()
+    }
+}
+
+impl<T: DuplicableAsset<T>> AssetList<T> {
+    fn duplicate_asset(&mut self, id: &DataAssetId, dup_name: &str, id_gen: &mut DataAssetIdGenerator) -> Option<DataAssetId> {
+        let dup = if let Some(asset) = self.store.get(id) {
+            let dup_id = id_gen.gen_id();
+            let dup_asset = asset.duplicate(dup_id, dup_name.to_owned());
+            Some((dup_id, dup_asset))
+        } else {
+            None
+        };
+        if let Some((dup_id, dup_asset)) = dup {
+            self.store.insert(dup_id, dup_asset);
+            Some(dup_id)
+        } else {
+            None
+        }
     }
 }
 
@@ -373,9 +403,26 @@ impl AssetIdCollection {
     }
 }
 
-pub struct DataAssetStore {
+struct DataAssetIdGenerator {
     next_id: u32,
+}
 
+impl DataAssetIdGenerator {
+    fn new() -> Self {
+        DataAssetIdGenerator {
+            next_id: 0,
+        }
+    }
+
+    fn gen_id(&mut self) -> DataAssetId {
+        let id = self.next_id;
+        self.next_id += 1;
+        DataAssetId { id }
+    }
+}
+
+pub struct DataAssetStore {
+    id_generator: DataAssetIdGenerator,
     pub vga_bits_per_pixel: u8,
     pub vga_sync_bits: u8,
     pub project_prefix: String,
@@ -386,7 +433,7 @@ pub struct DataAssetStore {
 impl DataAssetStore {
     pub fn new() -> Self {
         DataAssetStore {
-            next_id: 0,
+            id_generator: DataAssetIdGenerator::new(),
             vga_bits_per_pixel: 8,
             vga_sync_bits: 0xc0,
             project_prefix: String::from("PROJECT"),
@@ -395,10 +442,8 @@ impl DataAssetStore {
         }
     }
 
-    fn gen_id(&mut self) -> DataAssetId {
-        let id = self.next_id;
-        self.next_id += 1;
-        DataAssetId { id }
+    pub fn gen_id(&mut self) -> DataAssetId {
+        self.id_generator.gen_id()
     }
 
     pub fn num_assets(&self) -> usize {
@@ -425,6 +470,50 @@ impl DataAssetStore {
         if let Some(v) = self.assets.mods.remove(&id) { self.asset_ids.mods.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.fonts.remove(&id) { self.asset_ids.fonts.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.prop_fonts.remove(&id) { self.asset_ids.prop_fonts.remove_id(id); return Some(v.asset); }
+        None
+    }
+
+    pub fn duplicate_asset(&mut self, id: DataAssetId, dup_name: &str) -> Option<DataAssetId> {
+        if let Some(dup_id) = self.assets.tilesets.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.tilesets.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.maps.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.maps.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.rooms.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.rooms.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.sprites.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.sprites.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.pal_sprites.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.pal_sprites.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.animations.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.animations.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.sfxs.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.sfxs.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.mods.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.mods.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.fonts.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.fonts.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.prop_fonts.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.prop_fonts.push(dup_id);
+            return Some(dup_id);
+        }
         None
     }
 

@@ -166,6 +166,21 @@ impl PalSprite {
     }
 }
 
+impl super::DuplicableAsset<PalSprite> for PalSprite {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        PalSprite {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            width: self.width,
+            height: self.height,
+            num_frames: self.num_frames,
+            depth: self.depth,
+            palette: self.palette.clone(),
+            color_to_palette_index_map: self.color_to_palette_index_map.clone(),
+            data: self.data.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for PalSprite {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

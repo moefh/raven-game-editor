@@ -99,6 +99,18 @@ impl SpriteAnimation {
     }
 }
 
+impl super::DuplicableAsset<SpriteAnimation> for SpriteAnimation {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        SpriteAnimation {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            sprite_id: self.sprite_id,
+            clip_rect: self.clip_rect,
+            foot_overlap: self.foot_overlap,
+            loops: self.loops.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for SpriteAnimation {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 

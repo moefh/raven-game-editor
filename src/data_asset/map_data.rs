@@ -65,6 +65,23 @@ impl MapData {
     }
 }
 
+impl super::DuplicableAsset<MapData> for MapData {
+    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+        MapData {
+            asset: self.asset.duplicate(dup_id, dup_name),
+            tileset_id: self.tileset_id,
+            width: self.width,
+            height: self.height,
+            para_width: self.para_width,
+            para_height: self.para_height,
+            fg_tiles: self.fg_tiles.clone(),
+            bg_tiles: self.bg_tiles.clone(),
+            fx_tiles: self.fx_tiles.clone(),
+            para_tiles: self.para_tiles.clone(),
+        }
+    }
+}
+
 impl super::GenericAsset for MapData {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
