@@ -129,6 +129,11 @@ impl Editor {
         format!("editor_{}_export_pfont", pfont.asset.id)
     }
 
+    fn shift_image(&mut self, prop_font: &mut PropFont, dx: i32, dy: i32) {
+        prop_font.shift_pixels(self.prop_font_editor.selected_char, dx, dy, true, PropFont::BG_COLOR);
+        self.prop_font_editor.set_image_changed();
+    }
+
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -219,6 +224,18 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
+                if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
+                    self.shift_image(prop_font, 0, -1);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_down)).on_hover_text("Shift Down").clicked() {
+                    self.shift_image(prop_font, 0, 1);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_left)).on_hover_text("Shift Left").clicked() {
+                    self.shift_image(prop_font, -1, 0);
+                }
+                if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
+                    self.shift_image(prop_font, 1, 0);
+                }
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
