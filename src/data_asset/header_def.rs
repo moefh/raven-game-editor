@@ -180,6 +180,17 @@ struct $<PREFIX>_ROOM {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_ROOM */
 
+#ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
+
+struct $<PREFIX>_STATE;
+typedef void (*$<prefix>_room_init_function)(struct $<PREFIX>_STATE *);
+
+struct $<PREFIX>_ROOM_SCRIPT {
+    $<prefix>_room_init_function init;
+};
+
+#endif /* $<PREFIX>_SKIP_ROOM_SCRIPT */
+
 extern const struct $<PREFIX>_FONT $<prefix>_fonts[];
 extern const struct $<PREFIX>_PROP_FONT $<prefix>_prop_fonts[];
 extern const struct $<PREFIX>_MOD_DATA $<prefix>_mods[];

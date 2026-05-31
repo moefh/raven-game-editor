@@ -1062,7 +1062,7 @@ impl<'a> ProjectDataWriter<'a> {
 
         for id in self.store.asset_ids.rooms.iter() {
             let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-            self.write(format!("extern const struct {}_ROOM_SCRIPT {}_room_script_{};\n",
+            self.write(format!("extern const struct {}_ROOM_SCRIPT {}_room_script_table_{};\n",
                                self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         }
 
@@ -1071,7 +1071,7 @@ impl<'a> ProjectDataWriter<'a> {
                            self.ident.prefix_upper, self.ident.prefix_lower));
         for id in self.store.asset_ids.rooms.iter() {
             let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-            self.write(format!("  &{}_room_script_{},\n", self.ident.prefix_lower, name_id));
+            self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
         }
         self.write("};\n");
 

@@ -1875,7 +1875,7 @@ impl<'a> ProjectDataReader<'a> {
 
     fn read_room_script_declaration(&mut self, script_ident: Token) -> Result<()> {
         if let Some(ident) = script_ident.get_ident() {
-            if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script") &&
+            if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") &&
                 ! self.read_data.rooms_by_name_id.contains_key(name_id) {
                     return error(format!("unknown room '{}' in script declaration", name_id), script_ident.pos)?;
                 }
@@ -1902,7 +1902,7 @@ impl<'a> ProjectDataReader<'a> {
             }
             let script_ident = self.expect_any_ident("room script identifier")?;
             if let Some(ident) = script_ident.get_ident() {
-                if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script") {
+                if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") {
                     if self.read_data.rooms_by_name_id.contains_key(name_id) {
                         self.logger.log(format!("  -> got room script for '{}'", name_id));
                     } else {
