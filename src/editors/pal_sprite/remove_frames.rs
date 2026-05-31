@@ -52,7 +52,6 @@ impl RemoveFramesDialog {
             }
         }
         pal_sprite.resize(pal_sprite.width, pal_sprite.height, pal_sprite.num_frames - self.num_frames, 0);
-        pal_sprite.num_frames -= self.num_frames;
         self.image_changed = true;
     }
 

@@ -42,14 +42,15 @@ impl AddFramesDialog {
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite) {
+        let old_num_frames = pal_sprite.num_frames;
         pal_sprite.resize(pal_sprite.width, pal_sprite.height, pal_sprite.num_frames + self.num_frames, self.sel_color);
-        if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < pal_sprite.num_frames {
+        if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < old_num_frames {
             let src_top = self.sel_frame * pal_sprite.height;
             let dst_top = (self.sel_frame + self.num_frames) * pal_sprite.height;
             let row_len = pal_sprite.width as usize;
             let mut src_row = vec![0; row_len];
             let mut dst_row = vec![0; row_len];
-            let num_copy_rows = (pal_sprite.num_frames - self.sel_frame) * pal_sprite.height;
+            let num_copy_rows = (old_num_frames - self.sel_frame) * pal_sprite.height;
             for y in (0..num_copy_rows).rev() {
                 let src = ((src_top + y) * pal_sprite.width) as usize;
                 let dst = ((dst_top + y) * pal_sprite.width) as usize;
@@ -59,7 +60,6 @@ impl AddFramesDialog {
                 pal_sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
         }
-        pal_sprite.num_frames += self.num_frames;
         self.image_changed = true;
     }
 

@@ -57,7 +57,7 @@ pub trait ImageCollectionIO {
         let height = height.max(1);
 
         let dst_data = self.data_mut();
-        if dst_data.len() != (nx * ny) as usize {
+        if dst_data.len() != (nx * ny * width * height) as usize {
             dst_data.resize((nx * ny * width * height) as usize, colors::TRANSPARENT);
         }
         dst_data.fill(colors::TRANSPARENT);
@@ -180,7 +180,7 @@ impl ImageCollectionIO for PropFont {
     fn width(&self) -> u32 { self.max_width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { PropFont::NUM_CHARS }
-    fn set_width(&mut self, _width: u32) { }
+    fn set_width(&mut self, width: u32) { self.max_width = width; }
     fn set_height(&mut self, height: u32) { self.height = height; }
     fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.data }

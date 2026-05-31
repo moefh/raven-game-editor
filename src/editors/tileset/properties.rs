@@ -39,7 +39,6 @@ impl PropertiesDialog {
         tileset.asset.name.push_str(&self.name);
         if self.num_tiles as u32 != tileset.num_tiles {
             tileset.resize(tileset.width, tileset.height, self.num_tiles as u32, self.sel_color);
-            tileset.num_tiles = self.num_tiles as u32;
             self.image_changed = true;
         }
     }

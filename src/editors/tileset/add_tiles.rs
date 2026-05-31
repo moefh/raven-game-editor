@@ -42,14 +42,15 @@ impl AddTilesDialog {
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
+        let old_num_tiles = tileset.num_tiles;
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.sel_color);
-        if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < tileset.num_tiles {
+        if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < old_num_tiles {
             let src_top = self.sel_tile * tileset.height;
             let dst_top = (self.sel_tile + self.num_tiles) * tileset.height;
             let row_len = tileset.width as usize;
             let mut src_row = vec![0; row_len];
             let mut dst_row = vec![0; row_len];
-            let num_new_rows = (tileset.num_tiles - self.sel_tile) * tileset.height;
+            let num_new_rows = (old_num_tiles - self.sel_tile) * tileset.height;
             for y in (0..num_new_rows).rev() {
                 let src = ((src_top + y) * tileset.width) as usize;
                 let dst = ((dst_top + y) * tileset.width) as usize;
@@ -59,7 +60,6 @@ impl AddTilesDialog {
                 tileset.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
         }
-        tileset.num_tiles += self.num_tiles;
         self.image_changed = true;
     }
 

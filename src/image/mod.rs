@@ -87,6 +87,9 @@ impl ImageCollection for ImageFragment {
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { 1 }
+    fn set_width(&mut self, width: u32) { self.pixels.width = width; }
+    fn set_height(&mut self, height: u32) { self.pixels.height = height; }
+    fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.pixels.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }
@@ -116,6 +119,9 @@ impl ImageCollection for StaticImageData {
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { self.num_items }
+    fn set_width(&mut self, width: u32) { self.pixels.width = width; }
+    fn set_height(&mut self, height: u32) { self.pixels.height = height; }
+    fn set_num_items(&mut self, num_items: u32) { self.num_items = num_items; }
     fn data(&self) -> &Vec<u8> { &self.pixels.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }

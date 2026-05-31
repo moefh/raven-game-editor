@@ -40,8 +40,6 @@ impl PropertiesDialog {
 
         if self.width != font.width || self.height != font.height {
             font.resize(self.width, self.height, Font::NUM_CHARS, Font::BG_COLOR);
-            font.width = self.width;
-            font.height = self.height;
             self.image_changed = true;
         }
     }

@@ -52,7 +52,6 @@ impl RemoveTilesDialog {
             }
         }
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, 0);
-        tileset.num_tiles -= self.num_tiles;
         self.image_changed = true;
     }
 

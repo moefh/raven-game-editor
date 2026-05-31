@@ -49,9 +49,6 @@ impl PropertiesDialog {
         let num_frames = self.num_frames;
         if num_frames != sprite.num_frames || width != sprite.width || height != sprite.height {
             sprite.resize(width, height, num_frames, self.sel_color);
-            sprite.width = width;
-            sprite.height = height;
-            sprite.num_frames = num_frames;
             self.image_changed = true;
         }
     }

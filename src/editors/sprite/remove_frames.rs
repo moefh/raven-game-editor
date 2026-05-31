@@ -52,7 +52,6 @@ impl RemoveFramesDialog {
             }
         }
         sprite.resize(sprite.width, sprite.height, sprite.num_frames - self.num_frames, 0);
-        sprite.num_frames -= self.num_frames;
         self.image_changed = true;
     }
 

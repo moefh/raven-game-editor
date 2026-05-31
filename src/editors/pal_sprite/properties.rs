@@ -53,9 +53,6 @@ impl PropertiesDialog {
         let depth = self.depth;
         if num_frames != pal_sprite.num_frames || width != pal_sprite.width || height != pal_sprite.height || depth != pal_sprite.depth {
             pal_sprite.resize(width, height, num_frames, self.sel_color);
-            pal_sprite.width = width;
-            pal_sprite.height = height;
-            pal_sprite.num_frames = num_frames;
             pal_sprite.depth = self.depth;
             if (pal_sprite.depth.num_colors() as usize) < pal_sprite.palette.len() {
                 let num_colors = pal_sprite.depth.num_colors() as usize;
