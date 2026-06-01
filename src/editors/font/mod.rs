@@ -83,8 +83,8 @@ impl Dialogs {
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, font: &mut Font) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, font) {
-            editor.force_reload_image = true;
             editor.image_editor.set_undo_target(font);
+            editor.image_editor.set_image_changed();
         }
         if self.import_dialog.open && self.import_dialog.show(wc, font) {
             editor.image_editor.set_undo_target(font);
@@ -95,7 +95,6 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
-    force_reload_image: bool,
     image_editor: ImageEditorWidget<Font>,
     font_view: FontViewWidget,
 }
@@ -104,7 +103,6 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            force_reload_image: false,
             image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR).with_selection_enabled(false),
             font_view: FontViewWidget::new(),
         }
