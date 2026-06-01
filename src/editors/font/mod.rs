@@ -183,6 +183,9 @@ impl Editor {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Edit:");
+                if ui.button("<").on_hover_text("Previous character").clicked() {
+                    self.image_editor.set_selected_image(self.image_editor.get_selected_image().saturating_sub(1), font);
+                }
                 let cur_char = match char::from_u32(Font::FIRST_CHAR + self.image_editor.get_selected_image()) {
                     Some(ch) => Self::char_name(ch),
                     None => " ".to_string(),
@@ -199,6 +202,9 @@ impl Editor {
                             }
                         }
                     });
+                if ui.button(">").on_hover_text("Next character").clicked() {
+                    self.image_editor.set_selected_image((self.image_editor.get_selected_image() + 1).min(Font::NUM_CHARS-1), font);
+                }
 
                 ui.add_space(4.0);
                 ui.separator();

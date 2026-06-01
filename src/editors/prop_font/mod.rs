@@ -189,6 +189,9 @@ impl Editor {
             ui.horizontal(|ui| {
                 ui.label("Edit:");
                 ui.add_space(5.0);
+                if ui.button("<").clicked() {
+                    self.prop_font_editor.selected_char = self.prop_font_editor.selected_char.saturating_sub(1);
+                }
                 let cur_char = match char::from_u32(PropFont::FIRST_CHAR + self.prop_font_editor.selected_char) {
                     Some(ch) => Self::char_name(ch),
                     None => " ".to_string(),
@@ -203,6 +206,9 @@ impl Editor {
                             }
                         }
                     });
+                if ui.button(">").clicked() {
+                    self.prop_font_editor.selected_char = (self.prop_font_editor.selected_char + 1).min(PropFont::NUM_CHARS-1);
+                }
 
                 ui.add_space(5.0);
                 ui.separator();
