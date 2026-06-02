@@ -295,10 +295,5 @@ impl Editor {
             let colors = (Font::FG_COLOR, Font::BG_COLOR);
             self.image_editor.show(ui, wc, font, colors);
         });
-
-        // keyboard:
-        if wc.is_editor_on_top(self.asset_id) {
-            self.image_editor.handle_keyboard(ui, wc, font, Font::BG_COLOR);
-        }
     }
 }

@@ -224,6 +224,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    pub fn can_undo(&self) -> bool {
+        self.undo_target.is_some()
+    }
+
     pub fn undo(&mut self, asset: &mut ImageAsset) {
         if let Some(frag) = self.undo_target.take() {
             asset.paste_fragment(self.selected_image, 0, 0, &frag, false);

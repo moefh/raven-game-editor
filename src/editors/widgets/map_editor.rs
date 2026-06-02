@@ -428,6 +428,10 @@ impl MapEditorWidget {
         }
     }
 
+    pub fn can_undo(&self) -> bool {
+        self.undo_target.is_some()
+    }
+
     pub fn undo(&mut self, map_data: &mut MapData) {
         if let Some(undo_target) = self.undo_target.take() {
             undo_target.to_map(map_data);

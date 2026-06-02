@@ -198,6 +198,7 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
+                        if ! self.image_editor.can_undo() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
                         if ui.button("Undo").clicked() {
                             self.image_editor.undo(pal_sprite);
