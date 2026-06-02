@@ -45,7 +45,7 @@ impl ModDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
-        let title = self.base.window_title("MOD", mod_data);
+        let title = self.base.window_title(mod_data);
         self.base.show_window(wc, &title, [600.0, 300.0], [600.0, 300.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });

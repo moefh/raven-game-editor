@@ -606,20 +606,29 @@ impl RavenEditorApp {
                     let mut folder_actions = AssetTreeActions::new();
                     let mut item_actions = AssetTreeActions::new();
                     if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
-                        let mut folder_menu = |header: &egui::Response, folder: &AssetTreeContainer| {
-                            egui::Popup::context_menu(header).show(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                           .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                    if ui.button(asset_def.add_menu_item).clicked() {
-                                        folder_actions.add_asset_at = Some(folder.node_id);
-                                    }
+                        let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
+                            ui.horizontal(|ui| {
+                                let header = if folder.level == 0 {
+                                    ui.add(egui::Button::image_and_text(include_ref_image!(asset_def.image),
+                                                                        &folder.name).frame_when_inactive(false))
+                                } else {
+                                    ui.add(egui::Button::new(&folder.name).frame_when_inactive(false))
+                                };
+                                egui::Popup::context_menu(&header).show(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
+                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                        if ui.button(asset_def.add_menu_item).clicked() {
+                                            folder_actions.add_asset_at = Some(folder.node_id);
+                                        }
+                                    });
                                 });
-                            });
+                                header
+                            }).inner
                         };
                         let mut show_item = |ui: &mut egui::Ui, folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
                             ui.horizontal(|ui| {
-                                ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_TREE_SIZE)));
+                                ui.add_space(18.0);
                                 let button = ui.button(&asset_item.name);
                                 if button.clicked() {
                                     item_actions.toggle_asset_open = Some(asset_item.id);
@@ -634,8 +643,7 @@ impl RavenEditorApp {
                                     });
                                     ui.separator();
                                     ui.horizontal(|ui| {
-                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
+                                        ui.add(egui::Image::new(IMAGES.copy).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.duplicate_menu_item).clicked() {
                                             item_actions.duplicate_asset = Some(asset_item.id);
                                         }
@@ -649,7 +657,7 @@ impl RavenEditorApp {
                                 });
                             });
                         };
-                        tree.show_inside("project", ui, true, &mut folder_menu, &mut show_item);
+                        tree.show_inside("project", ui, true, &mut show_folder, &mut show_item);
                     }
                     for actions in &[folder_actions, item_actions] {
                         if let Some(tree_node_id) = actions.add_asset_at {

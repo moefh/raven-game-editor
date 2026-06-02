@@ -98,7 +98,9 @@ impl MapSelectionDialog {
                     let mut remove_map: Option<DataAssetId> = None;
                     let mut display_map: Option<DataAssetId> = None;
                     if let Some(map_tree) = &self.map_tree {
-                        let mut folder_menu = |_header: &egui::Response, _folder: &AssetTreeContainer| {};
+                        let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
+                            ui.add(egui::Label::new(&folder.name).selectable(false).sense(egui::Sense::click()))
+                        };
                         let mut show_item = |ui: &mut egui::Ui, _folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
                             ui.horizontal(|ui| {
                                 let mut checked = self.sel_map_ids.contains(&asset_item.id);
@@ -117,7 +119,7 @@ impl MapSelectionDialog {
                                 }
                             });
                         };
-                        map_tree.show_inside(&format!("map_sel_{}", asset_id), ui, true, &mut folder_menu, &mut show_item);
+                        map_tree.show_inside(&format!("map_sel_{}", asset_id), ui, true, &mut show_folder, &mut show_item);
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }

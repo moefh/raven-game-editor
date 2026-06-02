@@ -69,7 +69,7 @@ impl PropFontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, prop_font: &mut PropFont) {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
-        let title = self.base.window_title("Prop Font", prop_font);
+        let title = self.base.window_title(prop_font);
         self.base.show_window(wc, &title, [450.0, 300.0], [450.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });
@@ -171,11 +171,39 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
                         if ui.button("Invert colors").clicked() {
                             for color in prop_font.data.iter_mut() {
                                 *color = if *color == PropFont::FG_COLOR { PropFont::BG_COLOR } else { PropFont::FG_COLOR };
                             }
                             self.prop_font_editor.set_image_changed();
+                        }
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_up).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift up").clicked() {
+                            self.shift_image(prop_font, 0, -1);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_down).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift down").clicked() {
+                            self.shift_image(prop_font, 0, 1);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_left).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift left").clicked() {
+                            self.shift_image(prop_font, -1, 0);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_right).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift right").clicked() {
+                            self.shift_image(prop_font, 1, 0);
                         }
                     });
                 });
@@ -187,9 +215,11 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_pfont_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
+
                 ui.label("Edit:");
                 ui.add_space(5.0);
-                if ui.button("<").clicked() {
+                if ui.button("<").on_hover_text("Previous character").clicked() {
                     self.prop_font_editor.selected_char = self.prop_font_editor.selected_char.saturating_sub(1);
                 }
                 let cur_char = match char::from_u32(PropFont::FIRST_CHAR + self.prop_font_editor.selected_char) {
@@ -206,7 +236,7 @@ impl Editor {
                             }
                         }
                     });
-                if ui.button(">").clicked() {
+                if ui.button(">").on_hover_text("Next character").clicked() {
                     self.prop_font_editor.selected_char = (self.prop_font_editor.selected_char + 1).min(PropFont::NUM_CHARS-1);
                 }
 
@@ -214,21 +244,19 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.button("\u{2796}").clicked() &&
+                if ui.button("\u{2796}").on_hover_text("Decrease width").clicked() &&
                     let Some(v) = prop_font.char_widths.get_mut(self.prop_font_editor.selected_char as usize) &&
                     *v > 1 {
                         *v -= 1;
                     }
                 ui.label(format!("{}", self.prop_font_editor.get_selected_char_width(prop_font)));
-                if ui.button("\u{2795}").clicked() &&
+                if ui.button("\u{2795}").on_hover_text("Increase width").clicked() &&
                     let Some(v) = prop_font.char_widths.get_mut(self.prop_font_editor.selected_char as usize) &&
                     *v < prop_font.max_width as u8 {
                         *v += 1;
                     }
 
-                ui.add_space(5.0);
-                ui.separator();
-                ui.add_space(5.0);
+                ui.add_space(15.0);
 
                 if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
                     self.shift_image(prop_font, 0, -1);

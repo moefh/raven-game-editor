@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use crate::data_asset::Tileset;
+use crate::data_asset::{DataAssetType, Tileset};
 use crate::image::{StaticImageId, StaticImageData, StaticImageStore};
 
 const TILE_SIZE: u32 = Tileset::TILE_SIZE;
@@ -26,6 +26,21 @@ pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
         fx_tiles_id,
     }
 });
+
+pub fn get_asset_type_image(asset_type: DataAssetType) -> ImageRef {
+    match asset_type {
+        DataAssetType::Tileset => IMAGE_REFS.tileset,
+        DataAssetType::MapData => IMAGE_REFS.map_data,
+        DataAssetType::Room => IMAGE_REFS.room,
+        DataAssetType::Sprite => IMAGE_REFS.sprite,
+        DataAssetType::PalSprite => IMAGE_REFS.pal_sprite,
+        DataAssetType::SpriteAnimation => IMAGE_REFS.animation,
+        DataAssetType::Sfx => IMAGE_REFS.sfx,
+        DataAssetType::ModData => IMAGE_REFS.mod_data,
+        DataAssetType::Font => IMAGE_REFS.font,
+        DataAssetType::PropFont => IMAGE_REFS.prop_font,
+    }
+}
 
 #[macro_export]
 macro_rules! include_ref_image {

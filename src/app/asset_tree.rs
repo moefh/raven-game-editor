@@ -183,22 +183,20 @@ impl AssetTreeContainer {
     }
 
     pub fn show_inside(&self, id_prefix: &str, ui: &mut egui::Ui, open: bool,
-                       folder_menu: &mut impl FnMut(&egui::Response, &AssetTreeContainer),
+                       show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
                        show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)) {
         let tree_node_id = ui.make_persistent_id(format!("{}_{}", id_prefix, self.node_id.id));
         let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, open);
         let mut toggle_node_open = false;
         let mut header_resp = node.show_header(ui, |ui| {
-            let header = ui.add(egui::Label::new(&self.name).selectable(false).sense(egui::Sense::click()));
-            folder_menu(&header, self);
-            toggle_node_open = header.clicked();
+            toggle_node_open = show_folder(ui, self).clicked();
         });
         if toggle_node_open {
             header_resp.toggle();
         }
         header_resp.body(|ui| {
             for tree in &self.containers {
-                tree.show_inside(id_prefix, ui, self.assets.is_empty(), folder_menu, show_item);
+                tree.show_inside(id_prefix, ui, self.assets.is_empty(), show_folder, show_item);
             }
             for asset_node in &self.assets {
                 show_item(ui, self, asset_node);

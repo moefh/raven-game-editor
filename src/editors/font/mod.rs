@@ -61,7 +61,7 @@ impl FontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         self.dialogs.show(wc, &mut self.editor, font);
 
-        let title = self.base.window_title("Font", font);
+        let title = self.base.window_title(font);
         self.base.show_window(wc, &title, [300.0, 350.0], [400.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });
@@ -164,11 +164,39 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
                         if ui.button("Invert colors").clicked() {
                             for color in font.data.iter_mut() {
                                 *color = if *color == Font::FG_COLOR { Font::BG_COLOR } else { Font::FG_COLOR };
                             }
                             self.image_editor.set_image_changed();
+                        }
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_up).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift up").clicked() {
+                            self.shift_image(font, 0, -1);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_down).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift down").clicked() {
+                            self.shift_image(font, 0, 1);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_left).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift left").clicked() {
+                            self.shift_image(font, -1, 0);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.arrow_right).max_width(14.0).max_height(14.0));
+                        if ui.button("Shift right").clicked() {
+                            self.shift_image(font, 1, 0);
                         }
                     });
                 });
@@ -180,6 +208,7 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
                 ui.label("Edit:");
                 if ui.button("<").on_hover_text("Previous character").clicked() {
                     self.image_editor.set_selected_image(self.image_editor.get_selected_image().saturating_sub(1), font);

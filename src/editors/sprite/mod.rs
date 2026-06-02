@@ -39,7 +39,7 @@ impl SpriteEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         self.dialogs.show(wc, &mut self.editor, sprite);
 
-        let title = self.base.window_title("Sprite", sprite);
+        let title = self.base.window_title(sprite);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
         self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, sprite);

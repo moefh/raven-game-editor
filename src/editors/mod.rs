@@ -21,7 +21,8 @@ pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
-use crate::misc::{calc_hash, IMAGES};
+use crate::include_ref_image;
+use crate::misc::{calc_hash, get_asset_type_image, ImageRef, IMAGES};
 use crate::data_asset::{DataAssetId, MapData, GenericAsset};
 use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
 use crate::app::WindowContext;
@@ -61,6 +62,11 @@ impl ImageSlicingMethodOption {
             ImageSlicingMethodOption::ByNumber => "by number",
         }
     }
+}
+
+pub struct AssetEditorTitle {
+    image: ImageRef,
+    title: String,
 }
 
 pub struct AssetEditorBase {
@@ -109,11 +115,16 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    fn window_title(&self, asset_type: &str, asset: &impl GenericAsset) -> String {
-        if self.is_dirty() {
-            format!("<{}> {} (modified)", asset_type, asset.asset().name)
+    fn window_title(&self, asset: &impl GenericAsset) -> AssetEditorTitle {
+        let title = if self.is_dirty() {
+            format!("{} (modified)", asset.asset().name)
         } else {
-            format!("<{}> {}", asset_type, asset.asset().name)
+            asset.asset().name.clone()
+        };
+
+        AssetEditorTitle {
+            title,
+            image: get_asset_type_image(asset.asset().asset_type),
         }
     }
 
@@ -129,27 +140,29 @@ impl AssetEditorBase {
         }
     }
 
-    fn show_window(&mut self, wc: &mut WindowContext, title: &str,
+    fn show_window(&mut self, wc: &mut WindowContext, title: &AssetEditorTitle,
                    min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
                    show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
         let maximized_state = self.maximized_state;
-        let resp = self.create_window(wc, title, min_size, default_size).show(wc.egui.ctx, |ui| {
+        let resp = self.create_window(wc, &title.title, min_size, default_size).show(wc.egui.ctx, |ui| {
             let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 1 });
             let action = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(title).selectable(false));
+                    ui.add_space(3.0);
+                    ui.add(egui::Button::image(include_ref_image!(title.image)).frame(false));
+                    ui.add(egui::Label::new(&title.title).selectable(false));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let mut action = EditorWindowAction::None;
 
-                        if ui.add(egui::Image::new(IMAGES.close).sense(egui::Sense::click())).clicked() {
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
+                        if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
                             action = EditorWindowAction::Close;
                         }
-
                         let image = match maximized_state {
                             MaximizedState::Maximized => { egui::Image::new(IMAGES.un_maximize) }
                             _ => { egui::Image::new(IMAGES.maximize) }
                         };
-                        if ui.add(image.sense(egui::Sense::click())).clicked() && action == EditorWindowAction::None {
+                        if ui.add(egui::Button::image(image).frame_when_inactive(false)).clicked() {
                             action = EditorWindowAction::ToggleMaximize;
                         }
 

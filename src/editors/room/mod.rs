@@ -106,7 +106,7 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
-        let title = self.base.window_title("Room", room);
+        let title = self.base.window_title(room);
         self.base.show_window(wc, &title, [400.0, 300.0], [600.0, 400.0], |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
@@ -494,6 +494,27 @@ impl Editor {
                         ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
                         if ui.button("Properties...").clicked() {
                             dialogs.properties_dialog.set_open(wc, room);
+                        }
+                    });
+                });
+
+                ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.map_data).max_width(14.0).max_height(14.0));
+                        if ui.button("Select maps...").clicked() {
+                            dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.sprite).max_width(14.0).max_height(14.0));
+                        if ui.button("Add entity").clicked() {
+                            self.add_entity(wc, room, &asset_ids.animations);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Image::new(IMAGES.animation).max_width(14.0).max_height(14.0));
+                        if ui.button("Add trigger").clicked() {
+                            self.add_trigger(room);
                         }
                     });
                 });
