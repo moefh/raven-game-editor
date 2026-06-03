@@ -431,6 +431,9 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
+    pub const VERSION: u32 = 3;
+    pub const VERSION_DATE: &str = "2026-06-03";
+
     pub fn new() -> Self {
         DataAssetStore {
             id_generator: DataAssetIdGenerator::new(),

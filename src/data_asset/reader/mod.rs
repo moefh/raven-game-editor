@@ -40,12 +40,14 @@ const C_STRUCT_NAMES : &[&str] = &[
 
 static RE_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#\s*define\s+([A-Za-z0-9_]+)\s+(.*)$").unwrap());
-static RE_VGA_BITS_PER_PIXEL: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^([A-Za-z0-9_]+)_DATA_VGA_BITS_PER_PIXEL$").unwrap());
-static RE_VGA_SYNC_BITS: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^([A-Za-z0-9_]+)_DATA_VGA_SYNC_BITS$").unwrap());
+static RE_PREFIXED_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
+    || Regex::new(r"^#\s*define\s+([A-Za-z0-9_]+?)_([A-Za-z0-9_]+)\s+(.*)").unwrap());
 static RE_PRE_PROCESSOR_IF: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#if").unwrap());
+static RE_PRE_PROCESSOR_ELIF: LazyLock<Regex> = LazyLock::new(
+    || Regex::new(r"^#elif").unwrap());
+static RE_PRE_PROCESSOR_ELSE: LazyLock<Regex> = LazyLock::new(
+    || Regex::new(r"^#else").unwrap());
 static RE_PRE_PROCESSOR_ENDIF: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^#endif").unwrap());
 
@@ -194,6 +196,7 @@ pub struct ProjectDataReader<'a> {
     unread_token: Option<Token>,
     last_pos: TokenPosition,
     read_data: ReadData,
+    got_prefix: bool,
     prefix_lower: String,
     prefix_upper: String,
     last_type_size: u32,
@@ -213,7 +216,6 @@ fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
 impl<'a> ProjectDataReader<'a> {
 
     fn new(source: &'a str, store: &'a mut DataAssetStore, logger: &'a mut StringLogger) -> Self {
-
         ProjectDataReader {
             logger,
             store,
@@ -224,6 +226,7 @@ impl<'a> ProjectDataReader<'a> {
             prefix_lower: String::new(),
             prefix_upper: String::new(),
             pixel_6bit_to_8bit: Self::gen_6bit_to_8bit_map(),
+            got_prefix: false,
 
             read_data: ReadData {
                 font_data: HashMap::new(),
@@ -383,56 +386,125 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
-    fn handle_pre_processor_define(&mut self, name_id: &str, value: &str) {
-        if name_id.starts_with(&format!("{}SPRITE_WIDTH_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}SPRITE_HEIGHT_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}SPRITE_STRIDE_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}SPRITE_FRAMES_", self.prefix_upper)) {
-                return;
-            }
-        if name_id.starts_with(&format!("{}PAL_SPRITE_WIDTH_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}PAL_SPRITE_HEIGHT_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}PAL_SPRITE_FRAMES_", self.prefix_upper)) ||
-            name_id.starts_with(&format!("{}PAL_SPRITE_DEPTH_", self.prefix_upper)) {
-                return;
+    fn handle_pre_processor_define(&mut self, line: &str, pos: TokenPosition) -> Result<()> {
+        if let Some((_, [prefix, name, value])) = RE_PREFIXED_PRE_PROCESSOR_DEFINE.captures(line).map(|caps| caps.extract()) {
+            if ! self.got_prefix {
+                self.set_project_prefix(prefix);
+            } else if prefix != self.store.project_prefix {
+                self.logger.log(format!("-> ignoring define named without project prefix: {}_{}", prefix, name));
+                return Ok(());
             }
 
-        if name_id == format!("{}DATA_SAVE_TIMESTAMP", self.prefix_upper) { return; }
+            if name == "DATA_FILE_VERSION" {
+                match Self::parse_number(value) {
+                    Some(file_version) => {
+                        if file_version > DataAssetStore::VERSION as u64 {
+                            return error(format!("refusing to parse unknown file version {} (max supported: {})",
+                                                 file_version, DataAssetStore::VERSION), pos);
+                        }
+                        self.logger.log(format!("-> got file version {}", file_version));
+                        return Ok(());
+                    }
 
-        self.logger.log(format!("-> ignoring define '{}' = '{}'", name_id, value));
+                    None => {
+                        return error(format!("bad file version number: {}", value), pos);
+                    }
+                }
+            }
+
+            if name == "DATA_VGA_SYNC_BITS" {
+                match Self::parse_number(value) {
+                    Some(vga_sync_bits) => {
+                        if vga_sync_bits > 0xff {
+                            return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), pos);
+                        }
+                        self.logger.log(format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
+                        self.store.vga_sync_bits = vga_sync_bits as u8;
+                        return Ok(())
+                    }
+                    None => {
+                        return error(format!("bad vga_sync_bits value: {}", value), pos);
+                    }
+                }
+            }
+
+            if name == "DATA_VGA_BITS_PER_PIXEL" {
+                match Self::parse_number(value) {
+                    Some(vga_bits_per_pixel) => {
+                        if vga_bits_per_pixel != 6 && vga_bits_per_pixel != 8 {
+                            return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
+                                                 vga_bits_per_pixel), pos);
+                        }
+                        self.logger.log(format!("-> got vga_bits_per_pixel {:#04x}", vga_bits_per_pixel));
+                        self.store.vga_bits_per_pixel = vga_bits_per_pixel as u8;
+                        return Ok(());
+                    }
+                    None => {
+                        return error(format!("bad vga_bits_per_pixel value: {}", value), pos);
+                    }
+                }
+            }
+
+            if name.starts_with("SPRITE_WIDTH_") ||
+                name.starts_with("SPRITE_HEIGHT_") ||
+                name.starts_with("SPRITE_STRIDE_") ||
+                name.starts_with("SPRITE_FRAMES_") {
+                    // ignore
+                    return Ok(());
+                }
+
+            if name.starts_with("PAL_SPRITE_WIDTH_") ||
+                name.starts_with("PAL_SPRITE_HEIGHT_") ||
+                name.starts_with("PAL_SPRITE_FRAMES_") ||
+                name.starts_with("PAL_SPRITE_DEPTH_") {
+                    // ignore
+                    return Ok(());
+                }
+
+            if name == "DATA_SAVE_TIMESTAMP" {
+                // ignore
+                return Ok(());
+            }
+        }
+
+        self.logger.log(format!("-> ignoring define line {}", line));
+        Ok(())
     }
 
-    fn handle_pre_processor_if(&mut self, line: &str) {
+    fn handle_pre_processor_if(&mut self, line: &str) -> Result<()> {
+        if line == format!("#if {}DATA_BYTES", self.prefix_upper) { return Ok(()); }
+        if line == format!("#endif /* {}DATA_BYTES */", self.prefix_upper) { return Ok(()); }
 
-        if line == format!("#if {}DATA_BYTES", self.prefix_upper) { return; }
-        if line == format!("#endif /* {}DATA_BYTES */", self.prefix_upper) { return; }
-
-        if line == format!("#if {}ADD_ROOM_SCRIPTS", self.prefix_upper) { return; }
-        if line == format!("#endif /* {}ADD_ROOM_SCRIPTS */", self.prefix_upper) { return; }
+        if line == format!("#if {}ADD_ROOM_SCRIPTS", self.prefix_upper) { return Ok(()); }
+        if line == format!("#endif /* {}ADD_ROOM_SCRIPTS */", self.prefix_upper) { return Ok(()); }
 
         self.logger.log(format!("-> ignoring pre-processor if line: {}", line));
+        Ok(())
     }
 
-    fn handle_pre_processor_other(&mut self, line: &str) {
+    fn handle_pre_processor_unknown(&mut self, line: &str) -> Result<()> {
         self.logger.log(format!("-> ignoring unknown pre-processor line: {}", line));
+        Ok(())
     }
 
-    fn handle_pre_processor_non_define(&mut self, line: &str) {
-        if RE_PRE_PROCESSOR_IF.is_match(line) || RE_PRE_PROCESSOR_ENDIF.is_match(line) {
-            self.handle_pre_processor_if(line);
-        } else {
-            self.handle_pre_processor_other(line);
+    fn handle_pre_processor_line(&mut self, line: &str, pos: TokenPosition) -> Result<()> {
+        // #define NAME VALUE
+        if RE_PRE_PROCESSOR_DEFINE.is_match(line) {
+            return self.handle_pre_processor_define(line, pos);
         }
-    }
 
-    fn handle_pre_processor_line(&mut self, line: &str) {
-        if let Some(define) = RE_PRE_PROCESSOR_DEFINE.captures(line) &&
-            let Some(name) = define.get(1) &&
-            let Some(value) = define.get(2) {
-                self.handle_pre_processor_define(name.as_str(), value.as_str());
-                return;
+        // #if ...
+        // #elif ...
+        // #else ...
+        // #endif ...
+        if RE_PRE_PROCESSOR_IF.is_match(line) ||
+            RE_PRE_PROCESSOR_ELIF.is_match(line) ||
+            RE_PRE_PROCESSOR_ELSE.is_match(line) ||
+            RE_PRE_PROCESSOR_ENDIF.is_match(line) {
+                return self.handle_pre_processor_if(line);
             }
-        self.handle_pre_processor_non_define(line);
+
+        self.handle_pre_processor_unknown(line)
     }
 
     // return "<x>" for "<prefix>_<type_name>_<x>"
@@ -528,77 +600,23 @@ impl<'a> ProjectDataReader<'a> {
         self.prefix_lower.push('_');
         self.prefix_lower.make_ascii_lowercase();
         self.store.project_prefix = prefix.to_owned();
+        self.got_prefix = true;
     }
 
-    fn read_project_defines(&mut self) -> Result<()> {
-        let mut got_prefix = false;
+    // Read pre-processor lines until we get a non-pre-processor line.
+    // Error if we don't get a #define <PREFIX>_DATA_VGA_SYNC_BITS.
+    fn read_project_header(&mut self) -> Result<()> {
         loop {
             let t = self.expect_token()?;
 
             if let Some(line) = t.get_pre_processor() {
-                // pre-processor line
-                if let Some(define) = RE_PRE_PROCESSOR_DEFINE.captures(line) &&
-                    let Some(name) = define.get(1) &&
-                    let Some(value) = define.get(2) {
-                        // #define
-                        if let Some(name_prefix) = RE_VGA_SYNC_BITS.captures(name.as_str()) &&
-                            let Some(prefix) = name_prefix.get(1) {
-                                // #define <PREFIX>_DATA_VGA_SYNC_BITS
-                                match Self::parse_number(value.as_str()) {
-                                    Some(vga_sync_bits) => {
-                                        if vga_sync_bits > 0xff {
-                                            return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), t.pos);
-                                        }
-                                        if ! got_prefix {
-                                            self.set_project_prefix(prefix.as_str());
-                                            got_prefix = true;
-                                        } else if self.store.project_prefix != prefix.as_str() {
-                                            return error(format!("define for vga_sync_bits has invalid prefix: {}", name.as_str()), t.pos);
-                                        }
-                                        self.logger.log(format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
-                                        self.store.vga_sync_bits = vga_sync_bits as u8;
-                                        continue;
-                                    },
-                                    None => {
-                                        return error(format!("bad vga_sync_bits value: {}", value.as_str()), t.pos);
-                                    }
-                                }
-                            }
-                        if let Some(name_prefix) = RE_VGA_BITS_PER_PIXEL.captures(name.as_str()) &&
-                            let Some(prefix) = name_prefix.get(1) {
-                                // #define <PREFIX>_DATA_VGA_BITS_PER_PIXEL
-                                match Self::parse_number(value.as_str()) {
-                                    Some(vga_bits_per_pixel) => {
-                                        if vga_bits_per_pixel != 6 && vga_bits_per_pixel != 8 {
-                                            return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
-                                                                 vga_bits_per_pixel), t.pos);
-                                        }
-                                        if ! got_prefix {
-                                            self.set_project_prefix(prefix.as_str());
-                                            got_prefix = true;
-                                        } else if self.store.project_prefix != prefix.as_str() {
-                                            return error(format!("define for vga_bits_per_pixel has invalid prefix: {}", name.as_str()), t.pos);
-                                        }
-                                        self.logger.log(format!("-> got vga_bits_per_pixel {:#04x}", vga_bits_per_pixel));
-                                        self.store.vga_bits_per_pixel = vga_bits_per_pixel as u8;
-                                        continue;
-                                    },
-                                    None => {
-                                        return error(format!("bad vga_bits_per_pixel value: {}", value.as_str()), t.pos);
-                                    }
-                                }
-                            }
-                        self.handle_pre_processor_define(name.as_str(), value.as_str());
-                        continue;
-                    }
-
-                self.handle_pre_processor_non_define(line);
+                self.handle_pre_processor_line(line, t.pos)?;
                 continue;
             }
 
             // anything other than pre-processor line:
-            if ! got_prefix {
-                return error(format!("must have define for vga_sync_bits before this: {}", &t), t.pos);
+            if ! self.got_prefix {
+                return error(format!("must have #define with prefix before this line: {}", &t), t.pos);
             }
             return self.unread(t);
         }
@@ -1893,7 +1911,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        self.logger.log("-> reading room script table");
+        self.logger.log("-> reading ROOM script table");
         loop {
             let next = self.expect_any_punct("'&' or '}'")?;
             if next.is_punct('}') { break; }
@@ -1992,7 +2010,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: animation id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}'", animation.asset.name));
+        //self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}'", animation.asset.name));
         for (index, name_id) in names.iter().enumerate() {
             if let Some(anim_loop) = animation.loops.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
@@ -2025,7 +2043,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading ROOM ENTITY names for '{}'", room.asset.name));
+        //self.logger.log(format!("-> reading ROOM ENTITY names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(ent) = room.entities.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
@@ -2045,7 +2063,7 @@ impl<'a> ProjectDataReader<'a> {
             Some(asset) => asset,
             None => { return error(format!("internal error: room id {} not found", id), pos); }
         };
-        self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
+        //self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(trg) = room.triggers.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
@@ -2083,7 +2101,7 @@ impl<'a> ProjectDataReader<'a> {
 
         self.expect_punct('{')?;
 
-        self.logger.log(format!("-> reading {} asset ids", name));
+        self.logger.log(format!("-> reading asset identifiers for {}", name));
         let mut got_count = false;
         loop {
             let t = self.expect_token()?;
@@ -2093,8 +2111,8 @@ impl<'a> ProjectDataReader<'a> {
                 Some(ident) => {
                     if let Some(name) = self.get_global_upper_of_type(ident, name) && name == "COUNT" {
                         got_count = true;
-                    } else if let Some(item_name) = self.get_global_upper_of_type(ident, &name_with_id) {
-                        self.logger.log(format!("  -> got asset id '{}'", item_name));
+                    } else if let Some(_item_name) = self.get_global_upper_of_type(ident, &name_with_id) {
+                        //self.logger.log(format!("  -> got asset id '{}'", item_name));
                     } else {
                         return error(format!("invalid asset ID: {}", ident), pos);
                     }
@@ -2129,14 +2147,14 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     pub fn read_project(&mut self) -> Result<()> {
-        self.read_project_defines()?;
+        self.read_project_header()?;
 
         loop {
             let t = self.read()?;
             if t.is_eof() { break; }
 
             if let Some(line) = t.get_pre_processor() {
-                self.handle_pre_processor_line(line);
+                self.handle_pre_processor_line(line, t.pos)?;
                 continue;
             }
 
