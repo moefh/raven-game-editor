@@ -65,6 +65,7 @@ impl SettingsWindow {
                         .spacing([8.0, 8.0])
                         .show(ui, |ui| {
                             Self::color_setting(ui, "Image BG:", &mut [&mut wc.settings.image_bg_color]);
+                            Self::color_setting(ui, "Map BG:", &mut [&mut wc.settings.map_bg_color]);
                             Self::color_setting(ui, "Color Picker BG:", &mut [&mut wc.settings.color_picker_bg_color]);
                             Self::color_setting(ui, "Image Grid:", &mut [&mut wc.settings.image_grid_color]);
                             Self::color_setting(ui, "Map Grid:", &mut [&mut wc.settings.map_grid_color]);

@@ -33,8 +33,12 @@ impl MapDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
+        let min_size = egui::Vec2::new(600.0, 200.0);
+        let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32) * Tileset::TILE_SIZE as f32;
+        let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
+
         let title = self.base.window_title(map_data);
-        self.base.show_window(wc, &title, [500.0, 200.0], [630.0, 380.0], |ui, wc| {
+        self.base.show_window(wc, &title, min_size, def_size, |ui, wc| {
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
     }
@@ -67,7 +71,9 @@ struct Editor {
     map_editor: MapEditorWidget,
     image_picker: ImagePickerWidget,
     use_custom_grid_color: bool,
+    use_custom_bg_color: bool,
     custom_grid_color: egui::Color32,
+    custom_bg_color: egui::Color32,
 }
 
 impl Editor {
@@ -77,7 +83,9 @@ impl Editor {
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
             use_custom_grid_color: false,
+            use_custom_bg_color: false,
             custom_grid_color: egui::Color32::RED,
+            custom_bg_color: egui::Color32::from_rgb(0, 0xffu8, 0),
         }
     }
 
@@ -213,7 +221,6 @@ impl Editor {
                     .on_hover_text("Show grid").clicked() {
                         self.map_editor.display.toggle(MapDisplay::GRID);
                     }
-
                 if ui.add(egui::Button::new("Color").selected(self.use_custom_grid_color)).on_hover_text("Use custom grid color").clicked() {
                     self.use_custom_grid_color = ! self.use_custom_grid_color;
                 }
@@ -225,8 +232,28 @@ impl Editor {
                     self.map_editor.custom_grid_color = Some(self.custom_grid_color);
                 } else {
                     ui.add_space(2.0);
-                    ui.label("default");
+                    ui.add(egui::Label::new("default").selectable(false));
                     self.map_editor.custom_grid_color = None;
+                }
+
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
+
+                if ui.add(egui::Button::new("BG Color").selected(self.use_custom_bg_color))
+                    .on_hover_text("Use custom background color").clicked() {
+                        self.use_custom_bg_color = ! self.use_custom_bg_color;
+                    }
+                ui.add_space(2.0);
+                if self.use_custom_bg_color {
+                    let mut rgba = self.custom_bg_color.into();
+                    egui::color_picker::color_edit_button_rgba(ui, &mut rgba, egui::color_picker::Alpha::Opaque);
+                    self.custom_bg_color = rgba.into();
+                    self.map_editor.custom_bg_color = Some(self.custom_bg_color);
+                } else {
+                    ui.add_space(2.0);
+                    ui.add(egui::Label::new("default").selectable(false));
+                    self.map_editor.custom_bg_color = None;
                 }
 
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
@@ -310,31 +337,33 @@ impl Editor {
                 ui.label("Tool:");
                 ui.add_space(1.0);
 
-                if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.map_editor.tool == MapTool::Pencil)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::Pencil))
+                let tools_enabled = self.map_editor.edit_layer != MapLayer::Screen;
+
+                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.pen)
+                                  .selected(self.map_editor.tool == MapTool::Pencil)
+                                  .frame_when_inactive(self.map_editor.tool == MapTool::Pencil))
                     .on_hover_text("Place Tiles").clicked() {
                         self.map_editor.set_tool(MapTool::Pencil);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.map_editor.tool == MapTool::SelectLayer)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectLayer))
+                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
+                                  .selected(self.map_editor.tool == MapTool::SelectLayer)
+                                  .frame_when_inactive(self.map_editor.tool == MapTool::SelectLayer))
                     .on_hover_text("Select current layer").clicked() {
                         self.map_editor.set_tool(MapTool::SelectLayer);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.map_editor.tool == MapTool::SelectFullLayers)
-                          .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers))
+                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
+                                  .selected(self.map_editor.tool == MapTool::SelectFullLayers)
+                                  .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers))
                     .on_hover_text("Select normal layers").clicked() {
-                        self.map_editor.set_tool(MapTool::SelectFullLayers);
+                            self.map_editor.set_tool(MapTool::SelectFullLayers);
                     }
 
                 if map_data.width == map_data.para_width && map_data.height == map_data.para_height &&
-                    ui.add(egui::Button::image(IMAGES.select)
-                           .selected(self.map_editor.tool == MapTool::SelectAllLayers)
-                           .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
+                    ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
+                                   .selected(self.map_editor.tool == MapTool::SelectAllLayers)
+                                   .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
                     .on_hover_text("Select all layers").clicked() {
                         self.map_editor.set_tool(MapTool::SelectAllLayers);
                     }
@@ -386,11 +415,12 @@ impl Editor {
                     MapLayer::Effects => {
                         let tiles = STATIC_IMAGES.fx_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.show(ui, wc.settings, tiles, texture);
+                        self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
                     }
                     _ => {
+                        let bg_color = if self.use_custom_bg_color { self.custom_bg_color } else { wc.settings.map_bg_color };
                         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.show(ui, wc.settings, tileset, texture);
+                        self.image_picker.show(ui, wc.settings, tileset, texture, bg_color);
                     }
                 }
                 self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.selected_image);

@@ -337,7 +337,7 @@ impl Editor {
             self.image_picker.zoom = 4.0;
             self.image_picker.display = self.image_editor.display;
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-            self.image_picker.show(ui, wc.settings, tileset, texture);
+            self.image_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
             if let Some(selected_image) = self.image_picker.selected_image {
                 self.image_editor.set_selected_image(selected_image, tileset);
             }

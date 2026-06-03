@@ -10,7 +10,6 @@ pub struct ImagePickerWidget {
     pub selected_image: Option<u32>,
     pub selected_image_right: Option<u32>,
     pub zoom: f32,
-    pub background_color: Option<Color32>,
     pub display: ImageDisplay,
 }
 
@@ -22,7 +21,6 @@ impl ImagePickerWidget {
             zoom: 1.0,
             selected_image: Some(0),
             selected_image_right: None,
-            background_color: None,
             display: ImageDisplay::new(0),
         }
     }
@@ -30,7 +28,6 @@ impl ImagePickerWidget {
     pub fn use_as_palette(mut self, use_as_palette: bool) -> Self {
         self.allow_second_selection = use_as_palette;
         self.allow_empty_selection = use_as_palette;
-        self.background_color = Some(Color32::from_rgb(0, 0xff, 0));
         self
     }
 
@@ -51,11 +48,11 @@ impl ImagePickerWidget {
     }
 
     fn draw_selection_rectangle(&self, painter: &egui::Painter, canvas_pos: Pos2, image_size: Vec2,
-                                selected_image: Option<u32>, color1: Color32, color2: Color32) {
-        let pos = canvas_pos + Vec2::new(0.0, self.selection_to_ui_pos(selected_image) * image_size.y);
+                                selected_image: Option<u32>, shrink: f32, color1: Color32, color2: Color32) {
+        let pos = canvas_pos + Vec2::new(shrink, self.selection_to_ui_pos(selected_image) * image_size.y + shrink);
         let sel_rect = Rect {
             min: pos,
-            max: pos + image_size,
+            max: pos + image_size - Vec2::splat(2.0 * shrink),
         };
         let stroke = egui::Stroke::new(3.0, color1);
         painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
@@ -65,7 +62,8 @@ impl ImagePickerWidget {
         painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, settings: &AppSettings, image: &impl ImageCollection, texture: &egui::TextureHandle) {
+    pub fn show(&mut self, ui: &mut egui::Ui, _settings: &AppSettings, image: &impl ImageCollection,
+                texture: &egui::TextureHandle, bg_color: Color32) {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
         let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
             let image_size = self.zoom * image.get_item_size();
@@ -84,17 +82,17 @@ impl ImagePickerWidget {
             };
 
             // draw background
-            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, self.background_color.unwrap_or(settings.image_bg_color));
+            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, bg_color);
 
             // draw items
             egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);
 
             // draw selection rectangles
             self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
-                                           egui::Color32::BLUE, egui::Color32::WHITE);
+                                          0.0, Color32::BLUE, Color32::WHITE);
             if self.allow_second_selection {
                 self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image_right,
-                                               egui::Color32::RED, egui::Color32::WHITE);
+                                              4.0, Color32::RED, Color32::WHITE);
             }
 
             response

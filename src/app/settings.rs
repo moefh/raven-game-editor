@@ -37,6 +37,7 @@ pub struct AppSettings {
     pub zoom: u32,
     pub start_maximized: bool,
     pub image_bg_color: egui::Color32,
+    pub map_bg_color: egui::Color32,
     pub color_picker_bg_color: egui::Color32,
     pub image_grid_color: egui::Color32,
     pub map_grid_color: egui::Color32,
@@ -56,6 +57,7 @@ impl AppSettings {
             zoom: 100,
             start_maximized: false,
             image_bg_color: egui::Color32::from_rgb(0xe0, 0xff, 0xff),
+            map_bg_color: egui::Color32::from_rgb(0x80, 0x20, 0x80),
             color_picker_bg_color: egui::Color32::from_rgb(0xe0, 0xe0, 0xe0),
             image_grid_color: egui::Color32::BLACK,
             map_grid_color: egui::Color32::BLACK,
@@ -107,6 +109,7 @@ impl AppSettings {
         config.push_str(&format!("theme = \"{}\";\n", self.theme));
         config.push_str(&format!("start_maximized = {};\n", if self.start_maximized { 1 } else { 0 }));
         config.push_str(&format!("image_bg_color = {};\n", Self::save_color(self.image_bg_color)));
+        config.push_str(&format!("map_bg_color = {};\n", Self::save_color(self.map_bg_color)));
         config.push_str(&format!("color_picker_bg_color = {};\n", Self::save_color(self.color_picker_bg_color)));
         config.push_str(&format!("image_grid_color = {};\n", Self::save_color(self.image_grid_color)));
         config.push_str(&format!("map_grid_color = {};\n", Self::save_color(self.map_grid_color)));
@@ -215,6 +218,7 @@ impl<'a> AppSettingsReader<'a> {
                     "zoom" => { settings.zoom = self.read_number_config()?; }
                     "start_maximized" => { settings.start_maximized = self.read_number_config()? != 0; }
                     "image_bg_color" => { settings.image_bg_color = self.read_color_config()?; }
+                    "map_bg_color" => { settings.map_bg_color = self.read_color_config()?; }
                     "color_picker_bg_color" => { settings.color_picker_bg_color = self.read_color_config()?; }
                     "image_grid_color" => { settings.image_grid_color = self.read_color_config()?; }
                     "map_grid_color" => { settings.map_grid_color = self.read_color_config()?; }

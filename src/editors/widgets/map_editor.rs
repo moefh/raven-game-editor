@@ -137,6 +137,7 @@ pub struct MapEditorWidget {
     pub right_draw_tile: u8,
     pub hover_pos: Vec2,
     pub custom_grid_color: Option<Color32>,
+    pub custom_bg_color: Option<Color32>,
     pub screen_display_pos: Pos2,
     pub selection: MapSelection,
     drag_mouse_origin: Pos2,
@@ -147,6 +148,9 @@ pub struct MapEditorWidget {
 }
 
 impl MapEditorWidget {
+    const LIGHT_LAYER_TINT: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 96);
+    const HEAVY_LAYER_TINT: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 128);
+
     pub fn new() -> Self {
         let zoom = 1.0;
         MapEditorWidget {
@@ -159,6 +163,7 @@ impl MapEditorWidget {
             right_draw_tile: MapData::NO_TILE,
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
+            custom_bg_color: None,
             screen_display_pos: Pos2::new(TILE_SIZE/zoom, TILE_SIZE/zoom),
             selection: MapSelection::None,
             drag_mouse_origin: Pos2::ZERO,
@@ -540,6 +545,27 @@ impl MapEditorWidget {
         }
     }
 
+    fn calc_para_scroll(&self, map_area_rect: Rect, map_data: &MapData) -> Vec2 {
+        let zoomed_tile_size = self.zoom * TILE_SIZE;
+        let win_w = map_area_rect.width();
+        let win_h = map_area_rect.height();
+        let map_w = map_data.width as f32 * zoomed_tile_size;
+        let map_h = map_data.height as f32 * zoomed_tile_size;
+        let para_w = map_data.para_width as f32 * zoomed_tile_size;
+        let para_h = map_data.para_height as f32 * zoomed_tile_size;
+        let scroll_x = if map_w > win_w {
+            self.scroll.x * (1.0 - (map_w - para_w) / (map_w - win_w))
+        } else {
+            0.0
+        };
+        let scroll_y = if map_h > win_h {
+            self.scroll.y * (1.0 - (map_h - para_h) / (map_h - win_h))
+        } else {
+            0.0
+        };
+        Vec2::new(scroll_x, scroll_y)
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData, tileset: &Tileset) {
         let min_size = (self.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
@@ -566,17 +592,19 @@ impl MapEditorWidget {
                 max: canvas_rect.min + map_size.min(canvas_rect.size()),
             }
         };
+
+        // limit scroll in case we've been resized
+        self.clip_scroll(canvas_rect.size(), map_size);
+
         let canvas_to_map_full = emath::RectTransform::from_to(
             Rect { min: canvas_rect.min + self.scroll, max: canvas_rect.min + map_size + self.scroll },
             Rect { min: Pos2::ZERO, max: Pos2::new(map_data.width as f32, map_data.height as f32) }
         );
+        let para_scroll = self.calc_para_scroll(map_area_rect, map_data);
         let canvas_to_map_para = emath::RectTransform::from_to(
-            Rect { min: canvas_rect.min + self.scroll, max: canvas_rect.min + map_para_size + self.scroll },
+            Rect { min: canvas_rect.min + para_scroll, max: canvas_rect.min + map_para_size + para_scroll },
             Rect { min: Pos2::ZERO, max: Pos2::new(map_data.para_width as f32, map_data.para_height as f32) }
         );
-
-        // limit scroll in case we've been resized
-        self.clip_scroll(canvas_rect.size(), map_size);
 
         // ensure we don't draw outside the map area
         ui.shrink_clip_rect(canvas_rect);
@@ -588,19 +616,20 @@ impl MapEditorWidget {
         }
 
         // draw background green
-        painter.rect_filled(map_area_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0xffu8, 0));
+        let bg_color = self.custom_bg_color.unwrap_or(wc.settings.map_bg_color);
+        painter.rect_filled(map_area_rect, egui::CornerRadius::ZERO, bg_color);
 
         // parallax
-        if self.display.has_bits(MapDisplay::PARALLAX) {
+        if self.display.has_bits(MapDisplay::PARALLAX) && map_data.para_width != 0 && map_data.para_height != 0 {
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
             for y in 0..map_data.para_height {
                 for x in 0..map_data.para_width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
                     if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
-                    let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
+                    let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + para_scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
                     if self.edit_layer == MapLayer::Foreground || self.edit_layer == MapLayer::Background {
-                        image.tint(Color32::BLACK).paint_at(ui, tile_rect);
+                        image.tint(Self::LIGHT_LAYER_TINT).paint_at(ui, tile_rect);
                     } else {
                         image.paint_at(ui, tile_rect);
                     }
@@ -619,11 +648,12 @@ impl MapEditorWidget {
                     if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
-                    if self.edit_layer == MapLayer::Foreground || self.edit_layer == MapLayer::Parallax {
-                        image.tint(Color32::BLACK).paint_at(ui, tile_rect);
-                    } else {
-                        image.paint_at(ui, tile_rect);
-                    }
+                    let image = match self.edit_layer {
+                        MapLayer::Foreground => { image.tint(Self::LIGHT_LAYER_TINT) }
+                        MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
+                        _ => { image }
+                    };
+                    image.paint_at(ui, tile_rect);
                 }
             }
 
@@ -639,11 +669,12 @@ impl MapEditorWidget {
                     if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
-                    if self.edit_layer == MapLayer::Background || self.edit_layer == MapLayer::Parallax {
-                        image.tint(Color32::BLACK).paint_at(ui, tile_rect);
-                    } else {
-                        image.paint_at(ui, tile_rect);
-                    }
+                    let image = match self.edit_layer {
+                        MapLayer::Background => { image.tint(Self::LIGHT_LAYER_TINT) }
+                        MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
+                        _ => { image }
+                    };
+                    image.paint_at(ui, tile_rect);
                 }
             }
 
@@ -739,7 +770,7 @@ impl MapEditorWidget {
         // draw selection rectangle
         if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
             let map_to_canvas = match self.edit_layer {
-                MapLayer::Background => canvas_to_map_para.inverse(),
+                MapLayer::Parallax => canvas_to_map_para.inverse(),
                 _ => canvas_to_map_full.inverse(),
             };
             let sel_rect = Rect {
