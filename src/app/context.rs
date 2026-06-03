@@ -119,6 +119,18 @@ impl AppWindowTracker {
             })
         })
     }
+
+    pub fn get_topmost_of(&self, ids: &HashSet<egui::Id>, ctx: &egui::Context) -> Option<egui::LayerId> {
+        ctx.memory(|mem| {
+            mem.layer_ids().fold(None, |top, layer_id| {
+                if ids.contains(&layer_id.id) {
+                    Some(layer_id)
+                } else {
+                    top
+                }
+            })
+        })
+    }
 }
 
 pub struct WindowEguiContext<'a> {
@@ -169,5 +181,16 @@ impl<'a> WindowContext<'a> {
 
     pub fn open_message_box(&mut self, title: impl AsRef<str>, text: impl AsRef<str>) {
         self.dialogs.open_message_box(self.window_tracker, title, text);
+    }
+
+    // bring to the top the layer among `ids` that's closest to the top
+    pub fn bring_topmost_to_top(&self, ids: &HashSet<egui::Id>) -> Option<egui::Id> {
+        let top_layer_id = self.window_tracker.get_topmost_of(ids, self.egui.ctx);
+        if let Some(layer_id) = top_layer_id {
+            self.egui.ctx.move_to_top(layer_id);
+            Some(layer_id.id)
+        } else {
+            None
+        }
     }
 }

@@ -577,7 +577,7 @@ impl RavenEditorApp {
                 if ui.add(egui::Button::image_and_text(IMAGES.log, "Log")
                           .selected(self.windows.log_window.base.open)
                           .frame_when_inactive(self.windows.log_window.base.open)).on_hover_text("Log Window").clicked() {
-                    self.windows.log_window.base.open = ! self.windows.log_window.base.open;
+                    self.windows.log_window.toggle_open();
                 }
 
                 ui.spacing_mut().item_spacing = spacing;
@@ -665,7 +665,7 @@ impl RavenEditorApp {
                         }
                         if let Some(toggle_open_id) = actions.toggle_asset_open &&
                             let Some(editor) = self.editors.get_editor_mut(toggle_open_id) {
-                                editor.open = !editor.open;
+                                editor.toggle_open();
                             }
                         if let Some(remove_asset_id) = actions.remove_asset {
                             self.remove_asset(remove_asset_id);
@@ -709,6 +709,17 @@ impl RavenEditorApp {
             image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),
         };
+
+        // if some editor was closed, focus the editor that's closest to the top (if any)
+        if self.editors.iter().any(|e| e.closed_last_frame) {
+            let open_editor_ids = self.editors.iter().filter_map(|e| {
+                if e.open { Some(e.egui_id) } else { None }
+            }).collect();
+            win_ctx.bring_topmost_to_top(&open_editor_ids);
+            for e in self.editors.iter_mut() {
+                e.closed_last_frame = false;
+            }
+        }
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {

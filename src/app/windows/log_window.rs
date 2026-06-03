@@ -12,6 +12,10 @@ impl LogWindow {
         }
     }
 
+    pub fn toggle_open(&mut self) {
+        self.base.open = ! self.base.open;
+    }
+
     pub fn show(&mut self, wc: &WindowContext) {
         let default_rect = self.base.default_rect(wc, 600.0, 300.0);
         self.base.create_window(wc, "Log", default_rect).show(wc.egui.ctx, |ui| {

@@ -290,4 +290,30 @@ impl AssetEditors {
         if self.prop_fonts.values().any(|e| e.base.is_dirty()) { return true; }
         false
     }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &AssetEditorBase> {
+        self.tilesets.values().map(|e| &e.base)
+            .chain(self.maps.values().map(|e| &e.base))
+            .chain(self.rooms.values().map(|e| &e.base))
+            .chain(self.sprites.values().map(|e| &e.base))
+            .chain(self.pal_sprites.values().map(|e| &e.base))
+            .chain(self.animations.values().map(|e| &e.base))
+            .chain(self.sfxs.values().map(|e| &e.base))
+            .chain(self.mods.values().map(|e| &e.base))
+            .chain(self.fonts.values().map(|e| &e.base))
+            .chain(self.prop_fonts.values().map(|e| &e.base))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut AssetEditorBase> {
+        self.tilesets.values_mut().map(|e| &mut e.base)
+            .chain(self.maps.values_mut().map(|e| &mut e.base))
+            .chain(self.rooms.values_mut().map(|e| &mut e.base))
+            .chain(self.sprites.values_mut().map(|e| &mut e.base))
+            .chain(self.pal_sprites.values_mut().map(|e| &mut e.base))
+            .chain(self.animations.values_mut().map(|e| &mut e.base))
+            .chain(self.sfxs.values_mut().map(|e| &mut e.base))
+            .chain(self.mods.values_mut().map(|e| &mut e.base))
+            .chain(self.fonts.values_mut().map(|e| &mut e.base))
+            .chain(self.prop_fonts.values_mut().map(|e| &mut e.base))
+    }
 }

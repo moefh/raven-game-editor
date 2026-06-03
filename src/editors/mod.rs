@@ -73,6 +73,7 @@ pub struct AssetEditorBase {
     pub id: DataAssetId,
     pub egui_id: egui::Id,
     pub open: bool,
+    pub closed_last_frame: bool,
     maximized_state: MaximizedState,
     window_rect: egui::Rect,
     saved_hash: u64,
@@ -84,6 +85,7 @@ impl AssetEditorBase {
         AssetEditorBase {
             id,
             open,
+            closed_last_frame: false,
             egui_id: egui::Id::new(format!("editor_{}", id)),
             maximized_state: MaximizedState::Normal,
             window_rect: egui::Rect::ZERO,
@@ -126,6 +128,18 @@ impl AssetEditorBase {
             title,
             image: get_asset_type_image(asset.asset().asset_type),
         }
+    }
+
+    pub fn toggle_open(&mut self) {
+        self.open = ! self.open;
+        if ! self.open {
+            self.closed_last_frame = true;
+        }
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.closed_last_frame = true;
     }
 
     fn toggle_maximized(&mut self) {
@@ -180,7 +194,7 @@ impl AssetEditorBase {
             if let Some(action) = resp.inner {
                 match action {
                     EditorWindowAction::None => {}
-                    EditorWindowAction::Close => { self.open = false; }
+                    EditorWindowAction::Close => { self.close(); }
                     EditorWindowAction::ToggleMaximize => { self.toggle_maximized(); }
                 }
             }
