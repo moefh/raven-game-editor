@@ -166,7 +166,7 @@ impl Editor {
         }
     }
 
-    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext) {
+    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &MapData) {
         egui::Panel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
@@ -197,9 +197,10 @@ impl Editor {
                         self.map_editor.display.toggle(MapDisplay::EFFECTS);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.layer_parallax)
-                          .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
-                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX)))
+                if ui.add_enabled(map_data.para_width != 0 && map_data.para_height != 0,
+                                  egui::Button::image(IMAGES.layer_parallax)
+                                  .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
+                                  .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX)))
                     .on_hover_text("Show parallax").clicked() {
                         self.map_editor.display.toggle(MapDisplay::PARALLAX);
                     }
@@ -316,9 +317,10 @@ impl Editor {
                         self.map_editor.display.set(MapDisplay::EFFECTS);
                     }
 
-                if ui.add(egui::Button::image(IMAGES.layer_parallax)
-                          .selected(self.map_editor.edit_layer == MapLayer::Parallax)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax))
+                if ui.add_enabled(map_data.para_width != 0 && map_data.para_height != 0,
+                                  egui::Button::image(IMAGES.layer_parallax)
+                                  .selected(self.map_editor.edit_layer == MapLayer::Parallax)
+                                  .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax))
                     .on_hover_text("Edit parallax").clicked() {
                         self.map_editor.set_edit_layer(MapLayer::Parallax);
                         self.map_editor.display.set(MapDisplay::PARALLAX);
@@ -402,7 +404,7 @@ impl Editor {
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                 map_data: &mut MapData, tilesets: &AssetList<Tileset>) {
         self.show_menubar(ui, wc, dialogs, map_data);
-        self.show_display_toolbar(ui, wc);
+        self.show_display_toolbar(ui, wc, map_data);
         self.show_edit_toolbar(ui, wc, map_data);
         self.show_footer(ui, wc, map_data);
 

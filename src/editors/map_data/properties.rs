@@ -19,19 +19,23 @@ fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, n
         }
     }
 
-    let new_w = new_w as usize;
-    let new_h = new_h as usize;
-    let old_w = map_data.width as usize;
-    let old_h = map_data.height as usize;
-    resize_tiles(&mut map_data.fg_tiles, old_w, old_h, new_w, new_h, new_tile);
-    resize_tiles(&mut map_data.bg_tiles, old_w, old_h, new_w, new_h, new_tile);
-    resize_tiles(&mut map_data.fx_tiles, old_w, old_h, new_w, new_h, new_tile);
+    let new_width = new_w as usize;
+    let new_height = new_h as usize;
+    let old_width = map_data.width as usize;
+    let old_height = map_data.height as usize;
+    resize_tiles(&mut map_data.fg_tiles, old_width, old_height, new_width, new_height, new_tile);
+    resize_tiles(&mut map_data.bg_tiles, old_width, old_height, new_width, new_height, new_tile);
+    resize_tiles(&mut map_data.fx_tiles, old_width, old_height, new_width, new_height, new_tile);
+    map_data.width = new_w;
+    map_data.height = new_h;
 
-    let new_para_w = new_para_w as usize;
-    let new_para_h = new_para_h as usize;
-    let old_para_w = map_data.para_width as usize;
-    let old_para_h = map_data.para_height as usize;
-    resize_tiles(&mut map_data.para_tiles, old_para_w, old_para_h, new_para_w, new_para_h, new_tile);
+    let new_para_width = new_para_w as usize;
+    let new_para_height = new_para_h as usize;
+    let old_para_width = map_data.para_width as usize;
+    let old_para_height = map_data.para_height as usize;
+    resize_tiles(&mut map_data.para_tiles, old_para_width, old_para_height, new_para_width, new_para_height, new_tile);
+    map_data.para_width = new_para_w;
+    map_data.para_height = new_para_h;
 }
 
 pub struct PropertiesDialog {
@@ -96,10 +100,6 @@ impl PropertiesDialog {
         let para_height = self.para_height;
         if width != map_data.width || height != map_data.height || para_width != map_data.para_width || para_height != map_data.para_height {
             resize_map(map_data, width, height, para_width, para_height, self.new_tile);
-            map_data.width = width;
-            map_data.height = height;
-            map_data.para_width = para_width;
-            map_data.para_height = para_height;
             self.resized = true;
         } else {
             self.resized = false;
@@ -152,11 +152,11 @@ impl PropertiesDialog {
                             ui.end_row();
 
                             ui.label("Parallax Width:");
-                            ui.add(egui::Slider::new(&mut self.para_width, 1..=512).step_by(1.0));
+                            ui.add(egui::Slider::new(&mut self.para_width, 0..=512).step_by(1.0));
                             ui.end_row();
 
                             ui.label("Parallax Height:");
-                            ui.add(egui::Slider::new(&mut self.para_height, 1..=512).step_by(1.0));
+                            ui.add(egui::Slider::new(&mut self.para_height, 0..=512).step_by(1.0));
                             ui.end_row();
                         });
                 });
