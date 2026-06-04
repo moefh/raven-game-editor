@@ -415,11 +415,13 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             rect.y += dy;
             rect.w -= dx;
             rect.h -= dy;
+            if rect.w < 0 { rect.x += rect.w; rect.w = 0; }
+            if rect.h < 0 { rect.y += rect.h; rect.h = 0; }
         }
         if resp.dragged_by(egui::PointerButton::Secondary) {
             // set bottom-right
-            rect.w = mouse_pos.0 - rect.x;
-            rect.h = mouse_pos.1 - rect.y;
+            rect.w = (mouse_pos.0 - rect.x).max(0);
+            rect.h = (mouse_pos.1 - rect.y).max(0);
         }
     }
 

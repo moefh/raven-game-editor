@@ -188,6 +188,44 @@ impl Editor {
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
 
+        // Collision
+        egui::Panel::top(format!("editor_panel_{}_collision_bar", asset_id)).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
+
+                ui.label("Collision: (");
+                let max_x = (animation.clip_rect.x + animation.clip_rect.w).max(0);
+                let max_y = (animation.clip_rect.y + animation.clip_rect.h).max(0);
+                let mut x = animation.clip_rect.x;
+                let mut y = animation.clip_rect.y;
+                ui.add(egui::DragValue::new(&mut x).speed(1.0).range(0..=max_x));
+                ui.label(",");
+                ui.add(egui::DragValue::new(&mut y).speed(1.0).range(0..=max_y));
+                ui.label(")");
+
+                // fix size
+                let dx = x - animation.clip_rect.x;
+                let dy = y - animation.clip_rect.y;
+                animation.clip_rect.x += dx;
+                animation.clip_rect.y += dy;
+                animation.clip_rect.w -= dx;
+                animation.clip_rect.h -= dy;
+                if animation.clip_rect.w < 0 { animation.clip_rect.x += animation.clip_rect.w; animation.clip_rect.w = 0; }
+                if animation.clip_rect.h < 0 { animation.clip_rect.y += animation.clip_rect.h; animation.clip_rect.h = 0; }
+
+                ui.add_space(10.0);
+
+                let max_w = sprite.width.saturating_sub(animation.clip_rect.x.max(0) as u32);
+                let max_h = sprite.height.saturating_sub(animation.clip_rect.y.max(0) as u32);
+                ui.add(egui::DragValue::new(&mut animation.clip_rect.w).speed(1.0).range(0..=max_w));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut animation.clip_rect.h).speed(1.0).range(0..=max_h));
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
