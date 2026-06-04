@@ -393,16 +393,8 @@ impl RoomEditorWidget {
 
     fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_items() { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
         for y in 0..map_data.height {
-            for x in 0..map_data.para_width {
+            for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
                 if tile == MapData::NO_TILE || tile as u32 >= tileset.num_items() { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
