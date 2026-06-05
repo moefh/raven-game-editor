@@ -19,21 +19,6 @@ pub struct SpriteAnimation {
     pub loops: Vec<SpriteAnimationLoop>,
 }
 
-#[derive(Clone)]
-pub struct LoopCreationData {
-    pub offset: u16,
-    pub len: u16,
-}
-
-pub struct CreationData<'a> {
-    pub sprite_id: super::DataAssetId,
-    pub clip_rect: super::Rect,
-    pub use_foot_frames: bool,
-    pub foot_overlap: i8,
-    pub frame_indices: &'a [u8],
-    pub loops: &'a [LoopCreationData],
-}
-
 impl SpriteAnimation {
     pub const NUM_LOOPS: usize = 20;
 
@@ -55,34 +40,6 @@ impl SpriteAnimation {
             sprite_id,
             clip_rect: super::Rect::new(0, 0, 0, 0),
             foot_overlap: 0,
-            loops,
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        let mut loops = Vec::new();
-        for loop_data in data.loops {
-            let mut frame_indices = Vec::new();
-            for frame_index in 0..loop_data.len {
-                let src_offset = (loop_data.offset + if data.use_foot_frames { 2*frame_index } else { frame_index }) as usize;
-                let head_index = if data.frame_indices[src_offset] != 0xff {
-                    Some(data.frame_indices[src_offset])
-                } else { None };
-                let foot_index = if data.use_foot_frames && data.frame_indices[src_offset+1] != 0xff {
-                    Some(data.frame_indices[src_offset+1])
-                } else { None };
-                frame_indices.push(SpriteAnimationFrame { head_index, foot_index });
-            }
-            loops.push(SpriteAnimationLoop {
-                name_id: String::new(),
-                frame_indices,
-            });
-        }
-        SpriteAnimation {
-            asset: super::DataAsset::new(super::DataAssetType::SpriteAnimation, id, name),
-            sprite_id: data.sprite_id,
-            clip_rect: data.clip_rect,
-            foot_overlap: data.foot_overlap,
             loops,
         }
     }

@@ -1,6 +1,15 @@
-use std::collections::HashMap;
+use std::collections::{
+    HashMap,
+    HashSet,
+};
 
-use crate::data_asset::{DataAssetId, DataAssetType, DataAssetStore};
+use crate::data_asset::{
+    DataAssetId,
+    DataAssetType,
+    DataAssetStore,
+    AssetList,
+    Room,
+};
 use crate::editors::{
     AssetEditorBase,
     TilesetEditor,
@@ -27,6 +36,7 @@ pub struct AssetEditors {
     pub mods: HashMap<DataAssetId, ModDataEditor>,
     pub fonts: HashMap<DataAssetId, FontEditor>,
     pub prop_fonts: HashMap<DataAssetId, PropFontEditor>,
+    pub room_names: HashMap<DataAssetId, String>,
 }
 
 impl AssetEditors {
@@ -43,6 +53,7 @@ impl AssetEditors {
             mods: HashMap::new(),
             fonts: HashMap::new(),
             prop_fonts: HashMap::new(),
+            room_names: HashMap::new(),
         }
     }
 
@@ -58,6 +69,7 @@ impl AssetEditors {
         self.mods.clear();
         self.fonts.clear();
         self.prop_fonts.clear();
+        self.room_names.clear();
     }
 
     pub fn create_editors_for_new_store(&mut self, store: &DataAssetStore) {
@@ -315,5 +327,35 @@ impl AssetEditors {
             .chain(self.mods.values_mut().map(|e| &mut e.base))
             .chain(self.fonts.values_mut().map(|e| &mut e.base))
             .chain(self.prop_fonts.values_mut().map(|e| &mut e.base))
+    }
+
+    pub fn refresh_room_names(&mut self, rooms: &AssetList<Room>) {
+        let mut seen_ids = HashSet::new();
+        let mut remove_ids = HashSet::new();
+
+        // correct changed names
+        for (room_id, room_name) in self.room_names.iter_mut() {
+            seen_ids.insert(*room_id);
+            if let Some(room) = rooms.get(room_id) {
+                if *room_name != room.asset.name {
+                    room_name.clear();
+                    room_name.push_str(&room.asset.name);
+                }
+            } else {
+                remove_ids.insert(*room_id);
+            }
+        }
+
+        // add new rooms
+        for room in rooms.iter() {
+            if ! seen_ids.contains(&room.asset.id) {
+                self.room_names.insert(room.asset.id, room.asset.name.clone());
+            }
+        }
+
+        // remove gond rooms
+        for room_id in remove_ids.iter() {
+            self.room_names.remove(room_id);
+        }
     }
 }

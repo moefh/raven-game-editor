@@ -7,13 +7,6 @@ pub struct Tileset {
     pub data: Vec<u8>,
 }
 
-pub struct CreationData {
-    pub width: u32,
-    pub height: u32,
-    pub num_tiles: u32,
-    pub pixels: Vec<u8>,
-}
-
 impl Tileset {
     pub const TILE_SIZE: u32 = 16;
     pub const EMPTY_COLOR: u8 = 0xff;
@@ -26,16 +19,6 @@ impl Tileset {
             height: Self::TILE_SIZE,
             num_tiles,
             data: vec![Self::EMPTY_COLOR; (Self::TILE_SIZE*Self::TILE_SIZE*num_tiles) as usize],
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        Tileset {
-            asset: super::DataAsset::new(super::DataAssetType::Tileset, id, name),
-            width: data.width,
-            height: data.height,
-            num_tiles: data.num_tiles,
-            data: data.pixels,
         }
     }
 }

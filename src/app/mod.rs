@@ -710,6 +710,8 @@ impl RavenEditorApp {
             keyboard_pressed: self.keyboard_pressed.take(),
         };
 
+        self.editors.refresh_room_names(&self.store.assets.rooms);
+
         // if some editor was closed, focus the editor that's closest to the top (if any)
         if self.editors.iter().any(|e| e.closed_last_frame) {
             let open_editor_ids = self.editors.iter().filter_map(|e| {
@@ -737,7 +739,8 @@ impl RavenEditorApp {
                     &self.store.assets.maps,
                     &self.store.assets.tilesets,
                     &self.store.assets.animations,
-                    &self.store.assets.sprites);
+                    &self.store.assets.sprites,
+                    &self.editors.room_names);
                 editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
             }
         }

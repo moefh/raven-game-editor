@@ -8,14 +8,6 @@ pub struct Sfx {
     pub samples: Vec<i16>,
 }
 
-pub struct CreationData<'a> {
-    pub len: u32,
-    pub loop_start: u32,
-    pub loop_len: u32,
-    pub bits_per_sample: u16,
-    pub samples: &'a [i16],
-}
-
 impl Sfx {
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let len = 5000;
@@ -26,17 +18,6 @@ impl Sfx {
             loop_len: 0,
             bits_per_sample: 16,
             samples: Self::gen_sample_data(len as usize),
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        Sfx {
-            asset: super::DataAsset::new(super::DataAssetType::Sfx, id, name),
-            len: data.len,
-            loop_start: data.loop_start,
-            loop_len: data.loop_len,
-            bits_per_sample: data.bits_per_sample,
-            samples: Vec::from(data.samples),
         }
     }
 

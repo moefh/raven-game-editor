@@ -10,7 +10,16 @@ use std::sync::LazyLock;
 
 use ident_store::{*};
 
-use super::{StringLogger, DataAssetStore, DataAssetId, DataAssetType, DataAsset, AssetIdList};
+use super::{
+    StringLogger,
+    DataAssetStore,
+    DataAssetId,
+    DataAssetType,
+    DataAsset,
+    AssetIdList,
+    RoomEntityType,
+    RoomTriggerType,
+};
 
 static RE_UNNAMED_LOOP: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^loop_[0-9]+$").unwrap());
@@ -939,10 +948,20 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("static const struct {}_ROOM_ENTITY_INFO {}_room_entities_{}[] = {{\n",
                            self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for ent in room.entities.iter() {
-            let anim_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, ent.animation_id)?;
-            self.write(format!("  {{ {}, {}, &{}_sprite_animations[{}], {}, {}, {}, {} }},\n",
-                               ent.x, ent.y, self.ident.prefix_lower, anim_index,
-                               ent.data0, ent.data1, ent.data2, ent.data3));
+            self.write("  { ");
+            self.write(format!("{}, {}, ", ent.x, ent.y));
+            match ent.entity_type {
+                RoomEntityType::Unknown { data0, data1, data2, data3 } => {
+                    self.write(format!(".any = {{ {}, {}, {}, {} }}",
+                                       data0, data1, data2, data3));
+                }
+                RoomEntityType::Enemy { animation_id } => {
+                    let anim_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
+                    self.write(format!(".enemy = {{ &{}_sprite_animations[{}] }}",
+                                       self.ident.prefix_lower, anim_index));
+                }
+            }
+            self.write(" },\n");
         }
         self.write("};\n");
         self.write("\n");
@@ -950,15 +969,29 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_triggers(&self, room: &super::Room, name_id: &str) {
+    fn write_room_triggers(&self, room: &super::Room, name_id: &str) -> Result<()> {
         self.write(format!("static const struct {}_ROOM_TRIGGER_INFO {}_room_triggers_{}[] = {{\n",
                            self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for trg in room.triggers.iter() {
-            self.write(format!("  {{ {}, {}, {}, {}, {}, {}, {}, {} }},\n",
-                               trg.x, trg.y, trg.width, trg.height, trg.data0, trg.data1, trg.data2, trg.data3));
+            self.write("  {  ");
+            self.write(format!("{}, {}, {}, {}, ", trg.x, trg.y, trg.width, trg.height));
+            match trg.trigger_type {
+                RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
+                    self.write(format!(".any = {{ {}, {}, {}, {}, }}",
+                                       data0, data1, data2, data3));
+                }
+                RoomTriggerType::Door { room_id, door_id } => {
+                    let room_index = self.ident.get_asset_index(DataAssetType::Room, room_id)?;
+                    self.write(format!(".door = {{ &{}_rooms[{}], {} }}",
+                                       self.ident.prefix_lower, room_index, door_id));
+                }
+            }
+            self.write(" },\n");
         }
         self.write("};\n");
         self.write("\n");
+
+        Ok(())
     }
 
     fn write_rooms(&self) -> Result<()> {
@@ -972,7 +1005,7 @@ impl<'a> ProjectDataWriter<'a> {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
                 self.write_room_maps(room, name_id)?;
                 self.write_room_entities(room, name_id)?;
-                self.write_room_triggers(room, name_id);
+                self.write_room_triggers(room, name_id)?;
             }
         }
 

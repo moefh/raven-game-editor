@@ -21,10 +21,10 @@ pub use writer::write_project;
 
 pub use tileset::Tileset;
 pub use map_data::MapData;
-pub use room::{Room, RoomMap, RoomEntity, RoomTrigger, RoomItem};
+pub use room::{Room, RoomMap, RoomEntity, RoomEntityType, RoomTrigger, RoomTriggerType, RoomItem};
 pub use sprite::Sprite;
 pub use pal_sprite::{PalSprite, PalSpriteDepth};
-pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame};
+pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame, SpriteAnimationLoop};
 pub use sfx::Sfx;
 pub use mod_data::{MOD_PERIOD_TABLE, ModData, ModSample, ModCell};
 pub use font::Font;
@@ -246,9 +246,9 @@ impl AssetIdList {
         self.store.retain(|&id| id != remove_id)
     }
 
-    //pub fn get(&self, index: usize) -> Option<&DataAssetId> {
-    //    self.store.get(index)
-    //}
+    pub fn get(&self, index: usize) -> Option<&DataAssetId> {
+        self.store.get(index)
+    }
 
     pub fn len(&self) -> usize {
         self.store.len()
@@ -337,7 +337,13 @@ impl AssetCollection {
             if room.maps.iter().any(|m| m.map_id == id) {
                 return true;
             }
-            if room.entities.iter().any(|e| e.animation_id == id) {
+            if room.entities.iter().any(|e| {
+                if let RoomEntityType::Enemy { animation_id, .. } = e.entity_type && animation_id == id {
+                    true
+                } else {
+                    false
+                }
+            }) {
                 return true;
             }
         }
@@ -431,8 +437,8 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const VERSION: u32 = 3;
-    pub const VERSION_DATE: &str = "2026-06-03";
+    pub const VERSION: u32 = 4;
+    pub const VERSION_DATE: &str = "2026-06-05";
 
     pub fn new() -> Self {
         DataAssetStore {
@@ -527,13 +533,6 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_tileset_from(&mut self, name: String, data: tileset::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.tilesets.push(id);
-        self.assets.tilesets.insert(id, Tileset::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_map(&mut self, name: String, tileset_id: DataAssetId) -> Option<DataAssetId> {
         if ! self.assets.tilesets.contains(&tileset_id) {
             return None;
@@ -544,27 +543,10 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_map_from(&mut self, name: String, data: map_data::CreationData) -> Option<DataAssetId> {
-        if ! self.assets.tilesets.contains(&data.tileset_id) {
-            return None;
-        }
-        let id = self.gen_id();
-        self.asset_ids.maps.push(id);
-        self.assets.maps.insert(id, MapData::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_room(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.rooms.push(id);
         self.assets.rooms.insert(id, Room::new(id, name));
-        Some(id)
-    }
-
-    pub fn add_room_from(&mut self, name: String, data: room::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.rooms.push(id);
-        self.assets.rooms.insert(id, Room::from_data(id, name, data));
         Some(id)
     }
 
@@ -575,24 +557,10 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_sprite_from(&mut self, name: String, data: sprite::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.sprites.push(id);
-        self.assets.sprites.insert(id, Sprite::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_pal_sprite(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.pal_sprites.push(id);
         self.assets.pal_sprites.insert(id, PalSprite::new(id, name));
-        Some(id)
-    }
-
-    pub fn add_pal_sprite_from(&mut self, name: String, data: pal_sprite::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.pal_sprites.push(id);
-        self.assets.pal_sprites.insert(id, PalSprite::from_data(id, name, data));
         Some(id)
     }
 
@@ -606,27 +574,10 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_animation_from(&mut self, name: String, data: sprite_animation::CreationData) -> Option<DataAssetId> {
-        if ! self.assets.sprites.contains(&data.sprite_id) {
-            return None;
-        }
-        let id = self.gen_id();
-        self.asset_ids.animations.push(id);
-        self.assets.animations.insert(id, SpriteAnimation::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_sfx(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.sfxs.push(id);
         self.assets.sfxs.insert(id, Sfx::new(id, name));
-        Some(id)
-    }
-
-    pub fn add_sfx_from(&mut self, name: String, data: sfx::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.sfxs.push(id);
-        self.assets.sfxs.insert(id, Sfx::from_data(id, name, data));
         Some(id)
     }
 
@@ -637,13 +588,6 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_mod_from(&mut self, name: String, data: mod_data::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.mods.push(id);
-        self.assets.mods.insert(id, ModData::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.fonts.push(id);
@@ -651,24 +595,10 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_font_from(&mut self, name: String, data: font::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.fonts.push(id);
-        self.assets.fonts.insert(id, Font::from_data(id, name, data));
-        Some(id)
-    }
-
     pub fn add_prop_font(&mut self, name: String) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.prop_fonts.push(id);
         self.assets.prop_fonts.insert(id, PropFont::new(id, name));
-        Some(id)
-    }
-
-    pub fn add_prop_font_from(&mut self, name: String, data: prop_font::CreationData) -> Option<DataAssetId> {
-        let id = self.gen_id();
-        self.asset_ids.prop_fonts.push(id);
-        self.assets.prop_fonts.insert(id, PropFont::from_data(id, name, data));
         Some(id)
     }
 }

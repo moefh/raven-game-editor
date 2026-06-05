@@ -1,7 +1,17 @@
 use egui::{Vec2, Sense, Rect, Pos2, Image, Color32};
 use egui::emath::RectTransform;
 
-use crate::data_asset::{Room, RoomMap, RoomEntity, RoomTrigger, MapData, Tileset, Sprite, AssetList};
+use crate::data_asset::{
+    Room,
+    RoomMap,
+    RoomEntity,
+    RoomEntityType,
+    RoomTrigger,
+    MapData,
+    Tileset,
+    Sprite,
+    AssetList,
+};
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 
@@ -68,9 +78,17 @@ impl RoomEditorWidget {
         }
     }
 
-    fn get_entity_rect(entity: &RoomEntity, sprite: &Sprite) -> Rect {
+    fn get_entity_rect(entity: &RoomEntity, assets: &RoomEditorAssetLists) -> Rect {
         let ent_pos = Pos2::new(entity.x as f32, entity.y as f32);
-        let ent_size = Vec2::new(sprite.width as f32, sprite.height as f32);
+        let ent_size = match entity.entity_type {
+            RoomEntityType::Enemy { animation_id } => {
+                assets.animations.get(&animation_id)
+                    .and_then(|animation| { assets.sprites.get(&animation.sprite_id) })
+                    .map(|sprite| { Vec2::new(sprite.width as f32, sprite.height as f32) })
+                    .unwrap_or(Vec2::splat(64.0))
+            }
+            _ => { Vec2::splat(64.0) }
+        };
         egui::Rect {
             min: ent_pos,
             max: ent_pos + ent_size,
@@ -98,9 +116,7 @@ impl RoomEditorWidget {
 
             RoomItemRef::Entity(ent_index) => {
                 let entity = room.entities.get(ent_index)?;
-                let animation = assets.animations.get(&entity.animation_id)?;
-                let sprite = assets.sprites.get(&animation.sprite_id)?;
-                Some(Self::get_entity_rect(entity, sprite))
+                Some(Self::get_entity_rect(entity, assets))
             },
 
             RoomItemRef::Trigger(trg_index) => {
@@ -472,14 +488,23 @@ impl RoomEditorWidget {
 
         // draw entities
         for entity in room.entities.iter() {
-            if let Some(animation) = assets.animations.get(&entity.animation_id) && let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-                let sprite_frame = animation.loops.first()
-                    .and_then(|aloop| aloop.frame_indices.first())
-                    .and_then(|frame| frame.head_index)
-                    .unwrap_or(0);
-                let ent_rect = Self::get_entity_rect(entity, sprite);
-                Self::draw_entity(ui, wc, &to_canvas, ent_rect, sprite, sprite_frame as u32);
-                Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+            match entity.entity_type {
+                RoomEntityType::Unknown {..} => {
+                    let ent_rect = Self::get_entity_rect(entity, assets);
+                    Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+                }
+                RoomEntityType::Enemy { animation_id } => {
+                    if let Some(animation) = assets.animations.get(&animation_id) &&
+                        let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                            let sprite_frame = animation.loops.first()
+                                .and_then(|aloop| aloop.frame_indices.first())
+                                .and_then(|frame| frame.head_index)
+                                .unwrap_or(0);
+                            let ent_rect = Self::get_entity_rect(entity, assets);
+                            Self::draw_entity(ui, wc, &to_canvas, ent_rect, sprite, sprite_frame as u32);
+                            Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+                        }
+                }
             }
         }
 
@@ -493,9 +518,8 @@ impl RoomEditorWidget {
 
         // outline selected entity
         if let RoomItemRef::Entity(ent_index) = self.selected_item &&
-            let Some(entity) = room.entities.get(ent_index) &&
-            let Some(sprite) = assets.animations.get(&entity.animation_id).and_then(|anim| assets.sprites.get(&anim.sprite_id)) {
-                let rect = Self::get_entity_rect(entity, sprite);
+            let Some(entity) = room.entities.get(ent_index) {
+                let rect = Self::get_entity_rect(entity, assets);
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 

@@ -13,15 +13,6 @@ pub struct MapData {
     pub para_tiles: Vec<u8>,
 }
 
-pub struct CreationData<'a> {
-    pub tileset_id: super::DataAssetId,
-    pub width: u32,
-    pub height: u32,
-    pub para_width: u32,
-    pub para_height: u32,
-    pub tiles: &'a [u8],
-}
-
 impl MapData {
     pub const NO_TILE: u8 = 0xff;
 
@@ -41,26 +32,6 @@ impl MapData {
             bg_tiles: vec![0; (width * height) as usize],
             fx_tiles: vec![Self::NO_TILE; (width * height) as usize],
             para_tiles: vec![Self::NO_TILE; (para_width * para_height) as usize],
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        let fg_size = (data.width * data.height) as usize;
-        let fg_tiles = Vec::from(&data.tiles[0..fg_size]);
-        let bg_tiles = Vec::from(&data.tiles[fg_size..2*fg_size]);
-        let fx_tiles = Vec::from(&data.tiles[2*fg_size..3*fg_size]);
-        let para_tiles = Vec::from(&data.tiles[3*fg_size..]);
-        MapData {
-            asset: super::DataAsset::new(super::DataAssetType::MapData, id, name),
-            tileset_id: data.tileset_id,
-            width: data.width,
-            height: data.height,
-            para_width: data.para_width,
-            para_height: data.para_height,
-            fg_tiles,
-            bg_tiles,
-            fx_tiles,
-            para_tiles,
         }
     }
 }

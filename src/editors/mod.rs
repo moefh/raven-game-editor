@@ -23,7 +23,13 @@ pub use prop_font::PropFontEditor;
 
 use crate::include_ref_image;
 use crate::misc::{calc_hash, get_asset_type_image, ImageRef, IMAGES};
-use crate::data_asset::{DataAssetId, MapData, GenericAsset};
+use crate::data_asset::{
+    DataAssetId,
+    MapData,
+    GenericAsset,
+    RoomEntityType,
+    RoomTriggerType,
+};
 use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
 use crate::app::WindowContext;
 use egui::{Pos2, Rect};
@@ -655,5 +661,73 @@ impl MapClipboardData {
 
     pub fn take(&mut self) -> MapClipboardData {
         std::mem::replace(self, MapClipboardData::Empty)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RoomEntityTypeSel {
+    Unknown,
+    Enemy,
+}
+
+impl RoomEntityTypeSel {
+    pub fn from_entity_type(entity_type: &RoomEntityType) -> Self {
+        match entity_type {
+            RoomEntityType::Unknown { .. } => RoomEntityTypeSel::Unknown,
+            RoomEntityType::Enemy { .. } => RoomEntityTypeSel::Enemy,
+        }
+    }
+
+    pub fn convert_entity_type(&self, entity_type: &mut RoomEntityType, animation_id: DataAssetId) {
+        match self {
+            RoomEntityTypeSel::Unknown if ! matches!(entity_type, RoomEntityType::Unknown {..}) => {
+                *entity_type = RoomEntityType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
+            }
+            RoomEntityTypeSel::Enemy if ! matches!(entity_type, RoomEntityType::Enemy {..}) => {
+                *entity_type = RoomEntityType::Enemy { animation_id };
+            }
+            _ => {}
+        }
+    }
+
+    pub fn text(&self) -> &'static str {
+        match self {
+            RoomEntityTypeSel::Unknown => "any",
+            RoomEntityTypeSel::Enemy => "enemy",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RoomTriggerTypeSel {
+    Unknown,
+    Door,
+}
+
+impl RoomTriggerTypeSel {
+    pub fn from_trigger_type(trigger_type: &RoomTriggerType) -> Self {
+        match trigger_type {
+            RoomTriggerType::Unknown { .. } => RoomTriggerTypeSel::Unknown,
+            RoomTriggerType::Door { .. } => RoomTriggerTypeSel::Door,
+        }
+    }
+
+    pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, room_id: DataAssetId) {
+        match self {
+            RoomTriggerTypeSel::Unknown if ! matches!(trigger_type, RoomTriggerType::Unknown {..}) => {
+                *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
+            }
+            RoomTriggerTypeSel::Door if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
+                *trigger_type = RoomTriggerType::Door { room_id, door_id: 0 };
+            }
+            _ => {}
+        }
+    }
+
+    pub fn text(&self) -> &'static str {
+        match self {
+            RoomTriggerTypeSel::Unknown => "any",
+            RoomTriggerTypeSel::Door => "door",
+        }
     }
 }

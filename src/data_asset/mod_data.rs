@@ -35,13 +35,6 @@ pub struct ModData {
     pub num_channels: u8,
 }
 
-pub struct CreationData<'a> {
-    pub samples: Vec<ModSample>,
-    pub pattern: &'a [ModCell],
-    pub song_positions: Vec<u8>,
-    pub num_channels: u8,
-}
-
 impl ModData {
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let num_channels = 4;
@@ -51,16 +44,6 @@ impl ModData {
             samples: Self::gen_samples(),
             pattern: Self::gen_pattern(num_channels),
             song_positions: vec![0; 1],
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        ModData {
-            asset: super::DataAsset::new(super::DataAssetType::ModData, id, name),
-            num_channels: data.num_channels,
-            samples: data.samples,
-            pattern: Vec::from(data.pattern),
-            song_positions: data.song_positions,
         }
     }
 

@@ -1,25 +1,32 @@
-#[allow(unused)]
+use super::DataAssetId;
+
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomMap {
     pub x: u16,
     pub y: u16,
-    pub map_id: super::DataAssetId,
+    pub map_id: DataAssetId,
 }
 
-#[allow(unused)]
+#[derive(Clone, std::hash::Hash)]
+pub enum RoomEntityType {
+    Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
+    Enemy { animation_id: DataAssetId } ,
+}
+
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomEntity {
     pub name_id: String,
     pub x: i16,
     pub y: i16,
-    pub animation_id: super::DataAssetId,
-    pub data0: u16,
-    pub data1: u16,
-    pub data2: u16,
-    pub data3: u16,
+    pub entity_type: RoomEntityType,
 }
 
-#[allow(unused)]
+#[derive(Clone, std::hash::Hash)]
+pub enum RoomTriggerType {
+    Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
+    Door { room_id: DataAssetId, door_id: u16 },
+}
+
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomTrigger {
     pub name_id: String,
@@ -27,10 +34,7 @@ pub struct RoomTrigger {
     pub y: i16,
     pub width: i16,
     pub height: i16,
-    pub data0: u16,
-    pub data1: u16,
-    pub data2: u16,
-    pub data3: u16,
+    pub trigger_type: RoomTriggerType,
 }
 
 #[derive(std::hash::Hash)]
@@ -41,14 +45,8 @@ pub struct Room {
     pub triggers: Vec<RoomTrigger>,
 }
 
-pub struct CreationData<'a> {
-    pub maps: &'a [RoomMap],
-    pub entities: &'a [RoomEntity],
-    pub triggers: &'a [RoomTrigger],
-}
-
 impl Room {
-    pub fn new(id: super::DataAssetId, name: String) -> Self {
+    pub fn new(id: DataAssetId, name: String) -> Self {
         Room {
             asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
             maps: Vec::new(),
@@ -56,19 +54,10 @@ impl Room {
             entities: Vec::new(),
         }
     }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        Room {
-            asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
-            maps: Vec::from(data.maps),
-            triggers: Vec::from(data.triggers),
-            entities: Vec::from(data.entities),
-        }
-    }
 }
 
 impl super::DuplicableAsset<Room> for Room {
-    fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
+    fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> Self {
         Room {
             asset: self.asset.duplicate(dup_id, dup_name),
             maps: self.maps.clone(),
@@ -104,28 +93,16 @@ pub trait RoomItem {
     fn name_id(&self) -> &str;
     fn x(&self) -> i16;
     fn y(&self) -> i16;
-    fn data0(&self) -> u16;
-    fn data1(&self) -> u16;
-    fn data2(&self) -> u16;
-    fn data3(&self) -> u16;
 }
 
 impl RoomItem for RoomEntity {
     fn name_id(&self) -> &str { &self.name_id }
     fn x(&self) -> i16 { self.x }
     fn y(&self) -> i16 { self.y }
-    fn data0(&self) -> u16 { self.data0 }
-    fn data1(&self) -> u16 { self.data1 }
-    fn data2(&self) -> u16 { self.data2 }
-    fn data3(&self) -> u16 { self.data3 }
 }
 
 impl RoomItem for RoomTrigger {
     fn name_id(&self) -> &str { &self.name_id }
     fn x(&self) -> i16 { self.x }
     fn y(&self) -> i16 { self.y }
-    fn data0(&self) -> u16 { self.data0 }
-    fn data1(&self) -> u16 { self.data1 }
-    fn data2(&self) -> u16 { self.data2 }
-    fn data3(&self) -> u16 { self.data3 }
 }

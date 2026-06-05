@@ -7,13 +7,6 @@ pub struct Sprite {
     pub data: Vec<u8>,
 }
 
-pub struct CreationData {
-    pub width: u32,
-    pub height: u32,
-    pub num_frames: u32,
-    pub pixels: Vec<u8>,
-}
-
 impl Sprite {
     pub const MIRROR_FRAMES: bool = true;
     pub const EMPTY_COLOR: u8 = 0xff;
@@ -28,16 +21,6 @@ impl Sprite {
             height,
             num_frames,
             data: vec![Self::EMPTY_COLOR; (width*height*num_frames) as usize],
-        }
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        Sprite {
-            asset: super::DataAsset::new(super::DataAssetType::Sprite, id, name),
-            width: data.width,
-            height: data.height,
-            num_frames: data.num_frames,
-            data: data.pixels,
         }
     }
 }

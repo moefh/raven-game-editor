@@ -76,7 +76,7 @@ struct $<PREFIX>_PAL_SPRITE {
     int16_t num_frames;
     uint16_t bpp;
     uint8_t palette[16];
-    const uint32_t *data;
+    const uint8_t *data;
 };
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_PAL_SPRITE */
@@ -142,6 +142,13 @@ struct $<PREFIX>_PROP_FONT {
 
 #ifndef $<PREFIX>_SKIP_STRUCTS_ROOM
 
+enum $<PREFIX>_ROOM_TRIGGER_TYPE {
+   $<PREFIX>_ROOM_TRIGGER_TYPE_DOOR,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_PLAYER_SPAWN,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_DETECT_PLAYER,
+};
+
 struct $<PREFIX>_ROOM_MAP_INFO {
     uint16_t x;
     uint16_t y;
@@ -159,14 +166,20 @@ struct $<PREFIX>_ROOM_ENTITY_INFO {
 };
 
 struct $<PREFIX>_ROOM_TRIGGER_INFO {
+    enum $<PREFIX>_ROOM_TRIGGER_TYPE type;
     int16_t x;
     int16_t y;
     uint16_t w;
     uint16_t h;
-    uint16_t data0;
-    uint16_t data1;
-    uint16_t data2;
-    uint16_t data3;
+    union {
+        struct {
+            uint32_t data0;
+            uint32_t data1;
+        } any;
+        struct {
+             uint16_t room_id;
+        } door;
+    };
 };
 
 struct $<PREFIX>_ROOM {

@@ -48,16 +48,16 @@ impl ImagePickerWidget {
     }
 
     fn draw_selection_rectangle(&self, painter: &egui::Painter, canvas_pos: Pos2, image_size: Vec2,
-                                selected_image: Option<u32>, shrink: f32, color1: Color32, color2: Color32) {
+                                selected_image: Option<u32>, shrink: f32, colors: (Color32, Color32)) {
         let pos = canvas_pos + Vec2::new(shrink, self.selection_to_ui_pos(selected_image) * image_size.y + shrink);
         let sel_rect = Rect {
             min: pos,
             max: pos + image_size - Vec2::splat(2.0 * shrink),
         };
-        let stroke = egui::Stroke::new(3.0, color1);
+        let stroke = egui::Stroke::new(3.0, colors.0);
         painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
 
-        let in_stroke = egui::Stroke::new(1.0, color2);
+        let in_stroke = egui::Stroke::new(1.0, colors.1);
         let sel_in_rect = sel_rect.expand2(Vec2::splat(-2.0));
         painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
     }
@@ -89,10 +89,10 @@ impl ImagePickerWidget {
 
             // draw selection rectangles
             self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
-                                          0.0, Color32::BLUE, Color32::WHITE);
+                                          0.0, (Color32::BLUE, Color32::WHITE));
             if self.allow_second_selection {
                 self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image_right,
-                                              4.0, Color32::RED, Color32::WHITE);
+                                              4.0, (Color32::RED, Color32::WHITE));
             }
 
             response

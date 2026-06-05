@@ -1,4 +1,14 @@
 pub mod tokenizer;
+mod tileset;
+mod map_data;
+mod pal_sprite;
+mod sprite;
+mod sprite_animation;
+mod room;
+mod sfx;
+mod mod_data;
+mod font;
+mod prop_font;
 
 use std::fs;
 use std::collections::HashMap;
@@ -6,12 +16,19 @@ use std::path::Path;
 use std::io::{Result, Error};
 use regex::Regex;
 use std::sync::LazyLock;
-use tokenizer::{Tokenizer, Token, TokenData, TokenPosition};
 
-use super::{
-    StringLogger, DataAssetStore, DataAssetId, DataAsset,
-    PropFont, ModData, ModSample, ModCell,
-    RoomMap, RoomEntity, RoomTrigger,
+pub use tokenizer::{Tokenizer, Token, TokenData, TokenPosition};
+
+pub use super::{
+    StringLogger,
+    DataAssetStore,
+    AssetIdList,
+    DataAssetId,
+    DataAsset,
+    PropFont,
+    ModData,
+    ModSample,
+    ModCell,
 };
 
 const C_KEYWORDS : &[&str] = &[
@@ -143,6 +160,26 @@ fn pal_image_to_pixels(data: &[u8], palette: &[u8], width: u32, height: u32, num
     pixels
 }
 
+pub struct ReaderAssetIndex {
+    pub index: usize,
+    pub pos: TokenPosition,
+}
+
+impl ReaderAssetIndex {
+    fn new(index: usize, pos: TokenPosition) -> Self {
+        ReaderAssetIndex {
+            index,
+            pos,
+        }
+    }
+
+    fn get_asset_id(&self, asset_ids: &AssetIdList) -> Result<DataAssetId> {
+        asset_ids.get(self.index).copied().ok_or_else(|| {
+            err(format!("invalid asset reference: index {}", self.index), self.pos)
+        })
+    }
+}
+
 struct I8or16Array {
     data_size: u32,  // 8 or 16
     data: Vec<i16>,  // elements will be left shift by 8 if size==8
@@ -160,33 +197,115 @@ pub struct ReadData {
     pal_sprite_data: HashMap<String,Vec<u8>>,
     map_tiles: HashMap<String,Vec<u8>>,
     animation_frames: HashMap<String,Vec<u8>>,
-    room_maps: HashMap<String,Vec<RoomMap>>,
-    room_entities: HashMap<String,Vec<RoomEntity>>,
-    room_triggers: HashMap<String,Vec<RoomTrigger>>,
+    room_maps: HashMap<String,Vec<room::MapCreationData>>,
+    room_entities: HashMap<String,Vec<room::EntityCreationData>>,
+    room_triggers: HashMap<String,Vec<room::TriggerCreationData>>,
 
     // assets by index
-    fonts: Vec<DataAssetId>,
-    prop_fonts: Vec<DataAssetId>,
-    mods: Vec<DataAssetId>,
-    sfxs: Vec<DataAssetId>,
-    tilesets: Vec<DataAssetId>,
-    sprites: Vec<DataAssetId>,
-    pal_sprites: Vec<DataAssetId>,
-    maps: Vec<DataAssetId>,
-    animations: Vec<DataAssetId>,
-    rooms: Vec<DataAssetId>,
+    fonts: Vec<font::CreationData>,
+    prop_fonts: Vec<prop_font::CreationData>,
+    mods: Vec<mod_data::CreationData>,
+    sfxs: Vec<sfx::CreationData>,
+    tilesets: Vec<tileset::CreationData>,
+    sprites: Vec<sprite::CreationData>,
+    pal_sprites: Vec<pal_sprite::CreationData>,
+    maps: Vec<map_data::CreationData>,
+    animations: Vec<sprite_animation::CreationData>,
+    rooms: Vec<room::CreationData>,
 
     // assets by name
-    fonts_by_name_id: HashMap<String, DataAssetId>,
-    prop_fonts_by_name_id: HashMap<String, DataAssetId>,
-    mods_by_name_id: HashMap<String, DataAssetId>,
-    sfxs_by_name_id: HashMap<String, DataAssetId>,
-    tilesets_by_name_id: HashMap<String, DataAssetId>,
-    sprites_by_name_id: HashMap<String, DataAssetId>,
-    pal_sprites_by_name_id: HashMap<String, DataAssetId>,
-    maps_by_name_id: HashMap<String, DataAssetId>,
-    animations_by_name_id: HashMap<String, DataAssetId>,
-    rooms_by_name_id: HashMap<String, DataAssetId>,
+    fonts_by_name: HashMap<String, usize>,
+    prop_fonts_by_name: HashMap<String, usize>,
+    mods_by_name: HashMap<String, usize>,
+    sfxs_by_name: HashMap<String, usize>,
+    tilesets_by_name: HashMap<String, usize>,
+    sprites_by_name: HashMap<String, usize>,
+    pal_sprites_by_name: HashMap<String, usize>,
+    maps_by_name: HashMap<String, usize>,
+    animations_by_name: HashMap<String, usize>,
+    rooms_by_name: HashMap<String, usize>,
+}
+
+impl ReadData {
+    fn add_tileset(&mut self, data: tileset::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.tilesets.len();
+        self.tilesets.push(data);
+        self.tilesets_by_name.insert(name, index);
+        index
+    }
+
+    fn add_map(&mut self, data: map_data::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.maps.len();
+        self.maps.push(data);
+        self.maps_by_name.insert(name, index);
+        index
+    }
+
+    fn add_sprite(&mut self, data: sprite::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.sprites.len();
+        self.sprites.push(data);
+        self.sprites_by_name.insert(name, index);
+        index
+    }
+
+    fn add_pal_sprite(&mut self, data: pal_sprite::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.pal_sprites.len();
+        self.pal_sprites.push(data);
+        self.pal_sprites_by_name.insert(name, index);
+        index
+    }
+
+    fn add_animation(&mut self, data: sprite_animation::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.animations.len();
+        self.animations.push(data);
+        self.animations_by_name.insert(name, index);
+        index
+    }
+
+    fn add_room(&mut self, data: room::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.rooms.len();
+        self.rooms.push(data);
+        self.rooms_by_name.insert(name, index);
+        index
+    }
+
+    fn add_sfx(&mut self, data: sfx::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.sfxs.len();
+        self.sfxs.push(data);
+        self.sfxs_by_name.insert(name, index);
+        index
+    }
+
+    fn add_mod(&mut self, data: mod_data::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.mods.len();
+        self.mods.push(data);
+        self.mods_by_name.insert(name, index);
+        index
+    }
+
+    fn add_font(&mut self, data: font::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.fonts.len();
+        self.fonts.push(data);
+        self.fonts_by_name.insert(name, index);
+        index
+    }
+
+    fn add_prop_font(&mut self, data: prop_font::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.prop_fonts.len();
+        self.prop_fonts.push(data);
+        self.prop_fonts_by_name.insert(name, index);
+        index
+    }
 }
 
 pub struct ProjectDataReader<'a> {
@@ -203,8 +322,12 @@ pub struct ProjectDataReader<'a> {
     pixel_6bit_to_8bit: Vec<u8>,
 }
 
-fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
-    Result::Err(Error::other(format!("line {}: {}", pos.line, msg.as_ref())))
+pub fn err<S: AsRef<str>>(msg: S, pos: TokenPosition) -> Error {
+    Error::other(format!("line {}: {}", pos.line, msg.as_ref()))
+}
+
+pub fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
+    Result::Err(err(msg, pos))
 }
 
 fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
@@ -254,16 +377,16 @@ impl<'a> ProjectDataReader<'a> {
                 animations: Vec::new(),
                 rooms: Vec::new(),
 
-                fonts_by_name_id: HashMap::new(),
-                prop_fonts_by_name_id: HashMap::new(),
-                mods_by_name_id: HashMap::new(),
-                sfxs_by_name_id: HashMap::new(),
-                tilesets_by_name_id: HashMap::new(),
-                sprites_by_name_id: HashMap::new(),
-                pal_sprites_by_name_id: HashMap::new(),
-                maps_by_name_id: HashMap::new(),
-                animations_by_name_id: HashMap::new(),
-                rooms_by_name_id: HashMap::new(),
+                fonts_by_name: HashMap::new(),
+                prop_fonts_by_name: HashMap::new(),
+                mods_by_name: HashMap::new(),
+                sfxs_by_name: HashMap::new(),
+                tilesets_by_name: HashMap::new(),
+                sprites_by_name: HashMap::new(),
+                pal_sprites_by_name: HashMap::new(),
+                maps_by_name: HashMap::new(),
+                animations_by_name: HashMap::new(),
+                rooms_by_name: HashMap::new(),
             },
         }
     }
@@ -302,6 +425,7 @@ impl<'a> ProjectDataReader<'a> {
 
     fn expect_token(&mut self) -> Result<Token> {
         match self.read() {
+            Ok(Token { data: TokenData::Eof(), pos }) => error("unexpected <eof>", pos),
             Ok(tok) if ! tok.is_eof() => Ok(tok),
             v => v,
         }
@@ -760,7 +884,7 @@ impl<'a> ProjectDataReader<'a> {
     // === REFERENCES ("&<prefix>_<type>[<index>]")
     // =======================================================================================
 
-    fn read_asset_index_reference(&mut self, type_name_id: &str) -> Result<DataAssetId> {
+    fn read_asset_index(&mut self, type_name_id: &str) -> Result<ReaderAssetIndex> {
         self.expect_punct('&')?;
         let name_id_tok = self.expect_token()?;
         self.expect_punct('[')?;
@@ -771,18 +895,7 @@ impl<'a> ProjectDataReader<'a> {
             error(format!("invalid global name for {}: '{}'", type_name_id, name_id_tok), name_id_tok.pos)?
         }
 
-        if let Some(id) = match type_name_id {
-            "tilesets" => self.read_data.tilesets.get(index),
-            "maps" => self.read_data.maps.get(index),
-            "sprites" => self.read_data.sprites.get(index),
-            "sprite_animations" => self.read_data.animations.get(index),
-            _ => error(format!("internal error: unexpected asset type '{}' as data_asset/reader/mod.rs:{}", name_id_tok, line!()),
-                       name_id_tok.pos)?,
-        } {
-            Ok(*id)
-        } else {
-            error(format!("index {} not found in {}", index, name_id_tok), name_id_tok.pos)
-        }
+        Ok(ReaderAssetIndex::new(index, name_id_tok.pos))
     }
 
     // =======================================================================================
@@ -829,24 +942,21 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("font_data_...", &t)?; },
             };
             let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "font_data") &&
-                let Some(data) = self.read_data.font_data.get(name_id) {
+                let Some(data) = self.read_data.font_data.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("font data not found: '{}'", full_name_id), ident.pos)?;
                 };
 
-            let data = super::font::CreationData {
+            let asset_id = self.store.gen_id();
+            self.read_data.add_font(font::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 width,
                 height,
                 data,
-            };
-            if let Some(id) = self.store.add_font_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.fonts.push(id);
-                self.read_data.fonts_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added FONT '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding font '{}'", name_id), ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added FONT '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -879,7 +989,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('{')?;
 
         self.logger.log("-> reading PROP_FONT assets");
-         loop {
+        loop {
             let t = self.expect_any_punct("'{' or '}'")?;
             if t.is_punct('}') { break; }
             if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
@@ -906,25 +1016,22 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("prop_font_data_...", &t)?; },
             };
             let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "prop_font_data") &&
-                let Some(data) = self.read_data.prop_font_data.get(name_id) {
+                let Some(data) = self.read_data.prop_font_data.remove(name_id) {
                     (name_id, data)
                 } else {
                     error(format!("prop font data not found: '{}'", full_name_id), data_ident.pos)?
                 };
 
-            let data = super::prop_font::CreationData {
+            let asset_id = self.store.gen_id();
+            self.read_data.add_prop_font(prop_font::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 height,
                 data,
                 char_widths,
                 char_offsets,
-            };
-            if let Some(id) = self.store.add_prop_font_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.prop_fonts.push(id);
-                self.read_data.prop_fonts_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added PROP_FONT '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding prop font '{}'", name_id), data_ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added PROP_FONT '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1000,17 +1107,17 @@ impl<'a> ProjectDataReader<'a> {
                 error_expected("'{{' or '}}'", &t)?;
             }
 
-            let len = self.read_number()?;
+            let len = (self.read_number()? & 0xffff_ffff) as u32;
             self.expect_punct(',')?;
-            let loop_start = self.read_number()?;
+            let loop_start = (self.read_number()? & 0xffff_ffff) as u32;
             self.expect_punct(',')?;
-            let loop_len = self.read_number()?;
+            let loop_len = (self.read_number()? & 0xffff_ffff) as u32;
             self.expect_punct(',')?;
-            let finetune = self.read_number()?;
+            let finetune = (self.read_number()? & 0xff) as u8;
             self.expect_punct(',')?;
-            let volume = self.read_number()?;
+            let volume = (self.read_number()? & 0xff) as u8;
             self.expect_punct(',')?;
-            let bits_per_sample = self.read_number()?;
+            let bits_per_sample = (self.read_number()? & 0xffff) as u16;
             self.expect_punct(',')?;
             self.expect_punct('{')?;
             self.expect_punct('.')?;
@@ -1029,6 +1136,7 @@ impl<'a> ProjectDataReader<'a> {
             let samples = if sample_full_name_id == "NULL" {
                 None
             } else if let Some(sample_name) = self.get_global_lower_of_type(sample_full_name_id, "mod_samples") &&
+                // we can't remove the sample data because it can be shared by multiple mods:
                 let Some(sample_data) = self.read_data.mod_sample_data.get(sample_name) {
                     if sample_data.data_size == bits_per_sample as u32 {
                         Some(sample_data.data.clone())   // samples may be shared between mods
@@ -1041,12 +1149,12 @@ impl<'a> ProjectDataReader<'a> {
                 };
 
             sample_defs.push(ModSample {
-                len: len as u32,
-                loop_start: loop_start as u32,
-                loop_len: loop_len as u32,
+                len,
+                loop_start,
+                loop_len,
                 finetune: if finetune > 7 { finetune as i8 - 16 } else { finetune as i8 },
-                volume: volume as u8,
-                bits_per_sample: bits_per_sample as u16,
+                volume,
+                bits_per_sample,
                 data: samples,
             });
         }
@@ -1075,7 +1183,7 @@ impl<'a> ProjectDataReader<'a> {
 
         let (name_id, pattern) = if let Some(full_pattern_name) = pattern_ident.get_ident() &&
             let Some(name) = self.get_global_lower_of_type(full_pattern_name, "mod_pattern") &&
-            let Some(pattern) = self.read_data.mod_patterns.get(name) {
+            let Some(pattern) = self.read_data.mod_patterns.remove(name) {
                 (name, pattern)
             } else {
                 error(format!("mod pattern not found: {}", pattern_ident), pattern_ident.pos)?
@@ -1092,19 +1200,16 @@ impl<'a> ProjectDataReader<'a> {
                           expected_num_patterns, num_patterns), pattern_ident.pos)?
         }
 
-        let data = super::mod_data::CreationData {
+        let asset_id = self.store.gen_id();
+        self.read_data.add_mod(mod_data::CreationData {
+            asset_id,
+            name: DataAsset::identifier_to_name(name_id),
             num_channels,
             samples: sample_defs,
             pattern,
             song_positions,
-        };
-        if let Some(id) = self.store.add_mod_from(DataAsset::identifier_to_name(name_id), data) {
-            self.read_data.mods.push(id);
-            self.read_data.mods_by_name_id.insert(name_id.to_string(), id);
-            self.logger.log(format!("  -> added MOD '{}' id={}", name_id, id));
-        } else {
-            return error(format!("error adding mod '{}'", name_id), pattern_ident.pos)?;
-        }
+        });
+        self.logger.log(format!("  -> added MOD '{}' id={}", name_id, asset_id));
         Ok(())
     }
 
@@ -1183,32 +1288,27 @@ impl<'a> ProjectDataReader<'a> {
                 None => { error(format!("invalid sfx data: '{}'", &data_ident), data_ident.pos)? }
             };
             let (name_id, sample_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sfx_samples") &&
-                let Some(data) = self.read_data.sfx_sample_data.get(name_id) {
+                let Some(data) = self.read_data.sfx_sample_data.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("unknown sfx samples '{}'", full_name_id), data_ident.pos)?;
                 };
-            let sample_data = if sample_data.data_size == bits_per_sample as u32 {
-                &sample_data.data
-            } else {
-                error(format!("invalid sample: data has {} bits per sample, but sfx wants {}",
-                                   sample_data.data_size, bits_per_sample), data_ident.pos)?
-            };
+            if sample_data.data_size != bits_per_sample as u32 {
+                return error(format!("invalid sample: data has {} bits per sample, but sfx wants {}",
+                                     sample_data.data_size, bits_per_sample), data_ident.pos);
+            }
 
-            let data = super::sfx::CreationData {
+            let asset_id = self.store.gen_id();
+            self.read_data.add_sfx(sfx::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 len,
                 loop_start,
                 loop_len,
                 bits_per_sample,
-                samples: sample_data,
-            };
-            if let Some(id) = self.store.add_sfx_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.sfxs.push(id);
-                self.read_data.sfxs_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added SFX '{}' id={}", name_id, id));
-            } else {
-                error(format!("error adding sfx '{}'", full_name_id), data_ident.pos)?
-            }
+                samples: sample_data.data,
+            });
+            self.logger.log(format!("  -> added SFX '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1283,19 +1383,16 @@ impl<'a> ProjectDataReader<'a> {
                               data.len(), want_len, stride, height, num_tiles), t.pos)?;
             }
 
-            let data = super::tileset::CreationData {
+            let asset_id = self.store.gen_id();
+            self.read_data.add_tileset(tileset::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 width,
                 height,
                 num_tiles,
                 pixels: self.get_image_pixels(data, width, height, num_tiles),
-            };
-            if let Some(id) = self.store.add_tileset_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.tilesets.push(id);
-                self.read_data.tilesets_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added TILESET '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding tileset '{}'", name_id), ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added TILESET '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1350,7 +1447,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("sprite_data_...", &t)?; },
             };
             let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sprite_data") &&
-                let Some(data) = self.read_data.sprite_data.get(name_id) {
+                let Some(data) = self.read_data.sprite_data.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name_id), ident.pos)?;
@@ -1369,19 +1466,17 @@ impl<'a> ProjectDataReader<'a> {
             }
 
             let div_ignore_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
-            let data = super::sprite::CreationData {
+
+            let asset_id = self.store.gen_id();
+            self.read_data.add_sprite(sprite::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 width,
                 height,
                 num_frames: num_frames / div_ignore_mirrors,
                 pixels: self.get_image_pixels(&data[0..data.len()/div_ignore_mirrors as usize], width, height, num_frames/div_ignore_mirrors),
-            };
-            if let Some(id) = self.store.add_sprite_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.sprites.push(id);
-                self.read_data.sprites_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added SPRITE '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding sprite '{}'", name_id), ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added SPRITE '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1438,7 +1533,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("pal_sprite_data_...", &t)?; },
             };
             let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "pal_sprite_data") &&
-                let Some(data) = self.read_data.pal_sprite_data.get(name_id) {
+                let Some(data) = self.read_data.pal_sprite_data.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("pal_sprite data not found: '{}'", full_name_id), ident.pos)?;
@@ -1451,22 +1546,20 @@ impl<'a> ProjectDataReader<'a> {
             if palette.len() != 16 {
                 error(format!("invalid palette length: {} (must be 16)", palette.len()), t.pos)?;
             }
-            let pixels = pal_image_to_pixels(data, &palette, width, height, num_frames, bits_per_pixel);
-            let data = super::pal_sprite::CreationData {
+            let pixels = pal_image_to_pixels(&data, &palette, width, height, num_frames, bits_per_pixel);
+
+            let asset_id = self.store.gen_id();
+            self.read_data.add_pal_sprite(pal_sprite::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 width,
                 height,
                 num_frames,
                 bits_per_pixel,
                 palette,
                 pixels,
-            };
-            if let Some(id) = self.store.add_pal_sprite_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.pal_sprites.push(id);
-                self.read_data.pal_sprites_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added PAL_SPRITE '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding pal_sprite '{}'", name_id), ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added PAL_SPRITE '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1511,7 +1604,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let para_height = self.read_number()? as u32;
             self.expect_punct(',')?;
-            let tileset_id = self.read_asset_index_reference("tilesets")?;
+            let tileset_ref = self.read_asset_index("tilesets")?;
             self.expect_punct(',')?;
             let ident = self.expect_any_ident("map tiles identifier")?;
             self.expect_punct('}')?;
@@ -1522,7 +1615,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("map_tiles_...", &t)?; },
             };
             let (name_id, tiles_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "map_tiles") &&
-                let Some(data) = self.read_data.map_tiles.get(name_id) {
+                let Some(data) = self.read_data.map_tiles.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("sprite data not found: '{}'", full_name_id), ident.pos)?;
@@ -1534,21 +1627,18 @@ impl<'a> ProjectDataReader<'a> {
                               tiles_data.len(), want_tiles_data_len, width, height, para_width, para_height), t.pos)?;
             }
 
-            let data = super::map_data::CreationData {
-                tileset_id,
+            let asset_id = self.store.gen_id();
+            self.read_data.add_map(map_data::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
+                tileset_ref,
                 width,
                 height,
                 para_width,
                 para_height,
                 tiles: tiles_data,
-            };
-            if let Some(id) = self.store.add_map_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.maps.push(id);
-                self.read_data.maps_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added MAP '{}' id={} with tileset_id={}", name_id, id, tileset_id));
-            } else {
-                return error(format!("error adding map '{}'", name_id), ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added MAP '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1573,7 +1663,7 @@ impl<'a> ProjectDataReader<'a> {
         Ok(())
     }
 
-    fn read_sprite_animation_loops(&mut self) -> Result<Vec<super::sprite_animation::LoopCreationData>> {
+    fn read_sprite_animation_loop_frames(&mut self) -> Result<Vec<sprite_animation::LoopFrameSlice>> {
         self.expect_punct('{')?;
 
         let mut loops = Vec::new();
@@ -1589,7 +1679,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let len = self.read_number()?;
 
-            loops.push(super::sprite_animation::LoopCreationData {
+            loops.push(sprite_animation::LoopFrameSlice {
                 offset: offset as u16,
                 len: len as u16,
             });
@@ -1614,7 +1704,7 @@ impl<'a> ProjectDataReader<'a> {
 
             let frames_ident = self.expect_any_ident("animation frames identifier")?;
             self.expect_punct(',')?;
-            let sprite_id = self.read_asset_index_reference("sprites")?;
+            let sprite_ref = self.read_asset_index("sprites")?;
             self.expect_punct(',')?;
             let clip_rect = self.read_u16_array()?;
             self.expect_punct(',')?;
@@ -1622,7 +1712,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let foot_overlap = self.read_signed_number()?;
             self.expect_punct(',')?;
-            let loops = self.read_sprite_animation_loops()?;
+            let loop_frames = self.read_sprite_animation_loop_frames()?;
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
@@ -1636,28 +1726,23 @@ impl<'a> ProjectDataReader<'a> {
                 Some(ident) => ident,
                 None => { return error_expected("sprite_animation_frames_...", &t)?; },
             };
-            let (name_id, frames_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sprite_animation_frames") &&
-                let Some(data) = self.read_data.animation_frames.get(name_id) {
+            let (name_id, frame_indices) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sprite_animation_frames") &&
+                let Some(data) = self.read_data.animation_frames.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("sprite animation frames data not found: '{}'", full_name_id), t.pos)?;
                 };
 
-            let data = super::sprite_animation::CreationData {
-                sprite_id,
+            let asset_id = self.store.gen_id();
+            self.read_data.add_animation(sprite_animation::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
+                sprite_ref,
                 clip_rect: super::Rect::new(clip_x, clip_y, clip_w, clip_h),
-                use_foot_frames: use_foot_frames != 0,
                 foot_overlap: foot_overlap as i8,
-                loops: &loops,
-                frame_indices: frames_data,
-            };
-            if let Some(id) = self.store.add_animation_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.animations.push(id);
-                self.read_data.animations_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added SPRITE_ANIMATION '{}' id={} with sprite_id={}", name_id, id, sprite_id));
-            } else {
-                return error(format!("error adding sprite animation '{}' with sprite id '{}'", name_id, sprite_id), t.pos)?;
-            }
+                loops: sprite_animation::CreationData::build_loops(frame_indices, loop_frames, use_foot_frames != 0),
+            });
+            self.logger.log(format!("  -> added SPRITE_ANIMATION '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1674,7 +1759,7 @@ impl<'a> ProjectDataReader<'a> {
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        let mut maps = Vec::<RoomMap>::new();
+        let mut maps = Vec::<room::MapCreationData>::new();
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -1686,14 +1771,14 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let y = self.read_number()? as u16;
             self.expect_punct(',')?;
-            let map_id = self.read_asset_index_reference("maps")?;
+            let map = self.read_asset_index("maps")?;
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
-            maps.push(RoomMap {
+            maps.push(room::MapCreationData {
                 x,
                 y,
-                map_id,
+                map,
             });
 
         }
@@ -1704,13 +1789,56 @@ impl<'a> ProjectDataReader<'a> {
         Ok(())
     }
 
+    fn read_room_entity_type(&mut self) -> Result<room::EntityTypeCreationData> {
+        self.expect_punct('.')?;
+        let ident = self.expect_token()?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        let entity_type = match ident.get_ident() {
+            Some("any") => {
+                let data0 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                let data1 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                let data2 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                let data3 = self.read_number()? as u16;
+                room::EntityTypeCreationData::Unknown {
+                    data0,
+                    data1,
+                    data2,
+                    data3,
+                }
+            }
+
+            Some("enemy") => {
+                let animation = self.read_asset_index("sprite_animations")?;
+                room::EntityTypeCreationData::Enemy {
+                    animation,
+                }
+            }
+
+            Some(name) => {
+                return error(format!("unknown entity type: '{}'", name), ident.pos);
+            }
+
+            None => {
+                return error("expected initializer for entity type", ident.pos);
+            }
+        };
+
+        self.expect_punct('}')?;
+        Ok(entity_type)
+    }
+
     fn read_room_entities(&mut self, name_id: &str) -> Result<()> {
         self.expect_punct('[')?;
         self.expect_punct(']')?;
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        let mut entities = Vec::<RoomEntity>::new();
+        let mut entities = Vec::<room::EntityCreationData>::new();
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -1722,27 +1850,16 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let y = self.read_number()? as i16;
             self.expect_punct(',')?;
-            let animation_id = self.read_asset_index_reference("sprite_animations")?;
-            self.expect_punct(',')?;
-            let data0 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data1 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data2 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data3 = self.read_number()? as u16;
+            let entity_type = self.read_room_entity_type()?;
+
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
-            entities.push(RoomEntity {
+            entities.push(room::EntityCreationData {
                 name_id: String::new(),
                 x,
                 y,
-                animation_id,
-                data0,
-                data1,
-                data2,
-                data3,
+                entity_type,
             });
         }
         self.expect_punct(';')?;
@@ -1752,13 +1869,63 @@ impl<'a> ProjectDataReader<'a> {
         Ok(())
     }
 
+    fn read_room_trigger_type(&mut self) -> Result<room::TriggerTypeCreationData> {
+        self.expect_punct('.')?;
+        let ident = self.expect_token()?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        let trigger_type = match ident.get_ident() {
+            Some("any") => {
+                self.logger.log("d0");
+                let data0 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                self.logger.log("d1");
+                let data1 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                self.logger.log("d2");
+                let data2 = self.read_number()? as u16;
+                self.expect_punct(',')?;
+                self.logger.log("d3");
+                let data3 = self.read_number()? as u16;
+                room::TriggerTypeCreationData::Unknown {
+                    data0,
+                    data1,
+                    data2,
+                    data3,
+                }
+            }
+
+            Some("door") => {
+                let room = self.read_asset_index("rooms")?;
+                self.expect_punct(',')?;
+                let door_id = self.read_number()? as u16;
+                room::TriggerTypeCreationData::Door {
+                    room,
+                    door_id,
+                }
+            }
+
+            Some(name) => {
+                return error(format!("unknown trigger type: '{}'", name), ident.pos);
+            }
+
+            None => {
+                return error("expected initializer for trigger type", ident.pos);
+            }
+        };
+
+        self.expect_punct('}')?;
+        Ok(trigger_type)
+    }
+
     fn read_room_triggers(&mut self, name_id: &str) -> Result<()> {
         self.expect_punct('[')?;
         self.expect_punct(']')?;
         self.expect_punct('=')?;
         self.expect_punct('{')?;
 
-        let mut triggers = Vec::<RoomTrigger>::new();
+        let mut triggers = Vec::<room::TriggerCreationData>::new();
         loop {
             let t = self.expect_token()?;
             if t.is_punct('}') { break; }
@@ -1774,26 +1941,18 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct(',')?;
             let height = self.read_number()? as i16;
             self.expect_punct(',')?;
-            let data0 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data1 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data2 = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let data3 = self.read_number()? as u16;
+            let trigger_type = self.read_room_trigger_type()?;
+
             self.expect_punct('}')?;
             self.expect_punct(',')?;
 
-            triggers.push(RoomTrigger {
+            triggers.push(room::TriggerCreationData {
                 name_id: String::new(),
                 x,
                 y,
                 width,
                 height,
-                data0,
-                data1,
-                data2,
-                data3,
+                trigger_type,
             });
         }
         self.expect_punct(';')?;
@@ -1834,7 +1993,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("room_maps_...", &t)?; },
             };
             let (name_id, maps_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "room_maps") &&
-                let Some(data) = self.read_data.room_maps.get(name_id) {
+                let Some(data) = self.read_data.room_maps.remove(name_id) {
                     (name_id, data)
                 } else {
                     return error(format!("room maps data not found: '{}'", full_name_id), maps_ident.pos)?;
@@ -1844,7 +2003,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("room_maps_...", &t)?; },
             };
             let entities_data = if let Some(entities_name_id) = self.get_global_lower_of_type(entities_name_id, "room_entities") &&
-                let Some(data) = self.read_data.room_entities.get(entities_name_id) {
+                let Some(data) = self.read_data.room_entities.remove(entities_name_id) {
                     data
                 } else {
                     return error(format!("room entities data not found: '{}'", entities_name_id), entities_ident.pos)?;
@@ -1854,7 +2013,7 @@ impl<'a> ProjectDataReader<'a> {
                 None => { return error_expected("room_maps_...", &t)?; },
             };
             let triggers_data = if let Some(triggers_name) = self.get_global_lower_of_type(triggers_name_id, "room_triggers") &&
-                let Some(data) = self.read_data.room_triggers.get(triggers_name) {
+                let Some(data) = self.read_data.room_triggers.remove(triggers_name) {
                     data
                 } else {
                     return error(format!("room triggers data not found: '{}'", triggers_name_id), triggers_ident.pos)?;
@@ -1869,18 +2028,15 @@ impl<'a> ProjectDataReader<'a> {
                 error(format!("unexpected triggers length: got {}, expected {}", triggers_data.len(), num_triggers), t.pos)?;
             }
 
-            let data = super::room::CreationData {
+            let asset_id = self.store.gen_id();
+            self.read_data.add_room(room::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
                 maps: maps_data,
                 entities: entities_data,
                 triggers: triggers_data,
-            };
-            if let Some(id) = self.store.add_room_from(DataAsset::identifier_to_name(name_id), data) {
-                self.read_data.rooms.push(id);
-                self.read_data.rooms_by_name_id.insert(name_id.to_string(), id);
-                self.logger.log(format!("  -> added ROOM '{}' id={}", name_id, id));
-            } else {
-                return error(format!("error adding room '{}'", name_id), maps_ident.pos)?;
-            }
+            });
+            self.logger.log(format!("  -> added ROOM '{}' id={}", name_id, asset_id));
         }
 
         self.expect_punct(';')?;
@@ -1894,7 +2050,7 @@ impl<'a> ProjectDataReader<'a> {
     fn read_room_script_declaration(&mut self, script_ident: Token) -> Result<()> {
         if let Some(ident) = script_ident.get_ident() {
             if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") &&
-                ! self.read_data.rooms_by_name_id.contains_key(name_id) {
+                ! self.read_data.rooms_by_name.contains_key(name_id) {
                     return error(format!("unknown room '{}' in script declaration", name_id), script_ident.pos)?;
                 }
             self.expect_punct(';')?;
@@ -1921,7 +2077,7 @@ impl<'a> ProjectDataReader<'a> {
             let script_ident = self.expect_any_ident("room script identifier")?;
             if let Some(ident) = script_ident.get_ident() {
                 if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") {
-                    if self.read_data.rooms_by_name_id.contains_key(name_id) {
+                    if self.read_data.rooms_by_name.contains_key(name_id) {
                         self.logger.log(format!("  -> got room script for '{}'", name_id));
                     } else {
                         return error(format!("unknown room '{}' in script table", name_id), script_ident.pos)?;
@@ -1982,41 +2138,39 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn get_enum_asset_and_item_prefix(&self, ident: &str, asset_type: &str, name_suffix: &str, name_type: &str,
-                                      ids_by_name_id: &HashMap<String,DataAssetId>, pos: TokenPosition) -> Result<(DataAssetId, String)> {
+                                      ids_by_name: &HashMap<String,usize>, pos: TokenPosition) -> Result<(usize, String)> {
         let asset_name_upper = match self.get_global_upper_of_type_with_suffix(ident, asset_type, name_suffix) {
             Some(name) => name,
             None => { return error(format!("unknown enum for {}: '{}'", asset_type, ident), pos); }
         };
         let mut asset_name = asset_name_upper.to_string();
         asset_name.make_ascii_lowercase();
-        let asset_id = match ids_by_name_id.get(&asset_name) {
-            Some(id) => id,
-            None => { return error(format!("{} not found: '{}'", asset_type, &asset_name), pos); }
-        };
+        let asset_index = ids_by_name.get(&asset_name).ok_or_else(|| {
+            err(format!("{} not found: '{}'", asset_type, &asset_name), pos)
+        })?;
         let mut item_prefix = String::new();
         item_prefix.push_str(asset_type);
         item_prefix.push('_');
         item_prefix.push_str(asset_name_upper);
         item_prefix.push('_');
         item_prefix.push_str(name_type);
-        Ok((*asset_id, item_prefix))
+        Ok((*asset_index, item_prefix))
     }
 
     fn read_sprite_animation_loop_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (id, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "SPRITE_ANIMATION", "LOOP_NAMES", "LOOP",
-                                                                    &self.read_data.animations_by_name_id, pos)?;
+        let (anim_index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "SPRITE_ANIMATION", "LOOP_NAMES", "LOOP",
+                                                                    &self.read_data.animations_by_name, pos)?;
         let names = self.read_asset_names_enum(&item_prefix)?;
-        let animation = match self.store.assets.animations.get_mut(&id) {
-            Some(asset) => asset,
-            None => { return error(format!("internal error: animation id {} not found", id), pos); }
-        };
+        let animation = self.read_data.animations.get_mut(anim_index).ok_or_else(|| {
+            err(format!("internal error: animation index {} not found", anim_index), pos)
+        })?;
         //self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}'", animation.asset.name));
         for (index, name_id) in names.iter().enumerate() {
             if let Some(anim_loop) = animation.loops.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
                 anim_loop.name_id.push_str(name_id);
             } else {
-                return error(format!("animation '{}' doesn't have loop {}", animation.asset.name, index), pos);
+                return error(format!("animation '{}' doesn't have loop {}", animation.name, index), pos);
             }
         }
         for (index, aloop) in animation.loops.iter_mut().enumerate() {
@@ -2036,40 +2190,38 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn read_room_entity_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (id, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "ENT_NAMES", "ENT",
-                                                                    &self.read_data.rooms_by_name_id, pos)?;
+        let (index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "ENT_NAMES", "ENT",
+                                                                       &self.read_data.rooms_by_name, pos)?;
         let name_ids = self.read_asset_names_enum(&item_prefix)?;
-        let room = match self.store.assets.rooms.get_mut(&id) {
-            Some(asset) => asset,
-            None => { return error(format!("internal error: room id {} not found", id), pos); }
-        };
+        let room = self.read_data.rooms.get_mut(index).ok_or_else(|| {
+            err(format!("internal error: room index {} not found", index), pos)
+        })?;
         //self.logger.log(format!("-> reading ROOM ENTITY names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(ent) = room.entities.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
                 ent.name_id.push_str(name_id);
             } else {
-                return error(format!("room '{}' doesn't have entity {}", room.asset.name, index), pos);
+                return error(format!("room '{}' doesn't have entity {}", room.name, index), pos);
             }
         }
         Ok(())
     }
 
     fn read_room_trigger_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (id, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "TRG_NAMES", "TRG",
-                                                                    &self.read_data.rooms_by_name_id, pos)?;
+        let (index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "TRG_NAMES", "TRG",
+                                                                       &self.read_data.rooms_by_name, pos)?;
         let name_ids = self.read_asset_names_enum(&item_prefix)?;
-        let room = match self.store.assets.rooms.get_mut(&id) {
-            Some(asset) => asset,
-            None => { return error(format!("internal error: room id {} not found", id), pos); }
-        };
+        let room = self.read_data.rooms.get_mut(index).ok_or_else(|| {
+            err(format!("internal error: room index {} not found", index), pos)
+        })?;
         //self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
         for (index, name_id) in name_ids.iter().enumerate() {
             if let Some(trg) = room.triggers.get_mut(index) {
                 //self.logger.log(format!("  -> {}", name_id));
                 trg.name_id.push_str(name_id);
             } else {
-                return error(format!("room '{}' doesn't have trigger {}", room.asset.name, index), pos);
+                return error(format!("room '{}' doesn't have trigger {}", room.name, index), pos);
             }
         }
         Ok(())
@@ -2307,6 +2459,10 @@ impl<'a> ProjectDataReader<'a> {
             error(format!("unexpected '{}'", t), t.pos)?;
         }
 
+        Ok(())
+    }
+
+    fn create_assets(self) -> Result<()> {
         // name unnamed animation loops
         for anim in self.store.assets.animations.iter_mut() {
             for (index, aloop) in anim.loops.iter_mut().enumerate() {
@@ -2316,9 +2472,52 @@ impl<'a> ProjectDataReader<'a> {
             }
         }
 
+        // add asset ids
+        for tileset in self.read_data.tilesets.iter() { self.store.asset_ids.tilesets.push(tileset.asset_id); }
+        for map_data in self.read_data.maps.iter() { self.store.asset_ids.maps.push(map_data.asset_id); }
+        for room in self.read_data.rooms.iter() { self.store.asset_ids.rooms.push(room.asset_id); }
+        for sprite in self.read_data.sprites.iter() { self.store.asset_ids.sprites.push(sprite.asset_id); }
+        for pal_sprite in self.read_data.pal_sprites.iter() { self.store.asset_ids.pal_sprites.push(pal_sprite.asset_id); }
+        for anim in self.read_data.animations.iter() { self.store.asset_ids.animations.push(anim.asset_id); }
+        for sfx in self.read_data.sfxs.iter() { self.store.asset_ids.sfxs.push(sfx.asset_id); }
+        for mod_data in self.read_data.mods.iter() { self.store.asset_ids.mods.push(mod_data.asset_id); }
+        for font in self.read_data.fonts.iter() { self.store.asset_ids.fonts.push(font.asset_id); }
+        for prop_font in self.read_data.prop_fonts.iter() { self.store.asset_ids.prop_fonts.push(prop_font.asset_id); }
+
+        // create assets
+        for tileset in self.read_data.tilesets {
+            self.store.assets.tilesets.insert(tileset.asset_id, tileset.into_tileset());
+        }
+        for map_data in self.read_data.maps {
+            self.store.assets.maps.insert(map_data.asset_id, map_data.into_map(&self.store.asset_ids)?);
+        }
+        for sprite in self.read_data.sprites {
+            self.store.assets.sprites.insert(sprite.asset_id, sprite.into_sprite());
+        }
+        for pal_sprite in self.read_data.pal_sprites {
+            self.store.assets.pal_sprites.insert(pal_sprite.asset_id, pal_sprite.into_pal_sprite());
+        }
+        for anim in self.read_data.animations {
+            self.store.assets.animations.insert(anim.asset_id, anim.into_sprite_animation(&self.store.asset_ids)?);
+        }
+        for room in self.read_data.rooms {
+            self.store.assets.rooms.insert(room.asset_id, room.into_room(&self.store.asset_ids)?);
+        }
+        for sfx in self.read_data.sfxs {
+            self.store.assets.sfxs.insert(sfx.asset_id, sfx.into_sfx());
+        }
+        for mod_data in self.read_data.mods {
+            self.store.assets.mods.insert(mod_data.asset_id, mod_data.into_mod());
+        }
+        for font in self.read_data.fonts {
+            self.store.assets.fonts.insert(font.asset_id, font.into_font());
+        }
+        for prop_font in self.read_data.prop_fonts {
+            self.store.assets.prop_fonts.insert(prop_font.asset_id, prop_font.into_prop_font());
+        }
+
         Ok(())
     }
-
 }
 
 pub fn read_project<P: AsRef<Path>>(filename: P, store: &mut DataAssetStore, logger: &mut StringLogger) -> Result<()> {
@@ -2334,14 +2533,14 @@ pub fn read_project<P: AsRef<Path>>(filename: P, store: &mut DataAssetStore, log
     };
 
     let mut reader = ProjectDataReader::new(&data, store, logger);
-    match reader.read_project() {
-        Ok(()) => {
-            logger.log("DONE: project read");
-            Ok(())
-        },
-        Err(e) => {
-            logger.log(format!("ERROR: {}", e));
-            Err(e)
-        }
+    if let Err(e) = reader.read_project() {
+        logger.log(format!("ERROR: {}", e));
+        return Err(e);
     }
+    if let Err(e) = reader.create_assets() {
+        logger.log(format!("ERROR: {}", e));
+        return Err(e);
+    }
+    logger.log("DONE: project read");
+    Ok(())
 }

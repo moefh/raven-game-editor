@@ -39,15 +39,6 @@ pub struct PalSprite {
     pub data: Vec<u8>,
 }
 
-pub struct CreationData {
-    pub width: u32,
-    pub height: u32,
-    pub num_frames: u32,
-    pub bits_per_pixel: u32,
-    pub palette: Vec<u8>,
-    pub pixels: Vec<u8>,
-}
-
 impl PalSprite {
     pub const EMPTY_COLOR: u8 = 0;
 
@@ -89,20 +80,6 @@ impl PalSprite {
             }
         }
         changed
-    }
-
-    pub fn from_data(id: super::DataAssetId, name: String, data: CreationData) -> Self {
-        let color_to_palette_index_map = Self::gen_color_to_palette_index_map(&data.palette);
-        PalSprite {
-            asset: super::DataAsset::new(super::DataAssetType::PalSprite, id, name),
-            width: data.width,
-            height: data.height,
-            num_frames: data.num_frames,
-            depth: PalSpriteDepth::from_bits_per_pixel(data.bits_per_pixel),
-            palette: data.palette,
-            color_to_palette_index_map,
-            data: data.pixels,
-        }
     }
 
     fn gen_palette(depth: PalSpriteDepth) -> Vec<u8> {
