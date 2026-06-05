@@ -12,16 +12,16 @@ mod reader;
 mod writer;
 mod header_def;
 
-use std::fmt;
+use std::{fmt, fs, io};
+use std::path::Path;
 use std::collections::HashMap;
 
-pub use reader::read_project;
 pub use reader::tokenizer::{Tokenizer, Token, TokenData};
-pub use writer::write_project;
+pub use room::RoomTriggerTypeIdent;
 
 pub use tileset::Tileset;
 pub use map_data::MapData;
-pub use room::{Room, RoomMap, RoomEntity, RoomEntityType, RoomTrigger, RoomTriggerType, RoomItem};
+pub use room::{Room, RoomMap, RoomTrigger, RoomTriggerType, RoomItem};
 pub use sprite::Sprite;
 pub use pal_sprite::{PalSprite, PalSpriteDepth};
 pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame, SpriteAnimationLoop};
@@ -337,11 +337,14 @@ impl AssetCollection {
             if room.maps.iter().any(|m| m.map_id == id) {
                 return true;
             }
-            if room.entities.iter().any(|e| {
-                if let RoomEntityType::Enemy { animation_id, .. } = e.entity_type && animation_id == id {
-                    true
-                } else {
-                    false
+            if room.triggers.iter().any(|e| {
+                match e.trigger_type {
+                    RoomTriggerType::Trap {..} |
+                    RoomTriggerType::Unknown {..} |
+                    RoomTriggerType::PlayerSpawn {..} => { false }
+
+                    RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
+                    RoomTriggerType::Door { room_id, .. } => { room_id == id }
                 }
             }) {
                 return true;
@@ -437,7 +440,7 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const VERSION: u32 = 4;
+    pub const VERSION: u32 = 5;
     pub const VERSION_DATE: &str = "2026-06-05";
 
     pub fn new() -> Self {
@@ -451,7 +454,17 @@ impl DataAssetStore {
         }
     }
 
-    pub fn gen_id(&mut self) -> DataAssetId {
+    pub fn read_file<P: AsRef<Path>>(filename: P, logger: &mut StringLogger) -> Result<Self, io::Error> {
+        fs::read_to_string(filename).and_then(|file_content| {
+            reader::ProjectDataReader::read_from_string(&file_content, logger)
+        })
+    }
+
+    pub fn write_to_file<P: AsRef<Path>>(&self, filename: P, logger: &mut StringLogger) -> Result<(), io::Error> {
+        writer::ProjectDataWriter::write_to_file(filename, self, logger)
+    }
+
+    fn gen_id(&mut self) -> DataAssetId {
         self.id_generator.gen_id()
     }
 

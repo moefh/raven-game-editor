@@ -143,10 +143,11 @@ struct $<PREFIX>_PROP_FONT {
 #ifndef $<PREFIX>_SKIP_STRUCTS_ROOM
 
 enum $<PREFIX>_ROOM_TRIGGER_TYPE {
+   $<PREFIX>_ROOM_TRIGGER_TYPE_UNKNOWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_DOOR,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAYER_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_DETECT_PLAYER,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_TRAP,
 };
 
 struct $<PREFIX>_ROOM_MAP_INFO {
@@ -155,39 +156,43 @@ struct $<PREFIX>_ROOM_MAP_INFO {
     const struct $<PREFIX>_MAP *map;
 };
 
-struct $<PREFIX>_ROOM_ENTITY_INFO {
-    int16_t x;
-    int16_t y;
-    const struct $<PREFIX>_SPRITE_ANIMATION *anim;
-    uint16_t data0;
-    uint16_t data1;
-    uint16_t data2;
-    uint16_t data3;
-};
-
 struct $<PREFIX>_ROOM_TRIGGER_INFO {
     enum $<PREFIX>_ROOM_TRIGGER_TYPE type;
     int16_t x;
     int16_t y;
-    uint16_t w;
-    uint16_t h;
     union {
         struct {
             uint32_t data0;
             uint32_t data1;
+            uint32_t data2;
+            uint32_t data3;
         } any;
         struct {
+            uint8_t direction;
+        } player_spawn;
+        struct {
+             const struct $<PREFIX>_ROOM *room;
              uint16_t room_id;
+             uint16_t door;
+             uint16_t width;
+             uint16_t height;
         } door;
+        struct {
+             const struct $<PREFIX>_SPRITE_ANIMATION *animation;
+             uint16_t type;
+        } enemy_spawn;
+        struct {
+             uint16_t width;
+             uint16_t height;
+             uint16_t type;
+        } trap;
     };
 };
 
 struct $<PREFIX>_ROOM {
-    uint8_t num_maps;
-    uint8_t num_entities;
-    uint8_t num_triggers;
+    uint16_t num_maps;
+    uint16_t num_triggers;
     const struct $<PREFIX>_ROOM_MAP_INFO *maps;
-    const struct $<PREFIX>_ROOM_ENTITY_INFO *entities;
     const struct $<PREFIX>_ROOM_TRIGGER_INFO *triggers;
 };
 

@@ -1,6 +1,6 @@
 use std::io::Result;
 
-use super::ReaderAssetIndex;
+use super::ReaderAssetReference;
 use super::super::{
     DataAsset,
     DataAssetId,
@@ -21,7 +21,7 @@ pub struct LoopFrameSlice {
 pub struct CreationData {
     pub asset_id: DataAssetId,
     pub name: String,
-    pub sprite_ref: ReaderAssetIndex,
+    pub sprite_ref: ReaderAssetReference,
     pub clip_rect: Rect,
     pub foot_overlap: i8,
     pub loops: Vec<SpriteAnimationLoop>,

@@ -1,8 +1,6 @@
 use std::io::Result;
 
-use super::{
-    ReaderAssetIndex,
-};
+use super::ReaderAssetReference;
 use super::super::{
     DataAsset,
     DataAssetId,
@@ -14,7 +12,7 @@ use super::super::{
 pub struct CreationData {
     pub asset_id: DataAssetId,
     pub name: String,
-    pub tileset_ref: ReaderAssetIndex,
+    pub tileset_ref: ReaderAssetReference,
     pub width: u32,
     pub height: u32,
     pub para_width: u32,

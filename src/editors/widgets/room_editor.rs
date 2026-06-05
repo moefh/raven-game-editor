@@ -2,15 +2,14 @@ use egui::{Vec2, Sense, Rect, Pos2, Image, Color32};
 use egui::emath::RectTransform;
 
 use crate::data_asset::{
+    AssetList,
     Room,
     RoomMap,
-    RoomEntity,
-    RoomEntityType,
     RoomTrigger,
+    RoomTriggerType,
     MapData,
     Tileset,
     Sprite,
-    AssetList,
 };
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
@@ -21,6 +20,97 @@ use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
+
+struct TriggerPos {
+    x: i16,
+    y: i16,
+}
+
+impl TriggerPos {
+    fn from_pos2(pos: Pos2) -> Self {
+        TriggerPos {
+            x: pos.x.clamp(i16::MIN as f32, i16::MAX as f32) as i16,
+            y: pos.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16,
+        }
+    }
+}
+
+struct TriggerRect {
+    x: i16,
+    y: i16,
+    width: u16,
+    height: u16,
+    resizable: bool,
+}
+
+impl TriggerRect {
+    fn resizable(x: i16, y: i16, width: u16, height: u16) -> Self {
+        TriggerRect {
+            x,
+            y,
+            width,
+            height,
+            resizable: true,
+        }
+    }
+
+    fn rigid(x: i16, y: i16, width: u16, height: u16) -> Self {
+        TriggerRect {
+            x,
+            y,
+            width,
+            height,
+            resizable: false,
+        }
+    }
+
+    fn from_trigger(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Self {
+        match trigger.trigger_type {
+            RoomTriggerType::Trap { width, height, .. } => {
+                TriggerRect::resizable(trigger.x, trigger.y, width, height)
+            }
+            RoomTriggerType::EnemySpawn { animation_id } => {
+                assets.animations.get(&animation_id)
+                    .and_then(|animation| { assets.sprites.get(&animation.sprite_id) })
+                    .map(|sprite| { TriggerRect::rigid(trigger.x, trigger.y,
+                                                           (sprite.width & 0xffff) as u16,
+                                                           (sprite.height & 0xffff) as u16) })
+                    .unwrap_or_else(|| TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
+            }
+            RoomTriggerType::Door {..} => {
+                TriggerRect::rigid(trigger.x, trigger.y, 16, 64)
+            }
+            RoomTriggerType::PlayerSpawn {..} |
+            RoomTriggerType::Unknown {..} => {
+                TriggerRect::rigid(trigger.x, trigger.y, 64, 64)
+            }
+        }
+    }
+    fn apply_to_trigger(&self, trigger: &mut RoomTrigger) {
+        trigger.x = self.x;
+        trigger.y = self.y;
+        match &mut trigger.trigger_type {
+            RoomTriggerType::Trap { width, height, .. } => {
+                *width = self.width;
+                *height = self.height;
+            }
+            RoomTriggerType::Door {..} |
+            RoomTriggerType::EnemySpawn {..} |
+            RoomTriggerType::PlayerSpawn {..} |
+            RoomTriggerType::Unknown {..} => {
+                // not resizable
+            }
+        }
+    }
+
+    fn to_f32(self) -> Rect {
+        let pos = Pos2::new(self.x as f32, self.y as f32);
+        egui::Rect {
+            min: pos,
+            max: pos + Vec2::new(self.width as f32, self.height as f32),
+        }
+    }
+}
 
 pub struct RoomEditorWidget {
     pub zoom: f32,
@@ -78,30 +168,8 @@ impl RoomEditorWidget {
         }
     }
 
-    fn get_entity_rect(entity: &RoomEntity, assets: &RoomEditorAssetLists) -> Rect {
-        let ent_pos = Pos2::new(entity.x as f32, entity.y as f32);
-        let ent_size = match entity.entity_type {
-            RoomEntityType::Enemy { animation_id } => {
-                assets.animations.get(&animation_id)
-                    .and_then(|animation| { assets.sprites.get(&animation.sprite_id) })
-                    .map(|sprite| { Vec2::new(sprite.width as f32, sprite.height as f32) })
-                    .unwrap_or(Vec2::splat(64.0))
-            }
-            _ => { Vec2::splat(64.0) }
-        };
-        egui::Rect {
-            min: ent_pos,
-            max: ent_pos + ent_size,
-        }
-    }
-
-    fn get_trigger_rect(trigger: &RoomTrigger) -> Rect {
-        let trg_pos = Pos2::new(trigger.x as f32, trigger.y as f32);
-        let trg_size = Vec2::new(trigger.width as f32, trigger.height as f32);
-        egui::Rect {
-            min: trg_pos,
-            max: trg_pos + trg_size,
-        }
+    fn get_trigger_rect(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Rect {
+        TriggerRect::from_trigger(trigger, assets).to_f32()
     }
 
     fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
@@ -114,14 +182,9 @@ impl RoomEditorWidget {
                 Some(Self::get_map_rect(room_map, map_data))
             },
 
-            RoomItemRef::Entity(ent_index) => {
-                let entity = room.entities.get(ent_index)?;
-                Some(Self::get_entity_rect(entity, assets))
-            },
-
             RoomItemRef::Trigger(trg_index) => {
                 let trigger = room.triggers.get(trg_index)?;
-                Some(Self::get_trigger_rect(trigger))
+                Some(Self::get_trigger_rect(trigger, assets))
             },
         }
     }
@@ -134,13 +197,6 @@ impl RoomEditorWidget {
                 let room_map = room.maps.get_mut(map_index)?;
                 room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
                 room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
-                Some(true)
-            },
-
-            RoomItemRef::Entity(ent_index) => {
-                let entity = room.entities.get_mut(ent_index)?;
-                entity.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                entity.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
                 Some(true)
             },
 
@@ -172,11 +228,15 @@ impl RoomEditorWidget {
         None
     }
 
-    fn get_trigger_border(item: RoomItemRef, room: &mut Room, pos: Pos2, zoom: f32) -> Option<RectBorder> {
+    fn get_trigger_border(item: RoomItemRef, room: &mut Room, pos: Pos2, zoom: f32, assets: &RoomEditorAssetLists) -> Option<RectBorder> {
         if let RoomItemRef::Trigger(trg_index) = item {
             let trigger = room.triggers.get(trg_index)?;
-            let rect = Self::get_trigger_rect(trigger);
-            Self::get_rect_border(rect, pos, zoom)
+            let rect = TriggerRect::from_trigger(trigger, assets);
+            if rect.resizable {
+                Self::get_rect_border(rect.to_f32(), pos, zoom)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -194,52 +254,54 @@ impl RoomEditorWidget {
         };
     }
 
-    fn resize_move(&mut self, mouse_pos: Pos2, room: &mut Room, border: RectBorder) -> bool {
-        let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        if let RoomItemRef::Trigger(index) = self.drag_item && let Some(trigger) = room.triggers.get_mut(index) {
-            let trigger_pos = Pos2::new(trigger.x as f32, trigger.y as f32);
-            match border {
-                RectBorder::Bottom => { trigger.height = (new_pos - trigger_pos).y.clamp(0.0, i16::MAX as f32) as i16; }
-                RectBorder::Right => { trigger.width = (new_pos - trigger_pos).x.clamp(0.0, i16::MAX as f32) as i16; }
-                RectBorder::BottomRight => {
-                    let new_size = new_pos - trigger_pos;
-                    trigger.width = new_size.x.clamp(0.0, i16::MAX as f32) as i16;
-                    trigger.height = new_size.y.clamp(0.0, i16::MAX as f32) as i16;
+    fn resize_move(&mut self, mouse_pos: Pos2, room: &mut Room, border: RectBorder, assets: &RoomEditorAssetLists) -> bool {
+        let new_pos = TriggerPos::from_pos2(self.drag_item_origin + (mouse_pos - self.drag_mouse_origin));
+        if let RoomItemRef::Trigger(index) = self.drag_item &&
+            let Some(trigger) = room.triggers.get_mut(index) {
+                let mut rect = TriggerRect::from_trigger(trigger, assets);
+                if ! rect.resizable { return false; }
+                match border {
+                    RectBorder::Bottom => { rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16; }
+                    RectBorder::Right => { rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16; }
+                    RectBorder::BottomRight => {
+                        rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16;
+                        rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16;
+                    }
+                    RectBorder::Top => {
+                        let old_y = rect.y;
+                        rect.y = new_pos.y;
+                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - rect.y).max(0) as u16;
+                    }
+                    RectBorder::Left => {
+                        let old_x = rect.x;
+                        rect.x = new_pos.x;
+                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
+                    }
+                    RectBorder::TopLeft => {
+                        let (old_x, old_y) = (trigger.x, trigger.y);
+                        rect.x = new_pos.x;
+                        rect.y = new_pos.y;
+                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
+                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - rect.y).max(0) as u16;
+                    }
+                    RectBorder::TopRight => {
+                        let old_y = rect.y;
+                        rect.y = new_pos.y;
+                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - trigger.y).max(0) as u16;
+                        rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16;
+                    }
+                    RectBorder::BottomLeft => {
+                        rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16;
+                        let old_x = trigger.x;
+                        rect.x = new_pos.x;
+                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
+                    }
                 }
-                RectBorder::Top => {
-                    let old_y = trigger.y;
-                    trigger.y = new_pos.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.height = (trigger.height + old_y - trigger.y).max(0);
-                }
-                RectBorder::Left => {
-                    let old_x = trigger.x;
-                    trigger.x = new_pos.x.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.width = (trigger.width + old_x - trigger.x).max(0);
-                }
-                RectBorder::TopLeft => {
-                    let (old_x, old_y) = (trigger.x, trigger.y);
-                    trigger.x = new_pos.x.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.y = new_pos.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.width = (trigger.width + old_x - trigger.x).max(0);
-                    trigger.height = (trigger.height + old_y - trigger.y).max(0);
-                }
-                RectBorder::TopRight => {
-                    let old_y = trigger.y;
-                    trigger.y = new_pos.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.height = (trigger.height + old_y - trigger.y).max(0);
-                    trigger.width = (new_pos - trigger_pos).x.clamp(0.0, i16::MAX as f32) as i16;
-                }
-                RectBorder::BottomLeft => {
-                    trigger.height = (new_pos - trigger_pos).y.clamp(0.0, i16::MAX as f32) as i16;
-                    let old_x = trigger.x;
-                    trigger.x = new_pos.x.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                    trigger.width = (trigger.width + old_x - trigger.x).max(0);
-                }
+                rect.apply_to_trigger(trigger);
+                true
+            } else {
+                false
             }
-            true
-        } else {
-            false
-        }
     }
 
     fn drag_start(&mut self, item: RoomItemRef, item_pos: Pos2, mouse_pos: Pos2) {
@@ -259,7 +321,7 @@ impl RoomEditorWidget {
         self.resize_border = None;
     }
 
-    fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, _assets: &RoomEditorAssetLists) {
+    fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) {
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
         if keys_pressed.alt {
             if resp.dragged() {
@@ -269,7 +331,7 @@ impl RoomEditorWidget {
             }
         } else if keys_pressed.ctrl {
             resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
-        } else if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) {
+        } else if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) {
             resp.ctx.set_cursor_icon(border.cursor());
         }
     }
@@ -287,7 +349,7 @@ impl RoomEditorWidget {
             }
             if let Some(border) = self.resize_border {
                 resp.ctx.set_cursor_icon(border.cursor());
-                if  self.resize_move(mouse_pos, room, border) {
+                if  self.resize_move(mouse_pos, room, border, assets) {
                     return;
                 }
             }
@@ -301,29 +363,16 @@ impl RoomEditorWidget {
         if resp.drag_started() &&
             resp.dragged_by(egui::PointerButton::Primary) &&
             self.selected_item.is_trigger() &&
-            let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom) &&
+            let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) &&
             let Some(rect) = Self::get_item_rect(self.selected_item, room, assets) {
                 self.resize_start(self.selected_item, border, rect, mouse_pos);
                 return;
             }
 
-        // click/drag selected trigger/entity
-        if self.selected_item.is_trigger() || self.selected_item.is_entity() {
+        // click/drag selected trigger
+        if self.selected_item.is_trigger() {
             let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                if resp.drag_started() {
-                    self.drag_start(self.selected_item, rect.min, mouse_pos);
-                }
-                return;
-            }
-        }
-
-        // click/drag entity under the cursor
-        for index in 0..room.entities.len() {
-            let item = RoomItemRef::Entity(index);
-            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
-            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.selected_item = item;
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
@@ -429,8 +478,9 @@ impl RoomEditorWidget {
         }
     }
 
-    fn draw_entity(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, entity_rect: Rect, sprite: &Sprite, frame: u32) {
-        let draw_rect = to_canvas.transform_rect(entity_rect);
+    fn draw_trigger_sprite(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform,
+                           rect: Rect, sprite: &Sprite, frame: u32) {
+        let draw_rect = to_canvas.transform_rect(rect);
         let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         Image::from_texture((texture.id(), sprite.get_item_size())).uv(sprite.get_item_uv(frame)).paint_at(ui, draw_rect);
     }
@@ -482,27 +532,23 @@ impl RoomEditorWidget {
 
         // draw triggers
         for trigger in room.triggers.iter() {
-            let trg_rect = Self::get_trigger_rect(trigger);
-            Self::draw_outline_rect(&painter, to_canvas.transform_rect(trg_rect));
-        }
-
-        // draw entities
-        for entity in room.entities.iter() {
-            match entity.entity_type {
-                RoomEntityType::Unknown {..} => {
-                    let ent_rect = Self::get_entity_rect(entity, assets);
-                    Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+            let rect = Self::get_trigger_rect(trigger, assets);
+            match trigger.trigger_type {
+                RoomTriggerType::Unknown {..} |
+                RoomTriggerType::Door {..} |
+                RoomTriggerType::PlayerSpawn {..} |
+                RoomTriggerType::Trap {..} => {
+                    Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
                 }
-                RoomEntityType::Enemy { animation_id } => {
+                RoomTriggerType::EnemySpawn { animation_id } => {
                     if let Some(animation) = assets.animations.get(&animation_id) &&
                         let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
                             let sprite_frame = animation.loops.first()
                                 .and_then(|aloop| aloop.frame_indices.first())
                                 .and_then(|frame| frame.head_index)
                                 .unwrap_or(0);
-                            let ent_rect = Self::get_entity_rect(entity, assets);
-                            Self::draw_entity(ui, wc, &to_canvas, ent_rect, sprite, sprite_frame as u32);
-                            Self::draw_outline_rect(&painter, to_canvas.transform_rect(ent_rect));
+                            Self::draw_trigger_sprite(ui, wc, &to_canvas, rect, sprite, sprite_frame as u32);
+                            Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
                         }
                 }
             }
@@ -516,17 +562,10 @@ impl RoomEditorWidget {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 
-        // outline selected entity
-        if let RoomItemRef::Entity(ent_index) = self.selected_item &&
-            let Some(entity) = room.entities.get(ent_index) {
-                let rect = Self::get_entity_rect(entity, assets);
-                Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
-            }
-
         // outline selected trigger
         if let RoomItemRef::Trigger(trg_index) = self.selected_item &&
             let Some(trigger) = room.triggers.get(trg_index) {
-                let rect = Self::get_trigger_rect(trigger);
+                let rect = Self::get_trigger_rect(trigger, assets);
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 

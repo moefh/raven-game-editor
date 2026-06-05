@@ -25,9 +25,9 @@ use crate::include_ref_image;
 use crate::misc::{calc_hash, get_asset_type_image, ImageRef, IMAGES};
 use crate::data_asset::{
     DataAssetId,
+    AssetIdCollection,
     MapData,
     GenericAsset,
-    RoomEntityType,
     RoomTriggerType,
 };
 use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
@@ -665,43 +665,12 @@ impl MapClipboardData {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum RoomEntityTypeSel {
-    Unknown,
-    Enemy,
-}
-
-impl RoomEntityTypeSel {
-    pub fn from_entity_type(entity_type: &RoomEntityType) -> Self {
-        match entity_type {
-            RoomEntityType::Unknown { .. } => RoomEntityTypeSel::Unknown,
-            RoomEntityType::Enemy { .. } => RoomEntityTypeSel::Enemy,
-        }
-    }
-
-    pub fn convert_entity_type(&self, entity_type: &mut RoomEntityType, animation_id: DataAssetId) {
-        match self {
-            RoomEntityTypeSel::Unknown if ! matches!(entity_type, RoomEntityType::Unknown {..}) => {
-                *entity_type = RoomEntityType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
-            }
-            RoomEntityTypeSel::Enemy if ! matches!(entity_type, RoomEntityType::Enemy {..}) => {
-                *entity_type = RoomEntityType::Enemy { animation_id };
-            }
-            _ => {}
-        }
-    }
-
-    pub fn text(&self) -> &'static str {
-        match self {
-            RoomEntityTypeSel::Unknown => "any",
-            RoomEntityTypeSel::Enemy => "enemy",
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RoomTriggerTypeSel {
     Unknown,
     Door,
+    Trap,
+    PlayerSpawn,
+    EnemySpawn,
 }
 
 impl RoomTriggerTypeSel {
@@ -709,16 +678,32 @@ impl RoomTriggerTypeSel {
         match trigger_type {
             RoomTriggerType::Unknown { .. } => RoomTriggerTypeSel::Unknown,
             RoomTriggerType::Door { .. } => RoomTriggerTypeSel::Door,
+            RoomTriggerType::PlayerSpawn { .. } => RoomTriggerTypeSel::PlayerSpawn,
+            RoomTriggerType::EnemySpawn { .. } => RoomTriggerTypeSel::EnemySpawn,
+            RoomTriggerType::Trap { .. } => RoomTriggerTypeSel::Trap,
         }
     }
 
-    pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, room_id: DataAssetId) {
+    pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, asset_ids: &AssetIdCollection) {
         match self {
             RoomTriggerTypeSel::Unknown if ! matches!(trigger_type, RoomTriggerType::Unknown {..}) => {
                 *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
             }
+            RoomTriggerTypeSel::Trap if ! matches!(trigger_type, RoomTriggerType::Trap {..}) => {
+                *trigger_type = RoomTriggerType::Trap { width: 64, height: 64, type_id: 0 };
+            }
+            RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
+                *trigger_type = RoomTriggerType::PlayerSpawn { direction: 0 };
+            }
+            RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
+                if let Some(animation_id) = asset_ids.animations.get_first() {
+                    *trigger_type = RoomTriggerType::EnemySpawn { animation_id };
+                }
+            }
             RoomTriggerTypeSel::Door if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
-                *trigger_type = RoomTriggerType::Door { room_id, door_id: 0 };
+                if let Some(room_id) = asset_ids.rooms.get_first() {
+                    *trigger_type = RoomTriggerType::Door { room_id, door_id: 0 };
+                }
             }
             _ => {}
         }
@@ -728,6 +713,9 @@ impl RoomTriggerTypeSel {
         match self {
             RoomTriggerTypeSel::Unknown => "any",
             RoomTriggerTypeSel::Door => "door",
+            RoomTriggerTypeSel::Trap => "trap",
+            RoomTriggerTypeSel::PlayerSpawn => "player spawn",
+            RoomTriggerTypeSel::EnemySpawn => "enemy spawn",
         }
     }
 }

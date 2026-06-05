@@ -161,15 +161,17 @@ impl RavenEditorApp {
         if let Some(dir) = path.as_ref().parent() {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
-        let mut store = crate::data_asset::DataAssetStore::new();
-        match crate::data_asset::read_project(path.as_ref(), &mut store, &mut self.logger) {
-            Ok(()) => {
+        self.logger.log(format!("READING FILE {}", path.as_ref().display()));
+        match DataAssetStore::read_file(path.as_ref(), &mut self.logger) {
+            Ok(store) => {
+                self.logger.log("DONE: project read");
                 self.load_project(store);
                 self.set_filename(Some(path.as_ref().to_path_buf()));
             },
-            Err(_) => {
+            Err(e) => {
+                self.logger.log(format!("ERROR: {}", e));
                 self.open_message_box("Error Reading Project",
-                                      "Error reading project.\n\nConsult the log window for details.");
+                                      &format!("Error reading project: {}.\n\nConsult the log window for details.", e));
                 self.windows.open_log_window();
             }
         }
@@ -215,13 +217,16 @@ impl RavenEditorApp {
     }
 
     fn write_project(&mut self, path: &std::path::Path) -> bool {
+        self.logger.log(format!("WRITING PROJECT to {}", path.display()));
         self.prepare_for_saving();
-        match crate::data_asset::write_project(path, &self.store, &mut self.logger) {
+        match self.store.write_to_file(path, &mut self.logger) {
             Ok(()) => {
+                self.logger.log(format!("DONE: project saved to {}", path.display()));
                 self.editors.clear_dirty(&self.store);
                 true
             }
-            Err(_) => {
+            Err(e) => {
+                self.logger.log(format!("ERROR:\n{}", e));
                 self.open_message_box("Error Writing Project",
                                       "Error writing project.\n\nConsult the log window for details.");
                 self.windows.open_log_window();

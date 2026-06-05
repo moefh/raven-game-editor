@@ -17,7 +17,6 @@ use super::{
     DataAssetType,
     DataAsset,
     AssetIdList,
-    RoomEntityType,
     RoomTriggerType,
 };
 
@@ -40,7 +39,7 @@ struct AnimationInfo {
     loop_index_to_name_id: HashMap<usize,String>,
 }
 
-struct ProjectDataWriter<'a> {
+pub struct ProjectDataWriter<'a> {
     output: RefCell<String>,
     logger: RefCell<&'a mut StringLogger>,
     store: &'a DataAssetStore,
@@ -944,46 +943,34 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_room_entities(&self, room: &super::Room, name_id: &str) -> Result<()> {
-        self.write(format!("static const struct {}_ROOM_ENTITY_INFO {}_room_entities_{}[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
-        for ent in room.entities.iter() {
-            self.write("  { ");
-            self.write(format!("{}, {}, ", ent.x, ent.y));
-            match ent.entity_type {
-                RoomEntityType::Unknown { data0, data1, data2, data3 } => {
-                    self.write(format!(".any = {{ {}, {}, {}, {} }}",
-                                       data0, data1, data2, data3));
-                }
-                RoomEntityType::Enemy { animation_id } => {
-                    let anim_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
-                    self.write(format!(".enemy = {{ &{}_sprite_animations[{}] }}",
-                                       self.ident.prefix_lower, anim_index));
-                }
-            }
-            self.write(" },\n");
-        }
-        self.write("};\n");
-        self.write("\n");
-
-        Ok(())
-    }
-
     fn write_room_triggers(&self, room: &super::Room, name_id: &str) -> Result<()> {
         self.write(format!("static const struct {}_ROOM_TRIGGER_INFO {}_room_triggers_{}[] = {{\n",
                            self.ident.prefix_upper, self.ident.prefix_lower, name_id));
         for trg in room.triggers.iter() {
+            let enum_type_ident = super::RoomTriggerTypeIdent::from_trigger_type(&trg.trigger_type).enum_ident();
+
             self.write("  {  ");
-            self.write(format!("{}, {}, {}, {}, ", trg.x, trg.y, trg.width, trg.height));
+            self.write(format!("{}_{}, {}, {}, ", self.ident.prefix_upper, enum_type_ident, trg.x, trg.y));
             match trg.trigger_type {
                 RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
-                    self.write(format!(".any = {{ {}, {}, {}, {}, }}",
+                    self.write(format!(".any = {{ {}, {}, {}, {} }}",
                                        data0, data1, data2, data3));
                 }
                 RoomTriggerType::Door { room_id, door_id } => {
                     let room_index = self.ident.get_asset_index(DataAssetType::Room, room_id)?;
                     self.write(format!(".door = {{ &{}_rooms[{}], {} }}",
                                        self.ident.prefix_lower, room_index, door_id));
+                }
+                RoomTriggerType::PlayerSpawn { direction } => {
+                    self.write(format!(".player_spawn = {{ {} }}", direction));
+                }
+                RoomTriggerType::EnemySpawn { animation_id } => {
+                    let animation_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
+                    self.write(format!(".enemy_spawn = {{ &{}_sprite_animations[{}] }}",
+                                       self.ident.prefix_lower, animation_index));
+                }
+                RoomTriggerType::Trap { width, height, type_id } => {
+                    self.write(format!(".trap = {{ {}, {}, {} }}", width, height, type_id ));
                 }
             }
             self.write(" },\n");
@@ -1004,7 +991,6 @@ impl<'a> ProjectDataWriter<'a> {
             if let Some(room) = self.store.assets.rooms.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
                 self.write_room_maps(room, name_id)?;
-                self.write_room_entities(room, name_id)?;
                 self.write_room_triggers(room, name_id)?;
             }
         }
@@ -1015,28 +1001,10 @@ impl<'a> ProjectDataWriter<'a> {
         for id in self.store.asset_ids.rooms.iter() {
             if let Some(room) = self.store.assets.rooms.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-                self.write(format!("  {{ {}, {}, {}, {}_room_maps_{}, {}_room_entities_{}, {}_room_triggers_{} }},\n",
-                                   room.maps.len(), room.entities.len(), room.triggers.len(),
-                                   self.ident.prefix_lower, name_id, self.ident.prefix_lower, name_id, self.ident.prefix_lower, name_id));
+                self.write(format!("  {{ {}, {}, {}_room_maps_{}, {}_room_triggers_{} }},\n",
+                                   room.maps.len(), room.triggers.len(),
+                                   self.ident.prefix_lower, name_id, self.ident.prefix_lower, name_id));
             }
-        }
-        self.write("};\n");
-        self.write("\n");
-
-        Ok(())
-    }
-
-    fn write_room_entity_names(&self, room: &super::Room, name_id_upper: &str) -> Result<()> {
-        let mut index_to_name_id = HashMap::new();
-
-        self.write(format!("enum {}_ROOM_{}_ENT_NAMES {{\n", self.ident.prefix_upper, name_id_upper));
-        for (index, ent) in room.entities.iter().enumerate() {
-            let use_name_id = if ent.name_id == "names" { "names0" } else { &ent.name_id };
-            IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
-            let ent_name_id = index_to_name_id.get(&index).ok_or_else(|| {
-                Error::other(format!("error reading name of entity {} room {}", index, room.asset.id))
-            })?;
-            self.write(format!("  {}_ROOM_{}_ENT_{},\n", self.ident.prefix_upper, name_id_upper, &ent_name_id.to_ascii_uppercase()));
         }
         self.write("};\n");
         self.write("\n");
@@ -1072,7 +1040,6 @@ impl<'a> ProjectDataWriter<'a> {
             if let Some(room) = self.store.assets.rooms.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
                 let name_id_upper = name_id.to_ascii_uppercase();
-                self.write_room_entity_names(room, &name_id_upper)?;
                 self.write_room_trigger_names(room, &name_id_upper)?;
             }
         }
@@ -1210,7 +1177,7 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    pub fn write_project(&mut self) -> Result<()> {
+    fn serialize(mut self) -> Result<String> {
         self.gen_unique_asset_names()?;
         self.write_header()?;
 
@@ -1235,47 +1202,30 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_sprite_sizes()?;
 
         self.write_footer()?;
-        Ok(())
-    }
-}
-
-fn write_file(filename: &Path, data: &str) -> Result<()> {
-    fn write_tmp(filename: &Path, data: &str) -> Result<()> {
-        let mut file = fs::File::create(filename)?;
-        file.write_all(data.as_bytes())?;
-        file.sync_all()
+        Ok(self.output.take())
     }
 
-    let tmp_filename = filename.with_extension("h-tmp");
-    match write_tmp(&tmp_filename, data) {
-        Ok(_) => fs::rename(&tmp_filename, filename),
-        Err(e) => {
-            let _ = fs::remove_file(tmp_filename); // we don't really care about this error
-            Err(e)
+    pub fn write_to_file<P: AsRef<Path>>(filename: P, store: &DataAssetStore, logger: &mut StringLogger) -> Result<()> {
+        fn write_tmp_file(filename: &Path, data: &str) -> Result<()> {
+            let mut file = fs::File::create(filename)?;
+            file.write_all(data.as_bytes())?;
+            file.sync_all()
         }
-    }
-}
 
-pub fn write_project<P: AsRef<Path>>(filename: P, store: &DataAssetStore, logger: &mut StringLogger) -> Result<()> {
-    logger.log("-> saving project");
-
-    let mut writer = ProjectDataWriter::new(store, logger);
-    match writer.write_project() {
-        Ok(()) => {},
-        Err(e) => {
-            logger.log(format!("ERROR: {}", e));
-            return Err(e);
-        }
-    };
-
-    match write_file(filename.as_ref(), &writer.output.borrow()) {
-        Ok(()) => {
-            logger.log(format!("DONE: project saved to {}", filename.as_ref().display()));
-            Ok(())
-        }
-        Err(e) => {
-            logger.log(format!("ERROR writing file {}:\n{}", filename.as_ref().display(), e));
-            Err(e)
+        let writer = ProjectDataWriter::new(store, logger);
+        let content = writer.serialize()?;
+        //write_file(filename.as_ref(), &content);
+        let tmp_filename = filename.as_ref().with_extension("h-tmp");
+        match write_tmp_file(&tmp_filename, &content) {
+            Ok(_) => {
+                fs::rename(&tmp_filename, filename)
+            }
+            Err(e) => {
+                if let Err(e) = fs::remove_file(tmp_filename) {
+                    logger.log(format!("WARNING: error removing temp file: {}", e));
+                }
+                Err(e)
+            }
         }
     }
 }

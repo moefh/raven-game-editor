@@ -8,23 +8,12 @@ pub struct RoomMap {
 }
 
 #[derive(Clone, std::hash::Hash)]
-pub enum RoomEntityType {
-    Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
-    Enemy { animation_id: DataAssetId } ,
-}
-
-#[derive(Clone, std::hash::Hash)]
-pub struct RoomEntity {
-    pub name_id: String,
-    pub x: i16,
-    pub y: i16,
-    pub entity_type: RoomEntityType,
-}
-
-#[derive(Clone, std::hash::Hash)]
 pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
+    PlayerSpawn { direction: u8 },
+    EnemySpawn { animation_id: DataAssetId },
     Door { room_id: DataAssetId, door_id: u16 },
+    Trap { width: u16, height: u16, type_id: u16 },
 }
 
 #[derive(Clone, std::hash::Hash)]
@@ -32,8 +21,6 @@ pub struct RoomTrigger {
     pub name_id: String,
     pub x: i16,
     pub y: i16,
-    pub width: i16,
-    pub height: i16,
     pub trigger_type: RoomTriggerType,
 }
 
@@ -41,7 +28,6 @@ pub struct RoomTrigger {
 pub struct Room {
     pub asset: super::DataAsset,
     pub maps: Vec<RoomMap>,
-    pub entities: Vec<RoomEntity>,
     pub triggers: Vec<RoomTrigger>,
 }
 
@@ -51,7 +37,6 @@ impl Room {
             asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
             maps: Vec::new(),
             triggers: Vec::new(),
-            entities: Vec::new(),
         }
     }
 }
@@ -62,7 +47,6 @@ impl super::DuplicableAsset<Room> for Room {
             asset: self.asset.duplicate(dup_id, dup_name),
             maps: self.maps.clone(),
             triggers: self.triggers.clone(),
-            entities: self.entities.clone(),
         }
     }
 }
@@ -71,20 +55,16 @@ impl super::GenericAsset for Room {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: num_maps(1) + num_entities(1) + num_triggers(1) + pad(1) +
-        //         maps<ptr>(4) + entities<ptr>(4) + triggers<ptr>(4)
-        let header = 4usize + 3usize * 4usize;
+        // header: num_maps(2) + num_triggers(2) + maps<ptr>(4) + triggers<ptr>(4)
+        let header = 2 + 2 + 2 * 4;
 
         // map[0..num_maps]: x(2) + y(2) + map<ptr>(4)
-        let maps = self.maps.len() * (2usize * 2usize + 4usize);
+        let maps = self.maps.len() * (2 + 2 + 4);
 
-        // entity[0..num_entities]: x(2) + y(2) + anim<ptr>(4) + data[0..4](2)
-        let entities = self.entities.len() * (2usize * 2usize + 4usize + 4usize * 2usize);
+        // trigger[0..num_triggers]: type(4) + x(2) + y(2) + data[0..4](4)
+        let triggers = self.triggers.len() * (4 + 2 + 2 + 4 * 4);
 
-        // trigger[0..num_triggers]: x(2) + y(2) + w(2) + h(2) + data[0..4](2)
-        let triggers = self.triggers.len() * (4usize * 2usize + 4usize * 2usize);
-
-        header + maps + entities + triggers
+        header + maps + triggers
     }
 }
 
@@ -95,14 +75,47 @@ pub trait RoomItem {
     fn y(&self) -> i16;
 }
 
-impl RoomItem for RoomEntity {
+impl RoomItem for RoomTrigger {
     fn name_id(&self) -> &str { &self.name_id }
     fn x(&self) -> i16 { self.x }
     fn y(&self) -> i16 { self.y }
 }
 
-impl RoomItem for RoomTrigger {
-    fn name_id(&self) -> &str { &self.name_id }
-    fn x(&self) -> i16 { self.x }
-    fn y(&self) -> i16 { self.y }
+pub enum RoomTriggerTypeIdent {
+    Unknown,
+    PlayerSpawn,
+    EnemySpawn,
+    Door,
+    Trap,
+}
+
+impl RoomTriggerTypeIdent {
+    pub fn from_trigger_type(trigger_type: &RoomTriggerType) -> Self {
+        match trigger_type {
+            RoomTriggerType::Unknown {..} => { RoomTriggerTypeIdent::Unknown }
+            RoomTriggerType::Door{..} => { RoomTriggerTypeIdent::Door }
+            RoomTriggerType::PlayerSpawn{..} => { RoomTriggerTypeIdent::PlayerSpawn }
+            RoomTriggerType::EnemySpawn{..} => { RoomTriggerTypeIdent::EnemySpawn }
+            RoomTriggerType::Trap {..} => { RoomTriggerTypeIdent::Trap }
+        }
+    }
+
+    pub fn enum_ident(&self) -> &'static str {
+        match self {
+            RoomTriggerTypeIdent::Unknown => { "ROOM_TRIGGER_TYPE_ANY" }
+            RoomTriggerTypeIdent::Door => { "ROOM_TRIGGER_TYPE_DOOR" }
+            RoomTriggerTypeIdent::PlayerSpawn => { "ROOM_TRIGGER_TYPE_PLAYER_SPAWN" }
+            RoomTriggerTypeIdent::EnemySpawn => { "ROOM_TRIGGER_TYPE_ENEMY_SPAWN" }
+            RoomTriggerTypeIdent::Trap => { "ROOM_TRIGGER_TYPE_TRAP" }
+        }
+    }
+
+    pub fn matches_enum_ident(&self, enum_ident: &str, prefix: &str) -> bool {
+        let req_enum_ident = self.enum_ident();
+        enum_ident.len() == prefix.len() + 1 + req_enum_ident.len() &&
+            enum_ident.starts_with(prefix) &&
+            &enum_ident[prefix.len()..prefix.len()+1] == "_" &&
+            enum_ident.ends_with(req_enum_ident)
+    }
+
 }
