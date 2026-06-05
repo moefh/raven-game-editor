@@ -21,47 +21,77 @@ use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
 
+struct GridAlign {
+    size: u16,
+    align: bool,
+}
+
+impl GridAlign {
+    fn new(size: u16) -> Self {
+        GridAlign {
+            size,
+            align: false,
+        }
+    }
+
+    fn align_i16(&self, val: i16) -> i16 {
+        if self.align {
+            let size = self.size as i16;
+            (val + size/2) / size * size
+        } else {
+            val
+        }
+    }
+
+    fn align_i32(&self, val: i32) -> i32 {
+        if self.align {
+            let size = self.size as i32;
+            (val + size/2) / size * size
+        } else {
+            val
+        }
+    }
+}
+
 struct TriggerPos {
-    x: i16,
-    y: i16,
+    x: i32,
+    y: i32,
 }
 
 impl TriggerPos {
     fn from_pos2(pos: Pos2) -> Self {
         TriggerPos {
-            x: pos.x.clamp(i16::MIN as f32, i16::MAX as f32) as i16,
-            y: pos.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16,
+            x: pos.x.clamp(i32::MIN as f32, i32::MAX as f32) as i32,
+            y: pos.y.clamp(i32::MIN as f32, i32::MAX as f32) as i32,
         }
     }
 }
 
 struct TriggerRect {
-    x: i16,
-    y: i16,
-    width: u16,
-    height: u16,
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    y2: i32,
     resizable: bool,
 }
 
 impl TriggerRect {
-    fn resizable(x: i16, y: i16, width: u16, height: u16) -> Self {
+    fn new(x: i16, y: i16, width: u16, height: u16, resizable: bool) -> Self {
         TriggerRect {
-            x,
-            y,
-            width,
-            height,
-            resizable: true,
+            x1: x as i32,
+            y1: y as i32,
+            x2: x as i32 + width as i32,
+            y2: y as i32 + height as i32,
+            resizable,
         }
     }
 
+    fn resizable(x: i16, y: i16, width: u16, height: u16) -> Self {
+        Self::new(x, y, width, height, true)
+    }
+
     fn rigid(x: i16, y: i16, width: u16, height: u16) -> Self {
-        TriggerRect {
-            x,
-            y,
-            width,
-            height,
-            resizable: false,
-        }
+        Self::new(x, y, width, height, false)
     }
 
     fn from_trigger(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Self {
@@ -86,13 +116,30 @@ impl TriggerRect {
             }
         }
     }
+
+    fn set_left_border(&mut self, val: i32) {
+        self.x1 = val.clamp(-256, self.x2);
+    }
+
+    fn set_right_border(&mut self, val: i32) {
+        self.x2 = val.clamp(self.x1, u16::MAX as i32);
+    }
+
+    fn set_top_border(&mut self, val: i32) {
+        self.y1 = val.clamp(-256, self.y2);
+    }
+
+    fn set_bottom_border(&mut self, val: i32) {
+        self.y2 = val.clamp(self.y1, u16::MAX as i32);
+    }
+
     fn apply_to_trigger(&self, trigger: &mut RoomTrigger) {
-        trigger.x = self.x;
-        trigger.y = self.y;
+        trigger.x = self.x1.clamp(-256, i16::MAX as i32) as i16;
+        trigger.y = self.y1.clamp(-256, i16::MAX as i32) as i16;
         match &mut trigger.trigger_type {
             RoomTriggerType::Trap { width, height, .. } => {
-                *width = self.width;
-                *height = self.height;
+                *width = (self.x2 - self.x1).clamp(0, u16::MAX as i32) as u16;
+                *height = (self.y2 - self.y1).clamp(0, u16::MAX as i32) as u16;
             }
             RoomTriggerType::Door {..} |
             RoomTriggerType::EnemySpawn {..} |
@@ -104,10 +151,9 @@ impl TriggerRect {
     }
 
     fn to_f32(self) -> Rect {
-        let pos = Pos2::new(self.x as f32, self.y as f32);
         egui::Rect {
-            min: pos,
-            max: pos + Vec2::new(self.width as f32, self.height as f32),
+            min: Pos2::new(self.x1 as f32, self.y1 as f32),
+            max: Pos2::new(self.x2 as f32, self.y2 as f32),
         }
     }
 }
@@ -121,6 +167,7 @@ pub struct RoomEditorWidget {
     drag_item: RoomItemRef,
     drag_item_origin: Pos2,
     drag_mouse_origin: Pos2,
+    grid: GridAlign,
 }
 
 impl RoomEditorWidget {
@@ -134,6 +181,7 @@ impl RoomEditorWidget {
             drag_item: RoomItemRef::None,
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
+            grid: GridAlign::new(Tileset::TILE_SIZE as u16),
         }
     }
 
@@ -191,7 +239,7 @@ impl RoomEditorWidget {
         }
     }
 
-    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool) -> Option<bool> {
+    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool, grid: &GridAlign) -> Option<bool> {
         match item {
             RoomItemRef::None => None,
 
@@ -208,8 +256,8 @@ impl RoomEditorWidget {
 
             RoomItemRef::Trigger(trg_index) => {
                 let trigger = room.triggers.get_mut(trg_index)?;
-                trigger.x = pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                trigger.y = pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                trigger.x = grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                trigger.y = grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
                 Some(true)
             },
         }
@@ -262,46 +310,22 @@ impl RoomEditorWidget {
 
     fn resize_move(&mut self, mouse_pos: Pos2, room: &mut Room, border: RectBorder, assets: &RoomEditorAssetLists) -> bool {
         let new_pos = TriggerPos::from_pos2(self.drag_item_origin + (mouse_pos - self.drag_mouse_origin));
+
         if let RoomItemRef::Trigger(index) = self.drag_item &&
             let Some(trigger) = room.triggers.get_mut(index) {
                 let mut rect = TriggerRect::from_trigger(trigger, assets);
                 if ! rect.resizable { return false; }
+                let x = self.grid.align_i32(new_pos.x);
+                let y = self.grid.align_i32(new_pos.y);
                 match border {
-                    RectBorder::Bottom => { rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16; }
-                    RectBorder::Right => { rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16; }
-                    RectBorder::BottomRight => {
-                        rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16;
-                        rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16;
-                    }
-                    RectBorder::Top => {
-                        let old_y = rect.y;
-                        rect.y = new_pos.y;
-                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - rect.y).max(0) as u16;
-                    }
-                    RectBorder::Left => {
-                        let old_x = rect.x;
-                        rect.x = new_pos.x;
-                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
-                    }
-                    RectBorder::TopLeft => {
-                        let (old_x, old_y) = (trigger.x, trigger.y);
-                        rect.x = new_pos.x;
-                        rect.y = new_pos.y;
-                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
-                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - rect.y).max(0) as u16;
-                    }
-                    RectBorder::TopRight => {
-                        let old_y = rect.y;
-                        rect.y = new_pos.y;
-                        rect.height = (rect.height.min(i16::MAX as u16) as i16 + old_y - trigger.y).max(0) as u16;
-                        rect.width = (new_pos.x - rect.x).clamp(0, i16::MAX) as u16;
-                    }
-                    RectBorder::BottomLeft => {
-                        rect.height = (new_pos.y - rect.y).clamp(0, i16::MAX) as u16;
-                        let old_x = trigger.x;
-                        rect.x = new_pos.x;
-                        rect.width = (rect.width.min(i16::MAX as u16) as i16 + old_x - rect.x).max(0) as u16;
-                    }
+                    RectBorder::Top         => { rect.set_top_border(y);    }
+                    RectBorder::Left        => { rect.set_left_border(x);   }
+                    RectBorder::Bottom      => { rect.set_bottom_border(y); }
+                    RectBorder::Right       => { rect.set_right_border(x);  }
+                    RectBorder::TopLeft     => { rect.set_top_border(y);    rect.set_left_border(x);  }
+                    RectBorder::TopRight    => { rect.set_top_border(y);    rect.set_right_border(x); }
+                    RectBorder::BottomRight => { rect.set_bottom_border(y); rect.set_right_border(x); }
+                    RectBorder::BottomLeft  => { rect.set_bottom_border(y); rect.set_left_border(x);  }
                 }
                 rect.apply_to_trigger(trigger);
                 true
@@ -319,7 +343,7 @@ impl RoomEditorWidget {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        Self::move_item(self.drag_item, new_pos, room, self.lock_maps).unwrap_or(false)
+        Self::move_item(self.drag_item, new_pos, room, self.lock_maps, &self.grid).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {
@@ -355,7 +379,7 @@ impl RoomEditorWidget {
             }
             if let Some(border) = self.resize_border {
                 resp.ctx.set_cursor_icon(border.cursor());
-                if  self.resize_move(mouse_pos, room, border, assets) {
+                if self.resize_move(mouse_pos, room, border, assets) {
                     return;
                 }
             }
@@ -492,6 +516,8 @@ impl RoomEditorWidget {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
+        self.grid.align = ui.ctx().input(|i| i.modifiers.shift);
+
         let min_size = ui.available_size();
         let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
