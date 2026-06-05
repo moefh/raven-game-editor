@@ -116,6 +116,7 @@ pub struct RoomEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
     pub selected_item: RoomItemRef,
+    pub lock_maps: bool,
     resize_border: Option<RectBorder>,
     drag_item: RoomItemRef,
     drag_item_origin: Pos2,
@@ -128,6 +129,7 @@ impl RoomEditorWidget {
             zoom: 0.5,
             scroll: Vec2::ZERO,
             selected_item: RoomItemRef::None,
+            lock_maps: false,
             resize_border: None,
             drag_item: RoomItemRef::None,
             drag_item_origin: Pos2::ZERO,
@@ -189,15 +191,19 @@ impl RoomEditorWidget {
         }
     }
 
-    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room) -> Option<bool> {
+    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool) -> Option<bool> {
         match item {
             RoomItemRef::None => None,
 
             RoomItemRef::Map(map_index) => {
-                let room_map = room.maps.get_mut(map_index)?;
-                room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
-                room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
-                Some(true)
+                if lock_maps {
+                    None
+                } else {
+                    let room_map = room.maps.get_mut(map_index)?;
+                    room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
+                    room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
+                    Some(true)
+                }
             },
 
             RoomItemRef::Trigger(trg_index) => {
@@ -313,7 +319,7 @@ impl RoomEditorWidget {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        Self::move_item(self.drag_item, new_pos, room).unwrap_or(false)
+        Self::move_item(self.drag_item, new_pos, room, self.lock_maps).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {

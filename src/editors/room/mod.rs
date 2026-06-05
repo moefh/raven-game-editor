@@ -296,7 +296,7 @@ impl Editor {
         };
 
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
-            ui.add(egui::Image::new(IMAGES.sprite).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
+            ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
             ui.add(egui::Label::new("Map").selectable(false));
         }).body(|ui| {
             egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
@@ -307,8 +307,13 @@ impl Editor {
                     ui.label(map_name);
                     ui.end_row();
 
-                    ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
-                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
+                    if self.room_editor.lock_maps {
+                        ui.label("X:"); ui.label(format!("{}", room_map.x)); ui.end_row();
+                        ui.label("Y:"); ui.label(format!("{}", room_map.y)); ui.end_row();
+                    } else {
+                        ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
+                        ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
+                    }
                 });
         });
         None
@@ -375,7 +380,6 @@ impl Editor {
                                     ui.selectable_value(direction, 1, "Left");
                                 });
                             ui.end_row();
-                            ui.end_row();
                         }
 
                         RoomTriggerType::EnemySpawn { animation_id } => {
@@ -436,9 +440,23 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        // header:
+    fn show_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                if ui.add(egui::Button::new("Lock Maps").selected(self.room_editor.lock_maps))
+                    .on_hover_text("Prevent maps from moving").clicked() {
+                        self.room_editor.lock_maps = ! self.room_editor.lock_maps;
+                    }
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_header(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                   room: &mut Room, _asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
@@ -466,8 +484,9 @@ impl Editor {
                 });
             });
         });
+    }
 
-        // footer:
+    fn show_footer(&self, ui: &mut egui::Ui, room: &mut Room) {
         egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(5.0);
             ui.label(format!(
@@ -477,6 +496,13 @@ impl Editor {
                 room.triggers.len()
             ));
         });
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        self.show_header(ui, wc, dialogs, room, asset_ids, assets);
+        self.show_toolbar(ui);
+        self.show_footer(ui, room);
 
         // left panel:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
