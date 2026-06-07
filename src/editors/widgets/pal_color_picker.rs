@@ -1,7 +1,10 @@
 use egui::{Vec2, Sense, Rect, Pos2};
 
 use crate::app::WindowContext;
-use crate::image::colors::color_to_rgb;
+use crate::image::colors::{
+    color_to_rgb,
+    color_to_rgb_contrast,
+};
 
 const MIN_PICKER_WIDTH: f32 = 112.0;
 
@@ -60,7 +63,7 @@ impl PalColorPickerWidget {
         Some((y * w + x) as usize)
     }
 
-    fn draw_palette(painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8]) {
+    fn draw_palette(&self, painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8], draw_selection: bool) {
         let item_w = rect.width() / (dims.0 as f32);
         let item_h = rect.height() / (dims.1 as f32);
         for y in 0..dims.1 {
@@ -70,7 +73,11 @@ impl PalColorPickerWidget {
                     max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
                 };
                 let color_index = (y*dims.0+x) as usize;
-                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(palette[color_index]));
+                let color = if color_index < palette.len() { palette[color_index] } else { 0 };
+                painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
+                if draw_selection && (self.state.left_index as usize == color_index || self.state.right_index as usize == color_index) {
+                    painter.rect_stroke(item_rect, 0.0, egui::Stroke::new(1.0, color_to_rgb_contrast(color)), egui::StrokeKind::Inside);
+                }
             }
         }
     }
@@ -116,11 +123,11 @@ impl PalColorPickerWidget {
         let mut action = PalColorPickerAction::None;
 
         painter.rect_filled(bg_rect, egui::CornerRadius::same(8), wc.settings.color_picker_bg_color);
-        Self::draw_palette(&painter, sel_rect, sel_dims, sel_colors);
+        self.draw_palette(&painter, sel_rect, sel_dims, sel_colors, false);
         if ui.place(edit_pal_rect, egui::Button::new("Edit Palette")).clicked() {
             action = PalColorPickerAction::EditPalette;
         }
-        Self::draw_palette(&painter, pal_rect, pal_dims, palette);
+        self.draw_palette(&painter, pal_rect, pal_dims, palette, true);
 
         if let Some(pointer_pos) = response.interact_pointer_pos() &&
             let Some(index) = Self::check_pick(pointer_pos, pal_rect, pal_item_size) {

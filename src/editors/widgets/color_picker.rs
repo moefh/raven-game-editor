@@ -4,7 +4,10 @@ use egui::{Vec2, Sense, Rect, Pos2};
 use super::ColorPickerPopupWidget;
 
 use crate::app::WindowContext;
-use crate::image::colors::color_to_rgb;
+use crate::image::colors::{
+    color_to_rgb,
+    color_to_rgb_contrast,
+};
 
 const CLOSE_PICKER_ON_CLICK: bool = false;
 const MIN_PICKER_WIDTH: f32 = 96.0;
@@ -203,6 +206,9 @@ impl<'a> Color8PickerWidget<'a> {
                 break;
             }
             painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
+            if self.state.left_color == color || self.state.right_color == color {
+                painter.rect_stroke(item_rect, 0.0, egui::Stroke::new(2.0, color_to_rgb_contrast(color)), egui::StrokeKind::Inside);
+            }
         }
     }
 

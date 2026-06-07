@@ -119,7 +119,7 @@ impl AssetEditorBase {
         let img_w = image.width() as f32;
         let img_h = image.height() as f32;
         let min_width = img_w + 320.0;
-        let min_height = img_h + 200.0;
+        let min_height = img_h + 220.0;
         let min_size = egui::Vec2::new(min_width, min_height);
         let default_size = egui::Vec2::new(min_width + img_w * 0.5 + 100.0, min_height + img_h * 0.5 + 100.0);
         (min_size, default_size)
