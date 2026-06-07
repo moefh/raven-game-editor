@@ -1899,7 +1899,7 @@ impl<'a> ProjectDataReader<'a> {
                 err("expected trigger enum identifier", type_enum_ident_tok.pos)
             })?;
             let room_trigger_type_enum_ident = trigger_type.get_enum_ident();
-            if ! room_trigger_type_enum_ident.matches_enum_ident(type_enum_ident, &self.prefix_upper_no_trailing_underscore()) {
+            if ! room_trigger_type_enum_ident.matches_enum_ident(type_enum_ident, self.prefix_upper_no_trailing_underscore()) {
                 error(format!("trigger enum identifier doesn't match union data: expected '{}_{}' for this data",
                               &self.prefix_upper_no_trailing_underscore(),
                               room_trigger_type_enum_ident.enum_ident()),

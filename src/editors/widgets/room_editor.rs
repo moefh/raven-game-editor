@@ -150,7 +150,7 @@ impl TriggerRect {
         }
     }
 
-    fn to_f32(self) -> Rect {
+    fn egui_rect(self) -> Rect {
         egui::Rect {
             min: Pos2::new(self.x1 as f32, self.y1 as f32),
             max: Pos2::new(self.x2 as f32, self.y2 as f32),
@@ -219,7 +219,7 @@ impl RoomEditorWidget {
     }
 
     fn get_trigger_rect(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Rect {
-        TriggerRect::from_trigger(trigger, assets).to_f32()
+        TriggerRect::from_trigger(trigger, assets).egui_rect()
     }
 
     fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
@@ -287,7 +287,7 @@ impl RoomEditorWidget {
             let trigger = room.triggers.get(trg_index)?;
             let rect = TriggerRect::from_trigger(trigger, assets);
             if rect.resizable {
-                Self::get_rect_border(rect.to_f32(), pos, zoom)
+                Self::get_rect_border(rect.egui_rect(), pos, zoom)
             } else {
                 None
             }
