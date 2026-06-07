@@ -1,6 +1,10 @@
 use crate::app::WindowContext;
 use crate::image::ImageCollection;
-use crate::data_asset::Tileset;
+use crate::data_asset::{
+    AssetList,
+    Tileset,
+    MapData,
+};
 
 pub enum AddTilesAction {
     Insert,
@@ -8,23 +12,23 @@ pub enum AddTilesAction {
 }
 
 pub struct AddTilesDialog {
-    pub image_changed: bool,
     pub open: bool,
     pub action: AddTilesAction,
     pub num_tiles: u32,
     pub sel_tile: u32,
-    pub sel_color: u8,
+    pub clear_color: u8,
+    confirmed: bool,
 }
 
 impl AddTilesDialog {
     pub fn new() -> Self {
         AddTilesDialog {
-            image_changed: false,
+            confirmed: false,
             open: false,
             action: AddTilesAction::Insert,
             num_tiles: 0,
             sel_tile: 0,
-            sel_color: 0,
+            clear_color: 0,
         }
     }
 
@@ -32,38 +36,57 @@ impl AddTilesDialog {
         egui::Id::new("dlg_tileset_add_tiles")
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddTilesAction, sel_tile: u32, sel_color: u8) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddTilesAction, sel_tile: u32, clear_color: u8) {
         self.action = action;
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
-        self.sel_color = sel_color;
+        self.clear_color = clear_color;
         self.open = true;
         wc.set_window_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, tileset: &mut Tileset) {
-        let old_num_tiles = tileset.num_tiles;
-        tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.sel_color);
-        if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < old_num_tiles {
-            let src_top = self.sel_tile * tileset.height;
-            let dst_top = (self.sel_tile + self.num_tiles) * tileset.height;
-            let row_len = tileset.width as usize;
-            let mut src_row = vec![0; row_len];
-            let mut dst_row = vec![0; row_len];
-            let num_new_rows = (old_num_tiles - self.sel_tile) * tileset.height;
-            for y in (0..num_new_rows).rev() {
-                let src = ((src_top + y) * tileset.width) as usize;
-                let dst = ((dst_top + y) * tileset.width) as usize;
-                src_row.copy_from_slice(&tileset.data[src..src+row_len]);
-                dst_row.copy_from_slice(&tileset.data[dst..dst+row_len]);
-                tileset.data[src..src+row_len].copy_from_slice(&dst_row);
-                tileset.data[dst..dst+row_len].copy_from_slice(&src_row);
+    fn fix_map(map_data: &mut MapData, tile_index: u8, num_tiles: u8) {
+        fn add_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
+            for tile in tiles {
+                if *tile >= tile_index {
+                    *tile = (*tile).saturating_add(num_tiles);
+                }
             }
         }
-        self.image_changed = true;
+        add_hole(&mut map_data.fg_tiles, tile_index, num_tiles);
+        add_hole(&mut map_data.bg_tiles, tile_index, num_tiles);
+        add_hole(&mut map_data.para_tiles, tile_index, num_tiles);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
+    fn fix_maps(&self, maps: &mut AssetList<MapData>, tileset: &Tileset) {
+        if self.sel_tile >= 256 || self.num_tiles >= 256 {
+            return;
+        }
+        let tile_index = self.sel_tile as u8;
+        let num_tiles = self.num_tiles as u8;
+        for map_data in maps.iter_mut() {
+            if map_data.tileset_id == tileset.asset.id {
+                Self::fix_map(map_data, tile_index, num_tiles);
+            }
+        }
+    }
+
+    fn confirm(&mut self, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
+        let old_num_tiles = tileset.num_tiles;
+        tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.clear_color);
+        if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < old_num_tiles {
+            let tile_size = (tileset.height * tileset.width) as usize;
+            let src_start = self.sel_tile as usize * tile_size;
+            let src_end = (tileset.num_tiles - self.num_tiles) as usize * tile_size;
+            let dst_start = (self.sel_tile + self.num_tiles) as usize * tile_size;
+            tileset.data.copy_within(src_start..src_end, dst_start);
+            tileset.data[src_start..dst_start].fill(self.clear_color);
+            self.fix_maps(maps, tileset);
+        }
+        self.confirmed = true;
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) -> bool {
         if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             wc.sys_dialogs.block_ui(ui);
             ui.set_width(300.0);
@@ -80,7 +103,12 @@ impl AddTilesDialog {
                         .spacing([8.0, 8.0])
                         .show(ui, |ui| {
                             ui.label("Num tiles:");
-                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=16));
+                            let max = 255u32.saturating_sub(tileset.num_tiles);
+                            if max == 0 {
+                                ui.label("(max tiles reached)");
+                            } else {
+                                ui.add(egui::Slider::new(&mut self.num_tiles, 1..=max));
+                            }
                             ui.end_row();
                         });
                 });
@@ -90,7 +118,7 @@ impl AddTilesDialog {
                         ui.close();
                     }
                     if ui.button("Ok").clicked() {
-                        self.confirm(tileset);
+                        self.confirm(tileset, maps);
                         ui.close();
                     }
                 });
@@ -99,8 +127,8 @@ impl AddTilesDialog {
             self.open = false;
             wc.set_window_open(Self::id(), self.open);
         }
-        if self.image_changed {
-            self.image_changed = false;
+        if self.confirmed {
+            self.confirmed = false;
             true
         } else {
             false

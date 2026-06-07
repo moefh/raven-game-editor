@@ -6,8 +6,14 @@ mod export;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{colors, ImageCollection, ImagePixels, TextureSlot, ImageRotation};
-use crate::data_asset::{Tileset, DataAssetId, GenericAsset};
+use crate::image::{colors, ImageCollection, ImagePixels, ImageRotation};
+use crate::data_asset::{
+    DataAssetId,
+    GenericAsset,
+    AssetList,
+    Tileset,
+    MapData,
+};
 
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
@@ -36,8 +42,8 @@ impl TilesetEditor {
         self.editor.image_editor.drop_selection(tileset);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
-        self.dialogs.show(wc, &mut self.editor, tileset);
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
+        self.dialogs.show(wc, &mut self.editor, tileset, maps);
 
         let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(tileset);
@@ -78,23 +84,24 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
-            Editor::reload_images(wc, tileset);
             self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
+            editor.image_editor.set_image_changed();
         }
-        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
-            Editor::reload_images(wc, tileset);
+        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset, maps) {
             editor.image_editor.set_undo_target(tileset);
+            editor.image_editor.set_image_changed();
         }
-        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
-            Editor::reload_images(wc, tileset);
+        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset, maps) {
             self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
+            editor.image_editor.set_image_changed();
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, tileset);
+            editor.image_editor.set_image_changed();
         }
         if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, true);
@@ -313,11 +320,6 @@ impl Editor {
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
-    }
-
-    fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollection) {
-        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
     }
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset, is_dirty: bool) {

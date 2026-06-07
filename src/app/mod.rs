@@ -734,7 +734,7 @@ impl RavenEditorApp {
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
-                editor.show(&mut win_ctx, tileset);
+                editor.show(&mut win_ctx, tileset, &mut self.store.assets.maps);
             }
         }
         for map in self.store.assets.maps.iter_mut() {

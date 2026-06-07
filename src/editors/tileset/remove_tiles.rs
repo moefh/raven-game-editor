@@ -1,9 +1,13 @@
 use crate::app::WindowContext;
 use crate::image::ImageCollection;
-use crate::data_asset::Tileset;
+use crate::data_asset::{
+    AssetList,
+    Tileset,
+    MapData,
+};
 
 pub struct RemoveTilesDialog {
-    pub image_changed: bool,
+    pub confirmed: bool,
     pub open: bool,
     pub num_tiles: u32,
     pub max_tiles: u32,
@@ -13,7 +17,7 @@ pub struct RemoveTilesDialog {
 impl RemoveTilesDialog {
     pub fn new() -> Self {
         RemoveTilesDialog {
-            image_changed: false,
+            confirmed: false,
             open: false,
             num_tiles: 0,
             max_tiles: 0,
@@ -34,28 +38,46 @@ impl RemoveTilesDialog {
         wc.set_window_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, tileset: &mut Tileset) {
-        if self.sel_tile + self.num_tiles < tileset.num_tiles {
-            let src_top = (self.sel_tile + self.num_tiles) * tileset.height;
-            let dst_top = self.sel_tile * tileset.height;
-            let row_len = tileset.width as usize;
-            let mut src_row = vec![0; row_len];
-            let mut dst_row = vec![0; row_len];
-            let num_copy_rows = (tileset.num_tiles - (self.sel_tile + self.num_tiles)) * tileset.height;
-            for y in 0..num_copy_rows {
-                let src = ((src_top + y) * tileset.width) as usize;
-                let dst = ((dst_top + y) * tileset.width) as usize;
-                src_row.copy_from_slice(&tileset.data[src..src+row_len]);
-                dst_row.copy_from_slice(&tileset.data[dst..dst+row_len]);
-                tileset.data[src..src+row_len].copy_from_slice(&dst_row);
-                tileset.data[dst..dst+row_len].copy_from_slice(&src_row);
+    fn fix_map(map_data: &mut MapData, tile_index: u8, num_tiles: u8) {
+        fn rm_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
+            for tile in tiles {
+                if *tile >= tile_index + num_tiles {
+                    *tile = (*tile).saturating_sub(num_tiles);
+                }
             }
         }
-        tileset.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, 0);
-        self.image_changed = true;
+        rm_hole(&mut map_data.fg_tiles, tile_index, num_tiles);
+        rm_hole(&mut map_data.bg_tiles, tile_index, num_tiles);
+        rm_hole(&mut map_data.para_tiles, tile_index, num_tiles);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
+    fn fix_maps(&self, maps: &mut AssetList<MapData>, tileset: &Tileset) {
+        if self.sel_tile >= 256 || self.num_tiles >= 256 {
+            return;
+        }
+        let tile_index = self.sel_tile as u8;
+        let num_tiles = self.num_tiles as u8;
+        for map_data in maps.iter_mut() {
+            if map_data.tileset_id == tileset.asset.id {
+                Self::fix_map(map_data, tile_index, num_tiles);
+            }
+        }
+    }
+
+    fn confirm(&mut self, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
+        if self.sel_tile + self.num_tiles < tileset.num_tiles {
+            let tile_size = (tileset.height * tileset.width) as usize;
+            let src_start = (self.sel_tile + self.num_tiles) as usize * tile_size;
+            let src_end = tileset.num_tiles as usize * tile_size;
+            let dst_start = self.sel_tile as usize * tile_size;
+            tileset.data.copy_within(src_start..src_end, dst_start);
+            self.fix_maps(maps, tileset);
+        }
+        tileset.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, 0);
+        self.confirmed = true;
+    }
+
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) -> bool {
         if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
             wc.sys_dialogs.block_ui(ui);
             ui.set_width(300.0);
@@ -79,7 +101,7 @@ impl RemoveTilesDialog {
                         ui.close();
                     }
                     if ui.button("Ok").clicked() {
-                        self.confirm(tileset);
+                        self.confirm(tileset, maps);
                         ui.close();
                     }
                 });
@@ -88,8 +110,8 @@ impl RemoveTilesDialog {
             self.open = false;
             wc.set_window_open(Self::id(), self.open);
         }
-        if self.image_changed {
-            self.image_changed = false;
+        if self.confirmed {
+            self.confirmed = false;
             true
         } else {
             false
