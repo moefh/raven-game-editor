@@ -93,7 +93,7 @@ impl SoundPlayerImpl {
         let player = Arc::new(Mutex::new(Player::new(config.channels as usize, config.sample_rate as f32, USE_FILTER)));
         let player_clone = player.clone();
         let stream = device.build_output_stream(
-            &config,
+            config,
             move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
                 let mut player = player_clone.lock().unwrap();
                 player.render_samples(data);
@@ -101,7 +101,6 @@ impl SoundPlayerImpl {
             move |err| { println!("CPAL error: {}", err); },
             None
         )?;
-        stream.pause()?;
 
         Ok(SoundPlayerImpl {
             name: format!("cpal at {} Hz, {} channel(s), filter {}",
