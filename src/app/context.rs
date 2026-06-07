@@ -183,6 +183,10 @@ impl<'a> WindowContext<'a> {
         self.dialogs.open_message_box(self.window_tracker, title, text);
     }
 
+    pub fn open_colorset_dialog(&mut self, colorset: usize) {
+        self.dialogs.open_colorset_dialog(self.window_tracker, colorset);
+    }
+
     // bring to the top the layer among `ids` that's closest to the top
     pub fn bring_topmost_to_top(&self, ids: &HashSet<egui::Id>) -> Option<egui::Id> {
         let top_layer_id = self.window_tracker.get_topmost_of(ids, self.egui.ctx);

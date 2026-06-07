@@ -106,7 +106,7 @@ impl Editor {
             selected_loop_frame: 0,
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
-            color_picker: ColorPickerWidget::new(colors::RED, colors::GREEN),
+            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN),
             image_editor: ImageEditorWidget::<Sprite>::new().with_image_display(
                 ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID | ImageDisplay::COLLISION)),
         }
@@ -229,7 +229,7 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc, format!("editor_{}_color_picker", self.asset_id));
+            self.color_picker.show(ui, wc);
         });
 
         // loop frames:

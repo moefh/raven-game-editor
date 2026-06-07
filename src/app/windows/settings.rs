@@ -1,5 +1,10 @@
 use super::AppWindow;
-use super::super::WindowContext;
+use super::super::{
+    WindowContext,
+    ColorSet,
+};
+
+use crate::misc::IMAGES;
 
 pub struct SettingsWindow {
     pub base: AppWindow,
@@ -72,6 +77,38 @@ impl SettingsWindow {
                         });
                 });
 
+                egui::CollapsingHeader::new("Colorsets").default_open(true).show(ui, |ui| {
+                    egui::Grid::new("editor_settings_colorsets")
+                        .num_columns(3)
+                        .spacing([8.0, 8.0])
+                        .show(ui, |ui| {
+                            for index in wc.settings.colorsets.get_custom_colorset_range() {
+                                if let Some((edit, remove)) = match wc.settings.colorsets.get_custom_colorset(index) {
+                                    Some(colorset) => {
+                                        ui.label(&colorset.name);
+                                        let edit = ui.add(egui::Button::new("Edit Colors")).clicked();
+                                        let remove = ui.add(egui::Button::image(IMAGES.trash))
+                                            .on_hover_text("Remove colorset")
+                                            .clicked();
+                                        ui.end_row();
+                                        Some((edit, remove))
+                                    }
+                                    None => { None }
+                                } {
+                                    if remove {
+                                        wc.settings.colorsets.remove_custom_colorset(index);
+                                    }
+                                    if edit {
+                                        wc.open_colorset_dialog(index);
+                                    }
+                                }
+                            }
+                        });
+
+                    if ui.add(egui::Button::new("Add Colorset")).clicked() {
+                        wc.settings.colorsets.add_custom_colorset(ColorSet::new("new_colorset".to_owned(), vec![]));
+                    }
+                });
 
                 egui::CollapsingHeader::new("Marching Ants").default_open(true).show(ui, |ui| {
                     egui::Grid::new("editor_settings_marching_ants")

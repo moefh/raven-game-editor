@@ -1,13 +1,13 @@
 use std::io::{Result, Error};
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
+use super::{ColorSet, ColorSetCollection};
 use crate::data_asset::StringLogger;
 use crate::data_asset::{Tokenizer, Token, TokenData};
 
 const APP_ID: &str = "raven-game-editor";
 
-fn get_settings_dir() -> Option<PathBuf> {
+pub fn get_settings_dir() -> Option<PathBuf> {
     use egui::os::OperatingSystem as OS;
     match OS::from_target_os() {
         OS::Nix => std::env::var_os("XDG_DATA_HOME")
@@ -25,7 +25,7 @@ fn get_settings_dir() -> Option<PathBuf> {
     }
 }
 
-fn write_settings_file<P: AsRef<Path>>(filename: P, content: &str) -> Result<()> {
+pub fn write_settings_file<P: AsRef<Path>>(filename: P, content: &str) -> Result<()> {
     let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
     std::fs::create_dir_all(&dir)?;
     let filename = dir.join(filename.as_ref());
@@ -46,6 +46,7 @@ pub struct AppSettings {
     pub marching_ants_thickness: u32,
     pub marching_ants_color1: egui::Color32,
     pub marching_ants_color2: egui::Color32,
+    pub colorsets: ColorSetCollection,
 }
 
 impl AppSettings {
@@ -66,6 +67,7 @@ impl AppSettings {
             marching_ants_thickness: 3,
             marching_ants_color1: egui::Color32::BLACK,
             marching_ants_color2: egui::Color32::WHITE,
+            colorsets: ColorSetCollection::new(),
         }
     }
 
@@ -103,6 +105,18 @@ impl AppSettings {
         format!("[{},{},{}]", c.r(), c.g(), c.b())
     }
 
+    pub fn cleanup_ident(name: &str) -> String {
+        let mut clean = String::new();
+        for ch in name.chars() {
+            if matches!(ch, 'A'..='Z' | 'a'..='z' | '0'..='9' | '_') {
+                clean.push(ch);
+            } else {
+                clean.push('_');
+            }
+        }
+        clean
+    }
+
     pub fn save(&self, logger: &mut StringLogger) {
         let mut config = String::new();
         config.push_str(&format!("zoom = {};\n", self.zoom));
@@ -119,6 +133,16 @@ impl AppSettings {
         config.push_str(&format!("marching_ants_colors = [ {}, {} ];\n",
                                  Self::save_color(self.marching_ants_color1),
                                  Self::save_color(self.marching_ants_color2)));
+
+        // colorsets
+        config.push_str("colorsets = [\n");
+        for colorset in self.colorsets.get_custom_colorsets() {
+            config.push_str(&format!("  {} = [ ", Self::cleanup_ident(&colorset.name)));
+            config.push_str(&colorset.colors.iter().map(|c| c.to_string()).collect::<Vec<String>>().join(","));
+            config.push_str(" ],\n");
+        }
+        config.push_str("];\n");
+
         if let Err(e) = write_settings_file(Self::FILENAME, &config) {
             logger.log(format!("ERROR writing settings: '{}'", e));
         }
@@ -206,6 +230,47 @@ impl<'a> AppSettingsReader<'a> {
         Ok(())
     }
 
+    fn read_colorsets_config(&mut self) -> Result<Vec<ColorSet>> {
+        let mut colorsets = Vec::new();
+
+        self.expect_punct('[')?;
+        loop {
+            let next_name = loop {
+                let t = self.tok.read()?;
+                if t.is_punct(']') { break None; }
+                if t.is_punct(',') { continue; }
+                if let Some(name) = t.get_ident() {
+                    break Some(name.to_owned())
+                }
+                return Err(Error::other(format!("expected colorset name identifier or ']', found '{}' at line {}", t, t.pos.line)));
+            };
+
+            let name = match next_name {
+                Some(name) => { name }
+                None => { break; }
+            };
+            self.expect_punct('=')?;
+            self.expect_punct('[')?;
+            let mut colors = Vec::new();
+            loop {
+                let t = self.tok.read()?;
+                if t.is_punct(']') { break; }
+                if t.is_punct(',') { continue; }
+                if let Some(number) = t.get_number() {
+                    colors.push((number & 0xff) as u8);
+                } else {
+                    return Err(Error::other(format!("expected number for color byte or ']', found '{}' at line {}", t, t.pos.line)));
+                }
+            }
+
+            colorsets.push(ColorSet::new(name, colors));
+        }
+
+        self.expect_punct(';')?;
+
+        Ok(colorsets)
+    }
+
     fn read(&mut self, settings: &mut AppSettings) -> Result<()> {
         loop {
             let t = self.tok.read()?;
@@ -231,6 +296,13 @@ impl<'a> AppSettingsReader<'a> {
                         settings.marching_ants_color1 = colors[0];
                         settings.marching_ants_color2 = colors[1];
                     }
+                    "colorsets" => {
+                        let custom_colorsets = self.read_colorsets_config()?;
+                        settings.colorsets.clear_custom_colorsets();
+                        for set in custom_colorsets.into_iter() {
+                            settings.colorsets.add_custom_colorset(set);
+                        }
+                    }
                     _ => {
                         self.skip_config_value()?;
                     }
@@ -239,111 +311,5 @@ impl<'a> AppSettingsReader<'a> {
             }
         }
         Ok(())
-    }
-}
-
-pub struct AppPathLibrary {
-    paths: HashMap<String, PathBuf>,
-    last: Option<PathBuf>,
-}
-
-impl AppPathLibrary {
-    const FILENAME: &str = "saved_paths.txt";
-
-    pub fn new() -> Self {
-        AppPathLibrary {
-            paths: HashMap::new(),
-            last: None,
-        }
-    }
-
-    pub fn set<P: AsRef<Path>>(&mut self, name: &str, path: P) {
-        let path = path.as_ref().to_path_buf();
-
-        // save to <last>
-        let last = self.last.get_or_insert_with(PathBuf::new);
-        last.clear();
-        last.push(path.as_path());
-
-        // save to library
-        self.paths.insert(name.to_owned(), path);
-    }
-
-    pub fn get(&mut self, name: &str) -> Option<PathBuf> {
-        match self.paths.get(name) {
-            Some(p) => {                // got path; save it to <last> and return
-                let last = self.last.get_or_insert_with(PathBuf::new);
-                last.clear();
-                last.push(p.as_path());
-                Some(p.clone())
-            }
-            None => self.last.clone()  // no path; return whatever we had in <last>
-        }
-    }
-
-    fn load_from_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
-        let config = std::fs::read_to_string(&filename)?;
-        let mut tok = crate::data_asset::Tokenizer::new(&config);
-        loop {
-            let t = tok.read()?;
-            if t.is_eof() { break; }
-            if let TokenData::Ident(name) = t.data {
-                let t = tok.read()?;
-                if ! t.is_punct('=') {
-                    return Err(Error::other(format!("expected '=', found '{}' at line {}", t, t.pos.line)));
-                }
-                let t = tok.read()?;
-                if let Some(dir) = t.get_string() {
-                    if name == "__last" {
-                        self.last = Some(dir.into());
-                    } else {
-                        self.paths.insert(name, dir.into());
-                    }
-                } else {
-                    return Err(Error::other(format!("expected directory in quotes, found '{}' at line {}", t, t.pos.line)));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    pub fn load(&mut self, logger: &mut StringLogger) {
-        let settings_dir = match get_settings_dir() {
-            Some(dir) => { dir }
-            None => {
-                logger.log("WARNING: can't find settings directory, directories won't be loaded");
-                return;
-            }
-        };
-        let filename = settings_dir.join(Self::FILENAME);
-        logger.log(format!("Loading dirs from '{}'", filename.display()));
-        if let Err(e) = self.load_from_file(filename) {
-            logger.log(format!("ERROR loading dirs: {}", e));
-        }
-    }
-
-    fn save_entry(config: &mut String, name: &str, path: Option<&PathBuf>) -> bool {
-        if let Some(path) = path && let Some(dir) = path.to_str() && ! dir.contains('\n') {
-            config.push_str(name);
-            config.push_str(" = \"");
-            config.push_str(&dir.replace("\\", "\\\\").replace("\"", "\\\""));
-            config.push_str("\"\n");
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn save(&mut self, logger: &mut StringLogger) {
-        let mut config = String::new();
-        Self::save_entry(&mut config, "__last", self.last.as_ref());
-        let mut names = Vec::from_iter(self.paths.keys().cloned());
-        names.sort();
-        for name in names {
-            Self::save_entry(&mut config, &name, self.paths.get(&name));
-        }
-        if let Err(e) = write_settings_file(Self::FILENAME, &config) {
-            logger.log(format!("ERROR writing path library: '{}'", e));
-        }
     }
 }

@@ -111,7 +111,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            color_picker: ColorPickerWidget::new(colors::RED, colors::GREEN),
+            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::<Sprite>::new(),
         }
@@ -343,7 +343,7 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc, format!("editor_{}_color_picker", self.asset_id));
+            self.color_picker.show(ui, wc);
         });
 
         // image:

@@ -21,6 +21,8 @@ pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
 
+pub use widgets::ColorPickerPopupWidget;
+
 use crate::include_ref_image;
 use crate::misc::{calc_hash, get_asset_type_image, ImageRef, IMAGES};
 use crate::data_asset::{
@@ -117,7 +119,7 @@ impl AssetEditorBase {
         let img_w = image.width() as f32;
         let img_h = image.height() as f32;
         let min_width = img_w + 320.0;
-        let min_height = img_h + 160.0;
+        let min_height = img_h + 200.0;
         let min_size = egui::Vec2::new(min_width, min_height);
         let default_size = egui::Vec2::new(min_width + img_w * 0.5 + 100.0, min_height + img_h * 0.5 + 100.0);
         (min_size, default_size)

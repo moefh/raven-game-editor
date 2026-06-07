@@ -337,11 +337,9 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.rot_ccw)).on_hover_text("Rotate 90° counter-clockwise").clicked() {
                     self.image_editor.rotate(pal_sprite, ImageRotation::CCW90, self.get_right_color(pal_sprite));
                 }
-                ui.spacing_mut().item_spacing = spacing;
 
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
-                        let spacing = ui.spacing().item_spacing;
                         ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                         if ui.add(egui::Button::image(IMAGES.grid)
                                   .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
@@ -351,9 +349,10 @@ impl Editor {
                             }
                         ui.add_space(1.0);
                         ui.label("Display:");
-                        ui.spacing_mut().item_spacing = spacing;
                     });
                 });
+
+                ui.spacing_mut().item_spacing = spacing;
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });

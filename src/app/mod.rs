@@ -4,7 +4,9 @@ mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
+mod colorset;
 mod settings;
+mod path_library;
 
 use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
@@ -19,7 +21,9 @@ pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPr
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
-pub use settings::{AppSettings, AppPathLibrary};
+pub use settings::AppSettings;
+pub use path_library::PathLibrary;
+pub use colorset::{ColorSet, ColorSetCollection};
 
 const MENU_HEIGHT: f32 = 22.0;
 const TOOLBAR_HEIGHT: f32 = 25.0;
@@ -85,7 +89,7 @@ impl RavenEditorApp {
             store: DataAssetStore::new(),
             filename: None,
             filename_changed: true,
-            sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone(), AppPathLibrary::new()),
+            sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
             editors: editors::AssetEditors::new(),
             windows: windows::AppWindows::new(),
@@ -393,10 +397,10 @@ impl RavenEditorApp {
     }
 
     fn update_dialogs(&mut self, ui: &mut egui::Ui) {
-        self.dialogs.show_about(ui, &mut self.window_tracker, &self.sys_dialogs);
-        self.dialogs.show_message_box(ui, &mut self.window_tracker, &self.sys_dialogs);
+        self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
 
-        if matches!(self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs), ConfirmationDialogResult::Yes) {
+        if matches!(self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs),
+                    ConfirmationDialogResult::Yes) {
             match self.confirmation_dialog_action {
                 ConfirmationDialogAction::NewProject => {
                     self.new_project();

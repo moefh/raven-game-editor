@@ -2,16 +2,16 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use super::PathLibrary;
 use crate::data_asset::StringLogger;
-use super::settings::AppPathLibrary;
 
 pub struct PathLibraryEntry {
     path_id: String,
-    lib: Arc<Mutex<AppPathLibrary>>,
+    lib: Arc<Mutex<PathLibrary>>,
 }
 
 impl PathLibraryEntry {
-    fn new(path_id: &str, lib: Arc<Mutex<AppPathLibrary>>) -> Self {
+    fn new(path_id: &str, lib: Arc<Mutex<PathLibrary>>) -> Self {
         PathLibraryEntry {
             path_id: path_id.to_owned(),
             lib,
@@ -84,15 +84,15 @@ impl SysDialogRequest {
 pub struct SysDialogs {
     egui_ctx: egui::Context,
     request: Option<SysDialogRequest>,
-    path_library: Arc<Mutex<AppPathLibrary>>,
+    path_library: Arc<Mutex<PathLibrary>>,
 }
 
 impl SysDialogs {
-    pub fn new(egui_ctx: egui::Context, path_library: AppPathLibrary) -> Self {
+    pub fn new(egui_ctx: egui::Context) -> Self {
         SysDialogs {
             egui_ctx,
             request: None,
-            path_library: Arc::new(Mutex::new(path_library)),
+            path_library: Arc::new(Mutex::new(PathLibrary::new())),
         }
     }
 

@@ -138,6 +138,13 @@ impl Token {
         }
     }
 
+    pub fn take_ident(self) -> Option<String> {
+        match self.data {
+            TokenData::Ident(s) => Some(s),
+            _ => None,
+        }
+    }
+
     pub fn get_pre_processor(&self) -> Option<&String> {
         match &self.data {
             TokenData::PreProcessor(s) => Some(s),
