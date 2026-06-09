@@ -3,6 +3,7 @@ mod image_collection_io;
 mod texture_manager;
 mod static_image_store;
 mod image_pixels;
+mod colorset;
 pub mod colors;
 
 use egui::{Rect, Pos2};
@@ -12,6 +13,7 @@ pub use image_collection::ImageCollection;
 pub use image_collection_io::{ImageCollectionIO, ImageSlicingMethod};
 pub use static_image_store::StaticImageStore;
 pub use image_pixels::{ImagePixels, ImagePixelsCollection};
+pub use colorset::{ColorSet, ColorSetCollection, ColorSetSource};
 
 use crate::data_asset::DataAssetId;
 

@@ -18,8 +18,8 @@ pub struct ColorsetEditorDialog {
 }
 
 impl ColorsetEditorDialog {
-    const MIN_WINDOW_WIDTH: f32 = 300.0;
-    const MIN_PICKER_WIDTH: f32 = 300.0;
+    const MIN_WINDOW_WIDTH: f32 = 200.0;
+    const MIN_PICKER_WIDTH: f32 = 200.0;
 
     pub fn new() -> Self {
         ColorsetEditorDialog {
@@ -102,6 +102,11 @@ impl ColorsetEditorDialog {
                 ui.heading("Colorset");
                 ui.separator();
                 self.show_colorset_editor(ui, settings);
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Close").clicked() {
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

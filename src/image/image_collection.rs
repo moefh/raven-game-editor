@@ -334,7 +334,6 @@ pub trait ImageCollection {
                 data[dest .. dest + width as usize].clone_from_slice(&frag_data[src .. src + width as usize]);
             }
         }
-
     }
 }
 

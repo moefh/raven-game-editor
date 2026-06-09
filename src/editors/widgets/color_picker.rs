@@ -9,6 +9,11 @@ use crate::image::colors::{
     color_to_rgb_contrast,
 };
 
+pub enum ColorPickerResponse {
+    None,
+    CreateColorset,
+}
+
 const CLOSE_PICKER_ON_CLICK: bool = false;
 const MIN_PICKER_WIDTH: f32 = 96.0;
 
@@ -154,12 +159,16 @@ impl<'a> Color6PickerWidget<'a> {
 struct Color8PickerWidget<'a> {
     state: &'a mut ColorPickerState,
     popup: ColorPickerPopupWidget,
+    allow_new_colorset: bool,
+    response: ColorPickerResponse,
 }
 
 impl<'a> Color8PickerWidget<'a> {
-    fn new(state: &'a mut ColorPickerState, popup_id: egui::Id) -> Self {
+    fn new(state: &'a mut ColorPickerState, popup_id: egui::Id, allow_new_colorset: bool) -> Self {
         Color8PickerWidget {
             state,
+            allow_new_colorset,
+            response: ColorPickerResponse::None,
             popup: ColorPickerPopupWidget::new(popup_id, CLOSE_PICKER_ON_CLICK),
         }
     }
@@ -213,6 +222,7 @@ impl<'a> Color8PickerWidget<'a> {
     }
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, colorset_combo_id: egui::Id) {
+        self.response = ColorPickerResponse::None;
         egui::Frame::NONE
             .inner_margin(8.0)
             .corner_radius(egui::CornerRadius::same(8))
@@ -276,6 +286,13 @@ impl<'a> Color8PickerWidget<'a> {
                         wc.open_colorset_dialog(self.state.colorset);
                     }
                 });
+                if self.allow_new_colorset {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::new("New").min_size(Vec2::new(response.rect.width(), 10.0)).truncate()).clicked() {
+                            self.response = ColorPickerResponse::CreateColorset;
+                        }
+                    });
+                }
                 ui.add_space(0.0);
             });
     }
@@ -290,21 +307,23 @@ pub enum OpenColor {
 pub struct ColorPickerState {
     pub left_color: u8,
     pub right_color: u8,
+    pub colorset: usize,
     open_color: OpenColor,
-    colorset: usize,
 }
 
 pub struct ColorPickerWidget {
     pub state: ColorPickerState,
     colorset_combo_id: egui::Id,
     popup_id: egui::Id,
+    allow_new_colorset: bool,
 }
 
 impl ColorPickerWidget {
-    pub fn new(id_prefix: impl AsRef<str>, left_color: u8, right_color: u8) -> Self {
+    pub fn new(id_prefix: impl AsRef<str>, left_color: u8, right_color: u8, allow_new_colorset: bool) -> Self {
         ColorPickerWidget {
             colorset_combo_id: egui::Id::new(format!("{}_combo", id_prefix.as_ref())),
             popup_id: egui::Id::new(format!("{}_popup", id_prefix.as_ref())),
+            allow_new_colorset,
             state: ColorPickerState {
                 left_color,
                 right_color,
@@ -312,6 +331,10 @@ impl ColorPickerWidget {
                 colorset: 0,
             },
         }
+    }
+
+    pub fn set_colorset(&mut self, colorset: usize) {
+        self.state.colorset = colorset;
     }
 
     pub fn maybe_set_colors(&mut self, left_color: Option<u8>, right_color: Option<u8>) {
@@ -323,15 +346,17 @@ impl ColorPickerWidget {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext) -> ColorPickerResponse {
         match wc.vga_bits_per_pixel {
             8 => {
-                let mut picker = Color8PickerWidget::new(&mut self.state, self.popup_id);
+                let mut picker = Color8PickerWidget::new(&mut self.state, self.popup_id, self.allow_new_colorset);
                 picker.show(ui, wc, self.colorset_combo_id);
+                picker.response
             }
             _ => {
                 let mut picker = Color6PickerWidget::new(&mut self.state);
                 picker.show(ui, wc);
+                ColorPickerResponse::None
             }
         }
     }

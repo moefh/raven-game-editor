@@ -3,6 +3,7 @@ mod add_tiles;
 mod remove_tiles;
 mod import;
 mod export;
+mod create_colorset;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
@@ -20,8 +21,16 @@ use remove_tiles::RemoveTilesDialog;
 use add_tiles::{AddTilesDialog, AddTilesAction};
 use export::ExportDialog;
 use import::ImportDialog;
+use create_colorset::CreateColorsetDialog;
 use super::AssetEditorBase;
-use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
+use super::widgets::{
+    ColorPickerWidget,
+    ColorPickerResponse,
+    ImagePickerWidget,
+    ImageEditorWidget,
+    ImageDrawingTool,
+    ImageDisplay,
+};
 
 pub struct TilesetEditor {
     pub base: AssetEditorBase,
@@ -34,7 +43,7 @@ impl TilesetEditor {
         TilesetEditor {
             base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
-            dialogs: Dialogs::new(),
+            dialogs: Dialogs::new(format!("editor_{}", id)),
         }
     }
 
@@ -60,16 +69,18 @@ struct Dialogs {
     rm_tiles_dialog: RemoveTilesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
+    create_colorset_dialog: CreateColorsetDialog,
 }
 
 impl Dialogs {
-    fn new() -> Self {
+    fn new(id_prefix: impl AsRef<str>) -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
+            create_colorset_dialog: CreateColorsetDialog::new(id_prefix),
        }
     }
 
@@ -107,6 +118,9 @@ impl Dialogs {
             self.ensure_valid_selected_image(editor, tileset, true);
             editor.image_editor.set_image_changed();
         }
+        if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, tileset) {
+            editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
+        }
     }
 }
 
@@ -121,7 +135,7 @@ impl Editor {
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE),
+            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::<Tileset>::new(),
         }
@@ -348,7 +362,12 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc);
+            match self.color_picker.show(ui, wc) {
+                ColorPickerResponse::None => {}
+                ColorPickerResponse::CreateColorset => {
+                    dialogs.create_colorset_dialog.set_open(wc, self.image_editor.get_selected_image());
+                }
+            }
         });
 
         // image:

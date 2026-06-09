@@ -106,7 +106,7 @@ impl Editor {
             selected_loop_frame: 0,
             sprite_frames: Vec::new(),
             selected_sprite_frame: 0,
-            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN),
+            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, false),
             image_editor: ImageEditorWidget::<Sprite>::new().with_image_display(
                 ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID | ImageDisplay::COLLISION)),
         }

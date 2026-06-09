@@ -4,7 +4,6 @@ mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
-mod colorset;
 mod settings;
 mod path_library;
 
@@ -23,7 +22,6 @@ pub use dialogs::{AppDialogs, ConfirmationDialogResult};
 pub use windows::AppWindows;
 pub use settings::AppSettings;
 pub use path_library::PathLibrary;
-pub use colorset::{ColorSet, ColorSetCollection};
 
 const MENU_HEIGHT: f32 = 22.0;
 const TOOLBAR_HEIGHT: f32 = 25.0;

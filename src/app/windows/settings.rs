@@ -1,9 +1,7 @@
 use super::AppWindow;
-use super::super::{
-    WindowContext,
-    ColorSet,
-};
+use super::super::WindowContext;
 
+use crate::image::ColorSet;
 use crate::misc::IMAGES;
 
 pub struct SettingsWindow {

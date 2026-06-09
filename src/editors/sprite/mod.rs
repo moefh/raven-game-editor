@@ -3,6 +3,7 @@ mod add_frames;
 mod remove_frames;
 mod import;
 mod export;
+mod create_colorset;
 
 use crate::misc::IMAGES;
 use crate::app::{WindowContext, SysDialogResponse};
@@ -14,8 +15,16 @@ use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
 use import::ImportDialog;
 use export::ExportDialog;
+use create_colorset::CreateColorsetDialog;
 use super::AssetEditorBase;
-use super::widgets::{ColorPickerWidget, ImagePickerWidget, ImageEditorWidget, ImageDrawingTool, ImageDisplay};
+use super::widgets::{
+    ColorPickerWidget,
+    ColorPickerResponse,
+    ImagePickerWidget,
+    ImageEditorWidget,
+    ImageDrawingTool,
+    ImageDisplay,
+};
 
 pub struct SpriteEditor {
     pub base: AssetEditorBase,
@@ -28,7 +37,7 @@ impl SpriteEditor {
         SpriteEditor {
             base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
-            dialogs: Dialogs::new(),
+            dialogs: Dialogs::new(format!("editor_{}", id)),
         }
     }
 
@@ -53,16 +62,18 @@ struct Dialogs {
     rm_frames_dialog: RemoveFramesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
+    create_colorset_dialog: CreateColorsetDialog,
 }
 
 impl Dialogs {
-    fn new() -> Self {
+    fn new(id_prefix: impl AsRef<str>) -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
             rm_frames_dialog: RemoveFramesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
+            create_colorset_dialog: CreateColorsetDialog::new(id_prefix),
         }
     }
 
@@ -97,6 +108,9 @@ impl Dialogs {
             Editor::reload_images(wc, sprite);
             Self::ensure_valid_selected_image(editor, sprite, true);
         }
+        if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, sprite) {
+            editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
+        }
     }
 }
 
@@ -111,7 +125,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN),
+            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, true),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::<Sprite>::new(),
         }
@@ -343,7 +357,12 @@ impl Editor {
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(5.0);
-            self.color_picker.show(ui, wc);
+            match self.color_picker.show(ui, wc) {
+                ColorPickerResponse::None => {}
+                ColorPickerResponse::CreateColorset => {
+                    dialogs.create_colorset_dialog.set_open(wc, self.image_editor.get_selected_image());
+                }
+            }
         });
 
         // image:

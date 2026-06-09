@@ -1,7 +1,7 @@
 use std::io::{Result, Error};
 use std::path::{Path, PathBuf};
 
-use super::{ColorSet, ColorSetCollection};
+use crate::image::{ColorSet, ColorSetCollection};
 use crate::data_asset::StringLogger;
 use crate::data_asset::{Tokenizer, Token, TokenData};
 
