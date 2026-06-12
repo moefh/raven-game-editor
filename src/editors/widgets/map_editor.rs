@@ -707,7 +707,7 @@ impl MapEditorWidget {
                     let (uv, texture) = if tile as u32 >= tileset.num_tiles {
                         (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     } else {
-                        (tileset.get_item_uv(tile as u32), fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                        (fx_tiles.get_item_uv(tile as u32), fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     };
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
                     Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv).paint_at(ui, tile_rect);
