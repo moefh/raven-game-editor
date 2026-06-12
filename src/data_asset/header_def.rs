@@ -201,7 +201,7 @@ struct $<PREFIX>_ROOM {
 #ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
 
 struct $<PREFIX>_STATE;
-typedef void (*$<prefix>_room_init_function)(struct $<PREFIX>_STATE *);
+typedef void (*$<prefix>_room_init_function)(uint32_t, struct $<PREFIX>_STATE *);
 
 struct $<PREFIX>_ROOM_SCRIPT {
     $<prefix>_room_init_function init;
@@ -218,6 +218,10 @@ extern const struct $<PREFIX>_IMAGE $<prefix>_sprites[];
 extern const struct $<PREFIX>_MAP $<prefix>_maps[];
 extern const struct $<PREFIX>_SPRITE_ANIMATION $<prefix>_sprite_animations[];
 extern const struct $<PREFIX>_ROOM $<prefix>_rooms[];
+
+#if $<PREFIX>_ADD_ROOM_SCRIPTS
+extern const struct $<PREFIX>_ROOM_SCRIPT *$<prefix>_room_script_table[];
+#endif /* $<PREFIX>_ADD_ROOM_SCRIPTS */
 
 #endif /* $<PREFIX>_DATA_H_FILE */
 "###;
