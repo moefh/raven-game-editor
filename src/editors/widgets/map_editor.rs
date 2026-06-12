@@ -9,6 +9,8 @@ use crate::app::KeyboardPressed;
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
 use super::super::{MapClipboardData, MapUndoData, MapWholeFragment, MapLayerFragment, MapRect, MapLayer};
 
+const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2 { x: 1.0, y: 1.0 } };
+
 pub enum MapSelection {
     None,
     Rect(Pos2, Pos2),
@@ -273,8 +275,10 @@ impl MapEditorWidget {
         }
     }
 
-    fn paint_floating_selection_for_layer(&self, ui: &mut egui::Ui, layer: MapLayer,
-                                          image: &impl ImageCollection, texture: &egui::TextureHandle, canvas_rect: Rect) {
+    fn paint_floating_selection_for_layer(&self, ui: &mut egui::Ui, layer: MapLayer, wc: &mut WindowContext,
+                                          image: &impl ImageCollection, slot: TextureSlot, canvas_rect: Rect) {
+        let texture = image.texture(wc.tex_man, wc.egui.ctx, slot);
+
         let compatible_layer = self.edit_layer == layer || self.edit_layer == MapLayer::Screen;
         if compatible_layer && let MapSelection::LayerFragment(pos, frag) = &self.selection {
             let frag_x = pos.x as i32;
@@ -621,13 +625,17 @@ impl MapEditorWidget {
 
         // parallax
         if self.display.has_bits(MapDisplay::PARALLAX) && map_data.para_width != 0 && map_data.para_height != 0 {
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
             for y in 0..map_data.para_height {
                 for x in 0..map_data.para_width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                    if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                    if tile == MapData::NO_TILE { continue; }
+                    let (uv, texture) = if tile as u32 >= tileset.num_tiles {
+                        (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    } else {
+                        (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
+                    };
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + para_scroll);
-                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
+                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
                     if self.edit_layer == MapLayer::Foreground || self.edit_layer == MapLayer::Background {
                         image.tint(Self::LIGHT_LAYER_TINT).paint_at(ui, tile_rect);
                     } else {
@@ -636,18 +644,22 @@ impl MapEditorWidget {
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Parallax, tileset, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Parallax, wc, tileset, TextureSlot::Opaque, canvas_rect);
         }
 
         // background
         if self.display.has_bits(MapDisplay::BACKGROUND) {
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                    if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                    if tile == MapData::NO_TILE { continue; }
+                    let (uv, texture) = if tile as u32 >= tileset.num_tiles {
+                        (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    } else {
+                        (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
+                    };
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
+                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
                     let image = match self.edit_layer {
                         MapLayer::Foreground => { image.tint(Self::LIGHT_LAYER_TINT) }
                         MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
@@ -657,18 +669,22 @@ impl MapEditorWidget {
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Background, tileset, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Background, wc, tileset, TextureSlot::Opaque, canvas_rect);
         }
 
         // foreground
         if self.display.has_bits(MapDisplay::FOREGROUND) {
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                    if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                    if tile == MapData::NO_TILE { continue; }
+                    let (uv, texture) = if tile as u32 >= tileset.num_tiles {
+                        (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    } else {
+                        (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    };
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32));
+                    let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
                     let image = match self.edit_layer {
                         MapLayer::Background => { image.tint(Self::LIGHT_LAYER_TINT) }
                         MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
@@ -678,23 +694,27 @@ impl MapEditorWidget {
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, tileset, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, wc, tileset, TextureSlot::Opaque, canvas_rect);
         }
 
         // effects
         if self.display.has_bits(MapDisplay::EFFECTS) {
             let fx_tiles = STATIC_IMAGES.fx_tiles();
-            let texture = fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
-                    if tile == MapData::NO_TILE || tile as u32 >= fx_tiles.num_items { continue; }
+                    if tile == MapData::NO_TILE { continue; }
+                    let (uv, texture) = if tile as u32 >= tileset.num_tiles {
+                        (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    } else {
+                        (tileset.get_item_uv(tile as u32), fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    };
                     let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(fx_tiles.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv).paint_at(ui, tile_rect);
                 }
             }
 
-            self.paint_floating_selection_for_layer(ui, MapLayer::Effects, fx_tiles, texture, canvas_rect);
+            self.paint_floating_selection_for_layer(ui, MapLayer::Effects, wc, fx_tiles, TextureSlot::Transparent, canvas_rect);
         }
 
         // grid and border

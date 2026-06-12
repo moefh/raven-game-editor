@@ -41,7 +41,7 @@ impl RemoveTilesDialog {
     fn fix_map(map_data: &mut MapData, tile_index: u8, num_tiles: u8) {
         fn rm_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
             for tile in tiles {
-                if *tile >= tile_index + num_tiles {
+                if *tile >= tile_index + num_tiles && *tile != MapData::NO_TILE {
                     *tile = (*tile).saturating_sub(num_tiles);
                 }
             }

@@ -7,11 +7,13 @@ const TILE_SIZE: u32 = Tileset::TILE_SIZE;
 
 pub struct StaticImages {
     fx_tiles_id: StaticImageId,
+    bad_tile_id: StaticImageId,
     store: StaticImageStore,
 }
 
 impl StaticImages {
     pub fn fx_tiles(&self) -> &StaticImageData { self.image(self.fx_tiles_id) }
+    pub fn bad_tile(&self) -> &StaticImageData { self.image(self.bad_tile_id) }
 
     fn image(&self, id: StaticImageId) -> &StaticImageData {
         self.store.get(id).unwrap()
@@ -21,9 +23,11 @@ impl StaticImages {
 pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
     let mut store = StaticImageStore::new();
     let fx_tiles_id = store.load_image("effects tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
+    let bad_tile_id = store.load_image("bad tile", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/BadTile.png"));
     StaticImages {
         store,
         fx_tiles_id,
+        bad_tile_id,
     }
 });
 
