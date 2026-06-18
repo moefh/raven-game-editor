@@ -5,6 +5,7 @@ use crate::data_asset::{
     Tileset,
     MapData,
 };
+use super::super::AssetEditorBase;
 
 pub struct RemoveTilesDialog {
     pub confirmed: bool,
@@ -78,33 +79,26 @@ impl RemoveTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) -> bool {
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(300.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Remove Tiles");
-                ui.separator();
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Tiles", |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Num tiles:");
+                        ui.add(egui::Slider::new(&mut self.num_tiles, 1..=16.min(self.max_tiles)));
+                        ui.end_row();
+                    });
+            });
 
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Num tiles:");
-                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=16.min(self.max_tiles)));
-                            ui.end_row();
-                        });
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(tileset, maps);
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() {
+                    self.confirm(tileset, maps);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

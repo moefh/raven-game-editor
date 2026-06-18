@@ -32,8 +32,14 @@ use crate::data_asset::{
     GenericAsset,
     RoomTriggerType,
 };
-use crate::image::{ImagePixels, ImageCollection, ImageSlicingMethod};
-use crate::app::WindowContext;
+use crate::image::{
+    ImagePixels,
+    ImageCollection,
+    ImageSlicingMethod,
+};
+use crate::app::{
+    WindowContext,
+};
 use egui::{Pos2, Rect};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -67,7 +73,7 @@ impl ImageSlicingMethodOption {
     pub fn text(&self) -> &str {
         match self {
             ImageSlicingMethodOption::BySize => "by size",
-            ImageSlicingMethodOption::ByNumber => "by number",
+            ImageSlicingMethodOption::ByNumber => "by quantity",
         }
     }
 }
@@ -296,6 +302,36 @@ impl AssetEditorBase {
                 .title_bar(false)
                 .open(&mut self.open)
         }
+    }
+
+    pub fn show_dialog_window<T>(wc: &mut WindowContext, id: egui::Id, width: f32, title: &str,
+                                 show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext) -> T) -> egui::ModalResponse<T> {
+        let title_bg = wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill;
+        let frame = egui::Frame::popup(&wc.egui.ctx.global_style()).inner_margin(egui::Margin::ZERO);
+        egui::Modal::new(id).frame(frame).show(wc.egui.ctx, |ui| {
+            wc.sys_dialogs.block_ui(ui);
+            ui.set_width(width);
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                // title bar
+                egui::Frame::NONE.fill(title_bg).show(ui, |ui| {
+                    ui.add_space(8.0);
+                    ui.add(egui::Label::new(egui::RichText::new(title).heading()).selectable(false));
+
+                    let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
+                    let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
+                    ui.painter().hline(
+                        rect.left()..=rect.right(),
+                        rect.bottom(),
+                        ui.style().visuals.window_stroke
+                    );
+                });
+
+                // content
+                egui::Frame::NONE.inner_margin(ui.style().spacing.menu_margin).show(ui, |ui| {
+                    show_fn(ui, wc)
+                }).inner
+            }).inner
+        })
     }
 }
 

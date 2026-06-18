@@ -6,6 +6,7 @@ use crate::data_asset::{
     DataAssetId, AssetList,
 };
 use super::super::widgets::MapViewWidget;
+use super::super::AssetEditorBase;
 
 pub struct MapSelectionDialog {
     pub open: bool,
@@ -66,15 +67,8 @@ impl MapSelectionDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
         let mut maps_changed = false;
-        let modal_response = egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-
+        let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "Room Properties", |ui, wc| {
             let asset_id = room.asset.id;
-            egui::Panel::top(format!("editor_panel_{}_maps_top", asset_id)).show_inside(ui, |ui| {
-                ui.add_space(2.0);
-                ui.heading("Map Selection");
-                ui.add_space(2.0);
-            });
 
             egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show_inside(ui, |ui| {
                 ui.add_space(5.0);

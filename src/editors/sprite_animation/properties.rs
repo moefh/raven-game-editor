@@ -3,6 +3,7 @@ use crate::data_asset::{
     SpriteAnimation, Sprite,
     DataAssetId, AssetList, AssetIdList,
 };
+use super::super::AssetEditorBase;
 
 fn fix_animation_loop_indices(animation: &mut SpriteAnimation, sprite: &Sprite) {
     if sprite.num_frames == 0 { return; }
@@ -58,50 +59,43 @@ impl PropertiesDialog {
                 sprite_ids: &AssetIdList, sprites: &AssetList<Sprite>) {
         if ! self.open { return; }
 
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(300.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Animation Properties");
-                ui.separator();
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Animation Properties", |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", animation.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
 
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    egui::Grid::new(format!("editor_panel_{}_prop_grid", animation.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Name:");
-                            ui.text_edit_singleline(&mut self.name);
-                            ui.end_row();
-
-                            ui.label("Sprite:");
-                            let cur_sprite_name = if let Some(cur_sprite) = sprites.get(&self.sprite_id) {
-                                &cur_sprite.asset.name
-                            } else {
-                                "??"
-                            };
-                            egui::ComboBox::from_id_salt(format!("anim_editor_sprite_combo_{}", animation.asset.id))
-                                .selected_text(cur_sprite_name)
-                                .show_ui(ui, |ui| {
-                                    for sprite_id in sprite_ids.iter() {
-                                        if let Some(sprite) = sprites.get(sprite_id) {
-                                            ui.selectable_value(&mut self.sprite_id, sprite.asset.id, &sprite.asset.name);
-                                        }
+                        ui.label("Sprite:");
+                        let cur_sprite_name = if let Some(cur_sprite) = sprites.get(&self.sprite_id) {
+                            &cur_sprite.asset.name
+                        } else {
+                            "??"
+                        };
+                        egui::ComboBox::from_id_salt(format!("anim_editor_sprite_combo_{}", animation.asset.id))
+                            .selected_text(cur_sprite_name)
+                            .show_ui(ui, |ui| {
+                                for sprite_id in sprite_ids.iter() {
+                                    if let Some(sprite) = sprites.get(sprite_id) {
+                                        ui.selectable_value(&mut self.sprite_id, sprite.asset.id, &sprite.asset.name);
                                     }
-                                });
-                            ui.end_row();
-                        });
-                });
+                                }
+                            });
+                        ui.end_row();
+                    });
+            });
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(animation, sprites);
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() {
+                    self.confirm(animation, sprites);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

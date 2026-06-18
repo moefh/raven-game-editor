@@ -1,6 +1,7 @@
 use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::Tileset;
+use super::super::AssetEditorBase;
 
 pub struct PropertiesDialog {
     pub image_changed: bool,
@@ -44,37 +45,30 @@ impl PropertiesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(350.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Tileset Properties");
-                ui.separator();
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Tileset Properties", |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", tileset.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
 
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    egui::Grid::new(format!("editor_panel_{}_prop_grid", tileset.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Name:");
-                            ui.text_edit_singleline(&mut self.name);
-                            ui.end_row();
+                        ui.label("Num tiles:");
+                        ui.add(egui::Slider::new(&mut self.num_tiles, 1..=255).step_by(1.0));
+                        ui.end_row();
+                    });
+            });
 
-                            ui.label("Num tiles:");
-                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=255).step_by(1.0));
-                            ui.end_row();
-                        });
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(tileset);
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() {
+                    self.confirm(tileset);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

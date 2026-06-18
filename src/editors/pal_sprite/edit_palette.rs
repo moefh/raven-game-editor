@@ -1,6 +1,7 @@
 use crate::app::WindowContext;
 use crate::image::colors::{color_to_rgb, color_to_rgb_contrast};
 use crate::data_asset::{PalSprite, PalSpriteDepth};
+use super::super::AssetEditorBase;
 
 const MIN_PALETTE_WIDTH: f32 = 300.0;
 
@@ -197,96 +198,89 @@ impl EditPaletteDialog {
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
         if ! self.open { return false; }
 
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(MIN_PALETTE_WIDTH + 100.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Edit Palette");
-                ui.separator();
-
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        let button = ui.add(egui::Button::new("Load Preset..."));
-                        egui::Popup::menu(&button).show(|ui| {
-                            for preset in PalettePreset::presets_for_depth(self.depth) {
-                                if ui.add(egui::Button::new(preset.text()).wrap_mode(egui::TextWrapMode::Extend)).clicked() {
-                                    preset.load(&mut self.palette);
-                                }
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), MIN_PALETTE_WIDTH + 100.0, "Edit Palette", |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    let button = ui.add(egui::Button::new("Load Preset..."));
+                    egui::Popup::menu(&button).show(|ui| {
+                        for preset in PalettePreset::presets_for_depth(self.depth) {
+                            if ui.add(egui::Button::new(preset.text()).wrap_mode(egui::TextWrapMode::Extend)).clicked() {
+                                preset.load(&mut self.palette);
                             }
-                        });
-                    });
-
-                    egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                        let (n_colors_x, n_colors_y) = match self.depth {
-                            PalSpriteDepth::Bpp1 => (2, 1),
-                            PalSpriteDepth::Bpp2 => (4, 1),
-                            PalSpriteDepth::Bpp4 => (8, 2),
-                        };
-                        let min_size = egui::Vec2::new(MIN_PALETTE_WIDTH, MIN_PALETTE_WIDTH / 4.0);
-                        let (response, painter) = ui.allocate_painter(min_size, egui::Sense::click_and_drag());
-                        self.draw_palette(&painter, response.rect, (n_colors_x, n_colors_y));
-
-                        if let Some(pos) = response.interact_pointer_pos() && response.rect.contains(pos) {
-                            let color_pos = pos - response.rect.min;
-                            let x = (color_pos.x * n_colors_x as f32 / response.rect.width()).floor() as i32;
-                            let y = (color_pos.y * n_colors_y as f32 / response.rect.height()).floor() as i32;
-                            self.edit_color_index = (y * n_colors_x + x).clamp(0, self.depth.num_colors() as i32 - 1) as usize;
                         }
                     });
+                });
 
-                    let edit_color = self.palette[self.edit_color_index];
-                    let mut r = edit_color & 7;
-                    let mut g = (edit_color >> 3) & 7;
-                    let mut b = (edit_color >> 6) & 3;
-                    ui.horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut r).prefix("R ").speed(0.07).range(0..=7));
-                        ui.add(egui::DragValue::new(&mut g).prefix("G ").speed(0.07).range(0..=7));
-                        ui.add(egui::DragValue::new(&mut b).prefix("B ").speed(0.07).range(0..=3));
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    let (n_colors_x, n_colors_y) = match self.depth {
+                        PalSpriteDepth::Bpp1 => (2, 1),
+                        PalSpriteDepth::Bpp2 => (4, 1),
+                        PalSpriteDepth::Bpp4 => (8, 2),
+                    };
+                    let min_size = egui::Vec2::new(MIN_PALETTE_WIDTH, MIN_PALETTE_WIDTH / 4.0);
+                    let (response, painter) = ui.allocate_painter(min_size, egui::Sense::click_and_drag());
+                    self.draw_palette(&painter, response.rect, (n_colors_x, n_colors_y));
+
+                    if let Some(pos) = response.interact_pointer_pos() && response.rect.contains(pos) {
+                        let color_pos = pos - response.rect.min;
+                        let x = (color_pos.x * n_colors_x as f32 / response.rect.width()).floor() as i32;
+                        let y = (color_pos.y * n_colors_y as f32 / response.rect.height()).floor() as i32;
+                        self.edit_color_index = (y * n_colors_x + x).clamp(0, self.depth.num_colors() as i32 - 1) as usize;
+                    }
+                });
+
+                let edit_color = self.palette[self.edit_color_index];
+                let mut r = edit_color & 7;
+                let mut g = (edit_color >> 3) & 7;
+                let mut b = (edit_color >> 6) & 3;
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut r).prefix("R ").speed(0.07).range(0..=7));
+                    ui.add(egui::DragValue::new(&mut g).prefix("G ").speed(0.07).range(0..=7));
+                    ui.add(egui::DragValue::new(&mut b).prefix("B ").speed(0.07).range(0..=3));
+                });
+                self.palette[self.edit_color_index] = r | (g << 3) | (b << 6);
+
+                ui.add_space(24.0);
+
+                egui::Grid::new(format!("editor_panel_{}_pal_edit_grid", pal_sprite.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Color depth:");
+                        egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_depth_combo", pal_sprite.asset.id))
+                            .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), pal_sprite.depth.num_colors()))
+                            .width(50.0)
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp1, "1 bpp (2 colors)");
+                                ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp2, "2 bpp (4 colors)");
+                                ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp4, "4 bpp (16 colors)");
+                            });
+                        ui.end_row();
+
+                        ui.label("Adjust mode:");
+                        egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_ajust_colors", pal_sprite.asset.id))
+                            .selected_text(self.set_pal_options.text())
+                            .width(50.0)
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.set_pal_options,
+                                                    SetPaletteOptions::ChangePaletteColors,
+                                                    SetPaletteOptions::ChangePaletteColors.text());
+                                ui.selectable_value(&mut self.set_pal_options,
+                                                    SetPaletteOptions::AdaptImageColors,
+                                                    SetPaletteOptions::AdaptImageColors.text());
+                            });
+                        ui.end_row();
                     });
-                    self.palette[self.edit_color_index] = r | (g << 3) | (b << 6);
+            });
 
-                    ui.add_space(24.0);
-
-                    egui::Grid::new(format!("editor_panel_{}_pal_edit_grid", pal_sprite.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Color depth:");
-                            egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_depth_combo", pal_sprite.asset.id))
-                                .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), pal_sprite.depth.num_colors()))
-                                .width(50.0)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp1, "1 bpp (2 colors)");
-                                    ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp2, "2 bpp (4 colors)");
-                                    ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp4, "4 bpp (16 colors)");
-                                });
-                            ui.end_row();
-
-                            ui.label("Adjust mode:");
-                            egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_ajust_colors", pal_sprite.asset.id))
-                                .selected_text(self.set_pal_options.text())
-                                .width(50.0)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut self.set_pal_options,
-                                                        SetPaletteOptions::ChangePaletteColors,
-                                                        SetPaletteOptions::ChangePaletteColors.text());
-                                    ui.selectable_value(&mut self.set_pal_options,
-                                                        SetPaletteOptions::AdaptImageColors,
-                                                        SetPaletteOptions::AdaptImageColors.text());
-                                });
-                            ui.end_row();
-                        });
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(pal_sprite);
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() {
+                    self.confirm(pal_sprite);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

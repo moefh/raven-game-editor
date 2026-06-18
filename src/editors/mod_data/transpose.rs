@@ -1,6 +1,7 @@
 use crate::app::WindowContext;
 use crate::data_asset::{ModData, ModCell, MOD_PERIOD_TABLE};
 use crate::misc::mod_utils;
+use super::super::AssetEditorBase;
 
 #[derive(PartialEq)]
 pub enum NoteFilter {
@@ -386,28 +387,21 @@ impl TransposeDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) {
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(600.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Transpose");
-                ui.separator();
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 600.0, "Transpose", |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                self.show_filters(ui, mod_data);
+                ui.add_space(20.0);
+                self.show_change(ui, mod_data);
+            });
 
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    self.show_filters(ui, mod_data);
-                    ui.add_space(20.0);
-                    self.show_change(ui, mod_data);
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(mod_data);
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() {
+                    self.confirm(mod_data);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

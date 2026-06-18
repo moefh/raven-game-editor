@@ -1,5 +1,6 @@
 use crate::app::WindowContext;
 use crate::data_asset::{MapData, Tileset, DataAssetId, AssetIdList, AssetList};
+use super::super::AssetEditorBase;
 
 fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, new_para_h: u32, new_tile: u8) {
     fn resize_tiles(tiles: &mut Vec<u8>, old_w: usize, old_h: usize, new_w: usize, new_h: usize, new_tile: u8) {
@@ -110,65 +111,58 @@ impl PropertiesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         if ! self.open { return; }
 
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(350.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Map Properties");
-                ui.separator();
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Map Properties", |ui, wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_prop_grid", map_data.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
 
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    egui::Grid::new(format!("editor_panel_{}_prop_grid", map_data.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Name:");
-                            ui.text_edit_singleline(&mut self.name);
-                            ui.end_row();
-
-                            ui.label("Tileset:");
-                            let cur_tileset_name = if let Some(cur_tileset) = tilesets.get(&self.tileset_id) {
-                                &cur_tileset.asset.name
-                            } else {
-                                "??"
-                            };
-                            egui::ComboBox::from_id_salt(format!("map_editor_tileset_combo_{}", map_data.asset.id))
-                                .selected_text(cur_tileset_name)
-                                .show_ui(ui, |ui| {
-                                    for tileset_id in tileset_ids.iter() {
-                                        if let Some(tileset) = tilesets.get(tileset_id) {
-                                            ui.selectable_value(&mut self.tileset_id, tileset.asset.id, &tileset.asset.name);
-                                        }
+                        ui.label("Tileset:");
+                        let cur_tileset_name = if let Some(cur_tileset) = tilesets.get(&self.tileset_id) {
+                            &cur_tileset.asset.name
+                        } else {
+                            "??"
+                        };
+                        egui::ComboBox::from_id_salt(format!("map_editor_tileset_combo_{}", map_data.asset.id))
+                            .selected_text(cur_tileset_name)
+                            .show_ui(ui, |ui| {
+                                for tileset_id in tileset_ids.iter() {
+                                    if let Some(tileset) = tilesets.get(tileset_id) {
+                                        ui.selectable_value(&mut self.tileset_id, tileset.asset.id, &tileset.asset.name);
                                     }
-                                });
-                            ui.end_row();
+                                }
+                            });
+                        ui.end_row();
 
-                            ui.label("Width:");
-                            ui.add(egui::Slider::new(&mut self.width, 1..=512).step_by(1.0));
-                            ui.end_row();
+                        ui.label("Width:");
+                        ui.add(egui::Slider::new(&mut self.width, 1..=512).step_by(1.0));
+                        ui.end_row();
 
-                            ui.label("Height:");
-                            ui.add(egui::Slider::new(&mut self.height, 1..=512).step_by(1.0));
-                            ui.end_row();
+                        ui.label("Height:");
+                        ui.add(egui::Slider::new(&mut self.height, 1..=512).step_by(1.0));
+                        ui.end_row();
 
-                            ui.label("Parallax Width:");
-                            ui.add(egui::Slider::new(&mut self.para_width, 0..=512).step_by(1.0));
-                            ui.end_row();
+                        ui.label("Parallax Width:");
+                        ui.add(egui::Slider::new(&mut self.para_width, 0..=512).step_by(1.0));
+                        ui.end_row();
 
-                            ui.label("Parallax Height:");
-                            ui.add(egui::Slider::new(&mut self.para_height, 0..=512).step_by(1.0));
-                            ui.end_row();
-                        });
-                });
+                        ui.label("Parallax Height:");
+                        ui.add(egui::Slider::new(&mut self.para_height, 0..=512).step_by(1.0));
+                        ui.end_row();
+                    });
+            });
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() && self.confirm(wc, map_data) {
-                        ui.close();
-                    }
-                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
+                }
+                if ui.button("Ok").clicked() && self.confirm(wc, map_data) {
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;

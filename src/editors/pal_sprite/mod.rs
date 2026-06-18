@@ -288,6 +288,7 @@ impl Editor {
                         }
                     });
                     ui.horizontal(|ui| {
+                        if pal_sprite.num_frames == 1 { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove frames...").clicked() {
                             dialogs.rm_frames_dialog.set_open(wc, pal_sprite, self.image_editor.get_selected_image());

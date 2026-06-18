@@ -5,6 +5,7 @@ use crate::data_asset::{
     Tileset,
     MapData,
 };
+use super::super::AssetEditorBase;
 
 pub enum AddTilesAction {
     Insert,
@@ -87,41 +88,35 @@ impl AddTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) -> bool {
-        if egui::Modal::new(Self::id()).show(wc.egui.ctx, |ui| {
-            wc.sys_dialogs.block_ui(ui);
-            ui.set_width(300.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                match self.action {
-                    AddTilesAction::Insert => { ui.heading("Insert Tiles"); }
-                    AddTilesAction::Append => { ui.heading("Append Tiles"); }
+        let title = match self.action {
+            AddTilesAction::Insert => { "Insert Tiles" }
+            AddTilesAction::Append => { "Append Tiles" }
+        };
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, _wc| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
+                    .num_columns(2)
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Num tiles:");
+                        let max = 255u32.saturating_sub(tileset.num_tiles);
+                        if max == 0 {
+                            ui.label("(max tiles reached)");
+                        } else {
+                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=max));
+                        }
+                        ui.end_row();
+                    });
+            });
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close();
                 }
-                ui.separator();
-
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
-                        .num_columns(2)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label("Num tiles:");
-                            let max = 255u32.saturating_sub(tileset.num_tiles);
-                            if max == 0 {
-                                ui.label("(max tiles reached)");
-                            } else {
-                                ui.add(egui::Slider::new(&mut self.num_tiles, 1..=max));
-                            }
-                            ui.end_row();
-                        });
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        self.confirm(tileset, maps);
-                        ui.close();
-                    }
-                });
+                if ui.button("Ok").clicked() {
+                    self.confirm(tileset, maps);
+                    ui.close();
+                }
             });
         }).should_close() {
             self.open = false;
