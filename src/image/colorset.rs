@@ -68,7 +68,7 @@ impl ColorSet {
             for (color, _) in full_image_colors {
                 let color = (color & 0xff) as u8;
                 if colors.len() >= Self::NUM_COLORS { break; }  // filled colorset
-                if colors.iter().any(|&c| c == color) { continue; }    // already got that color
+                if colors.contains(&color) { continue; }        // already got that color
                 colors.push(color);
             }
         }
