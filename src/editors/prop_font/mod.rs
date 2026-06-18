@@ -66,11 +66,22 @@ impl PropFontEditor {
     pub fn prepare_for_saving(&mut self, _prop_font: &mut PropFont) {
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, prop_font: &PropFont, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, prop_font.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", prop_font.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            ui.label(format!("{} bytes [height: {}]{}", prop_font.data_size(), prop_font.height, dirty));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, prop_font: &mut PropFont) {
         self.dialogs.show(wc, &mut self.editor, prop_font);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(prop_font);
         self.base.show_window(wc, &title, [450.0, 300.0], [450.0, 400.0], |ui, wc| {
+            Self::show_footer(ui, wc, prop_font, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, prop_font);
         });
     }
@@ -304,12 +315,6 @@ impl Editor {
         self.show_menubar(ui, wc, dialogs, prop_font);
         self.show_toolbar(ui, wc, prop_font);
         self.show_samplebar(ui, wc, prop_font);
-
-        // footer:
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!("{} bytes [height: {}]", prop_font.data_size(), prop_font.height));
-        });
 
         // body:
         egui::CentralPanel::default().show_inside(ui, |ui| {

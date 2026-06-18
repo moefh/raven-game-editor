@@ -130,9 +130,12 @@ impl RavenEditorApp {
             style.visuals.window_fill = egui::Color32::BLACK;
             style.visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 0x40, 0x80));
             style.visuals.panel_fill = egui::Color32::from_rgb(0x10, 0x10, 0x10);
-            style.visuals.faint_bg_color = egui::Color32::from_rgb(0x18, 0x18, 0x18);
+            style.visuals.faint_bg_color = egui::Color32::from_rgb(0x08, 0x10, 0x20);
             style.visuals.extreme_bg_color = egui::Color32::BLACK;
-            style.visuals.widgets.open.weak_bg_fill = egui::Color32::from_rgb(0x10, 0x20, 0x40);
+            style.visuals.widgets.open.weak_bg_fill = egui::Color32::from_rgb(0x10, 0x20, 0x60);
+        });
+        ctx.style_mut_of(egui::Theme::Light, |style: &mut egui::Style| {
+            style.visuals.faint_bg_color = style.visuals.window_fill;
         });
         ctx.set_zoom_factor(self.settings.zoom as f32 / 100.0);
         match self.settings.theme.as_str() {

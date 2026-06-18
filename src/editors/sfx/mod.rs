@@ -30,11 +30,23 @@ impl SfxEditor {
     pub fn prepare_for_saving(&mut self, _sfx: &mut Sfx) {
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, sfx: &Sfx, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, sfx.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", sfx.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            ui.label(format!("{} bytes [samples: {}, bits/sample: {}]{}",
+                             sfx.data_size(), sfx.samples.len(), sfx.bits_per_sample, dirty));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(sfx);
         self.base.show_window(wc, &title, [400.0, 220.0], [500.0, 220.0], |ui, wc| {
+            Self::show_footer(ui, wc, sfx, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
         });
     }
@@ -143,12 +155,6 @@ impl Editor {
                     });
                 });
             });
-        });
-
-        // footer:
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!("{} bytes [samples: {}, bits/sample: {}]", sfx.data_size(), sfx.samples.len(), sfx.bits_per_sample));
         });
 
         // properties

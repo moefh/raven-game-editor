@@ -2,6 +2,7 @@ use super::{
     SysDialogs,
     AppWindowTracker,
     AppSettings,
+    create_dialog_window,
 };
 
 use egui::{Vec2, Pos2, Rect};
@@ -18,8 +19,8 @@ pub struct ColorsetEditorDialog {
 }
 
 impl ColorsetEditorDialog {
-    const MIN_WINDOW_WIDTH: f32 = 200.0;
     const MIN_PICKER_WIDTH: f32 = 200.0;
+    const MIN_WINDOW_WIDTH: f32 = Self::MIN_PICKER_WIDTH + 12.0;
 
     pub fn new() -> Self {
         ColorsetEditorDialog {
@@ -94,15 +95,9 @@ impl ColorsetEditorDialog {
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs, settings: &mut AppSettings) {
         if ! self.open { return; }
 
-        if egui::Modal::new(self.id).show(ui.ctx(), |ui| {
-            sys_dialogs.block_ui(ui);
-
-            ui.set_width(Self::MIN_WINDOW_WIDTH);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading("Colorset");
-                ui.separator();
-                self.show_colorset_editor(ui, settings);
-            });
+        if create_dialog_window(sys_dialogs, ui, self.id, Self::MIN_WINDOW_WIDTH, "Colorset", |ui| {
+            self.show_colorset_editor(ui, settings);
+            ui.add_space(2.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                 if ui.button("Close").clicked() {
                     ui.close();

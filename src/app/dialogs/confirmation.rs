@@ -1,4 +1,8 @@
-use super::{SysDialogs, AppWindowTracker};
+use super::{
+    SysDialogs,
+    AppWindowTracker,
+    create_dialog_window,
+};
 
 pub enum ConfirmationDialogResult {
     None,
@@ -16,6 +20,8 @@ pub struct ConfirmationDialog {
 }
 
 impl ConfirmationDialog {
+    const WINDOW_WIDTH: f32 = 350.0;
+
     pub fn new() -> Self {
         ConfirmationDialog {
             id: egui::Id::new("dlg_confirmation"),
@@ -43,26 +49,20 @@ impl ConfirmationDialog {
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> ConfirmationDialogResult {
         if ! self.open { return ConfirmationDialogResult::No; }
 
-        let resp = egui::Modal::new(self.id).show(ui.ctx(), |ui| {
-            sys_dialogs.block_ui(ui);
-            ui.set_width(350.0);
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                ui.heading(&self.title);
-                ui.separator();
-                egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                    ui.label(&self.text);
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button(&self.yes_label).clicked() {
-                        ui.close();
-                        ConfirmationDialogResult::Yes
-                    } else if ui.button(&self.no_label).clicked() {
-                        ui.close();
-                        ConfirmationDialogResult::No
-                    } else {
-                        ConfirmationDialogResult::None
-                    }
-                }).inner
+        let resp = create_dialog_window(sys_dialogs, ui, self.id, Self::WINDOW_WIDTH, &self.title, |ui| {
+            egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                ui.label(&self.text);
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.button(&self.yes_label).clicked() {
+                    ui.close();
+                    ConfirmationDialogResult::Yes
+                } else if ui.button(&self.no_label).clicked() {
+                    ui.close();
+                    ConfirmationDialogResult::No
+                } else {
+                    ConfirmationDialogResult::None
+                }
             }).inner
         });
         if resp.should_close() {

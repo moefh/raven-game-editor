@@ -167,7 +167,7 @@ impl AssetEditorBase {
                    show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
         let maximized_state = self.maximized_state;
         let resp = self.create_window(wc, &title.title, min_size, default_size).show(wc.egui.ctx, |ui| {
-            let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 1 });
+            let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
             let action = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_space(3.0);
@@ -192,6 +192,14 @@ impl AssetEditorBase {
                     }).inner
                 }).inner
             }).inner;
+
+            let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
+            let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
+            ui.painter().hline(
+                rect.left()..=rect.right(),
+                rect.bottom() + 2.0,
+                ui.style().visuals.window_stroke
+            );
 
             show_fn(ui, wc);
             action
@@ -222,6 +230,14 @@ impl AssetEditorBase {
         }
     }
 
+    fn window_bg_color(wc: &WindowContext, asset_id: DataAssetId) -> egui::Color32 {
+        if wc.is_editor_on_top(asset_id) {
+            wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill
+        } else {
+            wc.egui.ctx.global_style().visuals.faint_bg_color
+        }
+    }
+
     fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str,
                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
@@ -233,23 +249,10 @@ impl AssetEditorBase {
             self.window_rect = default_rect;
         }
 
-        let selected = wc.is_editor_on_top(self.id);
-        let title_bg = match wc.egui.ctx.theme() {
-            egui::Theme::Light => if selected {
-                egui::Color32::from_rgb(0xe0, 0xe0, 0xe0)
-            } else {
-                wc.egui.ctx.global_style().visuals.window_fill
-            },
-            egui::Theme::Dark => if selected {
-                egui::Color32::from_rgb(0, 0x20, 0x40)
-            } else {
-                egui::Color32::from_rgb(0, 0x10, 0x20)
-            },
-        };
         let mut frame = egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 0 })
-            .fill(title_bg);
+            .fill(Self::window_bg_color(wc, self.id));
         if self.open && ! matches!(self.maximized_state, MaximizedState::Normal) {
             frame = frame.corner_radius(0.0);
             let (win_rect, constrain_rect) = match self.maximized_state {

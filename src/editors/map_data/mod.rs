@@ -30,6 +30,34 @@ impl MapDataEditor {
         self.editor.map_editor.drop_selection(map_data);
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, map_data: &MapData, editor: &Editor, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, map_data.asset.id));
+        let dirty = if is_dirty { " (modified)" } else { "" };
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!(
+                    "{} bytes [size: {}x{}, parallax: {}x{}]{}",
+                    map_data.data_size(),
+                    map_data.width,
+                    map_data.height,
+                    map_data.para_width,
+                    map_data.para_height,
+                    dirty
+                ));
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                        ui.add_space(1.0);
+                        ui.label(format!("({}, {})", editor.map_editor.hover_pos.x.floor(), editor.map_editor.hover_pos.y.floor()));
+                        ui.spacing_mut().item_spacing = spacing;
+                    });
+                });
+            });
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
@@ -37,8 +65,10 @@ impl MapDataEditor {
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(map_data);
         self.base.show_window(wc, &title, min_size, def_size, |ui, wc| {
+            Self::show_footer(ui, wc, map_data, &self.editor, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
     }
@@ -376,37 +406,11 @@ impl Editor {
         });
     }
 
-    fn show_footer(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.horizontal(|ui| {
-                ui.label(format!(
-                    "{} bytes [fg: {}x{}, bg: {}x{}]",
-                    map_data.data_size(),
-                    map_data.width,
-                    map_data.height,
-                    map_data.para_width,
-                    map_data.para_height
-                ));
-                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                    ui.horizontal(|ui| {
-                        let spacing = ui.spacing().item_spacing;
-                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-                        ui.add_space(1.0);
-                        ui.label(format!("({}, {})", self.map_editor.hover_pos.x.floor(), self.map_editor.hover_pos.y.floor()));
-                        ui.spacing_mut().item_spacing = spacing;
-                    });
-                });
-            });
-        });
-    }
-
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                 map_data: &mut MapData, tilesets: &AssetList<Tileset>) {
         self.show_menubar(ui, wc, dialogs, map_data);
         self.show_display_toolbar(ui, wc, map_data);
         self.show_edit_toolbar(ui, wc, map_data);
-        self.show_footer(ui, wc, map_data);
 
         if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
             // tile picker:

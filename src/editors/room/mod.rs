@@ -105,11 +105,28 @@ impl RoomEditor {
     pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, room.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            ui.label(format!(
+                "{} bytes [maps: {}, triggers: {}]{}",
+                room.data_size(),
+                room.maps.len(),
+                room.triggers.len(),
+                dirty
+            ));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(room);
         self.base.show_window(wc, &title, [400.0, 300.0], [600.0, 400.0], |ui, wc| {
+            Self::show_footer(ui, wc, room, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
     }
@@ -486,23 +503,10 @@ impl Editor {
         });
     }
 
-    fn show_footer(&self, ui: &mut egui::Ui, room: &mut Room) {
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!(
-                "{} bytes [maps: {}, triggers: {}]",
-                room.data_size(),
-                room.maps.len(),
-                room.triggers.len()
-            ));
-        });
-    }
-
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                 room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.show_header(ui, wc, dialogs, room, asset_ids, assets);
         self.show_toolbar(ui);
-        self.show_footer(ui, room);
 
         // left panel:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {

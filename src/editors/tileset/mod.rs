@@ -51,6 +51,15 @@ impl TilesetEditor {
         self.editor.image_editor.drop_selection(tileset);
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, tileset: &Tileset, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, tileset.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
         self.dialogs.show(wc, &mut self.editor, tileset, maps);
 
@@ -58,7 +67,8 @@ impl TilesetEditor {
         let title = self.base.window_title(tileset);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
         self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
-            self.editor.show(ui, wc, &mut self.dialogs, tileset, is_dirty);
+            Self::show_footer(ui, wc, tileset, is_dirty);
+            self.editor.show(ui, wc, &mut self.dialogs, tileset);
         });
     }
 }
@@ -336,16 +346,9 @@ impl Editor {
         });
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset, is_dirty: bool) {
+    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         self.show_menu_bar(ui, wc, dialogs, tileset);
         self.show_toolbar(ui, wc, tileset);
-
-        // footer:
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            let dirty = if is_dirty { " (modified)" } else { "" };
-            ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
-        });
 
         // item picker:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {

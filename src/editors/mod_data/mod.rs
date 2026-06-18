@@ -42,11 +42,26 @@ impl ModDataEditor {
     pub fn prepare_for_saving(&mut self, _mod_data: &mut ModData) {
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, mod_data: &ModData, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, mod_data.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", mod_data.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
+                n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
+            });
+            ui.label(format!("{} bytes [samples: {}, song pos: {}]{}",
+                             mod_data.data_size(), num_samples, mod_data.song_positions.len(), dirty));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(mod_data);
         self.base.show_window(wc, &title, [600.0, 300.0], [600.0, 300.0], |ui, wc| {
+            Self::show_footer(ui, wc, mod_data, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });
     }
@@ -483,15 +498,6 @@ impl Editor {
                     });
                 });
             });
-        });
-
-        // footer:
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
-                n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
-            });
-            ui.label(format!("{} bytes [samples: {}, song pos: {}]", mod_data.data_size(), num_samples, mod_data.song_positions.len()));
         });
 
         // tabs:

@@ -46,12 +46,26 @@ impl PalSpriteEditor {
         self.editor.image_editor.drop_selection(pal_sprite);
     }
 
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, pal_sprite: &PalSprite, is_dirty: bool) {
+        let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, pal_sprite.asset.id));
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", pal_sprite.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+            let dirty = if is_dirty { " (modified)" } else { "" };
+            let frames_plural = if pal_sprite.num_frames > 1 { "s" } else { "" };
+            ui.label(format!("{} bytes [{}x{}, {} bpp, {} frame{}]{}", pal_sprite.data_size(),
+                             pal_sprite.width, pal_sprite.height, pal_sprite.depth.bits_per_pixel(),
+                             pal_sprite.num_frames, frames_plural, dirty));
+        });
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) {
         self.dialogs.show(wc, &mut self.editor, pal_sprite);
 
+        let is_dirty = self.base.is_dirty();
         let title = self.base.window_title(pal_sprite);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(pal_sprite);
         self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
+            Self::show_footer(ui, wc, pal_sprite, is_dirty);
             self.editor.show(ui, wc, &mut self.dialogs, pal_sprite);
         });
     }
@@ -365,14 +379,6 @@ impl Editor {
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, pal_sprite: &mut PalSprite) {
         self.show_menu_bar(ui, wc, dialogs, pal_sprite);
         self.show_toolbar(ui, wc, pal_sprite);
-
-        // footer:
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", self.asset_id)).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label(format!("{} bytes [{}x{}, {} bpp, {} frame{}]", pal_sprite.data_size(),
-                             pal_sprite.width, pal_sprite.height, pal_sprite.depth.bits_per_pixel(),
-                             pal_sprite.num_frames, if pal_sprite.num_frames > 1 { "s" } else { "" }));
-        });
 
         // item picker:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
