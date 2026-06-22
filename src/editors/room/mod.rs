@@ -50,6 +50,7 @@ impl<'a> RoomEditorAssetLists<'a> {
 #[derive(Clone, Copy, Debug)]
 pub enum RoomItemRef {
     None,
+    Screen { x: u16, y: u16 },
     Map(usize),
     Trigger(usize),
 }
@@ -62,6 +63,10 @@ impl RoomItemRef {
 
     pub fn is_some(&self) -> bool {
         ! self.is_none()
+    }
+
+    pub fn is_screen(&self) -> bool {
+        matches!(self, RoomItemRef::Screen {..})
     }
 
     pub fn is_map(&self) -> bool {
@@ -460,7 +465,7 @@ impl Editor {
 
     fn show_item_properties(&self, ui: &mut egui::Ui, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         match self.room_editor.get_selected_item() {
-            RoomItemRef::None => {},
+            RoomItemRef::None | RoomItemRef::Screen {..} => {}
             RoomItemRef::Map(map_index) => { self.show_map_properties(ui, map_index, room, assets.maps); },
             RoomItemRef::Trigger(trg_index) => { self.show_trigger_properties(ui, trg_index, room, asset_ids, assets); },
         }
@@ -472,10 +477,22 @@ impl Editor {
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-                if ui.add(egui::Button::new("Lock Maps").selected(self.room_editor.lock_maps))
-                    .on_hover_text("Prevent maps from moving").clicked() {
+                if ui.add(egui::Button::image_and_text(IMAGES.lock, "Maps")
+                          .selected(self.room_editor.lock_maps)
+                          .frame_when_inactive(self.room_editor.lock_maps))
+                    .on_hover_text("Lock maps in place").clicked() {
                         self.room_editor.lock_maps = ! self.room_editor.lock_maps;
                     }
+                ui.add_space(2.0);
+                ui.separator();
+                ui.add_space(2.0);
+                if ui.add(egui::Button::image(IMAGES.screen)
+                          .selected(self.room_editor.show_screen)
+                          .frame_when_inactive(self.room_editor.show_screen))
+                    .on_hover_text("Show screen size").clicked() {
+                        self.room_editor.show_screen = ! self.room_editor.show_screen;
+                    }
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });

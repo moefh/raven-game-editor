@@ -14,7 +14,7 @@ use crate::data_asset::{
 use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 
-use super::{TILE_SIZE, get_map_layer_tile};
+use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
 use super::super::{MapLayer, RectBorder};
 use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 
@@ -162,10 +162,12 @@ pub struct RoomEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
     pub lock_maps: bool,
+    pub show_screen: bool,
+    screen_item: RoomItemRef,
     selected_item_changed: bool,
     selected_item: RoomItemRef,
     resize_border: Option<RectBorder>,
-    drag_item: RoomItemRef,
+    dragging_item: bool,
     drag_item_origin: Pos2,
     drag_mouse_origin: Pos2,
     grid: GridAlign,
@@ -179,8 +181,10 @@ impl RoomEditorWidget {
             selected_item: RoomItemRef::None,
             selected_item_changed: false,
             lock_maps: true,
+            show_screen: false,
+            screen_item: RoomItemRef::Screen { x: 0, y: 0 },
             resize_border: None,
-            drag_item: RoomItemRef::None,
+            dragging_item: false,
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
             grid: GridAlign::new(Tileset::TILE_SIZE as u16),
@@ -241,44 +245,58 @@ impl RoomEditorWidget {
         TriggerRect::from_trigger(trigger, assets).egui_rect()
     }
 
+    fn get_screen_rect(x: u16, y: u16) -> Rect {
+        egui::Rect::from_min_size(egui::Pos2::new(x as f32, y as f32), SCREEN_SIZE)
+    }
+
     fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
         match item {
             RoomItemRef::None => None,
+
+            RoomItemRef::Screen { x, y } => {
+                Some(Self::get_screen_rect(x, y))
+            }
 
             RoomItemRef::Map(map_index) => {
                 let room_map = room.maps.get(map_index)?;
                 let map_data = assets.maps.get(&room_map.map_id)?;
                 Some(Self::get_map_rect(room_map, map_data))
-            },
+            }
 
             RoomItemRef::Trigger(trg_index) => {
                 let trigger = room.triggers.get(trg_index)?;
                 Some(Self::get_trigger_rect(trigger, assets))
-            },
+            }
         }
     }
 
-    fn move_item(item: RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool, grid: &GridAlign) -> Option<bool> {
+    fn move_item(item: &mut RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool, grid: &GridAlign) -> Option<bool> {
         match item {
-            RoomItemRef::None => None,
+            RoomItemRef::None => { None }
+
+            RoomItemRef::Screen { x, y } => {
+                *x = pos.x.round().clamp(0.0, u16::MAX as f32) as u16;
+                *y = pos.y.round().clamp(0.0, u16::MAX as f32) as u16;
+                Some(true)
+            }
 
             RoomItemRef::Map(map_index) => {
                 if lock_maps {
                     None
                 } else {
-                    let room_map = room.maps.get_mut(map_index)?;
+                    let room_map = room.maps.get_mut(*map_index)?;
                     room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
                     room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
                     Some(true)
                 }
-            },
+            }
 
             RoomItemRef::Trigger(trg_index) => {
-                let trigger = room.triggers.get_mut(trg_index)?;
+                let trigger = room.triggers.get_mut(*trg_index)?;
                 trigger.x = grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
                 trigger.y = grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
                 Some(true)
-            },
+            }
         }
     }
 
@@ -315,8 +333,8 @@ impl RoomEditorWidget {
         }
     }
 
-    fn resize_start(&mut self, item: RoomItemRef, border: RectBorder, item_rect: Rect, mouse_pos: Pos2) {
-        self.drag_item = item;
+    fn resize_start(&mut self, border: RectBorder, item_rect: Rect, mouse_pos: Pos2) {
+        self.dragging_item = true;
         self.drag_mouse_origin = mouse_pos;
         self.resize_border = Some(border);
         self.drag_item_origin = match border {
@@ -330,7 +348,8 @@ impl RoomEditorWidget {
     fn resize_move(&mut self, mouse_pos: Pos2, room: &mut Room, border: RectBorder, assets: &RoomEditorAssetLists) -> bool {
         let new_pos = TriggerPos::from_pos2(self.drag_item_origin + (mouse_pos - self.drag_mouse_origin));
 
-        if let RoomItemRef::Trigger(index) = self.drag_item &&
+        if self.dragging_item &&
+            let RoomItemRef::Trigger(index) = self.selected_item &&
             let Some(trigger) = room.triggers.get_mut(index) {
                 let mut rect = TriggerRect::from_trigger(trigger, assets);
                 if ! rect.resizable { return false; }
@@ -353,8 +372,8 @@ impl RoomEditorWidget {
             }
     }
 
-    fn drag_start(&mut self, item: RoomItemRef, item_pos: Pos2, mouse_pos: Pos2) {
-        self.drag_item = item;
+    fn drag_start(&mut self, item_pos: Pos2, mouse_pos: Pos2) {
+        self.dragging_item = true;
         self.drag_item_origin = item_pos;
         self.drag_mouse_origin = mouse_pos;
         self.resize_border = None;
@@ -362,11 +381,15 @@ impl RoomEditorWidget {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        Self::move_item(self.drag_item, new_pos, room, self.lock_maps, &self.grid).unwrap_or(false)
+        let moved = Self::move_item(&mut self.selected_item, new_pos, room, self.lock_maps, &self.grid).unwrap_or(false);
+        if moved && self.selected_item.is_screen() {
+            self.screen_item = self.selected_item;
+        }
+        moved
     }
 
     fn drag_stop(&mut self) {
-        self.drag_item = RoomItemRef::None;
+        self.dragging_item = false;
         self.resize_border = None;
     }
 
@@ -391,7 +414,7 @@ impl RoomEditorWidget {
             return;
         }
 
-        if self.drag_item.is_some() {
+        if self.dragging_item && self.selected_item.is_some() {
             if ! resp.dragged_by(egui::PointerButton::Primary) {
                 self.drag_stop();
                 return;
@@ -414,7 +437,7 @@ impl RoomEditorWidget {
             self.selected_item.is_trigger() &&
             let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) &&
             let Some(rect) = Self::get_item_rect(self.selected_item, room, assets) {
-                self.resize_start(self.selected_item, border, rect, mouse_pos);
+                self.resize_start(border, rect, mouse_pos);
                 return;
             }
 
@@ -423,7 +446,18 @@ impl RoomEditorWidget {
             let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
-                    self.drag_start(self.selected_item, rect.min, mouse_pos);
+                    self.drag_start(rect.min, mouse_pos);
+                }
+                return;
+            }
+        }
+
+        // click/drag selected screen
+        if self.show_screen && let RoomItemRef::Screen { x, y } = self.selected_item {
+            let rect = Self::get_screen_rect(x, y);
+            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
+                if resp.drag_started() {
+                    self.drag_start(rect.min, mouse_pos);
                 }
                 return;
             }
@@ -436,7 +470,19 @@ impl RoomEditorWidget {
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item);
                 if resp.drag_started() {
-                    self.drag_start(self.selected_item, rect.min, mouse_pos);
+                    self.drag_start(rect.min, mouse_pos);
+                }
+                return;
+            }
+        }
+
+        // click/drag screen rect
+        if self.show_screen && let RoomItemRef::Screen { x, y } = self.screen_item {
+            let rect = Self::get_screen_rect(x, y);
+            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
+                self.set_selected_item(self.screen_item);
+                if resp.drag_started() {
+                    self.drag_start(rect.min, mouse_pos);
                 }
                 return;
             }
@@ -447,7 +493,7 @@ impl RoomEditorWidget {
             let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
-                    self.drag_start(self.selected_item, rect.min, mouse_pos);
+                    self.drag_start(rect.min, mouse_pos);
                 }
                 return;
             }
@@ -460,7 +506,7 @@ impl RoomEditorWidget {
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item);
                 if resp.drag_started() {
-                    self.drag_start(self.selected_item, rect.min, mouse_pos);
+                    self.drag_start(rect.min, mouse_pos);
                 }
                 return;
             }
@@ -602,6 +648,16 @@ impl RoomEditorWidget {
                             Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
                         }
                 }
+            }
+        }
+
+        // draw screen rect
+        if self.show_screen && let RoomItemRef::Screen { x, y } = self.screen_item {
+            let rect = Self::get_screen_rect(x, y);
+            if self.selected_item.is_screen() {
+                Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
+            } else {
+                Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
             }
         }
 

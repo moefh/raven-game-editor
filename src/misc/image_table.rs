@@ -130,6 +130,7 @@ image_table! {
     layer_fx: "../../assets/EffectsIcon.png",
     layer_parallax: "../../assets/ParallaxIcon.png",
     screen: "../../assets/ScreenIcon.png",
+    lock: "../../assets/LockIcon.png",
     log: "../../assets/LogIcon.png",
 
     // assets
