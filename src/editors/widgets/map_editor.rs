@@ -498,8 +498,8 @@ impl MapEditorWidget {
 
     fn get_paste_position(&self) -> Pos2 {
         Pos2 {
-            x: ((-self.scroll.x + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
-            y: ((-self.scroll.y + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
+            x: ((-self.scroll.x / self.zoom + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
+            y: ((-self.scroll.y / self.zoom + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
         }
     }
 

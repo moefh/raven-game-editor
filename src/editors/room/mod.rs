@@ -151,8 +151,8 @@ impl Dialogs {
         }
         if self.map_selection_dialog.open &&
             self.map_selection_dialog.show(wc, room, assets.maps, assets.tilesets) &&
-            editor.room_editor.selected_item.is_map() {
-                editor.room_editor.selected_item = if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) };
+            editor.room_editor.get_selected_item().is_map() {
+                editor.room_editor.set_selected_item(if room.maps.is_empty() { RoomItemRef::None } else { RoomItemRef::Map(0) });
             }
     }
 }
@@ -186,12 +186,13 @@ impl Editor {
     }
 
     fn add_trigger(&mut self, room: &mut Room) {
-        self.room_editor.selected_item = RoomItemRef::Trigger(room.triggers.len());
+        self.room_editor.set_selected_item(RoomItemRef::Trigger(room.triggers.len()));
         let name_id = Self::get_new_item_name_id(&room.triggers, "trigger");
+        let pos = if self.room_editor.zoom <= 0.0 { egui::Vec2::ZERO } else { self.room_editor.scroll / -self.room_editor.zoom };
         room.triggers.push(RoomTrigger {
             name_id,
-            x: 0,
-            y: 0,
+            x: pos.x.floor().clamp(0.0, i16::MAX as f32) as i16,
+            y: pos.y.floor().clamp(0.0, i16::MAX as f32) as i16,
             trigger_type: RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 },
         });
     }
@@ -200,8 +201,8 @@ impl Editor {
         if trg_index < room.triggers.len() {
             room.triggers.remove(trg_index);
         }
-        if let RoomItemRef::Trigger(sel_index) = self.room_editor.selected_item && sel_index == trg_index {
-            self.room_editor.selected_item = RoomItemRef::None;
+        if let RoomItemRef::Trigger(sel_index) = self.room_editor.get_selected_item() && sel_index == trg_index {
+            self.room_editor.set_selected_item(RoomItemRef::None);
         }
     }
 
@@ -229,9 +230,9 @@ impl Editor {
         node_resp.body(|ui| {
             for (map_index, room_map) in room.maps.iter().enumerate() {
                 if let Some(map) = maps.get(&room_map.map_id) {
-                    ui.horizontal(|ui| {
+                    let item = ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                        let mut selected = self.room_editor.selected_item.is_the_map(map_index);
+                        let mut selected = self.room_editor.get_selected_item().is_the_map(map_index);
                         let resp = ui.toggle_value(&mut selected, &map.asset.name);
                         if resp.clicked() || resp.secondary_clicked() {
                             sel_map = Some(map_index);
@@ -244,7 +245,11 @@ impl Editor {
                                 }
                             });
                         });
+                        selected
                     });
+                    if item.inner && self.room_editor.has_selected_item_changed() {
+                        item.response.scroll_to_me(None);
+                    }
                 }
             }
         });
@@ -273,9 +278,9 @@ impl Editor {
         }
         node_resp.body(|ui| {
             for (trg_index, trg) in room.triggers.iter().enumerate() {
-                ui.horizontal(|ui| {
+                let item = ui.horizontal(|ui| {
                     ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let mut selected = self.room_editor.selected_item.is_the_trigger(trg_index);
+                    let mut selected = self.room_editor.get_selected_item().is_the_trigger(trg_index);
                     let resp = ui.toggle_value(&mut selected, &trg.name_id);
                     if resp.clicked() || resp.secondary_clicked() {
                         sel_trigger = Some(trg_index);
@@ -295,7 +300,11 @@ impl Editor {
                             }
                         });
                     });
+                    selected
                 });
+                if item.inner && self.room_editor.has_selected_item_changed() {
+                    item.response.scroll_to_me(None);
+                }
             }
         });
         (add_trigger, sel_trigger, rm_trigger)
@@ -450,7 +459,7 @@ impl Editor {
     }
 
     fn show_item_properties(&self, ui: &mut egui::Ui, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        match self.room_editor.selected_item {
+        match self.room_editor.get_selected_item() {
             RoomItemRef::None => {},
             RoomItemRef::Map(map_index) => { self.show_map_properties(ui, map_index, room, assets.maps); },
             RoomItemRef::Trigger(trg_index) => { self.show_trigger_properties(ui, trg_index, room, asset_ids, assets); },
@@ -516,11 +525,12 @@ impl Editor {
                 egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                     let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
                     let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
+                    self.room_editor.clear_selected_item_changed();
 
                     if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
                     if add_trigger { self.add_trigger(room); }
-                    if let Some(map_index) = sel_map { self.room_editor.selected_item = RoomItemRef::Map(map_index); }
-                    if let Some(trg_index) = sel_trigger { self.room_editor.selected_item = RoomItemRef::Trigger(trg_index); }
+                    if let Some(map_index) = sel_map { self.room_editor.set_selected_item(RoomItemRef::Map(map_index)); }
+                    if let Some(trg_index) = sel_trigger { self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index)); }
                     if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
                 });
             });

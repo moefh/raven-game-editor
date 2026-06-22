@@ -161,8 +161,9 @@ impl TriggerRect {
 pub struct RoomEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
-    pub selected_item: RoomItemRef,
     pub lock_maps: bool,
+    selected_item_changed: bool,
+    selected_item: RoomItemRef,
     resize_border: Option<RectBorder>,
     drag_item: RoomItemRef,
     drag_item_origin: Pos2,
@@ -176,13 +177,31 @@ impl RoomEditorWidget {
             zoom: 0.5,
             scroll: Vec2::ZERO,
             selected_item: RoomItemRef::None,
-            lock_maps: false,
+            selected_item_changed: false,
+            lock_maps: true,
             resize_border: None,
             drag_item: RoomItemRef::None,
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
             grid: GridAlign::new(Tileset::TILE_SIZE as u16),
         }
+    }
+
+    pub fn get_selected_item(&self) -> RoomItemRef {
+        self.selected_item
+    }
+
+    pub fn set_selected_item(&mut self, item: RoomItemRef) {
+        self.selected_item = item;
+        self.selected_item_changed = true;
+    }
+
+    pub fn has_selected_item_changed(&self) -> bool {
+        self.selected_item_changed
+    }
+
+    pub fn clear_selected_item_changed(&mut self) {
+        self.selected_item_changed = false;
     }
 
     fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
@@ -415,7 +434,7 @@ impl RoomEditorWidget {
             let item = RoomItemRef::Trigger(index);
             let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.selected_item = item;
+                self.set_selected_item(item);
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
@@ -439,7 +458,7 @@ impl RoomEditorWidget {
             let item = RoomItemRef::Map(index);
             let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.selected_item = item;
+                self.set_selected_item(item);
                 if resp.drag_started() {
                     self.drag_start(self.selected_item, rect.min, mouse_pos);
                 }
@@ -449,7 +468,7 @@ impl RoomEditorWidget {
 
         // left-click nowhere deselects selected item
         if resp.dragged_by(egui::PointerButton::Primary) {
-            self.selected_item = RoomItemRef::None;
+            self.set_selected_item(RoomItemRef::None);
         }
     }
 
