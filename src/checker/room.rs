@@ -2,7 +2,11 @@ use std::collections::BTreeMap;
 
 use crate::data_asset::{DataAssetId, DataAssetStore, AssetList, Room, MapData, Tileset};
 
-use super::AssetProblem;
+use super::{
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    AssetProblem,
+};
 
 fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
@@ -32,6 +36,23 @@ fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
                 map_id: map.map_id,
             });
         }
+    }
+
+    let room_size = room.maps.iter().fold((0, 0), |max, room_map| {
+        match maps.get(&room_map.map_id) {
+            Some(map_data) => { (
+                max.0.max(room_map.x as u32 + map_data.width),
+                max.1.max(room_map.y as u32 + map_data.height)
+            ) }
+            None => { max }
+        }
+    });
+
+    if (room_size.0 * Tileset::TILE_SIZE) < SCREEN_WIDTH || (room_size.1 * Tileset::TILE_SIZE) < SCREEN_HEIGHT {
+        problems.push(AssetProblem::RoomTooSmall {
+            width: room_size.0,
+            height: room_size.1,
+        });
     }
 
     problems

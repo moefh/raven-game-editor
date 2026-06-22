@@ -19,7 +19,6 @@ impl MapLayer {
 pub enum AssetProblem {
     TilesetTooBig { num_tiles: u32 },
     MapTilesetInvalid { tileset_id: DataAssetId },
-    MapTooSmall { width: u32, height: u32 },
     MapParallaxTooSmall { para_width: u32, para_height: u32 },
     MapParallaxTooBig { width: u32, height: u32, para_width: u32, para_height: u32 },
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
@@ -28,6 +27,7 @@ pub enum AssetProblem {
     PalSpriteTooBig { num_frames: u32 },
     PalSpriteColorOutOfPalette { frame_num: u32, num_pixels: u64 },
     RoomWithNoMaps,
+    RoomTooSmall { width: u32, height: u32 },
     RoomInvalidMapId { map_id: DataAssetId },
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
@@ -46,23 +46,13 @@ impl AssetProblem {
                 ui.label(format!("  -> map references an invalid tileset: {}", tileset_id));
             }
 
-            AssetProblem::MapTooSmall { width, height } => {
-                ui.label(format!(
-                    "  -> map is too small: {}x{} (min is {}x{})",
-                    width,
-                    height,
-                    super::map_data::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
-                    super::map_data::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
-                ));
-            }
-
             AssetProblem::MapParallaxTooSmall { para_width, para_height } => {
                 ui.label(format!(
                     "  -> map parallax is too small: {}x{} (min is {}x{})",
                     para_width,
                     para_height,
-                    super::map_data::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
-                    super::map_data::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
+                    super::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
+                    super::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
                 ));
             }
 
@@ -110,6 +100,16 @@ impl AssetProblem {
 
             AssetProblem::RoomWithNoMaps => {
                 ui.label("  -> room has no maps");
+            }
+
+            AssetProblem::RoomTooSmall { width, height } => {
+                ui.label(format!(
+                    "  -> room is too small: {}x{} (min is {}x{})",
+                    width,
+                    height,
+                    super::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
+                    super::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
+                ));
             }
 
             AssetProblem::RoomInvalidMapId { map_id } => {

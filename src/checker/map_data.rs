@@ -3,10 +3,12 @@ use std::collections::{HashMap, BTreeMap};
 use crate::image::{colors, ImageCollection};
 use crate::data_asset::{DataAssetId, DataAssetStore, MapData, Tileset};
 
-use super::{AssetProblem, MapLayer};
-
-pub const SCREEN_WIDTH: u32 = 320;
-pub const SCREEN_HEIGHT: u32 = 240;
+use super::{
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    AssetProblem,
+    MapLayer,
+};
 
 /// Return a vector of bools indicating whether each tile is transparent or not
 fn build_tileset_transparency(tileset: &Tileset) -> Vec<bool> {
@@ -145,13 +147,6 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
 }
 
 fn check_map_size(map_data: &MapData, problems: &mut Vec<AssetProblem>) {
-    if (map_data.width * Tileset::TILE_SIZE) < SCREEN_WIDTH || (map_data.height * Tileset::TILE_SIZE) < SCREEN_HEIGHT {
-        problems.push(AssetProblem::MapTooSmall {
-            width: map_data.width,
-            height: map_data.height,
-        });
-    }
-
     if map_data.para_width != 0 && map_data.height != 0 &&
         ((map_data.para_width * Tileset::TILE_SIZE) < SCREEN_WIDTH ||
          (map_data.para_height * Tileset::TILE_SIZE) < SCREEN_HEIGHT) {

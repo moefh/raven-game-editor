@@ -9,6 +9,9 @@ mod room;
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
+pub const SCREEN_WIDTH: u32 = 320;
+pub const SCREEN_HEIGHT: u32 = 240;
+
 static TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(|| {
     time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap()
 });
