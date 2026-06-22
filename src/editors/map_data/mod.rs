@@ -119,6 +119,14 @@ impl Editor {
         }
     }
 
+    fn tile_to_image_selection(tile: u8) -> Option<u32> {
+        if tile == MapData::NO_TILE {
+            None
+        } else {
+            Some(tile as u32)
+        }
+    }
+
     fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
         if let Some(image_selection) = image_selection {
             (image_selection & 0xff) as u8
@@ -137,7 +145,7 @@ impl Editor {
                             let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
-                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.selected_image_right));
+                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_right()));
                         }
                     });
                 });
@@ -429,13 +437,21 @@ impl Editor {
                         self.image_picker.show(ui, wc.settings, tileset, texture, bg_color);
                     }
                 }
-                self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.selected_image);
-                self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.selected_image_right);
+                self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image());
+                self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_right());
             });
 
             // body:
             egui::CentralPanel::default().show_inside(ui, |ui| {
                 self.map_editor.show(ui, wc, map_data, tileset);
+                if self.map_editor.left_draw_tile_changed {
+                    self.map_editor.left_draw_tile_changed = false;
+                    self.image_picker.set_selected_image(Self::tile_to_image_selection(self.map_editor.left_draw_tile));
+                }
+                if self.map_editor.right_draw_tile_changed {
+                    self.map_editor.right_draw_tile_changed = false;
+                    self.image_picker.set_selected_image_right(Self::tile_to_image_selection(self.map_editor.right_draw_tile));
+                }
             });
 
             // keyboard:

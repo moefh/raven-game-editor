@@ -137,6 +137,8 @@ pub struct MapEditorWidget {
     pub tool: MapTool,
     pub left_draw_tile: u8,
     pub right_draw_tile: u8,
+    pub left_draw_tile_changed: bool,
+    pub right_draw_tile_changed: bool,
     pub hover_pos: Vec2,
     pub custom_grid_color: Option<Color32>,
     pub custom_bg_color: Option<Color32>,
@@ -163,6 +165,8 @@ impl MapEditorWidget {
             display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: MapData::NO_TILE,
+            left_draw_tile_changed: false,
+            right_draw_tile_changed: false,
             hover_pos: Vec2::ZERO,
             custom_grid_color: None,
             custom_bg_color: None,
@@ -264,6 +268,16 @@ impl MapEditorWidget {
             Some(self.right_draw_tile)
         } else {
             None
+        }
+    }
+
+    fn set_selected_tile_for_click(&mut self, tile: u8, response: &egui::Response) {
+        if response.dragged_by(egui::PointerButton::Primary) {
+            self.left_draw_tile = tile;
+            self.left_draw_tile_changed = true;
+        } else if response.dragged_by(egui::PointerButton::Secondary) {
+            self.right_draw_tile = tile;
+            self.right_draw_tile_changed = true;
         }
     }
 
@@ -378,12 +392,36 @@ impl MapEditorWidget {
         }
     }
 
+    fn get_full_layer_tile(&self, layer: MapLayer, pos: Pos2, map_data: &mut MapData) -> Option<u8> {
+        if pos.x < 0.0 || pos.y < 0.0 { return None; }
+        let x = pos.x.floor() as u32;
+        let y = pos.y.floor() as u32;
+        if x >= map_data.width || y >= map_data.height { return None; }
+        match layer {
+            MapLayer::Foreground => { Some(map_data.fg_tiles[(map_data.width * y + x) as usize]) }
+            MapLayer::Background => { Some(map_data.bg_tiles[(map_data.width * y + x) as usize]) }
+            MapLayer::Effects => { Some(map_data.fx_tiles[(map_data.width * y + x) as usize]) }
+            _ => { None }
+        }
+    }
+
     fn set_para_layer_tile(&self, pos: Pos2, tile: u8, map_data: &mut MapData) {
         if pos.x < 0.0 || pos.y < 0.0 { return; }
         let x = pos.x.floor() as u32;
         let y = pos.y.floor() as u32;
         if x >= map_data.para_width || y >= map_data.para_height { return; }
         map_data.para_tiles[(map_data.para_width * y + x) as usize] = tile;
+    }
+
+    fn get_para_layer_tile(&self, pos: Pos2, map_data: &mut MapData) -> Option<u8> {
+        if pos.x < 0.0 || pos.y < 0.0 { return None; }
+        let x = pos.x.floor() as u32;
+        let y = pos.y.floor() as u32;
+        if x >= map_data.para_width || y >= map_data.para_height {
+            None
+        } else {
+            Some(map_data.para_tiles[(map_data.para_width * y + x) as usize])
+        }
     }
 
     fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
@@ -403,9 +441,26 @@ impl MapEditorWidget {
             return;
         }
 
+        let keys_pressed = response.ctx.input(|i| i.modifiers);
+
         match self.tool {
             MapTool::Pencil => {
-                if let Some(tile) = self.get_selected_tile_for_click(response) {
+                if keys_pressed.ctrl {
+                    let pick_tile = match self.edit_layer {
+                        MapLayer::Foreground | MapLayer::Background | MapLayer::Effects => {
+                            self.get_full_layer_tile(self.edit_layer, canvas_to_map_full * pointer_pos, map_data)
+                        }
+                        MapLayer::Parallax => {
+                            self.get_para_layer_tile(canvas_to_map_para * pointer_pos, map_data)
+                        }
+                        _ => {
+                            None
+                        }
+                    };
+                    if let Some(tile) = pick_tile {
+                        self.set_selected_tile_for_click(tile, response);
+                    }
+                } else if let Some(tile) = self.get_selected_tile_for_click(response) {
                     match self.edit_layer {
                         MapLayer::Foreground | MapLayer::Background | MapLayer::Effects => {
                             if response.drag_started() { self.set_undo_target(map_data); }
@@ -758,18 +813,12 @@ impl MapEditorWidget {
                 } else {
                     response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
                 }
-            } else if keys_pressed.ctrl {
-                response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
             }
         }
 
         // check zoom
         if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
-            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
-                (response.drag_delta().y * -0.01).exp()
-            } else {
-                ui.input(|i| i.zoom_delta())
-            };
+            let zoom_delta = ui.input(|i| i.zoom_delta());
             if zoom_delta != 1.0 {
                 self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, map_data);
             }
@@ -783,7 +832,7 @@ impl MapEditorWidget {
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! keys_pressed.alt {
             self.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_full, &canvas_to_map_para);
         }
 

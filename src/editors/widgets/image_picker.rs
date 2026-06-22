@@ -7,10 +7,12 @@ use super::image_editor::ImageDisplay;
 pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,
     pub allow_second_selection: bool,
-    pub selected_image: Option<u32>,
-    pub selected_image_right: Option<u32>,
     pub zoom: f32,
     pub display: ImageDisplay,
+    selected_image: Option<u32>,
+    selected_image_right: Option<u32>,
+    selected_image_changed: bool,
+    selected_image_right_changed: bool,
 }
 
 impl ImagePickerWidget {
@@ -21,6 +23,8 @@ impl ImagePickerWidget {
             zoom: 1.0,
             selected_image: Some(0),
             selected_image_right: None,
+            selected_image_changed: false,
+            selected_image_right_changed: false,
             display: ImageDisplay::new(0),
         }
     }
@@ -29,6 +33,24 @@ impl ImagePickerWidget {
         self.allow_second_selection = use_as_palette;
         self.allow_empty_selection = use_as_palette;
         self
+    }
+
+    pub fn get_selected_image(&self) -> Option<u32> {
+        self.selected_image
+    }
+
+    pub fn get_selected_image_right(&self) -> Option<u32> {
+        self.selected_image_right
+    }
+
+    pub fn set_selected_image(&mut self, selected_image: Option<u32>) {
+        self.selected_image = selected_image;
+        self.selected_image_changed = true;
+    }
+
+    pub fn set_selected_image_right(&mut self, selected_image: Option<u32>) {
+        self.selected_image_right = selected_image;
+        self.selected_image_right_changed = true;
     }
 
     fn ui_pos_to_selection(&self, ui_pos: f32) -> Option<u32> {
@@ -65,8 +87,23 @@ impl ImagePickerWidget {
     pub fn show(&mut self, ui: &mut egui::Ui, _settings: &AppSettings, image: &impl ImageCollection,
                 texture: &egui::TextureHandle, bg_color: Color32) {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
-        let scroll = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source).show(ui, |ui| {
-            let image_size = self.zoom * image.get_item_size();
+        let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
+        let image_size = self.zoom * image.get_item_size();
+
+        // scroll to selected image if changed
+        if let Some(scroll_to_pos) = if self.selected_image_changed {
+            self.selected_image_changed = false;
+            Some(self.selection_to_ui_pos(self.selected_image))
+        } else if self.selected_image_right_changed {
+            self.selected_image_right_changed = false;
+            Some(self.selection_to_ui_pos(self.selected_image_right))
+        } else {
+            None
+        } {
+            scroll_area = scroll_area.scroll_offset(Vec2::new(0.0, scroll_to_pos * image_size.y));
+        }
+
+        let resp = scroll_area.show(ui, |ui| {
             let empty_item_size = self.zoom * if self.allow_empty_selection { Vec2::new(0.0, image.height() as f32) } else { Vec2::ZERO };
             let image_picker_size = self.zoom * image.get_full_size() + empty_item_size;
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
@@ -97,15 +134,15 @@ impl ImagePickerWidget {
 
             response
         });
-        if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() {
-            let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-            if pos.x >= 0.0 && pos.x <= scroll.inner_rect.width() {
+        if let Some(pointer_pos) = resp.inner.interact_pointer_pos() {
+            let pos = pointer_pos - resp.inner_rect.min + resp.state.offset;
+            if pos.x >= 0.0 && pos.x <= resp.inner_rect.width() {
                 let frame_size = self.zoom * image.get_item_size();
                 let num_items = image.num_items() as i32 + if self.allow_empty_selection { 1 } else { 0 };
                 let selection = self.ui_pos_to_selection(f32::min((pos.y / frame_size.y).floor(), (num_items - 1) as f32));
-                if scroll.inner.dragged_by(egui::PointerButton::Primary) {
+                if resp.inner.dragged_by(egui::PointerButton::Primary) {
                     self.selected_image = selection;
-                } else if scroll.inner.dragged_by(egui::PointerButton::Secondary) {
+                } else if resp.inner.dragged_by(egui::PointerButton::Secondary) {
                     self.selected_image_right = selection;
                 }
             }

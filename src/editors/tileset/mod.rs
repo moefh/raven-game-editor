@@ -97,7 +97,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset, set_undo_target: bool) {
         if editor.image_editor.get_selected_image() >= tileset.num_tiles {
             let selected_image = tileset.num_tiles - 1;
-            editor.image_picker.selected_image = Some(selected_image);
+            editor.image_picker.set_selected_image(Some(selected_image));
             let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, tileset);
             if no_selection_change && set_undo_target {
                 editor.image_editor.set_undo_target(tileset);
@@ -357,7 +357,7 @@ impl Editor {
             self.image_picker.display = self.image_editor.display;
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
             self.image_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
-            if let Some(selected_image) = self.image_picker.selected_image {
+            if let Some(selected_image) = self.image_picker.get_selected_image() {
                 self.image_editor.set_selected_image(selected_image, tileset);
             }
         });

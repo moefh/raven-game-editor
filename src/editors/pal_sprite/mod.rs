@@ -95,7 +95,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(editor: &mut Editor, pal_sprite: &PalSprite, set_undo_target: bool) {
         if editor.image_editor.get_selected_image() >= pal_sprite.num_frames {
             let selected_image = pal_sprite.num_frames - 1;
-            editor.image_picker.selected_image = Some(selected_image);
+            editor.image_picker.set_selected_image(Some(selected_image));
             let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, pal_sprite);
             if no_selection_change && set_undo_target {
                 editor.image_editor.set_undo_target(pal_sprite);
@@ -388,7 +388,7 @@ impl Editor {
             self.image_picker.display = self.image_editor.display;
             let texture = pal_sprite.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
             self.image_picker.show(ui, wc.settings, pal_sprite, texture, wc.settings.image_bg_color);
-            if let Some(selected_image) = self.image_picker.selected_image {
+            if let Some(selected_image) = self.image_picker.get_selected_image() {
                 self.image_editor.set_selected_image(selected_image, pal_sprite);
             }
         });
