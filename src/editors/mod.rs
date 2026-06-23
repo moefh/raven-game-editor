@@ -24,7 +24,7 @@ pub use prop_font::PropFontEditor;
 pub use widgets::ColorPickerPopupWidget;
 
 use crate::include_ref_image;
-use crate::misc::{calc_hash, get_asset_type_image, ImageRef, IMAGES};
+use crate::misc::{calc_hash, get_asset_type_image, IMAGES};
 use crate::data_asset::{
     DataAssetId,
     AssetIdCollection,
@@ -78,11 +78,6 @@ impl ImageSlicingMethodOption {
     }
 }
 
-pub struct AssetEditorTitle {
-    image: ImageRef,
-    title: String,
-}
-
 pub struct AssetEditorBase {
     pub id: DataAssetId,
     pub egui_id: egui::Id,
@@ -131,19 +126,6 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    fn window_title(&self, asset: &impl GenericAsset) -> AssetEditorTitle {
-        let title = if self.is_dirty() {
-            format!("{} (modified)", asset.asset().name)
-        } else {
-            asset.asset().name.clone()
-        };
-
-        AssetEditorTitle {
-            title,
-            image: get_asset_type_image(asset.asset().asset_type),
-        }
-    }
-
     pub fn toggle_open(&mut self) {
         self.open = ! self.open;
         if ! self.open {
@@ -168,17 +150,42 @@ impl AssetEditorBase {
         }
     }
 
-    fn show_window(&mut self, wc: &mut WindowContext, title: &AssetEditorTitle,
-                   min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
-                   show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext)) {
+    fn title_bg_color(&self, wc: &WindowContext, asset_id: DataAssetId) -> egui::Color32 {
+        if wc.is_editor_on_top(asset_id) {
+            wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill
+        } else {
+            wc.egui.ctx.global_style().visuals.faint_bg_color
+        }
+    }
+
+    fn footer_bg_color(&self, wc: &WindowContext, asset_id: DataAssetId) -> egui::Color32 {
+        if matches!(self.maximized_state, MaximizedState::Maximized) {
+            wc.egui.ctx.global_style().visuals.window_fill
+        } else {
+            self.title_bg_color(wc, asset_id)
+        }
+    }
+
+    fn show_window<Asset>(&mut self, wc: &mut WindowContext, asset: &mut Asset,
+                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
+                          show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext, &mut Asset, &mut AssetEditorBase))
+    where Asset: GenericAsset {
+        let title = if self.is_dirty() {
+            format!("{} (modified)", asset.asset().name)
+        } else {
+            asset.asset().name.clone()
+        };
+
         let maximized_state = self.maximized_state;
-        let resp = self.create_window(wc, &title.title, min_size, default_size).show(wc.egui.ctx, |ui| {
+        let mut open = self.open;
+        let resp = self.create_window(wc, &mut open, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
             let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
             let action = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_space(3.0);
-                    ui.add(egui::Button::image(include_ref_image!(title.image)).frame(false));
-                    ui.add(egui::Label::new(&title.title).selectable(false));
+                    let title_image = get_asset_type_image(asset.asset().asset_type);
+                    ui.add(egui::Button::image(include_ref_image!(title_image)).frame(false));
+                    ui.add(egui::Label::new(title).selectable(false));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let mut action = EditorWindowAction::None;
 
@@ -207,9 +214,10 @@ impl AssetEditorBase {
                 ui.style().visuals.window_stroke
             );
 
-            show_fn(ui, wc);
+            show_fn(ui, wc, asset, self);
             action
         });
+        self.open = open;
 
         if let Some(resp) = resp {
             // close window if show() above returned true
@@ -236,15 +244,7 @@ impl AssetEditorBase {
         }
     }
 
-    fn window_bg_color(wc: &WindowContext, asset_id: DataAssetId) -> egui::Color32 {
-        if wc.is_editor_on_top(asset_id) {
-            wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill
-        } else {
-            wc.egui.ctx.global_style().visuals.faint_bg_color
-        }
-    }
-
-    fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str,
+    fn create_window<'a>(&mut self, wc: &WindowContext, open: &'a mut bool, title: &str,
                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
         let default_rect = egui::Rect {
@@ -258,7 +258,7 @@ impl AssetEditorBase {
         let mut frame = egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 0 })
-            .fill(Self::window_bg_color(wc, self.id));
+            .fill(self.title_bg_color(wc, self.id));
         if self.open && ! matches!(self.maximized_state, MaximizedState::Normal) {
             frame = frame.corner_radius(0.0);
             let (win_rect, constrain_rect) = match self.maximized_state {
@@ -288,7 +288,7 @@ impl AssetEditorBase {
                 .constrain_to(constrain_rect)
                 .collapsible(false)
                 .title_bar(false)
-                .open(&mut self.open)
+                .open(open)
         } else {
             egui::Window::new(title)
                 .id(self.egui_id)
@@ -300,7 +300,7 @@ impl AssetEditorBase {
                 .constrain_to(wc.window_space)
                 .collapsible(false)
                 .title_bar(false)
-                .open(&mut self.open)
+                .open(open)
         }
     }
 

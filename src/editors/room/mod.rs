@@ -110,11 +110,11 @@ impl RoomEditor {
     pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, is_dirty: bool) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
-        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, room.asset.id));
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, room.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if is_dirty { " (modified)" } else { "" };
+            let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!(
                 "{} bytes [maps: {}, triggers: {}]{}",
                 room.data_size(),
@@ -128,10 +128,8 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
-        let is_dirty = self.base.is_dirty();
-        let title = self.base.window_title(room);
-        self.base.show_window(wc, &title, [400.0, 300.0], [600.0, 400.0], |ui, wc| {
-            Self::show_footer(ui, wc, room, is_dirty);
+        self.base.show_window(wc, room, [400.0, 300.0], [600.0, 400.0], |ui, wc, room, base| {
+            Self::show_footer(ui, wc, room, base);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
     }

@@ -51,11 +51,11 @@ impl SpriteAnimationEditor {
         }
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, animation: &SpriteAnimation, is_dirty: bool) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, animation: &SpriteAnimation, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
-        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, animation.asset.id));
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, animation.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", animation.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if is_dirty { " (modified)" } else { "" };
+            let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let num_loops = animation.loops.iter().fold(0, |n, aloop| {
                 n + if aloop.frame_indices.is_empty() { 0 } else { 1 }
             });
@@ -66,10 +66,8 @@ impl SpriteAnimationEditor {
     pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
-        let is_dirty = self.base.is_dirty();
-        let title = self.base.window_title(animation);
-        self.base.show_window(wc, &title, [450.0, 400.0], [500.0, 400.0], |ui, wc| {
-            Self::show_footer(ui, wc, animation, is_dirty);
+        self.base.show_window(wc, animation, [450.0, 400.0], [500.0, 400.0], |ui, wc, animation, base| {
+            Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
     }

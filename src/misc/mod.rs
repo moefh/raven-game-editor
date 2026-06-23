@@ -5,7 +5,7 @@ pub mod wav_utils;
 pub mod reader;
 pub mod writer;
 
-pub use image_table::{IMAGES, IMAGE_REFS, STATIC_IMAGES, ImageRef, get_asset_type_image};
+pub use image_table::{IMAGES, IMAGE_REFS, STATIC_IMAGES, get_asset_type_image};
 
 pub fn calc_hash(h: &impl std::hash::Hash) -> u64 {
     use std::hash::Hasher;

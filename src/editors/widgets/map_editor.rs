@@ -805,14 +805,12 @@ impl MapEditorWidget {
 
         let keys_pressed = ui.ctx().input(|i| i.modifiers);
 
-        // check hover
-        if response.contains_pointer() && response.hovered() {
-            if keys_pressed.alt {
-                if response.dragged() {
-                    response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
-                } else {
-                    response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
-                }
+        // set move cursor if ALT is pressed
+        if response.contains_pointer() && response.hovered() && keys_pressed.alt {
+            if response.dragged() {
+                response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+            } else {
+                response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
             }
         }
 

@@ -30,10 +30,10 @@ impl MapDataEditor {
         self.editor.map_editor.drop_selection(map_data);
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, map_data: &MapData, editor: &Editor, is_dirty: bool) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, map_data: &MapData, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
-        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, map_data.asset.id));
-        let dirty = if is_dirty { " (modified)" } else { "" };
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, map_data.asset.id));
+        let dirty = if base.is_dirty() { " (modified)" } else { "" };
         egui::Panel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!(
@@ -65,10 +65,8 @@ impl MapDataEditor {
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
-        let is_dirty = self.base.is_dirty();
-        let title = self.base.window_title(map_data);
-        self.base.show_window(wc, &title, min_size, def_size, |ui, wc| {
-            Self::show_footer(ui, wc, map_data, &self.editor, is_dirty);
+        self.base.show_window(wc, map_data, min_size, def_size, |ui, wc, map_data, base| {
+            Self::show_footer(ui, wc, &self.editor, map_data, base);
             self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
         });
     }

@@ -51,11 +51,11 @@ impl TilesetEditor {
         self.editor.image_editor.drop_selection(tileset);
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, tileset: &Tileset, is_dirty: bool) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, base: &AssetEditorBase, tileset: &Tileset) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
-        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, tileset.asset.id));
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, tileset.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if is_dirty { " (modified)" } else { "" };
+            let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
         });
     }
@@ -63,11 +63,9 @@ impl TilesetEditor {
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
         self.dialogs.show(wc, &mut self.editor, tileset, maps);
 
-        let is_dirty = self.base.is_dirty();
-        let title = self.base.window_title(tileset);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
-        self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
-            Self::show_footer(ui, wc, tileset, is_dirty);
+        self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
+            Self::show_footer(ui, wc, base, tileset);
             self.editor.show(ui, wc, &mut self.dialogs, tileset);
         });
     }

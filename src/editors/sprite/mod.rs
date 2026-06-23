@@ -45,11 +45,11 @@ impl SpriteEditor {
         self.editor.image_editor.drop_selection(sprite);
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, sprite: &Sprite, is_dirty: bool) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, sprite: &Sprite, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
-        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(AssetEditorBase::window_bg_color(wc, sprite.asset.id));
+        let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, sprite.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", sprite.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if is_dirty { " (modified)" } else { "" };
+            let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
             ui.label(format!("{} bytes [{}x{}, {} frame{}]{}",
                              sprite.data_size(), sprite.width, sprite.height, sprite.num_frames, frames_plural, dirty));
@@ -59,11 +59,9 @@ impl SpriteEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         self.dialogs.show(wc, &mut self.editor, sprite);
 
-        let is_dirty = self.base.is_dirty();
-        let title = self.base.window_title(sprite);
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
-        self.base.show_window(wc, &title, min_size, default_size, |ui, wc| {
-            Self::show_footer(ui, wc, sprite, is_dirty);
+        self.base.show_window(wc, sprite, min_size, default_size, |ui, wc, sprite, base| {
+            Self::show_footer(ui, wc, sprite, base);
             self.editor.show(ui, wc, &mut self.dialogs, sprite);
         });
     }
