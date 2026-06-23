@@ -20,9 +20,24 @@ use crate::data_asset::{DataAssetStore, DataAssetId};
 
 pub use asset_problem::{AssetProblem, MapLayer};
 
+pub struct MergedSample {
+    pub saved_size: usize,
+
+    // MOD sample that was merged:
+    pub merged_mod_id: DataAssetId,
+    pub merged_sample_index: usize,
+
+    // MOD sample it was merged to (whose data will be used):
+    pub data_mod_id: DataAssetId,
+    pub data_sample_index: usize,
+}
+
 pub struct CheckResult {
     pub timestamp: String,
     pub asset_problems: BTreeMap<DataAssetId, Vec<AssetProblem>>,
+    pub merged_samples: Vec<MergedSample>,
+    pub merged_samples_saved_size: usize,
+    pub data_size: usize,
 }
 
 impl CheckResult {
@@ -41,9 +56,16 @@ impl CheckResult {
         mod_data::check_mods(&mut asset_problems, store);
         room::check_rooms(&mut asset_problems, store);
 
+        let merged_samples = mod_data::check_merged_samples(store);
+        let merged_samples_saved_size = merged_samples.iter().fold(0, |sum, m| sum + m.saved_size);
+        let data_size = store.assets.data_size() - merged_samples_saved_size;
+
         CheckResult {
             timestamp,
             asset_problems,
+            merged_samples,
+            merged_samples_saved_size,
+            data_size,
         }
     }
 

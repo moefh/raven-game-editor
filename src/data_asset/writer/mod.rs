@@ -45,6 +45,7 @@ pub struct ProjectDataWriter<'a> {
     store: &'a DataAssetStore,
     ident: IdentStore,
     animation_info: HashMap<DataAssetId, AnimationInfo>,
+    merge_sample_saved_size: usize,
 }
 
 impl<'a> ProjectDataWriter<'a> {
@@ -55,6 +56,7 @@ impl<'a> ProjectDataWriter<'a> {
             store,
             ident: IdentStore::new(&store.project_prefix),
             animation_info: HashMap::new(),
+            merge_sample_saved_size: 0,
         }
     }
 
@@ -102,7 +104,9 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     fn write_footer(&self) -> Result<()> {
-        self.write(format!("// total data size: {} bytes\n", self.store.assets.data_size()));
+        let total_size = self.store.assets.data_size() - self.merge_sample_saved_size;
+        self.write(format!("// total data size: {} bytes\n", total_size));
+        self.log(format!("-> TOTAL data size: {} bytes ({} saved by sample merging)", total_size, self.merge_sample_saved_size));
         Ok(())
     }
 
@@ -327,24 +331,8 @@ impl<'a> ProjectDataWriter<'a> {
     // === MOD
     // =========================================================================
 
-    fn are_mod_samples_equal(sample1: &super::ModSample, sample2: &super::ModSample) -> bool {
-        if sample1.len == 0 || sample1.len != sample2.len {
-            return false;
-        }
-        if let Some(data1) = &sample1.data && let Some(data2) = &sample2.data {
-            for (s1, s2) in data1.iter().zip(data2.iter()) {
-                if s1 != s2 {
-                    return false;
-                }
-            }
-            true
-        } else {
-            false
-        }
-    }
-
     // build the references for each
-    fn get_mod_sample_refs(&self) -> HashMap<DataAssetId,Vec<ModSampleRef>> {
+    fn get_mod_sample_refs(&mut self) -> HashMap<DataAssetId,Vec<ModSampleRef>> {
         let mod_ids: Vec::<DataAssetId> = self.store.asset_ids.mods.iter().copied().collect();
 
         let mut all_samples = HashMap::new();
@@ -366,7 +354,7 @@ impl<'a> ProjectDataWriter<'a> {
                             if sample1.len == 0 || sample1.data.is_none() { continue; }
                             for (sample2_index, sample2) in mod2_data.samples.iter().enumerate() {
                                 if sample2.len == 0 || sample2.data.is_none() { continue; }
-                                if Self::are_mod_samples_equal(sample1, sample2) {
+                                if super::ModData::are_mod_samples_equal(sample1, sample2) {
                                     self.log(format!("-> merging mod samples: (mod{}:sample{}) to (mod{}:sample{})",
                                                      mod2_index+1, sample2_index+1, mod1_index+1, sample1_index+1));
                                     if let Some(mod2_samples) = all_samples.get_mut(mod2_id) {
@@ -374,6 +362,7 @@ impl<'a> ProjectDataWriter<'a> {
                                             mod_id: *mod1_id,
                                             sample_index: sample1_index,
                                         };
+                                        self.merge_sample_saved_size += (sample2.len * (sample2.bits_per_sample/8) as u32) as usize;
                                     }
                                 }
                             }
@@ -458,7 +447,7 @@ impl<'a> ProjectDataWriter<'a> {
         Ok(())
     }
 
-    fn write_mods(&self) -> Result<()> {
+    fn write_mods(&mut self) -> Result<()> {
         self.write("// ================================================================\n");
         self.write("// === MOD\n");
         self.write("// ================================================================\n");
@@ -1214,7 +1203,6 @@ impl<'a> ProjectDataWriter<'a> {
 
         let writer = ProjectDataWriter::new(store, logger);
         let content = writer.serialize()?;
-        //write_file(filename.as_ref(), &content);
         let tmp_filename = filename.as_ref().with_extension("h-tmp");
         match write_tmp_file(&tmp_filename, &content) {
             Ok(_) => {

@@ -47,6 +47,22 @@ impl ModData {
         }
     }
 
+    pub fn are_mod_samples_equal(sample1: &ModSample, sample2: &ModSample) -> bool {
+        if sample1.len == 0 || sample1.len != sample2.len || sample1.bits_per_sample != sample2.bits_per_sample {
+            return false;
+        }
+        if let Some(data1) = &sample1.data && let Some(data2) = &sample2.data {
+            for (s1, s2) in data1.iter().zip(data2.iter()) {
+                if s1 != s2 {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn get_note_period(note: i32, octave: i32) -> u16 {
         let index = (octave * 12 + note) as usize;
         if index >= MOD_PERIOD_TABLE.len() {
@@ -138,7 +154,7 @@ impl super::GenericAsset for ModData {
         let patterns = self.pattern.len() * cell_header;
 
         // samples:
-        let samples = self.samples.iter().fold(0, |acc, s| acc + s.len as usize);
+        let samples = self.samples.iter().fold(0, |acc, s| acc + (s.len * (s.bits_per_sample as u32 / 8)) as usize);
 
         header + patterns + samples
     }

@@ -5,6 +5,34 @@ use crate::data_asset::MOD_PERIOD_TABLE;
 
 use super::AssetProblem;
 
+pub fn check_merged_samples(store: &DataAssetStore) -> Vec<super::MergedSample> {
+    let mut merged_samples = Vec::new();
+    for (mod1_index, mod1_id) in store.asset_ids.mods.iter().enumerate() {
+        if let Some(mod1_data) = store.assets.mods.get(mod1_id) {
+            for mod2_id in store.asset_ids.mods.iter().skip(mod1_index+1) {
+                if let Some(mod2_data) = store.assets.mods.get(mod2_id) {
+                    for (sample1_index, sample1) in mod1_data.samples.iter().enumerate() {
+                        if sample1.len == 0 || sample1.data.is_none() { continue; }
+                        for (sample2_index, sample2) in mod2_data.samples.iter().enumerate() {
+                            if sample2.len == 0 || sample2.data.is_none() { continue; }
+                            if ModData::are_mod_samples_equal(sample1, sample2) {
+                                merged_samples.push(super::MergedSample {
+                                    saved_size: (sample2.len * (sample2.bits_per_sample/8) as u32) as usize,
+                                    merged_mod_id: *mod2_id,
+                                    merged_sample_index: sample2_index,
+                                    data_mod_id: *mod1_id,
+                                    data_sample_index: sample1_index,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    merged_samples
+}
+
 // Return None if the period exactly matches a period in the MOD
 // table, or Some(the next nearest period in the table).
 fn get_next_nearest_mod_period(period: u16) -> Option<u16> {

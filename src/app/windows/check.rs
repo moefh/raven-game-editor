@@ -35,9 +35,9 @@ impl CheckWindow {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
                     if let Some(result) = &self.result {
-                        ui.label(format!("[{}]", result.timestamp));
                         let num_assets = result.num_assets_checked();
                         let num_assets_with_problems = result.num_assets_with_problems();
+                        ui.label(format!("[{}] {}", result.timestamp, if num_assets_with_problems > 0 { "PROBLEMS DETECTED" } else { "OK" }));
                         if num_assets_with_problems > 0 {
                             ui.label("=== PROBLEMS FOUND =========================================");
                             for (asset_id, problems) in &result.asset_problems {
@@ -60,6 +60,28 @@ impl CheckWindow {
                             }
                             ui.label("============================================================");
                         }
+
+                        if result.merged_samples.is_empty() {
+                            ui.label(format!("-> data size: {} bytes", result.data_size));
+                        } else {
+                            ui.label(format!("-> MOD samples will be merged:"));
+                            for merge in result.merged_samples.iter() {
+                                if let Some(merged_mod) = store.assets.mods.get(&merge.merged_mod_id) &&
+                                    let Some(data_mod) = store.assets.mods.get(&merge.data_mod_id) {
+                                        ui.label(format!(
+                                            "   {}.sample{} to {}.sample{} ({} bytes saved)",
+                                            merged_mod.asset.name, merge.merged_sample_index+1,
+                                            data_mod.asset.name, merge.data_sample_index+1,
+                                            merge.saved_size,
+                                        ));
+                                    } else {
+                                        ui.label("   (error fetching data)");
+                                    }
+                            }
+                            ui.label(format!("-> data size: {} bytes ({} bytes saved by sample merging)",
+                                             result.data_size, result.merged_samples_saved_size));
+                        }
+
                         ui.label(format!("DONE: {}/{} assets ok", num_assets - num_assets_with_problems, num_assets));
                     } else {
                         ui.label("(Press F5 to check)");
