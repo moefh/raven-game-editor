@@ -295,8 +295,8 @@ impl Editor {
 
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
-                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|z| **z == self.map_editor.zoom) {
-                            &format!("{:3.1}x", zoom)
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.map_editor.zoom) {
+                            &format!("{:3.2}x", zoom)
                         } else {
                             "custom"
                         };
@@ -305,7 +305,7 @@ impl Editor {
                             .width(60.0)
                             .show_ui(ui, |ui| {
                                 for zoom in ZOOM_OPTIONS {
-                                    ui.selectable_value(&mut self.map_editor.zoom, *zoom, format!("{:3.1}x", zoom));
+                                    ui.selectable_value(&mut self.map_editor.zoom, *zoom, format!("{:3.2}x", zoom));
                                 }
                             });
                         ui.add_space(1.0);

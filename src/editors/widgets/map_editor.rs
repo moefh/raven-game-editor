@@ -156,7 +156,7 @@ impl MapEditorWidget {
     const HEAVY_LAYER_TINT: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 128);
 
     pub fn new() -> Self {
-        let zoom = 1.0;
+        let zoom = 0.75;
         MapEditorWidget {
             zoom,
             scroll: Vec2::ZERO,
