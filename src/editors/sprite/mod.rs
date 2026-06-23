@@ -45,14 +45,28 @@ impl SpriteEditor {
         self.editor.image_editor.drop_selection(sprite);
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, sprite: &Sprite, base: &AssetEditorBase) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, sprite: &Sprite, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, sprite.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", sprite.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
-            ui.label(format!("{} bytes [{}x{}, {} frame{}]{}",
-                             sprite.data_size(), sprite.width, sprite.height, sprite.num_frames, frames_plural, dirty));
+            ui.horizontal(|ui| {
+                let dirty = if base.is_dirty() { " (modified)" } else { "" };
+                let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
+                ui.label(format!("{} bytes [{}x{}, {} frame{}]{}",
+                                 sprite.data_size(), sprite.width, sprite.height, sprite.num_frames, frames_plural, dirty));
+
+                if let Some(sprite) = editor.image_picker.get_selected_image() {
+                    ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                        ui.horizontal(|ui| {
+                            let spacing = ui.spacing().item_spacing;
+                            ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                            ui.add_space(1.0);
+                            ui.label(format!("sprite {}", sprite));
+                            ui.spacing_mut().item_spacing = spacing;
+                        });
+                    });
+                }
+            });
         });
     }
 
@@ -61,7 +75,7 @@ impl SpriteEditor {
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(sprite);
         self.base.show_window(wc, sprite, min_size, default_size, |ui, wc, sprite, base| {
-            Self::show_footer(ui, wc, sprite, base);
+            Self::show_footer(ui, wc, &self.editor, sprite, base);
             self.editor.show(ui, wc, &mut self.dialogs, sprite);
         });
     }

@@ -51,12 +51,26 @@ impl TilesetEditor {
         self.editor.image_editor.drop_selection(tileset);
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, base: &AssetEditorBase, tileset: &Tileset) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, base: &AssetEditorBase, tileset: &Tileset) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, tileset.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
-            let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
+            ui.horizontal(|ui| {
+                let dirty = if base.is_dirty() { " (modified)" } else { "" };
+                ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
+
+                if let Some(tile) = editor.image_picker.get_selected_image() {
+                    ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                        ui.horizontal(|ui| {
+                            let spacing = ui.spacing().item_spacing;
+                            ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                            ui.add_space(1.0);
+                            ui.label(format!("tile {}", tile));
+                            ui.spacing_mut().item_spacing = spacing;
+                        });
+                    });
+                }
+            });
         });
     }
 
@@ -65,7 +79,7 @@ impl TilesetEditor {
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
         self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
-            Self::show_footer(ui, wc, base, tileset);
+            Self::show_footer(ui, wc, &self.editor, base, tileset);
             self.editor.show(ui, wc, &mut self.dialogs, tileset);
         });
     }

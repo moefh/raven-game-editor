@@ -66,7 +66,7 @@ impl SpriteAnimationEditor {
     pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
-        self.base.show_window(wc, animation, [450.0, 400.0], [500.0, 400.0], |ui, wc, animation, base| {
+        self.base.show_window(wc, animation, [500.0, 400.0], [500.0, 400.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
@@ -206,6 +206,16 @@ impl Editor {
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
+
+                if let Some(image_item) = animation.loops.get(self.selected_loop)
+                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
+                    .and_then(|frame| frame.head_index) {
+                        ui.label(format!("Frame {}", image_item));
+                    }
+
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
 
                 ui.label("Collision: (");
                 let max_x = (animation.clip_rect.x + animation.clip_rect.w).max(0);
