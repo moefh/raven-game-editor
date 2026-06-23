@@ -53,6 +53,17 @@ impl GridAlign {
     }
 }
 
+struct ScreenPos {
+    x: u16,
+    y: u16,
+}
+
+impl ScreenPos {
+    fn get_rect(&self) -> Rect {
+        egui::Rect::from_min_size(egui::Pos2::new(self.x as f32, self.y as f32), SCREEN_SIZE)
+    }
+}
+
 struct TriggerPos {
     x: i32,
     y: i32,
@@ -163,7 +174,7 @@ pub struct RoomEditorWidget {
     pub scroll: Vec2,
     pub lock_maps: bool,
     pub show_screen: bool,
-    screen_item: RoomItemRef,
+    screen_pos: ScreenPos,
     selected_item_changed: bool,
     selected_item: RoomItemRef,
     resize_border: Option<RectBorder>,
@@ -182,7 +193,7 @@ impl RoomEditorWidget {
             selected_item_changed: false,
             lock_maps: true,
             show_screen: false,
-            screen_item: RoomItemRef::Screen { x: 0, y: 0 },
+            screen_pos: ScreenPos { x: 0, y: 0 },
             resize_border: None,
             dragging_item: false,
             drag_item_origin: Pos2::ZERO,
@@ -245,16 +256,12 @@ impl RoomEditorWidget {
         TriggerRect::from_trigger(trigger, assets).egui_rect()
     }
 
-    fn get_screen_rect(x: u16, y: u16) -> Rect {
-        egui::Rect::from_min_size(egui::Pos2::new(x as f32, y as f32), SCREEN_SIZE)
-    }
-
-    fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
+    fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists, screen_pos: &ScreenPos) -> Option<Rect> {
         match item {
             RoomItemRef::None => None,
 
-            RoomItemRef::Screen { x, y } => {
-                Some(Self::get_screen_rect(x, y))
+            RoomItemRef::Screen => {
+                Some(screen_pos.get_rect())
             }
 
             RoomItemRef::Map(map_index) => {
@@ -270,13 +277,14 @@ impl RoomEditorWidget {
         }
     }
 
-    fn move_item(item: &mut RoomItemRef, pos: Pos2, room: &mut Room, lock_maps: bool, grid: &GridAlign) -> Option<bool> {
+    fn move_item(item: &mut RoomItemRef, pos: Pos2, room: &mut Room, screen_pos: &mut ScreenPos,
+                 lock_maps: bool, grid: &GridAlign) -> Option<bool> {
         match item {
             RoomItemRef::None => { None }
 
-            RoomItemRef::Screen { x, y } => {
-                *x = pos.x.round().clamp(0.0, u16::MAX as f32) as u16;
-                *y = pos.y.round().clamp(0.0, u16::MAX as f32) as u16;
+            RoomItemRef::Screen => {
+                screen_pos.x = pos.x.round().clamp(0.0, u16::MAX as f32) as u16;
+                screen_pos.y = pos.y.round().clamp(0.0, u16::MAX as f32) as u16;
                 Some(true)
             }
 
@@ -381,11 +389,7 @@ impl RoomEditorWidget {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        let moved = Self::move_item(&mut self.selected_item, new_pos, room, self.lock_maps, &self.grid).unwrap_or(false);
-        if moved && self.selected_item.is_screen() {
-            self.screen_item = self.selected_item;
-        }
-        moved
+        Self::move_item(&mut self.selected_item, new_pos, room, &mut self.screen_pos, self.lock_maps, &self.grid).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {
@@ -436,14 +440,14 @@ impl RoomEditorWidget {
             resp.dragged_by(egui::PointerButton::Primary) &&
             self.selected_item.is_trigger() &&
             let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) &&
-            let Some(rect) = Self::get_item_rect(self.selected_item, room, assets) {
+            let Some(rect) = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos) {
                 self.resize_start(border, rect, mouse_pos);
                 return;
             }
 
         // click/drag selected trigger
         if self.selected_item.is_trigger() {
-            let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
@@ -453,8 +457,8 @@ impl RoomEditorWidget {
         }
 
         // click/drag selected screen
-        if self.show_screen && let RoomItemRef::Screen { x, y } = self.selected_item {
-            let rect = Self::get_screen_rect(x, y);
+        if self.show_screen && self.selected_item.is_screen() {
+            let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
@@ -466,7 +470,7 @@ impl RoomEditorWidget {
         // click/drag trigger under the cursor
         for index in 0..room.triggers.len() {
             let item = RoomItemRef::Trigger(index);
-            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item);
                 if resp.drag_started() {
@@ -476,11 +480,11 @@ impl RoomEditorWidget {
             }
         }
 
-        // click/drag screen rect
-        if self.show_screen && let RoomItemRef::Screen { x, y } = self.screen_item {
-            let rect = Self::get_screen_rect(x, y);
+        // click/drag screen
+        if self.show_screen {
+            let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.set_selected_item(self.screen_item);
+                self.set_selected_item(RoomItemRef::Screen);
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
                 }
@@ -490,7 +494,7 @@ impl RoomEditorWidget {
 
         // click/drag selected map
         if self.selected_item.is_map() {
-            let rect = Self::get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
@@ -502,7 +506,7 @@ impl RoomEditorWidget {
         // click/drag map under the cursor
         for index in 0..room.maps.len() {
             let item = RoomItemRef::Map(index);
-            let rect = Self::get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
+            let rect = Self::get_item_rect(item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item);
                 if resp.drag_started() {
@@ -652,8 +656,8 @@ impl RoomEditorWidget {
         }
 
         // draw screen rect
-        if self.show_screen && let RoomItemRef::Screen { x, y } = self.screen_item {
-            let rect = Self::get_screen_rect(x, y);
+        if self.show_screen {
+            let rect = self.screen_pos.get_rect();
             if self.selected_item.is_screen() {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             } else {

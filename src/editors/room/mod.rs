@@ -50,7 +50,7 @@ impl<'a> RoomEditorAssetLists<'a> {
 #[derive(Clone, Copy, Debug)]
 pub enum RoomItemRef {
     None,
-    Screen { x: u16, y: u16 },
+    Screen,
     Map(usize),
     Trigger(usize),
 }
@@ -66,7 +66,7 @@ impl RoomItemRef {
     }
 
     pub fn is_screen(&self) -> bool {
-        matches!(self, RoomItemRef::Screen {..})
+        matches!(self, RoomItemRef::Screen)
     }
 
     pub fn is_map(&self) -> bool {
@@ -463,7 +463,7 @@ impl Editor {
 
     fn show_item_properties(&self, ui: &mut egui::Ui, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         match self.room_editor.get_selected_item() {
-            RoomItemRef::None | RoomItemRef::Screen {..} => {}
+            RoomItemRef::None | RoomItemRef::Screen => {}
             RoomItemRef::Map(map_index) => { self.show_map_properties(ui, map_index, room, assets.maps); },
             RoomItemRef::Trigger(trg_index) => { self.show_trigger_properties(ui, trg_index, room, asset_ids, assets); },
         }
