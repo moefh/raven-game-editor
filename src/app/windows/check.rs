@@ -64,7 +64,7 @@ impl CheckWindow {
                         if result.merged_samples.is_empty() {
                             ui.label(format!("-> data size: {} bytes", result.data_size));
                         } else {
-                            ui.label(format!("-> MOD samples will be merged:"));
+                            ui.label("-> MOD samples will be merged:");
                             for merge in result.merged_samples.iter() {
                                 if let Some(merged_mod) = store.assets.mods.get(&merge.merged_mod_id) &&
                                     let Some(data_mod) = store.assets.mods.get(&merge.data_mod_id) {
