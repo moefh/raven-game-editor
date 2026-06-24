@@ -330,7 +330,7 @@ impl Editor {
         }).body(|ui| {
             egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
                 .num_columns(2)
-                .spacing([8.0, 8.0])
+                .spacing([8.0, 2.0])
                 .show(ui, |ui| {
                     ui.label("Map:");
                     ui.label(map_name);
@@ -358,7 +358,7 @@ impl Editor {
         }).body(|ui| {
             egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
                 .num_columns(2)
-                .spacing([8.0, 8.0])
+                .spacing([8.0, 2.0])
                 .show(ui, |ui| {
                     ui.label("Name:");
                     ui.text_edit_singleline(&mut trigger.name_id);
