@@ -146,12 +146,15 @@ impl Editor {
         }
     }
 
-    fn add_region(&self, world: &mut World) {
+    fn add_region(&mut self, world: &mut World) {
+        let region_index  = world.regions.len();
         world.regions.push(WorldRegion::new("new_region", 0, 0, 16, 8));
+        self.select_region(world, region_index);
     }
 
-    fn remove_region(&self, world: &mut World, region_index: usize) {
+    fn remove_region(&mut self, world: &mut World, region_index: usize) {
         world.regions.remove(region_index);
+        self.world_editor.ensure_room_selection_is_valid(world);
     }
 
     fn select_region(&mut self, world: &World, region_index: usize) {
@@ -177,6 +180,14 @@ impl Editor {
                 });
 
                 ui.menu_button("Edit", |ui| {
+                    ui.horizontal(|ui| {
+                        if self.world_editor.get_selected_region().is_none() { ui.disable(); }
+                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
+                        if ui.button("Region properties...").clicked() &&
+                            let Some(region_index) = self.world_editor.get_selected_region() {
+                                dialogs.region_properties_dialog.set_open(wc, world, region_index);
+                            }
+                    });
                     ui.horizontal(|ui| {
                         if self.world_editor.get_selected_region().is_none() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.room).max_width(14.0).max_height(14.0));
