@@ -198,6 +198,25 @@ struct $<PREFIX>_ROOM {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_ROOM */
 
+#ifndef $<PREFIX>_SKIP_STRUCTS_WORLD
+
+struct $<PREFIX>_WORLD_REGION {
+    uint8_t x;
+    uint8_t y;
+    uint8_t width;
+    uint8_t height;
+    uint8_t *blocks;
+    uint16_t *room_indices;
+    uint32_t *block_bitmap;
+};
+
+struct $<PREFIX>_WORLD {
+    uint16_t num_regions;
+    const struct $<PREFIX>_WORLD_REGION *regions;
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_WORLD */
+
 #ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
 
 struct $<PREFIX>_STATE;

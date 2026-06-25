@@ -5,6 +5,7 @@ mod pal_sprite;
 mod sprite;
 mod sprite_animation;
 mod room;
+mod world;
 mod sfx;
 mod mod_data;
 mod font;
@@ -53,6 +54,8 @@ const C_STRUCT_NAMES : &[&str] = &[
     "ROOM_MAP_INFO",
     "ROOM_TRIGGER_INFO",
     "ROOM",
+    "WORLD_REGION",
+    "WORLD",
 ];
 
 static RE_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
@@ -199,6 +202,10 @@ pub struct ReadData {
     animation_frames: HashMap<String,Vec<u8>>,
     room_maps: HashMap<String,Vec<room::MapCreationData>>,
     room_triggers: HashMap<String,Vec<room::TriggerCreationData>>,
+    world_block_bitmap_data: HashMap<String,Vec<u32>>,
+    world_blocks_data: HashMap<String,Vec<u8>>,
+    world_room_indices_data: HashMap<String,Vec<u16>>,
+    world_regions: HashMap<String,Vec<world::RegionCreationData>>,
 
     // assets by index
     fonts: Vec<font::CreationData>,
@@ -211,6 +218,7 @@ pub struct ReadData {
     maps: Vec<map_data::CreationData>,
     animations: Vec<sprite_animation::CreationData>,
     rooms: Vec<room::CreationData>,
+    worlds: Vec<world::CreationData>,
 
     // assets by name
     fonts_by_name: HashMap<String, usize>,
@@ -223,9 +231,55 @@ pub struct ReadData {
     maps_by_name: HashMap<String, usize>,
     animations_by_name: HashMap<String, usize>,
     rooms_by_name: HashMap<String, usize>,
+    worlds_by_name: HashMap<String, usize>,
 }
 
 impl ReadData {
+    fn new() -> Self {
+        ReadData {
+            font_data: HashMap::new(),
+            prop_font_data: HashMap::new(),
+            mod_sample_data: HashMap::new(),
+            mod_patterns: HashMap::new(),
+            sfx_sample_data: HashMap::new(),
+            tileset_data: HashMap::new(),
+            sprite_data: HashMap::new(),
+            pal_sprite_data: HashMap::new(),
+            map_tiles: HashMap::new(),
+            animation_frames: HashMap::new(),
+            room_maps: HashMap::new(),
+            room_triggers: HashMap::new(),
+            world_block_bitmap_data: HashMap::new(),
+            world_blocks_data: HashMap::new(),
+            world_room_indices_data: HashMap::new(),
+            world_regions: HashMap::new(),
+
+            fonts: Vec::new(),
+            prop_fonts: Vec::new(),
+            mods: Vec::new(),
+            sfxs: Vec::new(),
+            tilesets: Vec::new(),
+            sprites: Vec::new(),
+            pal_sprites: Vec::new(),
+            maps: Vec::new(),
+            animations: Vec::new(),
+            rooms: Vec::new(),
+            worlds: Vec::new(),
+
+            fonts_by_name: HashMap::new(),
+            prop_fonts_by_name: HashMap::new(),
+            mods_by_name: HashMap::new(),
+            sfxs_by_name: HashMap::new(),
+            tilesets_by_name: HashMap::new(),
+            sprites_by_name: HashMap::new(),
+            pal_sprites_by_name: HashMap::new(),
+            maps_by_name: HashMap::new(),
+            animations_by_name: HashMap::new(),
+            rooms_by_name: HashMap::new(),
+            worlds_by_name: HashMap::new(),
+        }
+    }
+
     fn add_tileset(&mut self, data: tileset::CreationData) -> usize {
         let name = data.name.clone();
         let index = self.tilesets.len();
@@ -271,6 +325,14 @@ impl ReadData {
         let index = self.rooms.len();
         self.rooms.push(data);
         self.rooms_by_name.insert(name, index);
+        index
+    }
+
+    fn add_world(&mut self, data: world::CreationData) -> usize {
+        let name = data.name.clone();
+        let index = self.worlds.len();
+        self.worlds.push(data);
+        self.worlds_by_name.insert(name, index);
         index
     }
 
@@ -337,7 +399,6 @@ fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
                                      found.pos.line, expected.as_ref(), found)))
 }
 
-#[allow(dead_code)]
 impl<'a> ProjectDataReader<'a> {
     fn new(source: &'a str, logger: &'a mut StringLogger) -> Self {
         ProjectDataReader {
@@ -354,43 +415,7 @@ impl<'a> ProjectDataReader<'a> {
             vga_sync_bits: 0xc0,
             vga_bits_per_pixel: 6,
             got_prefix: false,
-
-            data: ReadData {
-                font_data: HashMap::new(),
-                prop_font_data: HashMap::new(),
-                mod_sample_data: HashMap::new(),
-                mod_patterns: HashMap::new(),
-                sfx_sample_data: HashMap::new(),
-                tileset_data: HashMap::new(),
-                sprite_data: HashMap::new(),
-                pal_sprite_data: HashMap::new(),
-                map_tiles: HashMap::new(),
-                animation_frames: HashMap::new(),
-                room_maps: HashMap::new(),
-                room_triggers: HashMap::new(),
-
-                fonts: Vec::new(),
-                prop_fonts: Vec::new(),
-                mods: Vec::new(),
-                sfxs: Vec::new(),
-                tilesets: Vec::new(),
-                sprites: Vec::new(),
-                pal_sprites: Vec::new(),
-                maps: Vec::new(),
-                animations: Vec::new(),
-                rooms: Vec::new(),
-
-                fonts_by_name: HashMap::new(),
-                prop_fonts_by_name: HashMap::new(),
-                mods_by_name: HashMap::new(),
-                sfxs_by_name: HashMap::new(),
-                tilesets_by_name: HashMap::new(),
-                sprites_by_name: HashMap::new(),
-                pal_sprites_by_name: HashMap::new(),
-                maps_by_name: HashMap::new(),
-                animations_by_name: HashMap::new(),
-                rooms_by_name: HashMap::new(),
-            },
+            data: ReadData::new(),
         }
     }
 
@@ -434,14 +459,6 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
-    fn expect_ident(&mut self, id: &str) -> Result<Token> {
-        let t = self.tok.read()?;
-        if t.is_ident(id) {
-            return Ok(t)
-        }
-        error(format!("expected '{}', found '{}'", id, t), t.pos)?
-    }
-
     fn expect_any_ident(&mut self, expected: &str) -> Result<Token> {
         let t = self.tok.read()?;
         if t.is_any_ident() {
@@ -461,14 +478,6 @@ impl<'a> ProjectDataReader<'a> {
     fn expect_any_punct(&mut self, expected: &str) -> Result<Token> {
         let t = self.tok.read()?;
         if t.is_any_punct() {
-            return Ok(t)
-        }
-        error(format!("expected {}, found '{}'", expected, t), t.pos)
-    }
-
-    fn expect_number(&mut self, expected: &str) -> Result<Token> {
-        let t = self.tok.read()?;
-        if t.is_any_number() {
             return Ok(t)
         }
         error(format!("expected {}, found '{}'", expected, t), t.pos)
@@ -1987,6 +1996,190 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     // =======================================================================================
+    // === WORLDS
+    // =======================================================================================
+
+    fn read_world_block_bitmap(&mut self, name_id: &str) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+
+        let data = self.read_u32_array()?;
+
+        self.expect_punct(';')?;
+
+        self.data.world_block_bitmap_data.insert(name_id.to_string(), data);
+        Ok(())
+    }
+
+    fn read_world_blocks(&mut self, name_id: &str) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+
+        let data = self.read_u8_array()?;
+
+        self.expect_punct(';')?;
+
+        self.data.world_blocks_data.insert(name_id.to_string(), data);
+        Ok(())
+    }
+
+    fn read_world_room_indices(&mut self, name_id: &str) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+
+        let data = self.read_u16_array()?;
+
+        self.expect_punct(';')?;
+
+        self.data.world_room_indices_data.insert(name_id.to_string(), data);
+        Ok(())
+    }
+
+    fn read_world_regions(&mut self, name_id: &str) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        let mut regions = Vec::<world::RegionCreationData>::new();
+        loop {
+            let t = self.expect_token()?;
+            if t.is_punct('}') { break; }
+            if ! t.is_punct('{') {
+                error_expected("'{{' or '}}'", &t)?;
+            }
+
+            let x = self.read_number()?;
+            self.expect_punct(',')?;
+            let y = self.read_number()?;
+            self.expect_punct(',')?;
+            let width = self.read_number()?;
+            self.expect_punct(',')?;
+            let height = self.read_number()?;
+            self.expect_punct(',')?;
+
+            let block_bitmap_ident = self.expect_any_ident("world region block bitmap data")?;
+            self.expect_punct(',')?;
+            let blocks_ident = self.expect_any_ident("world region blocks data")?;
+            self.expect_punct(',')?;
+            let room_indices_ident = self.expect_any_ident("world region room indices data")?;
+
+            self.expect_punct('}')?;
+            self.expect_punct(',')?;
+
+            let block_bitmap = match block_bitmap_ident.get_ident() {
+                Some(full_name_id) => {
+                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
+                        let Some(data) = self.data.world_block_bitmap_data.remove(name_id) {
+                            data
+                        } else {
+                            return error(format!("block bitmap data not found: '{}'", full_name_id), block_bitmap_ident.pos)?;
+                        }
+                }
+                None => { return error_expected("world_<...>_region_<...>_block_bitmap", &t)?; }
+            };
+
+            let blocks = match blocks_ident.get_ident() {
+                Some(full_name_id) => {
+                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
+                        let Some(data) = self.data.world_blocks_data.remove(name_id) {
+                            data
+                        } else {
+                            return error(format!("blocks data not found: '{}'", full_name_id), blocks_ident.pos)?;
+                        }
+                }
+                None => { return error_expected("world_<...>_region_<...>_blocks", &t)?; }
+            };
+
+            let room_indices = match room_indices_ident.get_ident() {
+                Some(full_name_id) => {
+                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
+                        let Some(data) = self.data.world_room_indices_data.remove(name_id) {
+                            data
+                        } else {
+                            return error(format!("room indices data not found: '{}'", full_name_id), room_indices_ident.pos)?;
+                        }
+                }
+                None => { return error_expected("world_<...>_region_<...>_room_indices", &t)?; }
+            };
+
+            if x > u8::MAX as u64 || y > u8::MAX as u64 {
+                error(format!("invalid region position: {},{}", x, y), t.pos)?;
+            }
+            if width <= 0 as u64 || width > u8::MAX as u64 || height <= 0 || height > u8::MAX as u64 {
+                error(format!("invalid region size: {},{}", width, height), t.pos)?;
+            }
+
+            regions.push(world::RegionCreationData {
+                name: String::new(),
+                x: (x & 0xff) as u8,
+                y: (y & 0xff) as u8,
+                width: (width & 0xff) as u8,
+                height: (height & 0xff) as u8,
+                block_bitmap,
+                rooms: room_indices.into_iter().map(|ri| ReaderAssetReference::new(ri as usize, room_indices_ident.pos)).collect(),
+                blocks,
+                block_pos: blocks_ident.pos,
+            });
+        }
+
+        self.data.world_regions.insert(name_id.to_string(), regions);
+        self.expect_punct(';')?;
+        Ok(())
+    }
+
+    fn read_worlds(&mut self) -> Result<()> {
+        self.expect_punct('[')?;
+        self.expect_punct(']')?;
+        self.expect_punct('=')?;
+        self.expect_punct('{')?;
+
+        self.logger.log("-> reading WORLD assets");
+        loop {
+            let t = self.expect_token()?;
+            if t.is_punct('}') { break; }
+            if ! t.is_punct('{') {
+                error_expected("'{{' or '}}'", &t)?;
+            }
+
+            let num_regions = self.read_number()?;
+            self.expect_punct(',')?;
+            let regions_ident = self.expect_any_ident("world regions")?;
+
+            self.expect_punct('}')?;
+            self.expect_punct(',')?;
+
+            let regions_name_id = match regions_ident.get_ident() {
+                Some(ident) => ident,
+                None => { return error_expected("world_regions_...", &t)?; },
+            };
+            let (name_id, regions) = if let Some(regions_name) = self.get_global_lower_of_type(regions_name_id, "world_regions") &&
+                let Some(data) = self.data.world_regions.remove(regions_name) {
+                    (regions_name, data)
+                } else {
+                    return error(format!("world regions data not found: '{}'", regions_name_id), regions_ident.pos)?;
+                };
+
+            if num_regions as usize != regions.len() {
+                return error(format!("invalid number of regions: expected {}, got {}", num_regions, regions.len()), regions_ident.pos)?;
+            }
+
+            let asset_id = self.id_generator.gen_id();
+            self.data.add_world(world::CreationData {
+                asset_id,
+                name: DataAsset::identifier_to_name(name_id),
+                regions,
+            });
+            self.logger.log(format!("  -> added WORLD '{}' id={}", name_id, asset_id));
+        }
+        self.expect_punct(';')?;
+        Ok(())
+    }
+
+    // =======================================================================================
     // === ROOM SCRIPTS
     // =======================================================================================
 
@@ -2157,6 +2350,33 @@ impl<'a> ProjectDataReader<'a> {
             return Ok(());
         }
         error(format!("unknown room enum: '{}'", ident), pos)
+    }
+
+    fn read_world_region_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
+        let (index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "WORLD", "REGION_NAMES", "REGION",
+                                                                       &self.data.worlds_by_name, pos)?;
+        let name_ids = self.read_asset_names_enum(&item_prefix)?;
+        let world = self.data.worlds.get_mut(index).ok_or_else(|| {
+            err(format!("internal error: world index {} not found", index), pos)
+        })?;
+        //self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
+        for (index, name_id) in name_ids.iter().enumerate() {
+            if let Some(reg) = world.regions.get_mut(index) {
+                //self.logger.log(format!("  -> {}", name_id));
+                reg.name.push_str(name_id);
+            } else {
+                return error(format!("world '{}' doesn't have region {}", world.name, index), pos);
+            }
+        }
+        Ok(())
+    }
+
+    fn read_world_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
+        if ident.ends_with("_REGION_NAMES") {
+            self.read_world_region_names(ident, pos)?;
+            return Ok(());
+        }
+        error(format!("unknown world enum: '{}'", ident), pos)
     }
 
     // =======================================================================================
@@ -2338,6 +2558,31 @@ impl<'a> ProjectDataReader<'a> {
                 continue;
             }
 
+            // world stuff
+            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "world_regions") {
+                self.read_world_regions(name)?;
+                continue;
+            }
+            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "world") {
+                if name.ends_with("_block_bitmap") {
+                    self.read_world_block_bitmap(name)?;
+                    continue;
+                }
+                if name.ends_with("_blocks") {
+                    self.read_world_blocks(name)?;
+                    continue;
+                }
+                if name.ends_with("_room_indices") {
+                    self.read_world_room_indices(name)?;
+                    continue;
+                }
+                error(format!("unexpected '{}'", t), t.pos)?;
+            }
+            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "worlds") {
+                self.read_worlds()?;
+                continue;
+            }
+
             if let Some(ident) = t.get_ident() {
                 // C keywords, C types and struct names
                 if C_KEYWORDS.contains(&ident) { continue; }
@@ -2370,6 +2615,10 @@ impl<'a> ProjectDataReader<'a> {
                     self.read_room_names(ident, t.pos)?;
                     continue;
                 }
+                if self.is_global_upper_of_type(ident, "WORLD") {
+                    self.read_world_names(ident, t.pos)?;
+                    continue;
+                }
             }
 
             error(format!("unexpected '{}'", t), t.pos)?;
@@ -2386,6 +2635,7 @@ impl<'a> ProjectDataReader<'a> {
         for tileset in self.data.tilesets.iter() { asset_ids.tilesets.push(tileset.asset_id); }
         for map_data in self.data.maps.iter() { asset_ids.maps.push(map_data.asset_id); }
         for room in self.data.rooms.iter() { asset_ids.rooms.push(room.asset_id); }
+        for world in self.data.worlds.iter() { asset_ids.worlds.push(world.asset_id); }
         for sprite in self.data.sprites.iter() { asset_ids.sprites.push(sprite.asset_id); }
         for pal_sprite in self.data.pal_sprites.iter() { asset_ids.pal_sprites.push(pal_sprite.asset_id); }
         for anim in self.data.animations.iter() { asset_ids.animations.push(anim.asset_id); }
@@ -2410,9 +2660,6 @@ impl<'a> ProjectDataReader<'a> {
         for anim in self.data.animations {
             assets.animations.insert(anim.asset_id, anim.into_sprite_animation(&asset_ids)?);
         }
-        for room in self.data.rooms {
-            assets.rooms.insert(room.asset_id, room.into_room(&asset_ids)?);
-        }
         for sfx in self.data.sfxs {
             assets.sfxs.insert(sfx.asset_id, sfx.into_sfx());
         }
@@ -2424,6 +2671,12 @@ impl<'a> ProjectDataReader<'a> {
         }
         for prop_font in self.data.prop_fonts {
             assets.prop_fonts.insert(prop_font.asset_id, prop_font.into_prop_font());
+        }
+        for room in self.data.rooms {
+            assets.rooms.insert(room.asset_id, room.into_room(&asset_ids)?);
+        }
+        for world in self.data.worlds {
+            assets.worlds.insert(world.asset_id, world.into_world(&asset_ids)?);
         }
 
         // name unnamed animation loops
@@ -2440,6 +2693,15 @@ impl<'a> ProjectDataReader<'a> {
             for (index, trigger) in room.triggers.iter_mut().enumerate() {
                 if trigger.name_id.is_empty() {
                     trigger.name_id = format!("trigger_{}", index);
+                }
+            }
+        }
+
+        // name unnamed world regions
+        for world in assets.worlds.iter_mut() {
+            for (index, region) in world.regions.iter_mut().enumerate() {
+                if region.name.is_empty() {
+                    region.name.push_str(&format!("region_{}", index));
                 }
             }
         }

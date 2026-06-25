@@ -825,11 +825,9 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("// ================================================================\n");
         self.write("\n");
 
-        //let mut info = HashMap::new();
         for id in self.store.asset_ids.animations.iter() {
             if let Some(anim) = self.store.assets.animations.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
-                //info.insert(*id, self.write_animation_frames(anim, name));
                 self.animation_info.insert(*id, self.write_animation_frames(anim, name_id));
             }
         }
@@ -1037,6 +1035,158 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === WORLDS
+    // =========================================================================
+
+    fn write_world_region_block_bitmap(&self, region: &super::WorldRegion, region_index: usize, world_name_id: &str) -> Result<()> {
+        self.write(format!("static const uint32_t {}_world_{}_region_{}_block_bitmap[] = {{",
+                           self.ident.prefix_lower, world_name_id, region_index));
+        let mut bits = 0;
+        let mut num_bits = 0;
+        let mut num_chunks = 0;
+        for y in 0..region.height as usize {
+            for x in 0..region.width as usize {
+                if region.blocks[y * super::WorldRegion::BLOCK_STRIDE + x].is_some() {
+                    bits |= 1 << num_bits;
+                }
+                num_bits += 1;
+                if num_bits == 32 {
+                    if num_chunks % 8 == 0 { self.write("\n    "); }
+                    self.write(format!("{:#010x},", bits));
+                    bits = 0;
+                    num_bits = 0;
+                    num_chunks += 1;
+                }
+            }
+        }
+        if num_bits != 0 {
+            if num_chunks % 8 == 0 { self.write("\n    "); }
+            self.write(format!("{:#010x},", bits));
+        }
+
+        self.write("\n};\n\n");
+        Ok(())
+    }
+
+    fn write_world_region_blocks(&self, region: &super::WorldRegion, region_index: usize, world_name_id: &str) -> Result<()> {
+        self.write(format!("static const uint8_t {}_world_{}_region_{}_blocks[] = {{",
+                           self.ident.prefix_lower, world_name_id, region_index));
+
+        let mut num_blocks_written = 0;
+        for y in 0..region.height as usize {
+            for x in 0..region.width as usize {
+                if let Some(block) = region.blocks[y * super::WorldRegion::BLOCK_STRIDE + x] {
+                    if num_blocks_written % 16 == 0 { self.write("\n    "); }
+                    self.write(format!("{:#04x},", block));
+                    num_blocks_written += 1;
+                }
+            }
+        }
+        self.write("\n};\n\n");
+        Ok(())
+    }
+
+    fn write_world_region_room_indices(&self, region: &super::WorldRegion, region_index: usize, world_name_id: &str) -> Result<()> {
+        self.write(format!("static const uint16_t {}_world_{}_region_{}_room_indices[] = {{",
+                           self.ident.prefix_lower, world_name_id, region_index));
+        for (index, &room_id) in region.rooms.iter().enumerate() {
+            if index % 16 == 0 { self.write("\n    "); }
+            let room_index = self.ident.get_asset_index(DataAssetType::Room, room_id)?;
+            self.write(format!("{},", room_index));
+        }
+        self.write("\n};\n\n");
+        Ok(())
+    }
+
+    fn write_world_regions(&self, world: &super::World, name_id: &str) -> Result<()> {
+        for (region_index, region) in world.regions.iter().enumerate() {
+            self.write_world_region_block_bitmap(region, region_index, name_id)?;
+            self.write_world_region_blocks(region, region_index, name_id)?;
+            self.write_world_region_room_indices(region, region_index, name_id)?;
+        }
+
+        self.write(format!("static const struct {}_WORLD_REGION {}_world_regions_{}[] = {{\n",
+                           self.ident.prefix_upper, self.ident.prefix_lower, name_id));
+        for (region_index, region) in world.regions.iter().enumerate() {
+            self.write("  {\n");
+            self.write(format!("    {}, {}, {}, {},\n", region.x, region.y, region.width, region.height));
+            self.write(format!("    {}_world_{}_region_{}_block_bitmap,\n", self.ident.prefix_lower, name_id, region_index));
+            self.write(format!("    {}_world_{}_region_{}_blocks,\n", self.ident.prefix_lower, name_id, region_index));
+            self.write(format!("    {}_world_{}_region_{}_room_indices\n", self.ident.prefix_lower, name_id, region_index));
+            self.write("  },\n");
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    fn write_worlds(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === WORLDS\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        for id in self.store.asset_ids.worlds.iter() {
+            if let Some(world) = self.store.assets.worlds.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::World, *id)?;
+                self.write_world_regions(world, name_id)?;
+            }
+        }
+
+        self.log(format!("-> writing {} worlds", self.store.asset_ids.rooms.len()));
+        self.write(format!("const struct {}_WORLD {}_worlds[] = {{\n",
+                           self.ident.prefix_upper, self.ident.prefix_lower));
+        for id in self.store.asset_ids.worlds.iter() {
+            if let Some(world) = self.store.assets.worlds.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::World, *id)?;
+                self.write(format!("  {{ {}, {}_world_regions_{} }},\n",
+                                   world.regions.len(),
+                                   self.ident.prefix_lower, name_id));
+            }
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    fn write_world_region_names(&self, world: &super::World, name_id_upper: &str) -> Result<()> {
+        let mut index_to_name_id = HashMap::new();
+
+        self.write(format!("enum {}_WORLD_{}_REGION_NAMES {{\n", self.ident.prefix_upper, name_id_upper));
+        for (index, reg) in world.regions.iter().enumerate() {
+            let use_name_id = if reg.name == "names" { "names0" } else { &reg.name };
+            IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
+            let reg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
+                Error::other(format!("error reading name of region {} world {}", index, world.asset.id))
+            })?;
+            self.write(format!("  {}_WORLD_{}_REGION_{},\n", self.ident.prefix_upper, name_id_upper, &reg_name_id.to_ascii_uppercase()));
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    fn write_world_item_names(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === WORLD REGION NAMES\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        for id in self.store.asset_ids.worlds.iter() {
+            if let Some(world) = self.store.assets.worlds.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::World, *id)?;
+                let name_id_upper = name_id.to_ascii_uppercase();
+                self.write_world_region_names(world, &name_id_upper)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // =========================================================================
     // === SCRIPTS
     // =========================================================================
 
@@ -1106,6 +1256,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_asset_ids_for(&self.store.asset_ids.maps, DataAssetType::MapData, "MAP")?;
         self.write_asset_ids_for(&self.store.asset_ids.animations, DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
         self.write_asset_ids_for(&self.store.asset_ids.rooms, DataAssetType::Room, "ROOM")?;
+        self.write_asset_ids_for(&self.store.asset_ids.worlds, DataAssetType::World, "WORLD")?;
 
         Ok(())
     }
@@ -1156,6 +1307,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.ident.add_assets(DataAssetType::Tileset, self.store);
         self.ident.add_assets(DataAssetType::MapData, self.store);
         self.ident.add_assets(DataAssetType::Room, self.store);
+        self.ident.add_assets(DataAssetType::World, self.store);
         self.ident.add_assets(DataAssetType::Sprite, self.store);
         self.ident.add_assets(DataAssetType::PalSprite, self.store);
         self.ident.add_assets(DataAssetType::SpriteAnimation, self.store);
@@ -1180,6 +1332,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_maps()?;
         self.write_sprite_animations()?;
         self.write_rooms()?;
+        self.write_worlds()?;
 
         self.write_scripts()?;
 
@@ -1187,6 +1340,7 @@ impl<'a> ProjectDataWriter<'a> {
 
         self.write_animation_names()?;
         self.write_room_item_names()?;
+        self.write_world_item_names()?;
         self.write_asset_ids()?;
         self.write_sprite_sizes()?;
 

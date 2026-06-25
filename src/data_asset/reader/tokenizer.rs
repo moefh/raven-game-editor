@@ -99,20 +99,9 @@ impl Token {
         matches!(self.data, TokenData::Punct(_))
     }
 
-    pub fn is_any_number(&self) -> bool {
-        matches!(self.data, TokenData::Number(_))
-    }
-
     pub fn is_punct(&self, ch: char) -> bool {
         match self.data {
             TokenData::Punct(self_ch) => self_ch == ch,
-            _ => false,
-        }
-    }
-
-    pub fn is_ident(&self, id: &str) -> bool {
-        match &self.data {
-            TokenData::Ident(self_id) => self_id == id,
             _ => false,
         }
     }

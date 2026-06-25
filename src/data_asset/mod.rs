@@ -318,6 +318,7 @@ impl AssetCollection {
         if let Some(v) = self.tilesets.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.maps.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.rooms.get_mut(&asset_id) { return Some(&mut v.asset); }
+        if let Some(v) = self.worlds.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.pal_sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.animations.get_mut(&asset_id) { return Some(&mut v.asset); }
@@ -371,6 +372,7 @@ impl AssetCollection {
         let sum = self.tilesets.iter().fold(0, |sum, a| sum + a.data_size());
         let sum = self.maps.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.rooms.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.worlds.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.sprites.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.pal_sprites.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.animations.iter().fold(sum, |sum, a| sum + a.data_size());

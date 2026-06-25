@@ -57,7 +57,27 @@ impl super::GenericAsset for World {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // TODO
-        0
+        // header: num_regions(2) + pad(2) + regions<ptr>(4)
+        let header = 2 + 2 + 4;
+
+        // region[0..num_regions]: x(1) + y(1) + w(1) + h(1) + block_bitmap<ptr>(4) + blocks<ptr>(4) + room_ids<ptr>(4)
+        let regions = self.regions.len() * (1 + 1 + 1 + 1 + 4 + 4 + 4);
+
+        // room ids: regions[..]: 4*ceil((w*h)/32) + region.num_set_blocks + region.num_rooms * room_index(2)
+        let room_ids = self.regions.iter().fold(0, |sum, region| {
+            let mut num_set_blocks = 0usize;
+            for y in 0..region.height {
+                for x in 0..region.width {
+                    if region.blocks[y as usize * WorldRegion::BLOCK_STRIDE + x as usize].is_some() {
+                        num_set_blocks += 1;
+                    }
+                }
+            }
+            let width = region.width as usize;
+            let height = region.height as usize;
+            sum + num_set_blocks + 4 * (width * height).div_ceil(32) + region.rooms.len() * 2
+        });
+
+        header + regions + room_ids
     }
 }
