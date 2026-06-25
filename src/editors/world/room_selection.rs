@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{
+    HashMap,
+    HashSet
+};
 
 use crate::app::{
     WindowContext,
@@ -9,6 +12,7 @@ use crate::app::{
 use crate::data_asset::{
     Room,
     World,
+    WorldRegion,
     Tileset,
     MapData,
     DataAssetId,
@@ -57,8 +61,28 @@ impl RoomSelectionDialog {
         }
     }
 
+    fn fix_room_indices(region: &mut WorldRegion, old_rooms: &[DataAssetId]) {
+        let mut conv = HashMap::<Option<u8>, Option<u8>>::new();
+        conv.insert(None, None);
+        for (old_index, room_id) in old_rooms.iter().enumerate() {
+            let old_index = Some((old_index & 0xff) as u8);
+            let new_index = match region.rooms.iter().position(|new_room_id| new_room_id == room_id) {
+                Some(index) => { Some((index & 0xff) as u8) }
+                None => { None }
+            };
+            conv.insert(old_index, new_index);
+        }
+        for block in region.blocks.iter_mut() {
+            if let Some(&index) = conv.get(block) {
+                *block = index;
+            }
+        }
+    }
+
     fn confirm(&mut self, world: &mut World) -> bool {
         if let Some(region) = world.regions.get_mut(self.region_index) {
+            let old_rooms = region.rooms.clone();
+
             // remove rooms not in selection
             let size = region.rooms.len();
             region.rooms.retain(|room_id| self.sel_room_ids.contains(room_id));
@@ -72,9 +96,9 @@ impl RoomSelectionDialog {
                 }
             }
             let changed = changed || (size != region.rooms.len());
-
             if changed {
                 region.rooms.sort();
+                Self::fix_room_indices(region, &old_rooms);
             }
             changed
         } else {

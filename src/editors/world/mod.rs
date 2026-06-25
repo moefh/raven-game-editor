@@ -108,7 +108,7 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, world: &mut World,
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, world: &mut World,
             rooms: &AssetList<Room>, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, world);
@@ -116,9 +116,11 @@ impl Dialogs {
         if self.region_properties_dialog.open {
             self.region_properties_dialog.show(wc, world);
         }
-        if self.room_selection_dialog.open {
-            self.room_selection_dialog.show(wc, world, rooms, maps, tilesets);
-        }
+        if self.room_selection_dialog.open &&
+            self.room_selection_dialog.show(wc, world, rooms, maps, tilesets) &&
+            let Some(region) = world.regions.get(self.room_selection_dialog.region_index) {
+                editor.region_editor.ensure_room_selection_is_valid(region);
+            }
     }
 }
 

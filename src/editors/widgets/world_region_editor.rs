@@ -98,7 +98,20 @@ impl WorldRegionEditorWidget {
         }
     }
 
+    pub fn ensure_room_selection_is_valid(&mut self, region: &WorldRegion) {
+        let num_rooms = region.rooms.len();
+        if let Some(room_index) = self.get_selected_room() && room_index as usize >= num_rooms {
+            if num_rooms > 0 {
+                self.set_selected_room(Some(((num_rooms - 1) & 0xff) as u8));
+            } else {
+                self.set_selected_room(None);
+            }
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, region: &mut WorldRegion) {
+        self.ensure_room_selection_is_valid(region);
+
         let min_size = (self.zoom * Vec2::splat(1.0)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
