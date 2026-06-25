@@ -15,7 +15,11 @@ use crate::app::WindowContext;
 use crate::image::{ImageCollection, TextureSlot};
 
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::super::{MapLayer, RectBorder};
+use super::super::{
+    MapLayer,
+    RoomSize,
+    RectBorder,
+};
 use super::super::room::{RoomEditorAssetLists, RoomItemRef};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
@@ -220,15 +224,10 @@ impl RoomEditorWidget {
     }
 
     fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
-        let max = room.maps.iter().fold(Vec2::ZERO, |max, room_map| {
-            match maps.get(&room_map.map_id) {
-                Some(map_data) => max.max(Vec2::new((room_map.x as u32 + map_data.width) as f32, (room_map.y as u32 + map_data.height) as f32)),
-                None => max,
-            }
-        });
+        let size = RoomSize::from_room(room, maps);
         Vec2 {
-            x: max.x * TILE_SIZE,
-            y: max.y * TILE_SIZE,
+            x: size.width as f32 * TILE_SIZE,
+            y: size.height as f32 * TILE_SIZE,
         }
     }
 

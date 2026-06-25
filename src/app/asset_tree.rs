@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, DataAsset, GenericAsset, AssetList};
+use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, DataAsset, GenericAsset};
 use crate::misc::asset_defs::ASSET_DEFS;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -13,7 +13,7 @@ struct AssetTreeNodeIdGenerator {
 }
 
 impl AssetTreeNodeIdGenerator {
-    fn new() -> Self {
+    pub fn new() -> Self {
         AssetTreeNodeIdGenerator {
             next: 0,
         }
@@ -71,15 +71,6 @@ impl AssetTreeContainer {
             containers: Vec::new(),
             assets: Vec::new(),
         }
-    }
-
-    pub fn from_assets<T: GenericAsset>(assets: &AssetList<T>, name: String) -> Self {
-        let mut id_generator = AssetTreeNodeIdGenerator::new();
-        let mut tree = AssetTreeContainer::new(id_generator.generate_id(), name, 0);
-        for asset in assets.iter() {
-            tree.update_asset(asset.asset(), &mut id_generator);
-        }
-        tree
     }
 
     fn sort(&mut self) {
@@ -173,7 +164,7 @@ impl AssetTreeContainer {
         found
     }
 
-    pub fn get_node_name(&self, node_id: AssetTreeNodeId) -> Option<String> {
+    fn get_node_name(&self, node_id: AssetTreeNodeId) -> Option<String> {
         let mut parts = Vec::new();
         if self.get_node_name_parts(node_id, &mut parts) && ! parts.is_empty() {
             Some(parts.into_iter().rev().collect::<Vec<String>>().join(DataAsset::PATH_SEPARATOR))
@@ -205,12 +196,65 @@ impl AssetTreeContainer {
     }
 }
 
-pub struct AssetTree {
+pub struct SimpleAssetTree {
+    root: AssetTreeContainer,
+    id_generator: AssetTreeNodeIdGenerator,
+    id_prefix: String,
+}
+
+impl SimpleAssetTree {
+    pub fn new(id_prefix: impl Into<String>, name: impl Into<String>) -> Self {
+        let mut id_generator = AssetTreeNodeIdGenerator::new();
+        let root = AssetTreeContainer::new(id_generator.generate_id(), name.into(), 0);
+        SimpleAssetTree {
+            root,
+            id_generator,
+            id_prefix: id_prefix.into(),
+        }
+    }
+
+    pub fn from_assets<'a, T>(id_prefix: impl Into<String>, name: impl Into<String>,
+                              assets: impl Iterator<Item = &'a T>) -> Self
+    where T: GenericAsset + 'a
+    {
+        let mut tree = Self::new(id_prefix, name);
+        for asset in assets {
+            tree.root.update_asset(asset.asset(), &mut tree.id_generator);
+        }
+        tree
+    }
+
+    pub fn update_assets<'a, T: GenericAsset + 'a>(&mut self, assets: impl Iterator<Item = &'a T>) {
+        self.root.clear_used_mark();
+
+        // insert new assets and mark existing assets used
+        for asset in assets {
+            self.root.update_asset(asset.asset(), &mut self.id_generator);
+        }
+
+        // remove childless containers and orphan asset nodes
+        self.root.remove_unused();
+
+        self.root.sort();
+    }
+
+    pub fn show_inside(&self, ui: &mut egui::Ui, open: bool,
+                       show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
+                       show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)) {
+        self.root.show_inside(&self.id_prefix, ui, open, show_folder, show_item);
+    }
+
+    //pub fn get_node_name(&self, node_id: AssetTreeNodeId) -> Option<String> {
+    //    self.root.get_node_name(node_id)
+    //}
+}
+
+pub struct StoreAssetTree {
     roots: HashMap<DataAssetType, AssetTreeContainer>,
     id_generator: AssetTreeNodeIdGenerator,
 }
 
-impl AssetTree {
+impl StoreAssetTree {
     pub fn new() -> Self {
         let mut id_generator = AssetTreeNodeIdGenerator::new();
         let mut roots = HashMap::new();
@@ -218,9 +262,9 @@ impl AssetTree {
             let tree = AssetTreeContainer::new(id_generator.generate_id(), def.tree_root_item.to_owned(), 0);
             roots.insert(def.asset_type, tree);
         }
-        AssetTree {
-            id_generator,
+        StoreAssetTree {
             roots,
+            id_generator,
         }
     }
 

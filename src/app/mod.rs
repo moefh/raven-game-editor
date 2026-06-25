@@ -15,7 +15,7 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
-pub use asset_tree::{AssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
+pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
 pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
 pub use dialogs::{AppDialogs, ConfirmationDialogResult};
@@ -74,7 +74,7 @@ pub struct RavenEditorApp {
     confirmation_dialog_action: ConfirmationDialogAction,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
-    asset_tree: AssetTree,
+    asset_tree: StoreAssetTree,
 }
 
 impl RavenEditorApp {
@@ -98,7 +98,7 @@ impl RavenEditorApp {
             confirmation_dialog_action: ConfirmationDialogAction::None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
-            asset_tree: AssetTree::new(),
+            asset_tree: StoreAssetTree::new(),
         };
         app.sys_dialogs.load_paths(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
@@ -196,6 +196,9 @@ impl RavenEditorApp {
         for room in self.store.assets.rooms.iter_mut() {
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) { editor.prepare_for_saving(room); }
         }
+        for world in self.store.assets.worlds.iter_mut() {
+            if let Some(editor) = self.editors.worlds.get_mut(&world.asset.id) { editor.prepare_for_saving(world); }
+        }
         for sprite in self.store.assets.sprites.iter_mut() {
             if let Some(editor) = self.editors.sprites.get_mut(&sprite.asset.id) { editor.prepare_for_saving(sprite); }
         }
@@ -286,8 +289,8 @@ impl RavenEditorApp {
             let mut num = 1;
             loop {
                 let name = match &given_prefix {
-                    Some(s) => { format!("{}/_{}{}", s, prefix, num) }
-                    None => { format!("_{}{}", prefix, num) }
+                    Some(s) => { format!("{}/new_{}{}", s, prefix, num) }
+                    None => { format!("new_{}{}", prefix, num) }
                 };
                 if ! self.store.asset_ids
                     .ids_of_type(asset_type)
@@ -341,6 +344,9 @@ impl RavenEditorApp {
             }
             DataAssetType::Room => {
                 self.store.add_room(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_room(id)))
+            }
+            DataAssetType::World => {
+                self.store.add_world(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_world(id)))
             }
             DataAssetType::Sprite => {
                 self.store.add_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sprite(id)))
@@ -752,6 +758,11 @@ impl RavenEditorApp {
                     &self.store.assets.sprites,
                     &self.editors.room_names);
                 editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
+            }
+        }
+        for world in self.store.assets.worlds.iter_mut() {
+            if let Some(editor) = self.editors.worlds.get_mut(&world.asset.id) {
+                editor.show(&mut win_ctx, world, &self.store.assets.rooms, &self.store.assets.maps, &self.store.assets.tilesets);
             }
         }
         for sprite in self.store.assets.sprites.iter_mut() {

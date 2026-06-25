@@ -22,7 +22,11 @@ use crate::data_asset::{
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
-use super::{AssetEditorBase, RoomTriggerTypeSel};
+use super::{
+    RoomSize,
+    AssetEditorBase,
+    RoomTriggerTypeSel,
+};
 use super::widgets::RoomEditorWidget;
 
 pub struct RoomEditorAssetLists<'a> {
@@ -110,16 +114,21 @@ impl RoomEditor {
     pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, base: &AssetEditorBase) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, maps: &AssetList<MapData>, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, room.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
+            let room_size = RoomSize::from_room(room, maps);
             ui.label(format!(
-                "{} bytes [maps: {}, triggers: {}]{}",
+                "{} bytes [{}x{}, {} map{}, {} trigger{}]{}",
                 room.data_size(),
+                room_size.width,
+                room_size.height,
                 room.maps.len(),
+                if room.maps.len() != 1 { "s" } else { "" },
                 room.triggers.len(),
+                if room.triggers.len() != 1 { "s" } else { "" },
                 dirty
             ));
         });
@@ -129,7 +138,7 @@ impl RoomEditor {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
         self.base.show_window(wc, room, [400.0, 300.0], [600.0, 400.0], |ui, wc, room, base| {
-            Self::show_footer(ui, wc, room, base);
+            Self::show_footer(ui, wc, room, assets.maps, base);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
     }
@@ -342,6 +351,10 @@ impl Editor {
                     } else {
                         ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
                         ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
+                    }
+                    if let Some(map) = maps.get(&room_map.map_id) {
+                        ui.label("Width:"); ui.label(format!("{}", map.width)); ui.end_row();
+                        ui.label("Height:"); ui.label(format!("{}", map.height)); ui.end_row();
                     }
                 });
         });

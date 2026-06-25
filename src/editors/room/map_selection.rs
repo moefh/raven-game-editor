@@ -1,6 +1,11 @@
 use std::collections::HashSet;
 
-use crate::app::{WindowContext, AssetTreeContainer, AssetTreeItem};
+use crate::app::{
+    WindowContext,
+    SimpleAssetTree,
+    AssetTreeItem,
+    AssetTreeContainer,
+};
 use crate::data_asset::{
     Room, RoomMap, MapData, Tileset,
     DataAssetId, AssetList,
@@ -12,7 +17,7 @@ pub struct MapSelectionDialog {
     pub open: bool,
     pub sel_map_ids: HashSet<DataAssetId>,
     pub display_map_id: Option<DataAssetId>,
-    pub map_tree: Option<AssetTreeContainer>,
+    pub map_tree: Option<SimpleAssetTree>,
 }
 
 impl MapSelectionDialog {
@@ -35,7 +40,7 @@ impl MapSelectionDialog {
             self.sel_map_ids.insert(map.map_id);
         }
         self.display_map_id = room.maps.first().map(|m| m.map_id);
-        self.map_tree = Some(AssetTreeContainer::from_assets(maps, "Available Maps".to_owned()));
+        self.map_tree = Some(SimpleAssetTree::from_assets(format!("map_sel_{}", room.asset.id), "Available Maps", maps.iter()));
         self.open = true;
         wc.set_window_open(Self::id(), self.open);
     }
@@ -113,7 +118,7 @@ impl MapSelectionDialog {
                                 }
                             });
                         };
-                        map_tree.show_inside(&format!("map_sel_{}", asset_id), ui, true, &mut show_folder, &mut show_item);
+                        map_tree.show_inside(ui, true, &mut show_folder, &mut show_item);
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }

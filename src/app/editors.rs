@@ -15,6 +15,7 @@ use crate::editors::{
     TilesetEditor,
     MapDataEditor,
     RoomEditor,
+    WorldEditor,
     SpriteEditor,
     PalSpriteEditor,
     SpriteAnimationEditor,
@@ -29,6 +30,7 @@ pub struct AssetEditors {
     pub tilesets: HashMap<DataAssetId, TilesetEditor>,
     pub maps: HashMap<DataAssetId, MapDataEditor>,
     pub rooms: HashMap<DataAssetId, RoomEditor>,
+    pub worlds: HashMap<DataAssetId, WorldEditor>,
     pub sprites: HashMap<DataAssetId, SpriteEditor>,
     pub pal_sprites: HashMap<DataAssetId, PalSpriteEditor>,
     pub animations: HashMap<DataAssetId, SpriteAnimationEditor>,
@@ -46,6 +48,7 @@ impl AssetEditors {
             tilesets: HashMap::new(),
             maps: HashMap::new(),
             rooms: HashMap::new(),
+            worlds: HashMap::new(),
             sprites: HashMap::new(),
             pal_sprites: HashMap::new(),
             animations: HashMap::new(),
@@ -62,6 +65,7 @@ impl AssetEditors {
         self.tilesets.clear();
         self.maps.clear();
         self.rooms.clear();
+        self.worlds.clear();
         self.sprites.clear();
         self.pal_sprites.clear();
         self.animations.clear();
@@ -76,6 +80,7 @@ impl AssetEditors {
         for id in store.asset_ids.tilesets.iter().copied() { self.add_tileset(id); }
         for id in store.asset_ids.maps.iter().copied() { self.add_map(id); }
         for id in store.asset_ids.rooms.iter().copied() { self.add_room(id); }
+        for id in store.asset_ids.worlds.iter().copied() { self.add_world(id); }
         for id in store.asset_ids.sprites.iter().copied() { self.add_sprite(id); }
         for id in store.asset_ids.pal_sprites.iter().copied() { self.add_pal_sprite(id); }
         for id in store.asset_ids.animations.iter().copied() { self.add_animation(id); }
@@ -90,6 +95,7 @@ impl AssetEditors {
         if let Some(editor) = self.tilesets.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.maps.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.rooms.get(&id) { return Some(&editor.base); }
+        if let Some(editor) = self.worlds.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.sprites.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.pal_sprites.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.animations.get(&id) { return Some(&editor.base); }
@@ -104,6 +110,7 @@ impl AssetEditors {
         if let Some(editor) = self.tilesets.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.maps.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.rooms.get_mut(&id) { return Some(&mut editor.base); }
+        if let Some(editor) = self.worlds.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.sprites.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.pal_sprites.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.animations.get_mut(&id) { return Some(&mut editor.base); }
@@ -118,6 +125,7 @@ impl AssetEditors {
         if let Some(editor) = self.tilesets.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.maps.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.rooms.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
+        if let Some(editor) = self.worlds.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.pal_sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.animations.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
@@ -133,6 +141,7 @@ impl AssetEditors {
             DataAssetType::Tileset => self.add_tileset(id),
             DataAssetType::MapData => self.add_map(id),
             DataAssetType::Room => self.add_room(id),
+            DataAssetType::World => self.add_world(id),
             DataAssetType::Sprite => self.add_sprite(id),
             DataAssetType::PalSprite => self.add_pal_sprite(id),
             DataAssetType::SpriteAnimation => self.add_animation(id),
@@ -164,6 +173,14 @@ impl AssetEditors {
         let egui_id = editor.base.egui_id;
         self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
         self.rooms.insert(id, editor);
+        egui_id
+    }
+
+    pub fn add_world(&mut self, id: DataAssetId) -> egui::Id {
+        let editor = WorldEditor::new(id, false);
+        let egui_id = editor.base.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
+        self.worlds.insert(id, editor);
         egui_id
     }
 
@@ -233,6 +250,9 @@ impl AssetEditors {
         for room in store.assets.rooms.iter() {
             if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.update_dirty(room); }
         }
+        for world in store.assets.worlds.iter() {
+            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.update_dirty(world); }
+        }
         for sprite in store.assets.sprites.iter() {
             if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.update_dirty(sprite); }
         }
@@ -265,6 +285,9 @@ impl AssetEditors {
         }
         for room in store.assets.rooms.iter() {
             if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.clear_dirty(room); }
+        }
+        for world in store.assets.worlds.iter() {
+            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.clear_dirty(world); }
         }
         for sprite in store.assets.sprites.iter() {
             if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.clear_dirty(sprite); }
@@ -353,7 +376,7 @@ impl AssetEditors {
             }
         }
 
-        // remove gond rooms
+        // remove gone rooms
         for room_id in remove_ids.iter() {
             self.room_names.remove(room_id);
         }

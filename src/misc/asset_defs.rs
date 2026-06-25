@@ -40,6 +40,15 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.room,
     },
     AssetDef {
+        asset_type: DataAssetType::World,
+        default_name_prefix: "world",
+        add_menu_item: "Add World",
+        duplicate_menu_item: "Duplicate World",
+        remove_menu_item: "Delete World",
+        tree_root_item: "Worlds",
+        image: IMAGE_REFS.world,
+    },
+    AssetDef {
         asset_type: DataAssetType::Sprite,
         default_name_prefix: "sprite",
         add_menu_item: "Add Sprite",

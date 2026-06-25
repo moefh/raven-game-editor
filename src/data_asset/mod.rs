@@ -1,6 +1,7 @@
 mod tileset;
 mod map_data;
 mod room;
+mod world;
 mod sprite;
 mod sprite_animation;
 mod pal_sprite;
@@ -22,6 +23,7 @@ pub use room::RoomTriggerTypeIdent;
 pub use tileset::Tileset;
 pub use map_data::MapData;
 pub use room::{Room, RoomMap, RoomTrigger, RoomTriggerType, RoomItem};
+pub use world::{World, WorldRegion};
 pub use sprite::Sprite;
 pub use pal_sprite::{PalSprite, PalSpriteDepth};
 pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame, SpriteAnimationLoop};
@@ -98,6 +100,7 @@ pub enum DataAssetType {
     Tileset,
     MapData,
     Room,
+    World,
     Sprite,
     PalSprite,
     SpriteAnimation,
@@ -113,6 +116,7 @@ impl DataAssetType {
             DataAssetType::Tileset => "tileset",
             DataAssetType::MapData => "map",
             DataAssetType::Room => "room",
+            DataAssetType::World => "world",
             DataAssetType::Sprite => "sprite",
             DataAssetType::PalSprite => "pal_sprite",
             DataAssetType::SpriteAnimation => "animation",
@@ -267,6 +271,7 @@ pub struct AssetCollection {
     pub tilesets: AssetList<Tileset>,
     pub maps: AssetList<MapData>,
     pub rooms: AssetList<Room>,
+    pub worlds: AssetList<World>,
     pub sprites: AssetList<Sprite>,
     pub pal_sprites: AssetList<PalSprite>,
     pub animations: AssetList<SpriteAnimation>,
@@ -282,6 +287,7 @@ impl AssetCollection {
             tilesets: AssetList::new(),
             maps: AssetList::new(),
             rooms: AssetList::new(),
+            worlds: AssetList::new(),
             sprites: AssetList::new(),
             pal_sprites: AssetList::new(),
             animations: AssetList::new(),
@@ -296,6 +302,7 @@ impl AssetCollection {
         if let Some(v) = self.tilesets.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.maps.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.rooms.get(&asset_id) { return Some(&v.asset); }
+        if let Some(v) = self.worlds.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.sprites.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.pal_sprites.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.animations.get(&asset_id) { return Some(&v.asset); }
@@ -350,6 +357,13 @@ impl AssetCollection {
                 return true;
             }
         }
+        for world in self.worlds.iter() {
+            for region in world.regions.iter() {
+                if region.rooms.contains(&id) {
+                    return true;
+                }
+            }
+        }
         false
     }
 
@@ -371,6 +385,7 @@ pub struct AssetIdCollection {
     pub tilesets: AssetIdList,
     pub maps: AssetIdList,
     pub rooms: AssetIdList,
+    pub worlds: AssetIdList,
     pub sprites: AssetIdList,
     pub pal_sprites: AssetIdList,
     pub animations: AssetIdList,
@@ -386,6 +401,7 @@ impl AssetIdCollection {
             tilesets: AssetIdList::new(),
             maps: AssetIdList::new(),
             rooms: AssetIdList::new(),
+            worlds: AssetIdList::new(),
             sprites: AssetIdList::new(),
             pal_sprites: AssetIdList::new(),
             animations: AssetIdList::new(),
@@ -401,6 +417,7 @@ impl AssetIdCollection {
             DataAssetType::Tileset => self.tilesets.iter(),
             DataAssetType::MapData => self.maps.iter(),
             DataAssetType::Room => self.rooms.iter(),
+            DataAssetType::World => self.worlds.iter(),
             DataAssetType::Sprite => self.sprites.iter(),
             DataAssetType::PalSprite => self.pal_sprites.iter(),
             DataAssetType::SpriteAnimation => self.animations.iter(),
@@ -472,6 +489,7 @@ impl DataAssetStore {
         self.assets.tilesets.store.len() +
             self.assets.maps.store.len() +
             self.assets.rooms.store.len() +
+            self.assets.worlds.store.len() +
             self.assets.sprites.store.len() +
             self.assets.pal_sprites.store.len() +
             self.assets.animations.store.len() +
@@ -485,6 +503,7 @@ impl DataAssetStore {
         if let Some(v) = self.assets.tilesets.remove(&id) { self.asset_ids.tilesets.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.maps.remove(&id) { self.asset_ids.maps.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.rooms.remove(&id) { self.asset_ids.rooms.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.worlds.remove(&id) { self.asset_ids.worlds.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sprites.remove(&id) { self.asset_ids.sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.pal_sprites.remove(&id) { self.asset_ids.pal_sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.animations.remove(&id) { self.asset_ids.animations.remove_id(id); return Some(v.asset); }
@@ -506,6 +525,10 @@ impl DataAssetStore {
         }
         if let Some(dup_id) = self.assets.rooms.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.rooms.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.worlds.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.worlds.push(dup_id);
             return Some(dup_id);
         }
         if let Some(dup_id) = self.assets.sprites.duplicate_asset(&id, dup_name, &mut self.id_generator) {
@@ -560,6 +583,13 @@ impl DataAssetStore {
         let id = self.gen_id();
         self.asset_ids.rooms.push(id);
         self.assets.rooms.insert(id, Room::new(id, name));
+        Some(id)
+    }
+
+    pub fn add_world(&mut self, name: String) -> Option<DataAssetId> {
+        let id = self.gen_id();
+        self.asset_ids.worlds.push(id);
+        self.assets.worlds.insert(id, World::new(id, name));
         Some(id)
     }
 

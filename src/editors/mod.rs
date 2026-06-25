@@ -1,6 +1,7 @@
 mod tileset;
 mod map_data;
 mod room;
+mod world;
 mod sprite;
 mod pal_sprite;
 mod sprite_animation;
@@ -13,6 +14,7 @@ mod widgets;
 pub use tileset::TilesetEditor;
 pub use map_data::MapDataEditor;
 pub use room::{RoomEditor, RoomEditorAssetLists};
+pub use world::WorldEditor;
 pub use sprite::SpriteEditor;
 pub use pal_sprite::PalSpriteEditor;
 pub use sprite_animation::SpriteAnimationEditor;
@@ -27,7 +29,9 @@ use crate::include_ref_image;
 use crate::misc::{calc_hash, get_asset_type_image, IMAGES};
 use crate::data_asset::{
     DataAssetId,
+    AssetList,
     AssetIdCollection,
+    Room,
     MapData,
     GenericAsset,
     RoomTriggerType,
@@ -40,7 +44,6 @@ use crate::image::{
 use crate::app::{
     WindowContext,
 };
-use egui::{Pos2, Rect};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum EditorWindowAction {
@@ -368,6 +371,36 @@ impl RectBorder {
     }
 }
 
+pub struct RoomSize {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl RoomSize {
+    pub const ZERO: Self = RoomSize { width: 0, height: 0 };
+
+    pub fn new(width: u32, height: u32) -> Self {
+        RoomSize {
+            width,
+            height,
+        }
+    }
+
+    pub fn from_room(room: &Room, maps: &AssetList<MapData>) -> Self {
+        room.maps.iter().fold(Self::ZERO, |max, room_map| {
+            match maps.get(&room_map.map_id) {
+                Some(map) => {
+                    RoomSize::new(
+                        max.width.max(room_map.x as u32 + map.width),
+                        max.height.max(room_map.y as u32 + map.height),
+                    )
+                }
+                None => { max }
+            }
+        })
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct MapRect {
     pub x: u32,
@@ -377,12 +410,12 @@ pub struct MapRect {
 }
 
 impl MapRect {
-    pub fn from_rect(rect: Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
+    pub fn from_rect(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
         let (map_width, map_height) = match layer {
             MapLayer::Parallax => (map_data.para_width, map_data.para_height),
             _ => (map_data.width, map_data.height),
         };
-        let rect = rect.intersect(Rect::from_min_max(Pos2::ZERO, Pos2::new(map_width as f32, map_height as f32)));
+        let rect = rect.intersect(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::new(map_width as f32, map_height as f32)));
         Some(MapRect {
             x: rect.min.x as u32,
             y: rect.min.y as u32,
