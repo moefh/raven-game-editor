@@ -17,7 +17,7 @@ impl LogWindow {
     }
 
     pub fn show(&mut self, wc: &WindowContext) {
-        let default_rect = self.base.default_rect(wc, 600.0, 300.0);
+        let default_rect = self.base.default_rect(wc, 700.0, 300.0);
         self.base.create_window(wc, "Log", default_rect).show(wc.egui.ctx, |ui| {
             egui::ScrollArea::both().auto_shrink(false).stick_to_bottom(true).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
