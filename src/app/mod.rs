@@ -236,6 +236,7 @@ impl RavenEditorApp {
         match self.store.write_to_file(path, &mut self.logger) {
             Ok(()) => {
                 self.logger.log(format!("DONE: project saved to {}", path.display()));
+                self.recent_projects.add(path);
                 self.editors.clear_dirty(&self.store);
                 true
             }

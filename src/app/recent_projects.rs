@@ -42,9 +42,7 @@ impl RecentProjects {
                 false
             }
         });
-        while self.paths.len() > Self::MAX_PATHS_SAVED {
-            self.paths.pop();
-        }
+        self.paths.truncate(Self::MAX_PATHS_SAVED);
     }
 
     pub fn add<P: AsRef<Path>>(&mut self, path: P) {
