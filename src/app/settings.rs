@@ -1,5 +1,5 @@
 use std::io::{Result, Error};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::image::{ColorSet, ColorSetCollection};
 use crate::data_asset::StringLogger;
@@ -10,26 +10,33 @@ const APP_ID: &str = "raven-game-editor";
 pub fn get_settings_dir() -> Option<PathBuf> {
     use egui::os::OperatingSystem as OS;
     match OS::from_target_os() {
-        OS::Nix => std::env::var_os("XDG_DATA_HOME")
+        OS::Nix => std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .filter(|p| p.is_absolute())
-            .or_else(|| std::env::home_dir().map(|p| p.join(".local").join("share")))
+            .or_else(|| std::env::home_dir().map(|p| p.join(".config")))
             .map(|p| { p.join(APP_ID) }),
         OS::Mac => std::env::home_dir().map(|p| {
-            p.join("Library").join("Application Support").join(APP_ID)
+            p.join("Library").join("Preferences").join(APP_ID)
         }),
-        OS::Windows => std::env::var_os("APPDATA")
+        OS::Windows => std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
             .map(|p| p.join(APP_ID)),
         _ => None,
     }
 }
 
-pub fn write_settings_file<P: AsRef<Path>>(filename: P, content: &str) -> Result<()> {
+pub fn write_settings_file(filename: impl AsRef<str>, content: &str) -> Result<()> {
     let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
     std::fs::create_dir_all(&dir)?;
     let filename = dir.join(filename.as_ref());
     std::fs::write(&filename, content)
+}
+
+pub fn read_settings_file(filename: impl AsRef<str>) -> Result<String> {
+    let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
+    std::fs::create_dir_all(&dir)?;
+    let filename = dir.join(filename.as_ref());
+    std::fs::read_to_string(&filename)
 }
 
 pub struct AppSettings {
@@ -71,34 +78,18 @@ impl AppSettings {
         }
     }
 
-    pub fn load(logger: &mut StringLogger) -> Self {
-        let mut settings = AppSettings::new();
-        settings.read(logger);
-        settings
-    }
-
-    fn read_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
-        let config = std::fs::read_to_string(&filename)?;
+    fn load_settings_file(&mut self) -> Result<()> {
+        let config = read_settings_file(Self::FILENAME)?;
         let mut reader = AppSettingsReader::new(&config);
         reader.read(self)
     }
 
-    pub fn read(&mut self, logger: &mut StringLogger) {
-        let settings_dir = match get_settings_dir() {
-            Some(dir) => { dir }
-            None => {
-                logger.log("WARNING: can't find settings directory, settings won't be loaded");
-                return;
-            }
-        };
-        let filename = settings_dir.join(Self::FILENAME);
-        logger.log(format!("Loading settings from '{}'", filename.display()));
-        match self.read_file(filename) {
-            Ok(_) => {}
-            Err(e) => {
-                logger.log(format!("ERROR reading settings: {}", e));
-            }
+    pub fn load(logger: &mut StringLogger) -> Self {
+        let mut settings = AppSettings::new();
+        if let Err(e) = settings.load_settings_file() {
+            logger.log(format!("ERROR loading settings:\n{}", e));
         }
+        settings
     }
 
     fn save_color(c: egui::Color32) -> String {

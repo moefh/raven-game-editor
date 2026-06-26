@@ -6,6 +6,7 @@ mod windows;
 mod editors;
 mod settings;
 mod path_library;
+mod recent_projects;
 
 use crate::include_ref_image;
 use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
@@ -28,7 +29,6 @@ const TOOLBAR_HEIGHT: f32 = 25.0;
 const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
-pub const IMAGE_MENU_SIZE: f32 = 14.0;
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
 pub const IMAGE_TREE_CTX_MENU_SIZE: f32 = 16.0;
 
@@ -71,6 +71,7 @@ pub struct RavenEditorApp {
     tex_manager: TextureManager,
     sound_player: SoundPlayer,
     settings: AppSettings,
+    recent_projects: recent_projects::RecentProjects,
     confirmation_dialog_action: ConfirmationDialogAction,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
@@ -78,6 +79,7 @@ pub struct RavenEditorApp {
 }
 
 impl RavenEditorApp {
+    const DEFAULT_BITS_PER_PIXEL: u8 = 8;
 
     pub fn new(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings) -> Self {
         let mut app = RavenEditorApp {
@@ -93,22 +95,25 @@ impl RavenEditorApp {
             windows: windows::AppWindows::new(),
             image_clipboard: ImageClipboardData::Empty,
             map_clipboard: MapClipboardData::Empty,
-            tex_manager: TextureManager::new(6),
+            tex_manager: TextureManager::new(Self::DEFAULT_BITS_PER_PIXEL),
             sound_player: SoundPlayer::new(),
             confirmation_dialog_action: ConfirmationDialogAction::None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
             asset_tree: StoreAssetTree::new(),
+            recent_projects: recent_projects::RecentProjects::new(),
         };
+        app.recent_projects.load(&mut app.logger);
         app.sys_dialogs.load_paths(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
     }
 
-    pub fn from_file<P: AsRef<std::path::Path>>(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings, path: P) -> Self {
+    pub fn from_file(cc: &eframe::CreationContext<'_>, logger: StringLogger,
+                     settings: AppSettings, path: std::path::PathBuf) -> Self {
         let mut app = Self::new(cc, logger, settings);
-        app.open(&path);
+        app.open(path);
         app
     }
 
@@ -162,16 +167,17 @@ impl RavenEditorApp {
         }
     }
 
-    pub fn open<P: AsRef<std::path::Path>>(&mut self, path: P) {
-        if let Some(dir) = path.as_ref().parent() {
+    pub fn open(&mut self, path: std::path::PathBuf) {
+        if let Some(dir) = path.parent() {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
-        self.logger.log(format!("READING FILE {}", path.as_ref().display()));
-        match DataAssetStore::read_file(path.as_ref(), &mut self.logger) {
+        self.logger.log(format!("READING FILE {}", path.display()));
+        match DataAssetStore::read_file(&path, &mut self.logger) {
             Ok(store) => {
                 self.logger.log("DONE: project read");
                 self.load_project(store);
-                self.set_filename(Some(path.as_ref().to_path_buf()));
+                self.recent_projects.add(&path);
+                self.set_filename(Some(path));
             },
             Err(e) => {
                 self.logger.log(format!("ERROR: {}", e));
@@ -442,114 +448,93 @@ impl RavenEditorApp {
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.new).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("New").clicked() {
-                            if self.editors.is_dirty() {
-                                self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
-                            } else {
-                                self.new_project();
+                    ui.set_max_width(150.0);
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.new), " New")).clicked() {
+                        if self.editors.is_dirty() {
+                            self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
+                        } else {
+                            self.new_project();
+                        }
+                    }
+                    ui.separator();
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.open), " Open...")).clicked() {
+                        self.sys_dialogs.open_file(
+                            Some(window),
+                            "open_project".to_owned(),
+                            "project",
+                            "Open Project",
+                            &[
+                                ("Raven project files (*.h)", &["h"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    };
+                    ui.add_enabled_ui(self.recent_projects.num_files() > 0, |ui| {
+                        let mut selected_project = None;
+                        ui.menu_image_text_button(egui::Image::new(IMAGES.blank), " Open Recent", |ui| {
+                            for (index, path) in self.recent_projects.files().enumerate() {
+                                if ui.button(path.to_string_lossy()).clicked() {
+                                    selected_project = Some(index);
+                                }
                             }
+                        });
+                        if let Some(index) = selected_project && let Some(filename) = self.recent_projects.file(index) {
+                            self.open(filename.clone());
                         }
                     });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.save), " Save")).clicked() {
+                        self.save(window);
+                    }
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.blank), " Save As...")).clicked() {
+                        self.save_as(window);
+                    }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.open).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Open...").clicked() {
-                            self.sys_dialogs.open_file(
-                                Some(window),
-                                "open_project".to_owned(),
-                                "project",
-                                "Open Project",
-                                &[
-                                    ("Raven project files (*.h)", &["h"]),
-                                    ("All files (*.*)", &["*"]),
-                                ]
-                            );
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.save).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.add(egui::Button::new("Save")).clicked() {
-                            self.save(window);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Save As...").clicked() {
-                            self.save_as(window);
-                        }
-                    });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.properties), " Settings")).clicked() {
+                        self.windows.open_settings();
+                    }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Settings").clicked() {
-                            self.windows.open_settings();
-                        }
-                    });
-                    ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.chicken).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Quit").clicked() {
-                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.chicken), " Quit")).clicked() {
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
                 });
                 ui.menu_button("Project", |ui| {
                     for asset_def in ASSET_DEFS {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(include_ref_image!(asset_def.image)).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                            if ui.button(asset_def.add_menu_item).clicked() {
-                                self.add_asset(asset_def.asset_type, None);
-                            }
-                        });
+                        if ui.add(egui::Button::image_and_text(egui::Image::new(include_ref_image!(asset_def.image)),
+                                                               asset_def.add_menu_item)).clicked() {
+                            self.add_asset(asset_def.asset_type, None);
+                        }
                     }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Properties").clicked() {
-                            self.windows.open_properties();
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.header).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Export header...").clicked() {
-                            self.sys_dialogs.save_file(
-                                Some(window),
-                                "export_header".to_owned(),
-                                "project",
-                                "Export Header File",
-                                &[
-                                    ("Header files (*.h)", &["h"]),
-                                    ("All files (*.*)", &["*"]),
-                                ]
-                            );
-                        }
-                    });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.properties), " Properties")).clicked() {
+                        self.windows.open_properties();
+                    }
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.header), " Export header...")).clicked() {
+                        self.sys_dialogs.save_file(
+                            Some(window),
+                            "export_header".to_owned(),
+                            "project",
+                            "Export Header File",
+                            &[
+                                ("Header files (*.h)", &["h"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.blank).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Run Check (F5)").clicked() {
-                            self.windows.open_check();
-                            self.windows.check.run_check(&self.store);
-                        }
-                    });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.blank), " Run Check (F5)")).clicked() {
+                        self.windows.open_check();
+                        self.windows.check.run_check(&self.store);
+                    }
                 });
                 ui.menu_button("Help", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.info).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("Status").clicked() {
-                            self.windows.open_status();
-                        }
-                    });
+                    ui.set_max_width(80.0);
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.info), " Status")).clicked() {
+                        self.windows.open_status();
+                    }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.pico).max_size(egui::Vec2::splat(IMAGE_MENU_SIZE)));
-                        if ui.button("About").clicked() {
-                            self.dialogs.open_about(&mut self.window_tracker);
-                        }
-                    });
+                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.pico), " About")).clicked() {
+                        self.dialogs.open_about(&mut self.window_tracker);
+                    }
                 });
             });
         });
@@ -852,6 +837,7 @@ impl eframe::App for RavenEditorApp {
     }
 
     fn on_exit(&mut self) {
+        self.recent_projects.save(&mut self.logger);
         self.sys_dialogs.save_paths(&mut self.logger);
     }
 
@@ -861,7 +847,7 @@ impl eframe::App for RavenEditorApp {
                 self.set_filename(Some(filename));
             }
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("open_project") {
-            self.open(&filename);
+            self.open(filename);
         }
         if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("export_header") {
             self.export_header(&filename);

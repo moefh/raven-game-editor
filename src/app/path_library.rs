@@ -2,7 +2,10 @@ use std::io::{Result, Error};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
-use super::settings::{get_settings_dir, write_settings_file};
+use super::settings::{
+    read_settings_file,
+    write_settings_file,
+};
 
 use crate::data_asset::StringLogger;
 use crate::data_asset::Tokenizer;
@@ -46,8 +49,8 @@ impl PathLibrary {
         }
     }
 
-    fn load_from_file<P: AsRef<Path>>(&mut self, filename: P) -> Result<()> {
-        let config = std::fs::read_to_string(&filename)?;
+    fn load_settings_file(&mut self) -> Result<()> {
+        let config = read_settings_file(Self::FILENAME)?;
         let mut tok = Tokenizer::new(&config);
         loop {
             let t = tok.read()?;
@@ -73,17 +76,8 @@ impl PathLibrary {
     }
 
     pub fn load(&mut self, logger: &mut StringLogger) {
-        let settings_dir = match get_settings_dir() {
-            Some(dir) => { dir }
-            None => {
-                logger.log("WARNING: can't find settings directory, directories won't be loaded");
-                return;
-            }
-        };
-        let filename = settings_dir.join(Self::FILENAME);
-        logger.log(format!("Loading dirs from '{}'", filename.display()));
-        if let Err(e) = self.load_from_file(filename) {
-            logger.log(format!("ERROR loading dirs: {}", e));
+        if let Err(e) = self.load_settings_file() {
+            logger.log(format!("ERROR loading path library:\n{}", e));
         }
     }
 

@@ -71,7 +71,7 @@ fn main() -> eframe::Result {
     };
 
     let argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
-    let filename: Option<&std::path::Path> = argv.get(1).map(|a| a.as_ref());
+    let filename: Option<std::path::PathBuf> = argv.get(1).map(std::path::PathBuf::from);
 
     eframe::run_native(
         "Raven Game Editor",
