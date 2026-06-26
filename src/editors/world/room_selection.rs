@@ -66,10 +66,7 @@ impl RoomSelectionDialog {
         conv.insert(None, None);
         for (old_index, room_id) in old_rooms.iter().enumerate() {
             let old_index = Some((old_index & 0xff) as u8);
-            let new_index = match region.rooms.iter().position(|new_room_id| new_room_id == room_id) {
-                Some(index) => { Some((index & 0xff) as u8) }
-                None => { None }
-            };
+            let new_index = region.rooms.iter().position(|new_room_id| new_room_id == room_id).map(|i| (i & 0xff) as u8);
             conv.insert(old_index, new_index);
         }
         for block in region.blocks.iter_mut() {

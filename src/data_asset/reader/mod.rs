@@ -2109,7 +2109,7 @@ impl<'a> ProjectDataReader<'a> {
             if x > u8::MAX as u64 || y > u8::MAX as u64 {
                 error(format!("invalid region position: {},{}", x, y), t.pos)?;
             }
-            if width <= 0 as u64 || width > u8::MAX as u64 || height <= 0 || height > u8::MAX as u64 {
+            if width == 0 || width > u8::MAX as u64 || height == 0 || height > u8::MAX as u64 {
                 error(format!("invalid region size: {},{}", width, height), t.pos)?;
             }
 

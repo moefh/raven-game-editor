@@ -338,7 +338,7 @@ impl WorldEditorWidget {
 
     pub fn ensure_room_selection_is_valid(&mut self, world: &World) {
         let num_regions = world.regions.len();
-        if let Some(region_index) = self.get_selected_region() && region_index as usize >= num_regions {
+        if let Some(region_index) = self.get_selected_region() && region_index >= num_regions {
             if num_regions > 0 {
                 self.set_selected_region(Some(num_regions - 1));
             } else {
