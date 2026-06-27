@@ -172,14 +172,10 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         } player_spawn;
         struct {
              const struct $<PREFIX>_ROOM *room;
-             uint16_t room_id;
              uint16_t door;
-             uint16_t width;
-             uint16_t height;
         } door;
         struct {
              const struct $<PREFIX>_SPRITE_ANIMATION *animation;
-             uint16_t type;
         } enemy_spawn;
         struct {
              uint16_t width;

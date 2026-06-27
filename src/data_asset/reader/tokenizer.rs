@@ -95,10 +95,6 @@ impl Token {
         matches!(self.data, TokenData::Ident(_))
     }
 
-    pub fn is_any_punct(&self) -> bool {
-        matches!(self.data, TokenData::Punct(_))
-    }
-
     pub fn is_punct(&self, ch: char) -> bool {
         match self.data {
             TokenData::Punct(self_ch) => self_ch == ch,
@@ -127,6 +123,13 @@ impl Token {
         }
     }
 
+    pub fn drain_ident(&mut self) -> Option<String> {
+        match &mut self.data {
+            TokenData::Ident(s) => Some(std::mem::take(s)),
+            _ => None,
+        }
+    }
+
     pub fn take_ident(self) -> Option<String> {
         match self.data {
             TokenData::Ident(s) => Some(s),
@@ -134,9 +137,9 @@ impl Token {
         }
     }
 
-    pub fn get_pre_processor(&self) -> Option<&String> {
-        match &self.data {
-            TokenData::PreProcessor(s) => Some(s),
+    pub fn drain_pre_processor(&mut self) -> Option<String> {
+        match &mut self.data {
+            TokenData::PreProcessor(s) => Some(std::mem::take(s)),
             _ => None,
         }
     }

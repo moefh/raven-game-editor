@@ -1,390 +1,39 @@
 pub mod tokenizer;
+mod image_converter;
+mod pre_processor;
 mod tileset;
 mod map_data;
-mod pal_sprite;
-mod sprite;
-mod sprite_animation;
 mod room;
 mod world;
+mod sprite;
+mod pal_sprite;
+mod sprite_animation;
 mod sfx;
 mod mod_data;
 mod font;
 mod prop_font;
 
-use std::collections::HashMap;
 use std::io::{Result, Error};
-use regex::Regex;
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
-pub use tokenizer::{Tokenizer, Token, TokenData, TokenPosition};
+use image_converter::ImageConverter;
+
+pub use tokenizer::{
+    Tokenizer,
+    Token,
+    TokenData,
+    TokenPosition,
+};
 
 use super::{
     StringLogger,
-    DataAssetIdGenerator,
-    DataAssetStore,
-    AssetIdCollection,
-    AssetCollection,
-    AssetIdList,
     DataAssetId,
-    DataAsset,
-    PropFont,
-    ModData,
-    ModSample,
-    ModCell,
+    DataAssetStore,
+    DataAssetIdGenerator,
+    AssetCollection,
+    AssetIdCollection,
 };
-
-const C_KEYWORDS : &[&str] = &[
-    "static",
-    "extern",
-    "const",
-    "struct",
-    "enum",
-];
-
-const C_STRUCT_NAMES : &[&str] = &[
-    "FONT",
-    "PROP_FONT",
-    "PAL_SPRITE",
-    "MOD_CELL",
-    "MOD_DATA",
-    "SFX",
-    "IMAGE",
-    "MAP",
-    "SPRITE_ANIMATION",
-    "ROOM_MAP_INFO",
-    "ROOM_TRIGGER_INFO",
-    "ROOM",
-    "WORLD_REGION",
-    "WORLD",
-];
-
-static RE_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#\s*define\s+([A-Za-z0-9_]+)\s+(.*)$").unwrap());
-static RE_PREFIXED_PRE_PROCESSOR_DEFINE: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#\s*define\s+([A-Za-z0-9_]+?)_([A-Za-z0-9_]+)\s+(.*)").unwrap());
-static RE_PRE_PROCESSOR_IF: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#if").unwrap());
-static RE_PRE_PROCESSOR_ELIF: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#elif").unwrap());
-static RE_PRE_PROCESSOR_ELSE: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#else").unwrap());
-static RE_PRE_PROCESSOR_ENDIF: LazyLock<Regex> = LazyLock::new(
-    || Regex::new(r"^#endif").unwrap());
-
-fn image_6bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32, pixel_mapping: &[u8]) -> Vec<u8> {
-    const COLOR_BITS: u32 = 0b0011_1111;
-
-    let stride = width.div_ceil(4) as usize;
-    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
-    for y in 0 .. (height * num_items) as usize {
-        for x in 0..stride {
-            let quad = data[y*stride + x];
-            if x < stride-1 || width.is_multiple_of(4) {
-                pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
-                pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
-                pixels.push(pixel_mapping[((quad >> 16) & COLOR_BITS) as usize]);
-                pixels.push(pixel_mapping[((quad >> 24) & COLOR_BITS) as usize]);
-            } else {
-                match width % 4 {
-                    1 => {
-                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
-                    },
-                    2 => {
-                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
-                        pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
-                    },
-                    3 => {
-                        pixels.push(pixel_mapping[(quad         & COLOR_BITS) as usize]);
-                        pixels.push(pixel_mapping[((quad >>  8) & COLOR_BITS) as usize]);
-                        pixels.push(pixel_mapping[((quad >> 16) & COLOR_BITS) as usize]);
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-    pixels
-}
-
-fn image_8bit_u32_to_pixels(data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
-    let stride = width.div_ceil(4) as usize;
-    let mut pixels = Vec::<u8>::with_capacity((width * height * num_items) as usize);
-    for y in 0 .. (height * num_items) as usize {
-        for x in 0..stride {
-            let quad = data[y*stride + x];
-            if x < stride-1 || width.is_multiple_of(4) {
-                pixels.push((quad      ) as u8);
-                pixels.push((quad >>  8) as u8);
-                pixels.push((quad >> 16) as u8);
-                pixels.push((quad >> 24) as u8);
-            } else {
-                match width % 4 {
-                    1 => {
-                        pixels.push((quad      ) as u8);
-                    },
-                    2 => {
-                        pixels.push((quad      ) as u8);
-                        pixels.push((quad >>  8) as u8);
-                    },
-                    3 => {
-                        pixels.push((quad      ) as u8);
-                        pixels.push((quad >>  8) as u8);
-                        pixels.push((quad >> 16) as u8);
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-    pixels
-}
-
-fn pal_image_to_pixels(data: &[u8], palette: &[u8], width: u32, height: u32, num_items: u32, bits_per_pixel: u32) -> Vec<u8> {
-    let width = width as usize;
-    let height = height as usize;
-    let num_items = num_items as usize;
-    let bits_per_pixel = bits_per_pixel as usize;
-    let pixels_per_byte = 8 / bits_per_pixel;
-    let stride = (width * bits_per_pixel).div_ceil(8);
-    let palette_index_mask = (1u8 << bits_per_pixel) - 1;
-
-    let mut pixels = vec![0u8; width * height * num_items];
-    for y in 0 .. height * num_items {
-        let mut block = 0u8;
-        for x in 0 .. width {
-            if x % pixels_per_byte == 0 {
-                block = data[y * stride + x/pixels_per_byte];
-            }
-            pixels[y * width + x] = palette[(block & palette_index_mask) as usize];
-            block >>= bits_per_pixel;
-        }
-    }
-
-    pixels
-}
-
-pub struct ReaderAssetReference {
-    pub index: usize,
-    pub pos: TokenPosition,
-}
-
-impl ReaderAssetReference {
-    fn new(index: usize, pos: TokenPosition) -> Self {
-        ReaderAssetReference {
-            index,
-            pos,
-        }
-    }
-
-    fn get_asset_id(&self, asset_ids: &AssetIdList) -> Result<DataAssetId> {
-        asset_ids.get(self.index).copied().ok_or_else(|| {
-            err(format!("invalid asset reference: index {}", self.index), self.pos)
-        })
-    }
-}
-
-struct I8or16Array {
-    data_size: u32,  // 8 or 16
-    data: Vec<i16>,  // elements will be left shift by 8 if size==8
-}
-
-pub struct ReadData {
-    // asset data
-    font_data: HashMap<String,Vec<u8>>,
-    prop_font_data: HashMap<String,Vec<u8>>,
-    mod_sample_data: HashMap<String,I8or16Array>,
-    mod_patterns: HashMap<String,Vec<ModCell>>,
-    sfx_sample_data: HashMap<String,I8or16Array>,
-    tileset_data: HashMap<String,Vec<u32>>,
-    sprite_data: HashMap<String,Vec<u32>>,
-    pal_sprite_data: HashMap<String,Vec<u8>>,
-    map_tiles: HashMap<String,Vec<u8>>,
-    animation_frames: HashMap<String,Vec<u8>>,
-    room_maps: HashMap<String,Vec<room::MapCreationData>>,
-    room_triggers: HashMap<String,Vec<room::TriggerCreationData>>,
-    world_block_bitmap_data: HashMap<String,Vec<u32>>,
-    world_blocks_data: HashMap<String,Vec<u8>>,
-    world_room_indices_data: HashMap<String,Vec<u16>>,
-    world_regions: HashMap<String,Vec<world::RegionCreationData>>,
-
-    // assets by index
-    fonts: Vec<font::CreationData>,
-    prop_fonts: Vec<prop_font::CreationData>,
-    mods: Vec<mod_data::CreationData>,
-    sfxs: Vec<sfx::CreationData>,
-    tilesets: Vec<tileset::CreationData>,
-    sprites: Vec<sprite::CreationData>,
-    pal_sprites: Vec<pal_sprite::CreationData>,
-    maps: Vec<map_data::CreationData>,
-    animations: Vec<sprite_animation::CreationData>,
-    rooms: Vec<room::CreationData>,
-    worlds: Vec<world::CreationData>,
-
-    // assets by name
-    fonts_by_name: HashMap<String, usize>,
-    prop_fonts_by_name: HashMap<String, usize>,
-    mods_by_name: HashMap<String, usize>,
-    sfxs_by_name: HashMap<String, usize>,
-    tilesets_by_name: HashMap<String, usize>,
-    sprites_by_name: HashMap<String, usize>,
-    pal_sprites_by_name: HashMap<String, usize>,
-    maps_by_name: HashMap<String, usize>,
-    animations_by_name: HashMap<String, usize>,
-    rooms_by_name: HashMap<String, usize>,
-    worlds_by_name: HashMap<String, usize>,
-}
-
-impl ReadData {
-    fn new() -> Self {
-        ReadData {
-            font_data: HashMap::new(),
-            prop_font_data: HashMap::new(),
-            mod_sample_data: HashMap::new(),
-            mod_patterns: HashMap::new(),
-            sfx_sample_data: HashMap::new(),
-            tileset_data: HashMap::new(),
-            sprite_data: HashMap::new(),
-            pal_sprite_data: HashMap::new(),
-            map_tiles: HashMap::new(),
-            animation_frames: HashMap::new(),
-            room_maps: HashMap::new(),
-            room_triggers: HashMap::new(),
-            world_block_bitmap_data: HashMap::new(),
-            world_blocks_data: HashMap::new(),
-            world_room_indices_data: HashMap::new(),
-            world_regions: HashMap::new(),
-
-            fonts: Vec::new(),
-            prop_fonts: Vec::new(),
-            mods: Vec::new(),
-            sfxs: Vec::new(),
-            tilesets: Vec::new(),
-            sprites: Vec::new(),
-            pal_sprites: Vec::new(),
-            maps: Vec::new(),
-            animations: Vec::new(),
-            rooms: Vec::new(),
-            worlds: Vec::new(),
-
-            fonts_by_name: HashMap::new(),
-            prop_fonts_by_name: HashMap::new(),
-            mods_by_name: HashMap::new(),
-            sfxs_by_name: HashMap::new(),
-            tilesets_by_name: HashMap::new(),
-            sprites_by_name: HashMap::new(),
-            pal_sprites_by_name: HashMap::new(),
-            maps_by_name: HashMap::new(),
-            animations_by_name: HashMap::new(),
-            rooms_by_name: HashMap::new(),
-            worlds_by_name: HashMap::new(),
-        }
-    }
-
-    fn add_tileset(&mut self, data: tileset::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.tilesets.len();
-        self.tilesets.push(data);
-        self.tilesets_by_name.insert(name, index);
-        index
-    }
-
-    fn add_map(&mut self, data: map_data::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.maps.len();
-        self.maps.push(data);
-        self.maps_by_name.insert(name, index);
-        index
-    }
-
-    fn add_sprite(&mut self, data: sprite::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.sprites.len();
-        self.sprites.push(data);
-        self.sprites_by_name.insert(name, index);
-        index
-    }
-
-    fn add_pal_sprite(&mut self, data: pal_sprite::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.pal_sprites.len();
-        self.pal_sprites.push(data);
-        self.pal_sprites_by_name.insert(name, index);
-        index
-    }
-
-    fn add_animation(&mut self, data: sprite_animation::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.animations.len();
-        self.animations.push(data);
-        self.animations_by_name.insert(name, index);
-        index
-    }
-
-    fn add_room(&mut self, data: room::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.rooms.len();
-        self.rooms.push(data);
-        self.rooms_by_name.insert(name, index);
-        index
-    }
-
-    fn add_world(&mut self, data: world::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.worlds.len();
-        self.worlds.push(data);
-        self.worlds_by_name.insert(name, index);
-        index
-    }
-
-    fn add_sfx(&mut self, data: sfx::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.sfxs.len();
-        self.sfxs.push(data);
-        self.sfxs_by_name.insert(name, index);
-        index
-    }
-
-    fn add_mod(&mut self, data: mod_data::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.mods.len();
-        self.mods.push(data);
-        self.mods_by_name.insert(name, index);
-        index
-    }
-
-    fn add_font(&mut self, data: font::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.fonts.len();
-        self.fonts.push(data);
-        self.fonts_by_name.insert(name, index);
-        index
-    }
-
-    fn add_prop_font(&mut self, data: prop_font::CreationData) -> usize {
-        let name = data.name.clone();
-        let index = self.prop_fonts.len();
-        self.prop_fonts.push(data);
-        self.prop_fonts_by_name.insert(name, index);
-        index
-    }
-}
-
-pub struct ProjectDataReader<'a> {
-    logger: &'a mut StringLogger,
-    id_generator: DataAssetIdGenerator,
-    tok: Tokenizer<'a>,
-    unread_token: Option<Token>,
-    last_pos: TokenPosition,
-    data: ReadData,
-    vga_bits_per_pixel: u8,
-    vga_sync_bits: u8,
-    got_prefix: bool,
-    project_prefix: String,
-    prefix_lower: String,
-    prefix_upper: String,
-    last_type_size: u32,
-    pixel_6bit_to_8bit: Vec<u8>,
-}
 
 pub fn err<S: AsRef<str>>(msg: S, pos: TokenPosition) -> Error {
     Error::other(format!("line {}: {}", pos.line, msg.as_ref()))
@@ -394,43 +43,488 @@ pub fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
     Result::Err(err(msg, pos))
 }
 
-fn error_expected<T, S: AsRef<str>>(expected: S, found: &Token) -> Result<T> {
-    Result::Err(Error::other(format!("line {}: expected {}, found {}",
-                                     found.pos.line, expected.as_ref(), found)))
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum ValueType {
+    U8,
+    U16,
+    U32,
+    I8,
+    I16,
+    I32,
+    U8Array,
+    U16Array,
+    U32Array,
+    I8Array,
+    I16Array,
+    ArrayRef,
+    AssetRef,
+    Identifier,
+    Loop(Box<ValueType>),
+    Struct(Vec<ValueType>),
+    Custom(fn (&mut ProjectDataReader) -> Result<Value>),
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum Value {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    U8Array(Box<ValueArray<u8>>),
+    I8Array(Box<ValueArray<i8>>),
+    U16Array(Box<ValueArray<u16>>),
+    I16Array(Box<ValueArray<i16>>),
+    U32Array(Box<ValueArray<u32>>),
+    Identifier(Box<ValueName>),
+    ArrayRef(Box<ValueName>),
+    AssetRef(Box<ValueAssetRef>),
+    Loop(Vec<Value>),
+    Struct(Vec<Value>),
+}
+
+#[derive(Debug)]
+pub struct ValueArray<T> {
+    vec: Vec<T>,
+    pos: TokenPosition,
+}
+
+impl<T> ValueArray<T> {
+    pub fn new(vec: Vec<T>, pos: TokenPosition) -> Self {
+        ValueArray {
+            vec,
+            pos,
+        }
+    }
+}
+
+enum ValueArrayDataI8orI16<'a> {
+    I8Converted(Vec<i16>),
+    I16Original(&'a Vec<i16>)
+}
+
+impl<'a> ValueArrayDataI8orI16<'a> {
+    pub fn take(self) -> Vec<i16> {
+        match self {
+            ValueArrayDataI8orI16::I8Converted(a) => { a }
+            ValueArrayDataI8orI16::I16Original(a) => { a.clone() }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ValueName {
+    name: String,
+    pos: TokenPosition,
+}
+
+#[allow(dead_code)]
+impl ValueName {
+    pub fn new(name: String, pos: TokenPosition) -> Self {
+        ValueName {
+            name,
+            pos,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        self.name == "NULL"
+    }
+
+    fn array_exists(&self, data: &ProjectData) -> bool {
+        data.arrays.contains_key(&self.name) ||
+            data.structs.contains_key(&self.name) ||
+            data.assets.contains_key(&self.name)
+    }
+
+    fn error_not_found<T>(&self, data: &ProjectData) -> Result<T> {
+        if self.array_exists(data) {
+            error(format!("array has unexpected data type: '{}'", self.name), self.pos)
+        } else {
+            error(format!("array not found: '{}'", self.name), self.pos)
+        }
+    }
+
+    pub fn get_struct_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<Value>> {
+        match data.structs.get(&self.name) {
+            Some(v)  => { Ok(v) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    pub fn get_u8_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u8>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::U8Array(a))  => { Ok(&a.vec) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    pub fn get_u16_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u16>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::U16Array(a))  => { Ok(&a.vec) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    pub fn get_u32_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u32>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::U32Array(a))  => { Ok(&a.vec) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    pub fn get_i8_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<i8>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::I8Array(a))  => { Ok(&a.vec) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    pub fn get_i16_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<i16>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::I16Array(a))  => { Ok(&a.vec) }
+            _ => { self.error_not_found(data) }
+        }
+    }
+
+    fn get_i8_or_i16_array<'a>(&self, data: &'a ProjectData) -> Result<ValueArrayDataI8orI16<'a>> {
+        match data.arrays.get(&self.name) {
+            Some(Value::I8Array(v)) => {
+                Ok(ValueArrayDataI8orI16::I8Converted(v.vec.iter().map(|s| { (*s as i16) << 8 }).collect()))
+            }
+            Some(Value::I16Array(v)) => {
+                Ok(ValueArrayDataI8orI16::I16Original(&v.vec))
+            }
+            _ => {
+                self.error_not_found(data)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ValueAssetRef {
+    name: String,
+    index: usize,
+    pos: TokenPosition,
+}
+
+impl ValueAssetRef {
+    pub fn new(name: String, index: usize, pos: TokenPosition) -> Self {
+        ValueAssetRef {
+            name,
+            index,
+            pos,
+        }
+    }
+
+    pub fn get_asset_id(&self, data: &ProjectData) -> Result<DataAssetId> {
+        match data.asset_ids_by_prefixed_name.get(&self.name).and_then(|v| v.get(self.index)) {
+            Some(id) => { Ok(*id) }
+            None => { error(format!("invalid asset reference: '{}[{}]'", self.name, self.index), self.pos) }
+        }
+    }
+}
+
+// simple numeric arrays
+static ARRAY_VALUE_TYPES: LazyLock<HashMap<String,ValueType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("uint8_t"),  ValueType::U8Array),
+        (String::from("uint16_t"), ValueType::U16Array),
+        (String::from("uint32_t"), ValueType::U32Array),
+        (String::from("int8_t"),   ValueType::I8Array),
+        (String::from("int16_t"),  ValueType::I16Array),
+    ])
+});
+
+// structs used inside asset structs
+static AUX_STRUCT_VALUE_TYPES: LazyLock<HashMap<String,ValueType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("MOD_CELL"), ValueType::Struct(vec![
+            ValueType::U8,          // sample
+            ValueType::U8,          // note index
+            ValueType::U16,         // effect
+        ])),
+
+        (String::from("ROOM_MAP_INFO"), ValueType::Struct(vec![
+            ValueType::U16,         // x
+            ValueType::U16,         // y
+            ValueType::AssetRef,    // room
+        ])),
+
+        (String::from("ROOM_TRIGGER_INFO"), ValueType::Struct(vec![
+            ValueType::Identifier,  // type
+            ValueType::I16,         // x
+            ValueType::I16,         // y
+            ValueType::Custom(custom_read_room_trigger_info),
+        ])),
+
+        (String::from("WORLD_REGION"), ValueType::Struct(vec![
+            ValueType::U8,          // x
+            ValueType::U8,          // y
+            ValueType::U8,          // width
+            ValueType::U8,          // height
+            ValueType::ArrayRef,    // block_bitmap
+            ValueType::ArrayRef,    // blocks
+            ValueType::ArrayRef,    // room_indices
+        ])),
+    ])
+});
+
+// asset structs
+static ASSET_STRUCT_VALUE_TYPES: LazyLock<HashMap<String,ValueType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("FONT"), ValueType::Struct(vec![
+            ValueType::U8,          // width
+            ValueType::U8,          // height
+            ValueType::ArrayRef,    // data
+        ])),
+
+        (String::from("PROP_FONT"), ValueType::Struct(vec![
+            ValueType::U8,          // height
+            ValueType::ArrayRef,    // data
+            ValueType::U8Array,     // char widths
+            ValueType::U16Array,    // char offsets
+        ])),
+
+        (String::from("PAL_SPRITE"), ValueType::Struct(vec![
+            ValueType::I16,         // width
+            ValueType::I16,         // height
+            ValueType::I16,         // num frames
+            ValueType::U16,         // bits per pixel
+            ValueType::U8Array,     // palette
+            ValueType::ArrayRef,    // data
+        ])),
+
+        (String::from("MOD_DATA"), ValueType::Struct(vec![
+            ValueType::Loop(Box::new(  // 31 samples
+                ValueType::Struct(vec![
+                    ValueType::U32,    // len
+                    ValueType::U32,    // loop start
+                    ValueType::U32,    // loop len
+                    ValueType::U8,     // finetune
+                    ValueType::U8,     // volume
+                    ValueType::U16,    // bits per sample
+                    ValueType::Custom(custom_read_mod_sample_data),  // data: ArrayRef(i8/i16)
+                ])
+            )),
+            ValueType::U8,         // num channels
+            ValueType::U8,         // num song positions
+            ValueType::U8Array,    // song positions
+            ValueType::U8,         // num patterns
+            ValueType::ArrayRef,   // patterns
+        ])),
+
+        (String::from("SFX"), ValueType::Struct(vec![
+            ValueType::U32,       // len
+            ValueType::U32,       // loop start
+            ValueType::U32,       // loop end
+            ValueType::U16,       // bits per sample
+            ValueType::Custom(custom_read_sfx_sample_data),  // data: ArrayRef(i8/i16)
+        ])),
+
+        (String::from("IMAGE"), ValueType::Struct(vec![
+            ValueType::U32,       // width
+            ValueType::U32,       // height
+            ValueType::U32,       // stride
+            ValueType::U32,       // num frames
+            ValueType::ArrayRef,  // data
+        ])),
+
+        (String::from("MAP"), ValueType::Struct(vec![
+            ValueType::U16,       // w
+            ValueType::U16,       // h
+            ValueType::U16,       // parallax w
+            ValueType::U16,       // parallax h
+            ValueType::AssetRef,  // tileset
+            ValueType::ArrayRef,  // tiles (u8)
+        ])),
+
+        (String::from("SPRITE_ANIMATION"), ValueType::Struct(vec![
+            ValueType::ArrayRef,          // frame indices (u8)
+            ValueType::AssetRef,          // sprite
+            ValueType::Struct(vec![       // collision
+                ValueType::U16,              // x
+                ValueType::U16,              // y
+                ValueType::U16,              // width
+                ValueType::U16,              // height
+            ]),
+            ValueType::I8,                // use foot frames
+            ValueType::I8,                // foot overlap
+            ValueType::Loop(Box::new(     // 20 loops
+                ValueType::Struct(vec![
+                    ValueType::U16,       // offset
+                    ValueType::U16,       // length
+                ])
+            )),
+        ])),
+
+        (String::from("ROOM"), ValueType::Struct(vec![
+            ValueType::U16,       // num maps
+            ValueType::U16,       // num triggers
+            ValueType::ArrayRef,  // maps (ROOM_MAP_INFO)
+            ValueType::ArrayRef,  // triggers (ROOM_TRIGGER_INFO)
+        ])),
+
+        (String::from("WORLD"), ValueType::Struct(vec![
+            ValueType::U16,       // num regions
+            ValueType::ArrayRef,  // regions (WORLD_REGION)
+        ])),
+    ])
+});
+
+// structs inside the room trigger data union
+static ROOM_TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("any"), ValueType::Struct(vec![
+            ValueType::U32,       // data0
+            ValueType::U32,       // data1
+            ValueType::U32,       // data2
+            ValueType::U32,       // data3
+        ])),
+
+        (String::from("door"), ValueType::Struct(vec![
+            ValueType::AssetRef,  // room
+            ValueType::U16,       // door id
+        ])),
+
+        (String::from("player_spawn"), ValueType::Struct(vec![
+            ValueType::U8,        // direction
+        ])),
+
+        (String::from("enemy_spawn"), ValueType::Struct(vec![
+            ValueType::AssetRef,  // animation
+        ])),
+
+        (String::from("trap"), ValueType::Struct(vec![
+            ValueType::U16,       // width
+            ValueType::U16,       // height
+            ValueType::U16,       // trap
+        ])),
+    ])
+});
+
+fn custom_read_mod_sample_data(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.read_sample_data_ref()
+}
+
+fn custom_read_sfx_sample_data(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.read_sample_data_ref()
+}
+
+fn custom_read_room_trigger_info(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.read_trigger_info_union()
+}
+
+pub struct AssetDef {
+    pub value: Value,
+    pub pos: TokenPosition,
+}
+
+pub struct ProjectData {
+    prefix: String,
+    got_prefix: bool,
+    prefix_lower: String,
+    prefix_upper: String,
+    vga_bits_per_pixel: u8,
+    vga_sync_bits: u8,
+
+    arrays: HashMap<String, Value>,
+    structs: HashMap<String, Vec<Value>>,
+    assets: HashMap<String, (Vec<AssetDef>, TokenPosition)>,
+    enums: HashMap<String,Vec<String>>,
+    asset_ids: HashMap<String, Vec<DataAssetId>>,
+    asset_ids_by_prefixed_name: HashMap<String, Vec<DataAssetId>>,
+}
+
+impl ProjectData {
+    pub fn new() -> Self {
+        ProjectData {
+            prefix: String::from("PROJECT"),
+            got_prefix: false,
+            prefix_lower: String::new(),
+            prefix_upper: String::new(),
+            vga_bits_per_pixel: 6,
+            vga_sync_bits: 0xc0,
+
+            arrays: HashMap::new(),
+            structs: HashMap::new(),
+            assets: HashMap::new(),
+            enums: HashMap::new(),
+            asset_ids: HashMap::new(),
+            asset_ids_by_prefixed_name: HashMap::new(),
+        }
+    }
+
+    pub fn extract_asset_name<'a>(&self, array_prefix: &str, value_name: &'a ValueName) -> Result<&'a str> {
+        if value_name.name.starts_with(&self.prefix_lower) &&
+            value_name.name[self.prefix_lower.len() ..].starts_with(array_prefix) {
+                Ok(&value_name.name[self.prefix_lower.len() + array_prefix.len() ..])
+            } else {
+                error(format!("invalid name: '{}'", value_name.name), value_name.pos)
+            }
+
+    }
+
+    fn check_name_match(name: &str, parts: &[&str]) -> bool {
+        if name.len() != parts.iter().fold(0, |len, p| len + p.len()) {
+            return false;
+        }
+
+        let mut pos = 0;
+        for part in parts {
+            if ! name[pos .. pos + part.len()].eq_ignore_ascii_case(part) {
+                return false;
+            }
+            pos += part.len();
+        }
+        true
+    }
+
+    // look for enum with tag
+    //    <prefix><asset_type>_<asset_name>_<type_name>_NAMES
+    // and get the nth item's <X> part if it's in the form
+    //    <prefix><asset_type>_<asset_name>_<type_name>_<X>
+    pub fn get_asset_data_name(&self, index: usize, asset_type: &str,
+                               asset_name: &str, type_name: &str) -> Option<String> {
+        let enum_tag_parts = &[ &self.prefix_upper, asset_type, "_", asset_name, "_", type_name, "_NAMES" ];
+        let enum_item_prefix = &[ &self.prefix_upper, asset_type, "_", asset_name, "_", type_name, "_" ];
+        let enum_item_prefix_len = enum_item_prefix.iter().fold(0, |len, p| len + p.len());
+        for (name, enum_items) in self.enums.iter() {
+            if Self::check_name_match(name, enum_tag_parts) {
+                return if let Some(item_name) = enum_items.get(index) &&
+                    item_name.len() > enum_item_prefix_len &&
+                    Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
+                        Some(String::from(&item_name[enum_item_prefix_len..]).to_lowercase())
+                    } else {
+                        None
+                    };
+            }
+        }
+        None
+    }
+}
+
+pub struct ProjectDataReader<'a> {
+    logger: &'a mut StringLogger,
+    tok: Tokenizer<'a>,
+    unread_token: Option<Token>,
+    last_pos: TokenPosition,
+    data: ProjectData,
 }
 
 impl<'a> ProjectDataReader<'a> {
     fn new(source: &'a str, logger: &'a mut StringLogger) -> Self {
         ProjectDataReader {
             logger,
-            id_generator: DataAssetIdGenerator::new(),
             tok: Tokenizer::new(source),
             unread_token: None,
             last_pos: TokenPosition { line: 0 },
-            last_type_size: 0,
-            project_prefix: String::from("PROJECT"),
-            prefix_lower: String::new(),
-            prefix_upper: String::new(),
-            pixel_6bit_to_8bit: Self::gen_6bit_to_8bit_map(),
-            vga_sync_bits: 0xc0,
-            vga_bits_per_pixel: 6,
-            got_prefix: false,
-            data: ReadData::new(),
+            data: ProjectData::new(),
         }
-    }
-
-    fn gen_6bit_to_8bit_map() -> Vec<u8> {
-        let mut pixel_6bit_to_8bit = vec![0u8; 64];
-        for (pix_6bit, pix_8bit) in pixel_6bit_to_8bit.iter_mut().enumerate() {
-            let r6 = pix_6bit & 0x03;
-            let g6 = (pix_6bit & 0x0c) >> 2;
-            let b6 = (pix_6bit & 0x30) >> 4;
-            let r8 = (r6 << 1) | (r6 >> 1);
-            let g8 = (g6 << 1) | (g6 >> 1);
-            let b8 = b6;
-            *pix_8bit = (r8 | (g8 << 3) | (b8 << 6)) as u8;
-        }
-        pixel_6bit_to_8bit
     }
 
     fn read(&mut self) -> Result<Token> {
@@ -451,6 +545,10 @@ impl<'a> ProjectDataReader<'a> {
         error("trying to unread a token while a token is already unread", t.pos)?
     }
 
+    fn unexpected(&self, t: &Token) -> Result<()> {
+        error(format!("unexpected '{}'", t), t.pos)
+    }
+
     fn expect_token(&mut self) -> Result<Token> {
         match self.read() {
             Ok(Token { data: TokenData::Eof(), pos }) => error("unexpected <eof>", pos),
@@ -459,8 +557,16 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
+    fn expect_ident(&mut self, ident: &str) -> Result<Token> {
+        let t = self.read()?;
+        if let Some(got_ident) = t.get_ident() && got_ident == ident {
+            return Ok(t);
+        }
+        error(format!("expected {}, found '{}'", ident, t), t.pos)?
+    }
+
     fn expect_any_ident(&mut self, expected: &str) -> Result<Token> {
-        let t = self.tok.read()?;
+        let t = self.read()?;
         if t.is_any_ident() {
             return Ok(t);
         }
@@ -468,37 +574,43 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     fn expect_punct(&mut self, ch: char) -> Result<Token> {
-        let t = self.tok.read()?;
+        let t = self.read()?;
         if t.is_punct(ch) {
             return Ok(t)
         }
         error(format!("expected '{}', found '{}'", ch, t), t.pos)?
     }
 
-    fn expect_any_punct(&mut self, expected: &str) -> Result<Token> {
-        let t = self.tok.read()?;
-        if t.is_any_punct() {
-            return Ok(t)
+    // ========================================================
+    // === NUMBER
+    // ========================================================
+
+    fn read_number(&mut self, max: u64) -> Result<u64> {
+        let t = self.read()?;
+        if let Some(n) = t.get_number() {
+            if n <= max {
+                return Ok(n)
+            }
+            error(format!("number too large: {} (must be <= {})", n, max), t.pos)
+        } else {
+            error(format!("expected number, found '{}'", t), t.pos)
         }
-        error(format!("expected {}, found '{}'", expected, t), t.pos)
     }
 
-    fn read_number(&mut self) -> Result<u64> {
-        let t = self.tok.read()?;
+    fn read_signed_number(&mut self, min: i64, max: i64) -> Result<i64> {
+        let t = self.read()?;
         if let Some(n) = t.get_number() {
-            return Ok(n)
-        }
-        error(format!("expected number, found '{}'", t), t.pos)
-    }
-
-    fn read_signed_number(&mut self) -> Result<i64> {
-        let t = self.tok.read()?;
-        if let Some(n) = t.get_number() {
+            if n > (i64::MAX as u64) || (n as i64) > max {
+                return error(format!("number too large: {} (must be <= {})", n, max), t.pos);
+            }
             return Ok(n as i64)
         }
         if t.is_punct('-') {
-            let t = self.tok.read()?;
+            let t = self.read()?;
             if let Some(n) = t.get_number() {
+                if n > (i64::MAX as u64) || -(n as i64) < min {
+                    return error(format!("number too small: {} (must be >= {})", n, min), t.pos);
+                }
                 return Ok(-(n as i64))
             }
             error(format!("expected number, found '{}'", t), t.pos)?
@@ -506,2213 +618,479 @@ impl<'a> ProjectDataReader<'a> {
         error(format!("expected '-' or number, found '{}'", t), t.pos)?
     }
 
-    fn parse_number(source: &str) -> Option<u64> {
-        let mut num_tok = Tokenizer::new(source);
-        match num_tok.read() {
-            Ok(t) => t.get_number(),
-            Err(_) => None,
-        }
-    }
+    // =========================================================
+    // === VALUE PARSER
+    // =========================================================
 
-    fn get_image_pixels(&self, data: &[u32], width: u32, height: u32, num_items: u32) -> Vec<u8> {
-        if self.vga_bits_per_pixel == 8 {
-            image_8bit_u32_to_pixels(data, width, height, num_items)
+    fn strip_upper_prefix(&self, ident: &'a str) -> Option<&'a str> {
+        if ident.starts_with(&self.data.prefix_upper) {
+            Some(&ident[self.data.prefix_upper.len()..])
         } else {
-            image_6bit_u32_to_pixels(data, width, height, num_items, &self.pixel_6bit_to_8bit)
+            None
         }
     }
 
-    fn handle_pre_processor_define(&mut self, line: &str, pos: TokenPosition) -> Result<()> {
-        if let Some((_, [prefix, name, value])) = RE_PREFIXED_PRE_PROCESSOR_DEFINE.captures(line).map(|caps| caps.extract()) {
-            if ! self.got_prefix {
-                self.set_project_prefix(prefix);
-            } else if prefix != self.project_prefix {
-                self.logger.log(format!("-> ignoring define named without project prefix: {}_{}", prefix, name));
-                return Ok(());
-            }
-
-            if name == "DATA_FILE_VERSION" {
-                match Self::parse_number(value) {
-                    Some(file_version) => {
-                        if file_version > DataAssetStore::VERSION as u64 {
-                            return error(format!("refusing to parse unknown file version {} (max supported: {})",
-                                                 file_version, DataAssetStore::VERSION), pos);
-                        }
-                        self.logger.log(format!("-> got file version {}", file_version));
-                        return Ok(());
-                    }
-
-                    None => {
-                        return error(format!("bad file version number: {}", value), pos);
-                    }
-                }
-            }
-
-            if name == "DATA_VGA_SYNC_BITS" {
-                match Self::parse_number(value) {
-                    Some(vga_sync_bits) => {
-                        if vga_sync_bits > 0xff {
-                            return error(format!("bad vga_sync_bits value: {:#x}", vga_sync_bits), pos);
-                        }
-                        self.logger.log(format!("-> got vga_sync_bits {:#04x}", vga_sync_bits));
-                        self.vga_sync_bits = vga_sync_bits as u8;
-                        return Ok(())
-                    }
-                    None => {
-                        return error(format!("bad vga_sync_bits value: {}", value), pos);
-                    }
-                }
-            }
-
-            if name == "DATA_VGA_BITS_PER_PIXEL" {
-                match Self::parse_number(value) {
-                    Some(vga_bits_per_pixel) => {
-                        if vga_bits_per_pixel != 6 && vga_bits_per_pixel != 8 {
-                            return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
-                                                 vga_bits_per_pixel), pos);
-                        }
-                        self.logger.log(format!("-> got vga_bits_per_pixel {:#04x}", vga_bits_per_pixel));
-                        self.vga_bits_per_pixel = vga_bits_per_pixel as u8;
-                        return Ok(());
-                    }
-                    None => {
-                        return error(format!("bad vga_bits_per_pixel value: {}", value), pos);
-                    }
-                }
-            }
-
-            if name.starts_with("SPRITE_WIDTH_") ||
-                name.starts_with("SPRITE_HEIGHT_") ||
-                name.starts_with("SPRITE_STRIDE_") ||
-                name.starts_with("SPRITE_FRAMES_") {
-                    // ignore
-                    return Ok(());
-                }
-
-            if name.starts_with("PAL_SPRITE_WIDTH_") ||
-                name.starts_with("PAL_SPRITE_HEIGHT_") ||
-                name.starts_with("PAL_SPRITE_FRAMES_") ||
-                name.starts_with("PAL_SPRITE_DEPTH_") {
-                    // ignore
-                    return Ok(());
-                }
-
-            if name == "DATA_SAVE_TIMESTAMP" {
-                // ignore
-                return Ok(());
-            }
-        }
-
-        self.logger.log(format!("-> ignoring define line {}", line));
-        Ok(())
-    }
-
-    fn handle_pre_processor_if(&mut self, line: &str) -> Result<()> {
-        if line == format!("#if {}DATA_BYTES", self.prefix_upper) { return Ok(()); }
-        if line == format!("#endif /* {}DATA_BYTES */", self.prefix_upper) { return Ok(()); }
-
-        if line == format!("#if {}ADD_ROOM_SCRIPTS", self.prefix_upper) { return Ok(()); }
-        if line == format!("#endif /* {}ADD_ROOM_SCRIPTS */", self.prefix_upper) { return Ok(()); }
-
-        self.logger.log(format!("-> ignoring pre-processor if line: {}", line));
-        Ok(())
-    }
-
-    fn handle_pre_processor_unknown(&mut self, line: &str) -> Result<()> {
-        self.logger.log(format!("-> ignoring unknown pre-processor line: {}", line));
-        Ok(())
-    }
-
-    fn handle_pre_processor_line(&mut self, line: &str, pos: TokenPosition) -> Result<()> {
-        // #define NAME VALUE
-        if RE_PRE_PROCESSOR_DEFINE.is_match(line) {
-            return self.handle_pre_processor_define(line, pos);
-        }
-
-        // #if ...
-        // #elif ...
-        // #else ...
-        // #endif ...
-        if RE_PRE_PROCESSOR_IF.is_match(line) ||
-            RE_PRE_PROCESSOR_ELIF.is_match(line) ||
-            RE_PRE_PROCESSOR_ELSE.is_match(line) ||
-            RE_PRE_PROCESSOR_ENDIF.is_match(line) {
-                return self.handle_pre_processor_if(line);
-            }
-
-        self.handle_pre_processor_unknown(line)
-    }
-
-    fn prefix_upper_no_trailing_underscore(&self) -> &str {
-        if self.prefix_upper.is_empty() {
-            ""
+    fn strip_lower_prefix(&self, ident: &'a str) -> Option<&'a str> {
+        if ident.starts_with(&self.data.prefix_lower) {
+            Some(&ident[self.data.prefix_lower.len()..])
         } else {
-            &self.prefix_upper[0..self.prefix_upper.len()-1]
+            None
         }
     }
 
-    // return "<x>" for "<prefix>_<type_name>_<x>"
-    fn get_global_lower_of_type<'x>(&self, ident: &'x str, type_name_id: &str) -> Option<&'x str> {
-        if ! ident.starts_with(&self.prefix_lower) { return None; }
-        let ident_no_prefix = &ident[self.prefix_lower.len()..];
-        if ! ident_no_prefix.starts_with(type_name_id) { return None; }
-        let ident_no_type = &ident_no_prefix[type_name_id.len()..];
-        if ! ident_no_type.starts_with("_") { return None; }
-        Some(&ident_no_type[1..])
-    }
-
-    // return "<x>" for "<prefix>_<x>"
-    fn get_global_lower<'x>(&self, ident: &'x str) -> Option<&'x str> {
-        if ! ident.starts_with(&self.prefix_lower) { return None; }
-        Some(&ident[self.prefix_lower.len()..])
-    }
-
-    // compare to "<prefix>_<name>"
-    fn is_global_lower(&self, ident: &str, name_id: &str) -> bool {
-        if let Some(ident_name_id) = self.get_global_lower(ident) {
-            return ident_name_id == name_id;
-        }
-        false
-    }
-
-    // return "<X>" for "<PREFIX>_<TYPE_NAME>_<X>_<SUFFIX>"
-    fn get_global_upper_of_type_with_suffix<'x>(&self, ident: &'x str, type_name_id: &str, suffix: &str) -> Option<&'x str> {
-        let name_id_suffix = match self.get_global_upper_of_type(ident, type_name_id) {
-            Some(name_id) => name_id,
-            None => { return None; },
-        };
-
-        if ! name_id_suffix.ends_with(suffix) { return None; }
-        let name_id_no_suffix = &name_id_suffix[..name_id_suffix.len()-suffix.len()];
-        if ! name_id_no_suffix.ends_with("_") { return None; }
-        Some(&name_id_no_suffix[..name_id_no_suffix.len()-1])
-    }
-
-    // return "<X>" for "<PREFIX>_<TYPE_NAME>_<X>"
-    fn get_global_upper_of_type<'x>(&self, ident: &'x str, type_name_id: &str) -> Option<&'x str> {
-        if ! ident.starts_with(&self.prefix_upper) { return None; }
-        let ident_no_prefix = &ident[self.prefix_upper.len()..];
-        if ! ident_no_prefix.starts_with(type_name_id) { return None; }
-        let ident_no_type = &ident_no_prefix[type_name_id.len()..];
-        if ! ident_no_type.starts_with("_") { return None; }
-        Some(&ident_no_type[1..])
-    }
-
-    // compare to "<PREFIX>_<NAME>"
-    fn is_global_upper(&self, ident: &str, name_id: &str) -> bool {
-        if let Some(ident_name_id) = self.get_global_upper(ident) {
-            return ident_name_id == name_id;
-        }
-        false
-    }
-
-    // starts with "<PREFIX>_<TYPE_NAME>_"
-    fn is_global_upper_of_type(&self, ident: &str, type_name_id: &str) -> bool {
-        if ! ident.starts_with(&self.prefix_upper) { return false; }
-        let ident_no_prefix = &ident[self.prefix_upper.len()..];
-        if ! ident_no_prefix.starts_with(type_name_id) { return false; }
-        let ident_no_type = &ident_no_prefix[type_name_id.len()..];
-        if ! ident_no_type.starts_with("_") { return false; }
-        true
-    }
-
-    // return "<X>" for "<PREFIX>_<X>_<SUFFIX>"
-    fn get_global_upper_with_suffix<'x>(&self, ident: &'x str, suffix: &str) -> Option<&'x str> {
-        let name_suffix = match self.get_global_upper(ident) {
-            Some(name) => name,
-            None => { return None; },
-        };
-
-        if ! name_suffix.ends_with(suffix) { return None; }
-        let name_no_suffix = &name_suffix[..name_suffix.len()-suffix.len()];
-        if ! name_no_suffix.ends_with("_") { return None; }
-        Some(&name_no_suffix[..name_no_suffix.len()-1])
-    }
-
-    // return "<X>" for "<PREFIX>_<X>"
-    fn get_global_upper<'x>(&self, ident: &'x str) -> Option<&'x str> {
-        if ! ident.starts_with(&self.prefix_upper) { return None; }
-        Some(&ident[self.prefix_upper.len()..])
-    }
-
-    fn set_project_prefix(&mut self, prefix: &str) {
-        self.logger.log(format!("-> got project prefix '{}'", prefix));
-        self.prefix_upper.push_str(prefix);
-        self.prefix_upper.push('_');
-        self.prefix_upper.make_ascii_uppercase();
-        self.prefix_lower.push_str(prefix);
-        self.prefix_lower.push('_');
-        self.prefix_lower.make_ascii_lowercase();
-        self.project_prefix = prefix.to_owned();
-        self.got_prefix = true;
-    }
-
-    // Read pre-processor lines until we get a non-pre-processor line.
-    // Error if we don't get a #define <PREFIX>_DATA_VGA_SYNC_BITS.
-    fn read_project_header(&mut self) -> Result<()> {
-        loop {
-            let t = self.expect_token()?;
-
-            if let Some(line) = t.get_pre_processor() {
-                self.handle_pre_processor_line(line, t.pos)?;
-                continue;
-            }
-
-            // anything other than pre-processor line:
-            if ! self.got_prefix {
-                return error(format!("must have #define with prefix before this line: {}", &t), t.pos);
-            }
-            return self.unread(t);
+    fn get_value_type(&self, type_name: &str, table: &'a HashMap<String,ValueType>) -> Option<&'a ValueType> {
+        if let Some(name) = self.strip_upper_prefix(type_name) {
+            table.get(name)
+        } else {
+            None
         }
     }
 
-    // =======================================================================================
-    // === ARRAYS
-    // =======================================================================================
+    fn read_loop(&mut self) -> Result<Option<Token>> {
+        let t = self.expect_token()?;
+        if t.is_punct('}') {
+            return Ok(None);
+        }
+        if ! t.is_punct(',') {
+            return Ok(Some(t));
+        }
+        let t = self.expect_token()?;
+        if t.is_punct('}') {
+            return Ok(None);
+        }
+        Ok(Some(t))
+    }
 
-    fn read_u8_array(&mut self) -> Result<Vec<u8>> {
+    fn read_sample_data_ref(&mut self) -> Result<Value> {
         self.expect_punct('{')?;
-
-        let mut data = Vec::<u8>::new();
-
-        loop {
-            let t = self.read()?;
-            if t.is_punct('}') { break; }
-            if let Some(n) = t.get_number() {
-                if n > 0xff {
-                    error(format!("array element is too large (expected 0 <= {} <= 255)", n), self.last_pos)?;
-                }
-                data.push(n as u8);
-            } else {
-                return error_expected("number", &t)?;
-            }
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
-            }
-        }
-
-        Ok(data)
-    }
-
-    fn read_u16_array(&mut self) -> Result<Vec<u16>> {
-        self.expect_punct('{')?;
-
-        let mut data = Vec::<u16>::new();
-
-        loop {
-            let t = self.read()?;
-            if t.is_punct('}') { break; }
-            if let Some(n) = t.get_number() {
-                if n > 0xffff {
-                    error(format!("array element is too large (expected 0 <= {} <= 65535)", n), self.last_pos)?;
-                }
-                data.push(n as u16);
-            } else {
-                return error_expected("number", &t)?;
-            }
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
-            }
-        }
-
-        Ok(data)
-    }
-
-    fn read_u32_array(&mut self) -> Result<Vec<u32>> {
-        self.expect_punct('{')?;
-
-        let mut data = Vec::<u32>::new();
-
-        loop {
-            let t = self.read()?;
-            if t.is_punct('}') { break; }
-            if let Some(n) = t.get_number() {
-                if n > 0xffffffff {
-                    error(format!("array element is too large (expected 0 <= {} <= 0xffffffff)", n), self.last_pos)?;
-                }
-                data.push(n as u32);
-            } else {
-                return error_expected("number", &t)?;
-            }
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
-            }
-        }
-
-        Ok(data)
-    }
-
-    fn read_i8or16_array(&mut self, data_size: u32) -> Result<I8or16Array> {
-        let t = self.expect_punct('{')?;
-
-        let (min_el, max_el) = match data_size {
-            8 => (-128, 127),
-            16 => (-32768, 32767),
-            _ => return error(format!("invalid array element size: {} (must be 8 or 16)", data_size), t.pos)?,
-        };
-        let mut data = Vec::<i16>::new();
-
-        loop {
-            let t = self.read()?;
-            if t.is_punct('}') { break; }
-            let n = match t {
-                Token{ data: TokenData::Number(n), .. } => n as i64,
-                Token{ data: TokenData::Punct('-'), .. } => {
-                    let t = self.expect_token()?;
-                    if let Some(n) = t.get_number() {
-                        -(n as i64)
-                    } else {
-                        return error_expected("number", &t)?;
-                    }
-                },
-                _ => {
-                    return error_expected("'-' or number", &t)?;
-                },
-            };
-            if (n < min_el) || (n > max_el) {
-                error(format!("invalid array element value (expected {} <= {} <= {})", min_el, n, max_el), self.last_pos)?;
-            }
-            if data_size == 8 {
-                data.push((n<<8) as i16);
-            } else {
-                data.push(n as i16);
-            }
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
-            }
-        }
-
-        Ok(I8or16Array {
-            data_size,
-            data,
-        })
-    }
-
-    // =======================================================================================
-    // === REFERENCES ("&<prefix>_<type>[<index>]")
-    // =======================================================================================
-
-    fn read_asset_ref(&mut self, type_name_id: &str) -> Result<ReaderAssetReference> {
-        self.expect_punct('&')?;
-        let name_id_tok = self.expect_token()?;
-        self.expect_punct('[')?;
-        let index = self.read_number()? as usize;
-        self.expect_punct(']')?;
-
-        if let Some(ident) = name_id_tok.get_ident() && self.is_global_lower(ident, type_name_id) {} else {
-            error(format!("invalid global name for {}: '{}'", type_name_id, name_id_tok), name_id_tok.pos)?
-        }
-
-        Ok(ReaderAssetReference::new(index, name_id_tok.pos))
-    }
-
-    // =======================================================================================
-    // === FONT
-    // =======================================================================================
-
-    fn read_font_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got font data '{}'", name_id));
-        self.data.font_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_fonts(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading FONT assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let ident = self.expect_any_ident("font data identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("font_data_...", &t)?; },
-            };
-            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "font_data") &&
-                let Some(data) = self.data.font_data.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("font data not found: '{}'", full_name_id), ident.pos)?;
-                };
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_font(font::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                width,
-                height,
-                data,
-            });
-            self.logger.log(format!("  -> added FONT '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === PROP FONT
-    // =======================================================================================
-
-    fn read_prop_font_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got font data '{}'", name_id));
-        self.data.prop_font_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_prop_fonts(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading PROP_FONT assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let data_ident = self.expect_any_ident("prop font data identifier")?;
-            self.expect_punct(',')?;
-            let char_widths = self.read_u8_array()?;
-            self.expect_punct(',')?;
-            let char_offsets = self.read_u16_array()?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            if char_widths.len() != PropFont::NUM_CHARS as usize {
-                error(format!("invalid prop font char widths length: expected {}, fount {}", PropFont::NUM_CHARS, char_widths.len()), t.pos)?
-            }
-            if char_offsets.len() != PropFont::NUM_CHARS as usize {
-                error(format!("invalid prop font char offsets length: expected {}, fount {}", PropFont::NUM_CHARS, char_offsets.len()), t.pos)?
-            }
-
-            let full_name_id = match data_ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("prop_font_data_...", &t)?; },
-            };
-            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "prop_font_data") &&
-                let Some(data) = self.data.prop_font_data.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    error(format!("prop font data not found: '{}'", full_name_id), data_ident.pos)?
-                };
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_prop_font(prop_font::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                height,
-                data,
-                char_widths,
-                char_offsets,
-            });
-            self.logger.log(format!("  -> added PROP_FONT '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === MOD
-    // =======================================================================================
-
-    fn read_mod_sample_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_i8or16_array(self.last_type_size)?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got mod sample data '{}'", name_id));
-        self.data.mod_sample_data.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_mod_pattern(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        let mut pattern = Vec::<ModCell>::new();
-
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let sample = self.read_number()?;
-            self.expect_punct(',')?;
-            let note_index = self.read_number()?;
-            self.expect_punct(',')?;
-            let effect = self.read_number()?;
-            self.expect_punct(',')?;
-
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            pattern.push(ModCell {
-                sample: sample as u8,
-                period: if note_index == 0xff { 0 } else { ModData::get_note_period((note_index % 12) as i32, (note_index / 12) as i32) },
-                effect: effect as u16,
-            });
-        }
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got mod pattern '{}'", name_id));
-        self.data.mod_patterns.insert(name_id.to_string(), pattern);
-        Ok(())
-    }
-
-    fn read_mod_sample_defs(&mut self) -> Result<Vec<ModSample>> {
-        self.expect_punct('{')?;
-
-        let mut sample_defs = Vec::<ModSample>::new();
-
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let len = (self.read_number()? & 0xffff_ffff) as u32;
-            self.expect_punct(',')?;
-            let loop_start = (self.read_number()? & 0xffff_ffff) as u32;
-            self.expect_punct(',')?;
-            let loop_len = (self.read_number()? & 0xffff_ffff) as u32;
-            self.expect_punct(',')?;
-            let finetune = (self.read_number()? & 0xff) as u8;
-            self.expect_punct(',')?;
-            let volume = (self.read_number()? & 0xff) as u8;
-            self.expect_punct(',')?;
-            let bits_per_sample = (self.read_number()? & 0xffff) as u16;
-            self.expect_punct(',')?;
-            self.expect_punct('{')?;
-            self.expect_punct('.')?;
-            self.expect_any_ident("'data', 'data8' or 'data16'")?;
-            self.expect_punct('=')?;
-            let data_ident = self.expect_any_ident("NULL or sample data")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let sample_full_name_id = match data_ident.get_ident() {
-                Some(ident) => ident,
-                None => { error(format!("invalid sample data: '{}'", data_ident), data_ident.pos)? },
-            };
-            let samples = if sample_full_name_id == "NULL" {
-                None
-            } else if let Some(sample_name) = self.get_global_lower_of_type(sample_full_name_id, "mod_samples") &&
-                // we can't remove the sample data because it can be shared by multiple mods:
-                let Some(sample_data) = self.data.mod_sample_data.get(sample_name) {
-                    if sample_data.data_size == bits_per_sample as u32 {
-                        Some(sample_data.data.clone())   // samples may be shared between mods
-                    } else {
-                        error(format!("invalid sample: data has {} bits per sample, but sample definition wants {}",
-                                           sample_data.data_size, bits_per_sample), data_ident.pos)?
-                    }
-                } else {
-                    error(format!("sample data not found: '{}'", sample_full_name_id), data_ident.pos)?
-                };
-
-            sample_defs.push(ModSample {
-                len,
-                loop_start,
-                loop_len,
-                finetune: if finetune > 7 { finetune as i8 - 16 } else { finetune as i8 },
-                volume,
-                bits_per_sample,
-                data: samples,
-            });
-        }
-
-        Ok(sample_defs)
-    }
-
-    fn read_mod(&mut self) -> Result<()> {
-        let sample_defs = self.read_mod_sample_defs()?;
-        self.expect_punct(',')?;
-
-        let num_channels = self.read_number()? as u8;
-        self.expect_punct(',')?;
-
-        let num_song_positions = self.read_number()? as usize;
-        self.expect_punct(',')?;
-        let song_positions = self.read_u8_array()?;
-        self.expect_punct(',')?;
-
-        let num_patterns = self.read_number()? as usize;
-        self.expect_punct(',')?;
-        let pattern_ident = self.expect_any_ident("pattern data")?;
-
-        self.expect_punct(',')?;
-        self.expect_punct('}')?;
-
-        let (name_id, pattern) = if let Some(full_pattern_name) = pattern_ident.get_ident() &&
-            let Some(name) = self.get_global_lower_of_type(full_pattern_name, "mod_pattern") &&
-            let Some(pattern) = self.data.mod_patterns.remove(name) {
-                (name, pattern)
-            } else {
-                error(format!("mod pattern not found: {}", pattern_ident), pattern_ident.pos)?
-            };
-
-        if num_song_positions != song_positions.len() {
-            error(format!("mod with invalid num song positions: expected {}, got {}",
-                          song_positions.len(), num_song_positions), pattern_ident.pos)?
-        }
-
-        let expected_num_patterns = pattern.len() / (num_channels as usize * 64);
-        if num_patterns != expected_num_patterns {
-            error(format!("mod with invalid num patterns: expected {}, got {}",
-                          expected_num_patterns, num_patterns), pattern_ident.pos)?
-        }
-
-        let asset_id = self.id_generator.gen_id();
-        self.data.add_mod(mod_data::CreationData {
-            asset_id,
-            name: DataAsset::identifier_to_name(name_id),
-            num_channels,
-            samples: sample_defs,
-            pattern,
-            song_positions,
-        });
-        self.logger.log(format!("  -> added MOD '{}' id={}", name_id, asset_id));
-        Ok(())
-    }
-
-    fn read_mods(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading MOD assets");
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            self.read_mod()?;
-            self.expect_punct(',')?;
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === SFX
-    // =======================================================================================
-
-    fn read_sfx_sample_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_i8or16_array(self.last_type_size)?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got sfx sample data '{}'", name_id));
-        self.data.sfx_sample_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_sfxs(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading SFX assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let len = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let loop_start = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let loop_len = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let bits_per_sample = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            self.expect_punct('{')?;
-            self.expect_punct('.')?;
-            self.expect_any_ident("'data', 'data8' or 'data16'")?;
-            self.expect_punct('=')?;
-            let data_ident = self.expect_any_ident("NULL or sample data")?;
-            self.expect_punct('}')?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match data_ident.get_ident() {
-                Some(ident) => ident,
-                None => { error(format!("invalid sfx data: '{}'", &data_ident), data_ident.pos)? }
-            };
-            let (name_id, sample_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sfx_samples") &&
-                let Some(data) = self.data.sfx_sample_data.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("unknown sfx samples '{}'", full_name_id), data_ident.pos)?;
-                };
-            if sample_data.data_size != bits_per_sample as u32 {
-                return error(format!("invalid sample: data has {} bits per sample, but sfx wants {}",
-                                     sample_data.data_size, bits_per_sample), data_ident.pos);
-            }
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_sfx(sfx::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                len,
-                loop_start,
-                loop_len,
-                bits_per_sample,
-                samples: sample_data.data,
-            });
-            self.logger.log(format!("  -> added SFX '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === TILESET
-    // =======================================================================================
-
-    fn read_tileset_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u32_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got tileset data '{}'", name_id));
-        self.data.tileset_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_tilesets(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading TILESET assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let stride = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let num_tiles = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let ident = self.expect_any_ident("tileset data identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("tileset_data_...", &t)?; },
-            };
-            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "tileset_data") &&
-                let Some(data) = self.data.tileset_data.get(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("tileset data not found: '{}'", full_name_id), ident.pos)?;
-                };
-
-            if width != super::Tileset::TILE_SIZE || height != super::Tileset::TILE_SIZE {
-                error(format!("invalid tileset size: got {}x{}, expected {}x{}",
-                              width, height, super::Tileset::TILE_SIZE, super::Tileset::TILE_SIZE), t.pos)?;
-            }
-            let want_stride = width.div_ceil(4);
-            if stride != want_stride {
-                error(format!("tileset stride doesn't match width: got {}, expected {}", stride, want_stride), t.pos)?;
-            }
-            let want_len = stride * height * num_tiles;
-            if data.len() as u32 != want_len {
-                error(format!("unexpected tileset data length: got {}, expected {} = {}*{}*{}",
-                              data.len(), want_len, stride, height, num_tiles), t.pos)?;
-            }
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_tileset(tileset::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                width,
-                height,
-                num_tiles,
-                pixels: self.get_image_pixels(data, width, height, num_tiles),
-            });
-            self.logger.log(format!("  -> added TILESET '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === SPRITE
-    // =======================================================================================
-
-    fn read_sprite_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u32_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got sprite data '{}'", name_id));
-        self.data.sprite_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_sprites(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading SPRITE assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let stride = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let num_frames = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let ident = self.expect_any_ident("sprite data identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("sprite_data_...", &t)?; },
-            };
-            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sprite_data") &&
-                let Some(data) = self.data.sprite_data.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("sprite data not found: '{}'", full_name_id), ident.pos)?;
-                };
-            if super::Sprite::MIRROR_FRAMES && ! num_frames.is_multiple_of(2) {
-                error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), t.pos)?;
-            }
-            let want_stride = width.div_ceil(4);  // (width+3)/4
-            if stride != want_stride {
-                error(format!("sprite stride doesn't match width: got {}, expected {}", stride, want_stride), t.pos)?;
-            }
-            let want_len = stride * height * num_frames;
-            if data.len() as u32 != want_len {
-                error(format!("unexpected sprite data length: got {}, expected {} = {}*{}*{}",
-                              data.len(), want_len, stride, height, num_frames), t.pos)?;
-            }
-
-            let div_ignore_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_sprite(sprite::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                width,
-                height,
-                num_frames: num_frames / div_ignore_mirrors,
-                pixels: self.get_image_pixels(&data[0..data.len()/div_ignore_mirrors as usize], width, height, num_frames/div_ignore_mirrors),
-            });
-            self.logger.log(format!("  -> added SPRITE '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === PALETTED SPRITE
-    // =======================================================================================
-
-    fn read_pal_sprite_data(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got pal_sprite data '{}'", name_id));
-        self.data.pal_sprite_data.insert(name_id.to_string(), data);
-
-        Ok(())
-    }
-
-    fn read_pal_sprites(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading PAL_SPRITE assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let num_frames = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let bits_per_pixel = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let palette = self.read_u8_array()?;
-            self.expect_punct(',')?;
-            let ident = self.expect_any_ident("pal_sprite data identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("pal_sprite_data_...", &t)?; },
-            };
-            let (name_id, data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "pal_sprite_data") &&
-                let Some(data) = self.data.pal_sprite_data.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("pal_sprite data not found: '{}'", full_name_id), ident.pos)?;
-                };
-            let want_len = (width * bits_per_pixel).div_ceil(8) * height * num_frames;
-            if data.len() as u32 != want_len {
-                error(format!("unexpected pal_sprite data length: got {}, expected {} = {}*{}*{}",
-                              data.len(), want_len, (width * bits_per_pixel).div_ceil(8), height, num_frames), t.pos)?;
-            }
-            if palette.len() != 16 {
-                error(format!("invalid palette length: {} (must be 16)", palette.len()), t.pos)?;
-            }
-            let pixels = pal_image_to_pixels(&data, &palette, width, height, num_frames, bits_per_pixel);
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_pal_sprite(pal_sprite::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                width,
-                height,
-                num_frames,
-                bits_per_pixel,
-                palette,
-                pixels,
-            });
-            self.logger.log(format!("  -> added PAL_SPRITE '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === MAP
-    // =======================================================================================
-
-    fn read_map_tiles(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got map tiles '{}'", name_id));
-        self.data.map_tiles.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_maps(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading MAP assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let para_width = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let para_height = self.read_number()? as u32;
-            self.expect_punct(',')?;
-            let tileset_ref = self.read_asset_ref("tilesets")?;
-            self.expect_punct(',')?;
-            let ident = self.expect_any_ident("map tiles identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let full_name_id = match ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("map_tiles_...", &t)?; },
-            };
-            let (name_id, tiles_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "map_tiles") &&
-                let Some(data) = self.data.map_tiles.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("sprite data not found: '{}'", full_name_id), ident.pos)?;
-                };
-
-            let want_tiles_data_len = width * height * 3 + para_width * para_height;
-            if tiles_data.len() as u32 != want_tiles_data_len {
-                error(format!("unexpected map tiles data length: got {}, expected {} = {}*{}*3 + {}*{}",
-                              tiles_data.len(), want_tiles_data_len, width, height, para_width, para_height), t.pos)?;
-            }
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_map(map_data::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                tileset_ref,
-                width,
-                height,
-                para_width,
-                para_height,
-                tiles: tiles_data,
-            });
-            self.logger.log(format!("  -> added MAP '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === SPRITE ANIMATIONS
-    // =======================================================================================
-
-    fn read_sprite_animation_frames(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got sprite animations frames '{}'", name_id));
-        self.data.animation_frames.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_sprite_animation_loop_frames(&mut self) -> Result<Vec<sprite_animation::LoopFrameSlice>> {
-        self.expect_punct('{')?;
-
-        let mut loops = Vec::new();
-
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let offset = self.read_number()?;
-            self.expect_punct(',')?;
-            let len = self.read_number()?;
-
-            loops.push(sprite_animation::LoopFrameSlice {
-                offset: offset as u16,
-                len: len as u16,
-            });
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-        }
-
-        Ok(loops)
-    }
-
-    fn read_sprite_animations(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading SPRITE_ANIMATION assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
-
-            let frames_ident = self.expect_any_ident("animation frames identifier")?;
-            self.expect_punct(',')?;
-            let sprite_ref = self.read_asset_ref("sprites")?;
-            self.expect_punct(',')?;
-            let clip_rect = self.read_u16_array()?;
-            self.expect_punct(',')?;
-            let use_foot_frames = self.read_number()?;
-            self.expect_punct(',')?;
-            let foot_overlap = self.read_signed_number()?;
-            self.expect_punct(',')?;
-            let loop_frames = self.read_sprite_animation_loop_frames()?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let (clip_x, clip_y, clip_w, clip_h) = if let Some(&[cx, cy, cw, ch]) = clip_rect.get(0..4) {
-                (cx as i32, cy as i32, cw as i32, ch as i32)
-            } else {
-                error(format!("animation clip rectangle must have 4 numbers, found {}", clip_rect.len()), t.pos)?
-            };
-
-            let full_name_id = match frames_ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("sprite_animation_frames_...", &t)?; },
-            };
-            let (name_id, frame_indices) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "sprite_animation_frames") &&
-                let Some(data) = self.data.animation_frames.remove(name_id) {
-                    (name_id, data)
-                } else {
-                    return error(format!("sprite animation frames data not found: '{}'", full_name_id), t.pos)?;
-                };
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_animation(sprite_animation::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                sprite_ref,
-                clip_rect: super::Rect::new(clip_x, clip_y, clip_w, clip_h),
-                foot_overlap: foot_overlap as i8,
-                loops: sprite_animation::CreationData::build_loops(frame_indices, loop_frames, use_foot_frames != 0),
-            });
-            self.logger.log(format!("  -> added SPRITE_ANIMATION '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === ROOMS
-    // =======================================================================================
-
-    fn read_room_maps(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        let mut maps = Vec::<room::MapCreationData>::new();
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let x = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let y = self.read_number()? as u16;
-            self.expect_punct(',')?;
-            let map_ref = self.read_asset_ref("maps")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            maps.push(room::MapCreationData {
-                x,
-                y,
-                map_ref,
-            });
-
-        }
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got room maps '{}'", name_id));
-        self.data.room_maps.insert(name_id.to_string(), maps);
-        Ok(())
-    }
-
-    fn read_room_trigger_type(&mut self) -> Result<room::TriggerTypeCreationData> {
         self.expect_punct('.')?;
-        let ident = self.expect_token()?;
+        self.expect_any_ident("field name")?;
         self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        let trigger_type = match ident.get_ident() {
-            Some("any") => {
-                let data0 = (self.read_number()? & 0xffff) as u16;
-                self.expect_punct(',')?;
-                let data1 = (self.read_number()? & 0xffff) as u16;
-                self.expect_punct(',')?;
-                let data2 = (self.read_number()? & 0xffff) as u16;
-                self.expect_punct(',')?;
-                let data3 = (self.read_number()? & 0xffff) as u16;
-                room::TriggerTypeCreationData::Unknown {
-                    data0,
-                    data1,
-                    data2,
-                    data3,
-                }
-            }
-
-            Some("trap") => {
-                let width = (self.read_number()? & 0xffff) as u16;
-                self.expect_punct(',')?;
-                let height = (self.read_number()? & 0xffff) as u16;
-                self.expect_punct(',')?;
-                let type_id = (self.read_number()? & 0xffff) as u16;
-                room::TriggerTypeCreationData::Trap {
-                    width,
-                    height,
-                    type_id,
-                }
-            }
-
-            Some("door") => {
-                let room_ref = self.read_asset_ref("rooms")?;
-                self.expect_punct(',')?;
-                let door_id = (self.read_number()? & 0xffff) as u16;
-                room::TriggerTypeCreationData::Door {
-                    room_ref,
-                    door_id,
-                }
-            }
-
-            Some("enemy_spawn") => {
-                let animation_ref = self.read_asset_ref("sprite_animations")?;
-                room::TriggerTypeCreationData::EnemySpawn {
-                    animation_ref,
-                }
-            }
-
-            Some("player_spawn") => {
-                let direction = (self.read_number()? & 0xff) as u8;
-                room::TriggerTypeCreationData::PlayerSpawn {
-                    direction,
-                }
-            }
-
-            Some(name) => {
-                return error(format!("unknown trigger type: '{}'", name), ident.pos);
-            }
-
-            None => {
-                return error("expected initializer for trigger type", ident.pos);
-            }
-        };
-
+        let mut name_token = self.expect_any_ident("array name")?;
         self.expect_punct('}')?;
-        Ok(trigger_type)
-    }
-
-    fn read_room_triggers(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        let mut triggers = Vec::<room::TriggerCreationData>::new();
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let type_enum_ident_tok = self.expect_any_ident("trigger enum identifier")?;
-            self.expect_punct(',')?;
-            let x = (self.read_number()? & 0xffff) as i16;
-            self.expect_punct(',')?;
-            let y = (self.read_number()? & 0xffff) as i16;
-            self.expect_punct(',')?;
-            let trigger_type = self.read_room_trigger_type()?;
-
-            let type_enum_ident = type_enum_ident_tok.get_ident().ok_or_else(|| {
-                err("expected trigger enum identifier", type_enum_ident_tok.pos)
-            })?;
-            let room_trigger_type_enum_ident = trigger_type.get_enum_ident();
-            if ! room_trigger_type_enum_ident.matches_enum_ident(type_enum_ident, self.prefix_upper_no_trailing_underscore()) {
-                error(format!("trigger enum identifier doesn't match union data: expected '{}_{}' for this data",
-                              &self.prefix_upper_no_trailing_underscore(),
-                              room_trigger_type_enum_ident.enum_ident()),
-                      type_enum_ident_tok.pos)?;
-            }
-
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            triggers.push(room::TriggerCreationData {
-                name_id: String::new(),
-                x,
-                y,
-                trigger_type,
-            });
+        if let Some(name) = name_token.drain_ident() {
+            Ok(Value::ArrayRef(Box::new(ValueName::new(name, name_token.pos))))
+        } else {
+            error(format!("unexpected {}", name_token), name_token.pos)
         }
-        self.expect_punct(';')?;
-
-        //self.logger.log(format!("-> got room triggers '{}'", name_id));
-        self.data.room_triggers.insert(name_id.to_string(), triggers);
-        Ok(())
     }
 
-    fn read_rooms(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
+    fn read_trigger_info_union(&mut self) -> Result<Value> {
+        self.expect_punct('.')?;
+        let mut trigger_type_token = self.expect_any_ident("field name")?;
         self.expect_punct('=')?;
-        self.expect_punct('{')?;
+        if let Some(trigger_type) = trigger_type_token.drain_ident() {
+            if let Some(value_type) = ROOM_TRIGGER_VALUE_TYPES.get(&trigger_type) {
+                self.read_value(value_type)
+            } else {
+                error(format!("unknown trigger type: {}", trigger_type), trigger_type_token.pos)
+            }
+        } else {
+            error(format!("unexpected {}", trigger_type_token), trigger_type_token.pos)
+        }
+    }
 
-        self.logger.log("-> reading ROOM assets");
-        loop {
-            let t = self.expect_any_punct("'{' or '}'")?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') { return error(format!("expected '{{' or '}}', got {}", t), t.pos)?; }
+    fn read_array<T>(&mut self, read_element: fn(&mut ProjectDataReader) -> Result<T>) -> Result<ValueArray<T>> {
+        let mut data = Vec::new();
+        let start = self.expect_punct('{')?;
+        while let Some(t) = self.read_loop()? {
+            self.unread(t)?;
+            data.push(read_element(self)?);
+        }
+        Ok(ValueArray::new(data, start.pos))
+    }
 
-            let num_maps = self.read_number()? as usize;
-            self.expect_punct(',')?;
-            let num_triggers = self.read_number()? as usize;
-            self.expect_punct(',')?;
-            let maps_ident = self.expect_any_ident("room maps identifier")?;
-            self.expect_punct(',')?;
-            let triggers_ident = self.expect_any_ident("room triggers identifier")?;
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
+    fn read_value(&mut self, value_type: &ValueType) -> Result<Value> {
+        match value_type {
+            ValueType::U8  => { Ok(Value::U8 (self.read_number(u8::MAX  as u64)? as u8)) }
+            ValueType::U16 => { Ok(Value::U16(self.read_number(u16::MAX as u64)? as u16)) }
+            ValueType::U32 => { Ok(Value::U32(self.read_number(u32::MAX as u64)? as u32)) }
+            ValueType::I8  => { Ok(Value::I8 (self.read_signed_number(i8::MIN  as i64, i8::MAX  as i64)? as i8)) }
+            ValueType::I16 => { Ok(Value::I16(self.read_signed_number(i16::MIN as i64, i16::MAX as i64)? as i16)) }
+            ValueType::I32 => { Ok(Value::I32(self.read_signed_number(i32::MIN as i64, i32::MAX as i64)? as i32)) }
 
-            let full_name_id = match maps_ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("room_maps_...", &t)?; },
-            };
-            let (name_id, maps_data) = if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "room_maps") &&
-                let Some(data) = self.data.room_maps.remove(name_id) {
-                    (name_id, data)
+            ValueType::U8Array  => {
+                Ok(Value::U8Array(Box::new(
+                    self.read_array(|r| { Ok(r.read_number(u8::MAX as u64)? as u8) })?
+                )))
+            }
+            ValueType::U16Array => {
+                Ok(Value::U16Array(Box::new(
+                    self.read_array(|r| { Ok(r.read_number(u16::MAX as u64)? as u16) })?
+                )))
+            }
+            ValueType::U32Array => {
+                Ok(Value::U32Array(Box::new(
+                    self.read_array(|r| { Ok(r.read_number(u32::MAX as u64)? as u32) })?
+                )))
+            }
+            ValueType::I8Array  => {
+                Ok(Value::I8Array(Box::new(
+                    self.read_array(|r| { Ok(r.read_signed_number(i8::MIN as i64, i8::MAX as i64)? as i8) })?
+                )))
+            }
+            ValueType::I16Array => {
+                Ok(Value::I16Array(Box::new(
+                    self.read_array(|r| { Ok(r.read_signed_number(i16::MIN as i64, i16::MAX as i64)? as i16) })?
+                )))
+            }
+
+            ValueType::Identifier => {
+                let mut ident_token = self.expect_any_ident("identifier")?;
+                if let Some(ident) = ident_token.drain_ident() {
+                    Ok(Value::Identifier(Box::new(ValueName::new(ident, ident_token.pos))))
                 } else {
-                    return error(format!("room maps data not found: '{}'", full_name_id), maps_ident.pos)?;
-                };
-            let triggers_name_id = match triggers_ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("room_triggers_...", &t)?; },
-            };
-            let triggers_data = if let Some(triggers_name) = self.get_global_lower_of_type(triggers_name_id, "room_triggers") &&
-                let Some(data) = self.data.room_triggers.remove(triggers_name) {
-                    data
+                    error(format!("unexpected '{}'", ident_token), ident_token.pos)
+                }
+            }
+
+            ValueType::ArrayRef => {
+                let mut ident_token = self.expect_any_ident("array name")?;
+                if let Some(name) = ident_token.drain_ident() {
+                    Ok(Value::ArrayRef(Box::new(ValueName::new(name, ident_token.pos))))
                 } else {
-                    return error(format!("room triggers data not found: '{}'", triggers_name_id), triggers_ident.pos)?;
-                };
-            if num_maps != maps_data.len() {
-                error(format!("unexpected maps length: got {}, expected {}", maps_data.len(), num_maps), t.pos)?;
-            }
-            if num_triggers != triggers_data.len() {
-                error(format!("unexpected triggers length: got {}, expected {}", triggers_data.len(), num_triggers), t.pos)?;
-            }
-
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_room(room::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                maps: maps_data,
-                triggers: triggers_data,
-            });
-            self.logger.log(format!("  -> added ROOM '{}' id={}", name_id, asset_id));
-        }
-
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    // =======================================================================================
-    // === WORLDS
-    // =======================================================================================
-
-    fn read_world_block_bitmap(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u32_array()?;
-
-        self.expect_punct(';')?;
-
-        self.data.world_block_bitmap_data.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_world_blocks(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u8_array()?;
-
-        self.expect_punct(';')?;
-
-        self.data.world_blocks_data.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_world_room_indices(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-
-        let data = self.read_u16_array()?;
-
-        self.expect_punct(';')?;
-
-        self.data.world_room_indices_data.insert(name_id.to_string(), data);
-        Ok(())
-    }
-
-    fn read_world_regions(&mut self, name_id: &str) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        let mut regions = Vec::<world::RegionCreationData>::new();
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let x = self.read_number()?;
-            self.expect_punct(',')?;
-            let y = self.read_number()?;
-            self.expect_punct(',')?;
-            let width = self.read_number()?;
-            self.expect_punct(',')?;
-            let height = self.read_number()?;
-            self.expect_punct(',')?;
-
-            let block_bitmap_ident = self.expect_any_ident("world region block bitmap data")?;
-            self.expect_punct(',')?;
-            let blocks_ident = self.expect_any_ident("world region blocks data")?;
-            self.expect_punct(',')?;
-            let room_indices_ident = self.expect_any_ident("world region room indices data")?;
-
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let block_bitmap = match block_bitmap_ident.get_ident() {
-                Some(full_name_id) => {
-                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
-                        let Some(data) = self.data.world_block_bitmap_data.remove(name_id) {
-                            data
-                        } else {
-                            return error(format!("block bitmap data not found: '{}'", full_name_id), block_bitmap_ident.pos)?;
-                        }
+                    error(format!("unexpected '{}'", ident_token), ident_token.pos)
                 }
-                None => { return error_expected("world_<...>_region_<...>_block_bitmap", &t)?; }
-            };
-
-            let blocks = match blocks_ident.get_ident() {
-                Some(full_name_id) => {
-                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
-                        let Some(data) = self.data.world_blocks_data.remove(name_id) {
-                            data
-                        } else {
-                            return error(format!("blocks data not found: '{}'", full_name_id), blocks_ident.pos)?;
-                        }
-                }
-                None => { return error_expected("world_<...>_region_<...>_blocks", &t)?; }
-            };
-
-            let room_indices = match room_indices_ident.get_ident() {
-                Some(full_name_id) => {
-                    if let Some(name_id) = self.get_global_lower_of_type(full_name_id, "world") &&
-                        let Some(data) = self.data.world_room_indices_data.remove(name_id) {
-                            data
-                        } else {
-                            return error(format!("room indices data not found: '{}'", full_name_id), room_indices_ident.pos)?;
-                        }
-                }
-                None => { return error_expected("world_<...>_region_<...>_room_indices", &t)?; }
-            };
-
-            if x > u8::MAX as u64 || y > u8::MAX as u64 {
-                error(format!("invalid region position: {},{}", x, y), t.pos)?;
-            }
-            if width == 0 || width > u8::MAX as u64 || height == 0 || height > u8::MAX as u64 {
-                error(format!("invalid region size: {},{}", width, height), t.pos)?;
             }
 
-            regions.push(world::RegionCreationData {
-                name: String::new(),
-                x: (x & 0xff) as u8,
-                y: (y & 0xff) as u8,
-                width: (width & 0xff) as u8,
-                height: (height & 0xff) as u8,
-                block_bitmap,
-                rooms: room_indices.into_iter().map(|ri| ReaderAssetReference::new(ri as usize, room_indices_ident.pos)).collect(),
-                blocks,
-                block_pos: blocks_ident.pos,
-            });
-        }
-
-        self.data.world_regions.insert(name_id.to_string(), regions);
-        self.expect_punct(';')?;
-        Ok(())
-    }
-
-    fn read_worlds(&mut self) -> Result<()> {
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading WORLD assets");
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-            if ! t.is_punct('{') {
-                error_expected("'{{' or '}}'", &t)?;
-            }
-
-            let num_regions = self.read_number()?;
-            self.expect_punct(',')?;
-            let regions_ident = self.expect_any_ident("world regions")?;
-
-            self.expect_punct('}')?;
-            self.expect_punct(',')?;
-
-            let regions_name_id = match regions_ident.get_ident() {
-                Some(ident) => ident,
-                None => { return error_expected("world_regions_...", &t)?; },
-            };
-            let (name_id, regions) = if let Some(regions_name) = self.get_global_lower_of_type(regions_name_id, "world_regions") &&
-                let Some(data) = self.data.world_regions.remove(regions_name) {
-                    (regions_name, data)
+            ValueType::AssetRef => {
+                self.expect_punct('&')?;
+                let mut ident_token = self.expect_any_ident("array name")?;
+                self.expect_punct('[')?;
+                let index = self.read_number(u32::MAX as u64)? as usize;
+                self.expect_punct(']')?;
+                if let Some(name) = ident_token.drain_ident() {
+                    Ok(Value::AssetRef(Box::new(ValueAssetRef::new(name, index, ident_token.pos))))
                 } else {
-                    return error(format!("world regions data not found: '{}'", regions_name_id), regions_ident.pos)?;
-                };
-
-            if num_regions as usize != regions.len() {
-                return error(format!("invalid number of regions: expected {}, got {}", num_regions, regions.len()), regions_ident.pos)?;
+                    error(format!("unexpected '{}'", ident_token), ident_token.pos)
+                }
             }
 
-            let asset_id = self.id_generator.gen_id();
-            self.data.add_world(world::CreationData {
-                asset_id,
-                name: DataAsset::identifier_to_name(name_id),
-                regions,
-            });
-            self.logger.log(format!("  -> added WORLD '{}' id={}", name_id, asset_id));
+            ValueType::Struct(value_types) => {
+                self.expect_punct('{')?;
+                let mut values = Vec::new();
+                for value_type in value_types.iter() {
+                    values.push(self.read_value(value_type)?);
+                    let comma = self.read()?;
+                    if ! comma.is_punct(',') {
+                        self.unread(comma)?;
+                    }
+                }
+                self.expect_punct('}')?;
+                Ok(Value::Struct(values))
+            }
+
+            ValueType::Loop(value_type) => {
+                self.expect_punct('{')?;
+                let mut values = Vec::new();
+                while let Some(t) = self.read_loop()? {
+                    self.unread(t)?;
+                    values.push(self.read_value(value_type)?);
+                }
+                Ok(Value::Loop(values))
+            }
+
+            ValueType::Custom(reader) => {
+                reader(self)
+            }
         }
-        self.expect_punct(';')?;
-        Ok(())
     }
 
-    // =======================================================================================
-    // === ROOM SCRIPTS
-    // =======================================================================================
-
-    fn read_room_script_declaration(&mut self, script_ident: Token) -> Result<()> {
-        if let Some(ident) = script_ident.get_ident() {
-            if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") &&
-                ! self.data.rooms_by_name.contains_key(name_id) {
-                    return error(format!("unknown room '{}' in script declaration", name_id), script_ident.pos)?;
-                }
+    fn read_data_array(&mut self, type_name: &str) -> Result<()> {
+        let mut name_token = self.expect_any_ident("array name")?;
+        if let Some(name) = name_token.drain_ident() {
+            self.expect_punct('[')?;
+            self.expect_punct(']')?;
+            self.expect_punct('=')?;
+            if let Some(value_type) = ARRAY_VALUE_TYPES.get(type_name) {
+                let value = self.read_value(value_type)?;
+                self.data.arrays.insert(name, value);
+            } else {
+                return error(format!("unsupported array type: {}", type_name), name_token.pos);
+            }
             self.expect_punct(';')?;
             Ok(())
         } else {
-            error_expected("'*' or room script identifier", &script_ident)
+            self.unexpected(&name_token)
         }
     }
 
-    fn read_room_script_table(&mut self) -> Result<()> {
-        self.expect_any_ident("room script table identifier")?;
-        self.expect_punct('[')?;
-        self.expect_punct(']')?;
-        self.expect_punct('=')?;
-        self.expect_punct('{')?;
-
-        self.logger.log("-> reading ROOM script table");
-        loop {
-            let next = self.expect_any_punct("'&' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct('&') {
-                return error_expected("'&' or '}'", &next)?;
-            }
-            let script_ident = self.expect_any_ident("room script identifier")?;
-            if let Some(ident) = script_ident.get_ident() {
-                if let Some(name_id) = self.get_global_lower_of_type(ident, "room_script_table") {
-                    if self.data.rooms_by_name.contains_key(name_id) {
-                        self.logger.log(format!("  -> got room script for '{}'", name_id));
-                    } else {
-                        return error(format!("unknown room '{}' in script table", name_id), script_ident.pos)?;
-                    }
-                } else {
-                    return error(format!("invalid room script identifier: '{}'", ident), script_ident.pos)?;
+    fn read_data_struct_array(&mut self) -> Result<()> {
+        let mut struct_tag_token = self.expect_any_ident("struct tag")?;
+        let mut name_token = self.expect_any_ident("array name")?;
+        if let Some(struct_tag) = struct_tag_token.drain_ident() && let Some(name) = name_token.drain_ident() {
+            if let Some(value_type) = self.get_value_type(&struct_tag, &AUX_STRUCT_VALUE_TYPES) {
+                self.expect_punct('[')?;
+                self.expect_punct(']')?;
+                self.expect_punct('=')?;
+                self.expect_punct('{')?;
+                let mut values = Vec::new();
+                while let Some(t) = self.read_loop()? {
+                    self.unread(t)?;
+                    values.push(self.read_value(value_type)?);
                 }
+                self.expect_punct(';')?;
+                self.data.structs.insert(name, values);
+                Ok(())
             } else {
-                return error("error reading room script identifier", script_ident.pos)?;
+                error(format!("unknown struct tag: {}", struct_tag), struct_tag_token.pos)
             }
-            self.expect_punct(',')?;
-        }
-        self.expect_punct(';')?;
-
-        Ok(())
-    }
-
-    fn read_room_script_declaration_or_table(&mut self) -> Result<()> {
-        let t = self.expect_token()?;
-        if t.is_punct('*') {
-            self.read_room_script_table()
         } else {
-            self.read_room_script_declaration(t)
+            self.unexpected(&struct_tag_token)
         }
     }
 
-    // =======================================================================================
-    // === NAMES
-    // =======================================================================================
-
-    // read enum list of "<NAME>" for items "<PREFIX>_<TYPE_AND_NAME>_<NAME>"
-    fn read_asset_names_enum(&mut self, type_and_name_id: &str) -> Result<Vec<String>> {
-        self.expect_punct('{')?;
-
-        let mut names = Vec::<String>::new();
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-
-            let name = if let Some(ident) = t.get_ident() &&
-                let Some(name_id) = self.get_global_upper_of_type(ident, type_and_name_id) {
-                    let mut name_id = name_id.to_string();
-                    name_id.make_ascii_lowercase();
-                    name_id
-                } else {
-                    return error(format!("expected '<PREFIX>_{}_xxx' or '}}', got {}", type_and_name_id, t), t.pos)?;
-                };
-            names.push(name);
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
-            }
-        }
+    fn read_extern_data(&mut self) -> Result<()> {
+        self.expect_ident("const")?;
+        self.expect_ident("struct")?;
+        self.expect_any_ident("struct tag")?;
+        self.expect_any_ident("identifier")?;
         self.expect_punct(';')?;
-        Ok(names)
-    }
-
-    fn get_enum_asset_and_item_prefix(&self, ident: &str, asset_type: &str, name_suffix: &str, name_type: &str,
-                                      ids_by_name: &HashMap<String,usize>, pos: TokenPosition) -> Result<(usize, String)> {
-        let asset_name_upper = match self.get_global_upper_of_type_with_suffix(ident, asset_type, name_suffix) {
-            Some(name) => name,
-            None => { return error(format!("unknown enum for {}: '{}'", asset_type, ident), pos); }
-        };
-        let mut asset_name = asset_name_upper.to_string();
-        asset_name.make_ascii_lowercase();
-        let asset_index = ids_by_name.get(&asset_name).ok_or_else(|| {
-            err(format!("{} not found: '{}'", asset_type, &asset_name), pos)
-        })?;
-        let mut item_prefix = String::new();
-        item_prefix.push_str(asset_type);
-        item_prefix.push('_');
-        item_prefix.push_str(asset_name_upper);
-        item_prefix.push('_');
-        item_prefix.push_str(name_type);
-        Ok((*asset_index, item_prefix))
-    }
-
-    fn read_sprite_animation_loop_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (anim_index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "SPRITE_ANIMATION", "LOOP_NAMES", "LOOP",
-                                                                    &self.data.animations_by_name, pos)?;
-        let names = self.read_asset_names_enum(&item_prefix)?;
-        let animation = self.data.animations.get_mut(anim_index).ok_or_else(|| {
-            err(format!("internal error: animation index {} not found", anim_index), pos)
-        })?;
-        //self.logger.log(format!("-> reading SPRITE_ANIMATION LOOP names for '{}'", animation.asset.name));
-        for (index, name_id) in names.iter().enumerate() {
-            if let Some(anim_loop) = animation.loops.get_mut(index) {
-                //self.logger.log(format!("  -> {}", name_id));
-                anim_loop.name_id.push_str(name_id);
-            } else {
-                return error(format!("animation '{}' doesn't have loop {}", animation.name, index), pos);
-            }
-        }
-        for (index, aloop) in animation.loops.iter_mut().enumerate() {
-            if aloop.name_id.is_empty() {
-                aloop.name_id = format!("loop {}", index);
-            }
-        }
         Ok(())
     }
 
-    fn read_sprite_animation_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        if ident.ends_with("LOOP_NAMES") {
-            self.read_sprite_animation_loop_names(ident, pos)?;
-            return Ok(());
-        }
-        error(format!("unknown sprite animation enum: '{}'", ident), pos)
-    }
-
-    fn read_room_trigger_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "ROOM", "TRG_NAMES", "TRG",
-                                                                       &self.data.rooms_by_name, pos)?;
-        let name_ids = self.read_asset_names_enum(&item_prefix)?;
-        let room = self.data.rooms.get_mut(index).ok_or_else(|| {
-            err(format!("internal error: room index {} not found", index), pos)
-        })?;
-        //self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
-        for (index, name_id) in name_ids.iter().enumerate() {
-            if let Some(trg) = room.triggers.get_mut(index) {
-                //self.logger.log(format!("  -> {}", name_id));
-                trg.name_id.push_str(name_id);
+    fn read_static_data(&mut self) -> Result<()> {
+        self.expect_ident("const")?;
+        let type_token = self.expect_any_ident("'struct' or type")?;
+        if let Some(type_name) = type_token.get_ident() {
+            if type_name == "struct" {
+                self.read_data_struct_array()
             } else {
-                return error(format!("room '{}' doesn't have trigger {}", room.name, index), pos);
+                self.read_data_array(type_name)
             }
+        } else {
+            self.unexpected(&type_token)
         }
-        Ok(())
     }
 
-    fn read_room_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        if ident.ends_with("_TRG_NAMES") {
-            self.read_room_trigger_names(ident, pos)?;
-            return Ok(());
-        }
-        error(format!("unknown room enum: '{}'", ident), pos)
-    }
-
-    fn read_world_region_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let (index, item_prefix) = self.get_enum_asset_and_item_prefix(ident, "WORLD", "REGION_NAMES", "REGION",
-                                                                       &self.data.worlds_by_name, pos)?;
-        let name_ids = self.read_asset_names_enum(&item_prefix)?;
-        let world = self.data.worlds.get_mut(index).ok_or_else(|| {
-            err(format!("internal error: world index {} not found", index), pos)
-        })?;
-        //self.logger.log(format!("-> reading ROOM TRIGGER names for '{}'", room.asset.name));
-        for (index, name_id) in name_ids.iter().enumerate() {
-            if let Some(reg) = world.regions.get_mut(index) {
-                //self.logger.log(format!("  -> {}", name_id));
-                reg.name.push_str(name_id);
-            } else {
-                return error(format!("world '{}' doesn't have region {}", world.name, index), pos);
+    fn read_asset_array(&mut self, value_type: &ValueType) -> Result<()> {
+        let mut name_token = self.expect_any_ident("array name")?;
+        if let Some(name) = name_token.drain_ident() {
+            self.expect_punct('[')?;
+            self.expect_punct(']')?;
+            self.expect_punct('=')?;
+            self.expect_punct('{')?;
+            let mut values = Vec::new();
+            while let Some(t) = self.read_loop()? {
+                let pos = t.pos;
+                self.unread(t)?;
+                values.push(AssetDef {
+                    value: self.read_value(value_type)?,
+                    pos,
+                });
             }
+            self.data.assets.insert(name, (values, name_token.pos));
+            self.expect_punct(';')?;
+            Ok(())
+        } else {
+            self.unexpected(&name_token)
         }
-        Ok(())
     }
 
-    fn read_world_names(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        if ident.ends_with("_REGION_NAMES") {
-            self.read_world_region_names(ident, pos)?;
-            return Ok(());
-        }
-        error(format!("unknown world enum: '{}'", ident), pos)
-    }
-
-    // =======================================================================================
-    // === IDS
-    // =======================================================================================
-
-    fn read_asset_ids(&mut self, ident: &str, pos: TokenPosition) -> Result<()> {
-        let name = match self.get_global_upper_with_suffix(ident, "IDS") {
-            Some(name) => name,
-            None => { return error(format!("invalid IDS enum: {}", ident), pos); },
-        };
-        let mut name_with_id = name.to_string();
-        name_with_id.push_str("_ID");
-
-        self.expect_punct('{')?;
-
-        self.logger.log(format!("-> reading asset identifiers for {}", name));
-        let mut got_count = false;
-        loop {
-            let t = self.expect_token()?;
-            if t.is_punct('}') { break; }
-
-            match t.get_ident() {
-                Some(ident) => {
-                    if let Some(name) = self.get_global_upper_of_type(ident, name) && name == "COUNT" {
-                        got_count = true;
-                    } else if let Some(_item_name) = self.get_global_upper_of_type(ident, &name_with_id) {
-                        //self.logger.log(format!("  -> got asset id '{}'", item_name));
-                    } else {
-                        return error(format!("invalid asset ID: {}", ident), pos);
+    fn read_global_data(&mut self) -> Result<()> {
+        self.expect_ident("struct")?;
+        let mut struct_tag_token = self.expect_any_ident("struct tag")?;
+        if let Some(struct_tag) = struct_tag_token.drain_ident() {
+            if let Some(value_type) = self.get_value_type(&struct_tag, &ASSET_STRUCT_VALUE_TYPES) {
+                // read struct arrays of known assets
+                self.read_asset_array(value_type)
+            } else if let Some(prefixless_tag) = self.strip_upper_prefix(&struct_tag) && prefixless_tag == "ROOM_SCRIPT" {
+                // ignore ROOM_SCRIPT struct array
+                self.expect_punct('*')?;
+                self.expect_any_ident("room script table identifier")?;
+                self.expect_punct('[')?;
+                self.expect_punct(']')?;
+                self.expect_punct('=')?;
+                self.expect_punct('{')?;
+                while let Some(t) = self.read_loop()? {
+                    if ! t.is_punct('&') {
+                        return error(format!("expected '&', found '{}'", t), t.pos);
                     }
-                },
-                None => { return error_expected("identifier", &t); }
-            };
-
-            let next = self.expect_any_punct("',' or '}'")?;
-            if next.is_punct('}') { break; }
-            if ! next.is_punct(',') {
-                error_expected("',' or '}'", &next)?;
+                    self.expect_any_ident("room script table")?;
+                }
+                self.expect_punct(';')?;
+                Ok(())
+            } else {
+                error(format!("unknown struct '{}'", struct_tag), struct_tag_token.pos)
             }
+        } else {
+            self.unexpected(&struct_tag_token)
         }
-        self.expect_punct(';')?;
-
-        if ! got_count {
-            self.logger.log(format!("-> WARNING: asset ids for {} doesn't end with COUNT", ident));
-        }
-
-        Ok(())
     }
 
-    // =======================================================================================
-    // =======================================================================================
-    // =======================================================================================
-
-    fn is_struct_name(&self, ident: &str) -> bool {
-        if let Some(name) = self.get_global_upper(ident) {
-            return C_STRUCT_NAMES.contains(&name);
+    fn read_enum(&mut self) -> Result<()> {
+        let mut enum_tag_token = self.expect_any_ident("enum tag")?;
+        if let Some(enum_tag) = enum_tag_token.drain_ident() {
+            self.expect_punct('{')?;
+            let mut values = Vec::new();
+            while let Some(mut t) = self.read_loop()? {
+                if let Some(name) = t.drain_ident() {
+                    values.push(name);
+                } else {
+                    return error(format!("expected enum identifier, got '{}'", t), t.pos);
+                }
+            }
+            self.data.enums.insert(enum_tag, values);
+            self.expect_punct(';')?;
+            Ok(())
+        } else {
+            self.unexpected(&enum_tag_token)
         }
-        false
     }
+
+    // =========================================================
+    // === PARSER DISPATCH
+    // =========================================================
 
     fn read_data(&mut self) -> Result<()> {
-        self.read_project_header()?;
-
         loop {
-            let t = self.read()?;
+            let mut t = self.read()?;
+
             if t.is_eof() { break; }
 
-            if let Some(line) = t.get_pre_processor() {
-                self.handle_pre_processor_line(line, t.pos)?;
+            if let Some(line) = t.drain_pre_processor() {
+                // read project prefix, vga_sync_bits, etc.
+                // ignore #if/#else/#endif, log anything else
+                pre_processor::handle_line(&line, &mut self.data, t.pos, self.logger)?;
                 continue;
             }
 
-            // font stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "font_data") {
-                self.read_font_data(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "fonts") {
-                self.read_fonts()?;
-                continue;
-            }
-
-            // proportional font stuff
-            if let Some(ident) = t.get_ident() && let Some(name_id) = self.get_global_lower_of_type(ident, "prop_font_data") {
-                self.read_prop_font_data(name_id)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "prop_fonts") {
-                self.read_prop_fonts()?;
-                continue;
-            }
-
-            // MOD stuff
-            if let Some(ident) = t.get_ident() && let Some(name_id) = self.get_global_lower_of_type(ident, "mod_samples") {
-                self.read_mod_sample_data(name_id)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "mod_pattern") {
-                self.read_mod_pattern(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "mods") {
-                self.read_mods()?;
-                continue;
-            }
-
-            // sfx stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "sfx_samples") {
-                self.read_sfx_sample_data(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "sfxs") {
-                self.read_sfxs()?;
-                continue;
-            }
-
-            // tileset stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "tileset_data") {
-                self.read_tileset_data(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "tilesets") {
-                self.read_tilesets()?;
-                continue;
-            }
-
-            // sprite stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "sprite_data") {
-                self.read_sprite_data(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "sprites") {
-                self.read_sprites()?;
-                continue;
-            }
-
-            // paletted sprite stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "pal_sprite_data") {
-                self.read_pal_sprite_data(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "pal_sprites") {
-                self.read_pal_sprites()?;
-                continue;
-            }
-
-            // map stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "map_tiles") {
-                self.read_map_tiles(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "maps") {
-                self.read_maps()?;
-                continue;
-            }
-
-            // sprite animation stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "sprite_animation_frames") {
-                self.read_sprite_animation_frames(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "sprite_animations") {
-                self.read_sprite_animations()?;
-                continue;
-            }
-
-            // room stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "room_maps") {
-                self.read_room_maps(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "room_triggers") {
-                self.read_room_triggers(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "rooms") {
-                self.read_rooms()?;
-                continue;
-            }
-
-            // world stuff
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "world_regions") {
-                self.read_world_regions(name)?;
-                continue;
-            }
-            if let Some(ident) = t.get_ident() && let Some(name) = self.get_global_lower_of_type(ident, "world") {
-                if name.ends_with("_block_bitmap") {
-                    self.read_world_block_bitmap(name)?;
-                    continue;
-                }
-                if name.ends_with("_blocks") {
-                    self.read_world_blocks(name)?;
-                    continue;
-                }
-                if name.ends_with("_room_indices") {
-                    self.read_world_room_indices(name)?;
-                    continue;
-                }
-                error(format!("unexpected '{}'", t), t.pos)?;
-            }
-            if let Some(ident) = t.get_ident() && self.is_global_lower(ident, "worlds") {
-                self.read_worlds()?;
-                continue;
+            if ! self.data.got_prefix {
+                return error(format!("must have #define with prefix before this line: {}", &t), t.pos);
             }
 
             if let Some(ident) = t.get_ident() {
-                // C keywords, C types and struct names
-                if C_KEYWORDS.contains(&ident) { continue; }
-                if self.is_struct_name(ident) { continue; }
-                if ident == "uint8_t" { self.last_type_size = 8; continue; }
-                if ident == "int8_t" { self.last_type_size = 8; continue; }
-                if ident == "uint16_t" { self.last_type_size = 16; continue; }
-                if ident == "int16_t" { self.last_type_size = 16; continue; }
-                if ident == "uint32_t" { self.last_type_size = 32; continue; }
-                if ident == "int32_t" { self.last_type_size = 32; continue; }
-
-                // room script declaration/table
-                if self.is_global_upper(ident, "ROOM_SCRIPT") {
-                    self.read_room_script_declaration_or_table()?;
+                if ident == "extern" {
+                    // room script table declarations: ignore
+                    self.read_extern_data()?;
                     continue;
-                }
-
-                // asset ids
-                if ident.ends_with("IDS") {
-                    self.read_asset_ids(ident, t.pos)?;
+                } else if ident == "static" {
+                    // asset data (image pixels, mod patterns, etc):
+                    // read to (`data.arrays`, `data.structs`)
+                    self.read_static_data()?;
                     continue;
-                }
-
-                // asset names
-                if self.is_global_upper_of_type(ident, "SPRITE_ANIMATION") {
-                    self.read_sprite_animation_names(ident, t.pos)?;
+                } else if ident == "const" {
+                    // main asset structs: read to `data.asset`
+                    self.read_global_data()?;
                     continue;
-                }
-                if self.is_global_upper_of_type(ident, "ROOM") {
-                    self.read_room_names(ident, t.pos)?;
-                    continue;
-                }
-                if self.is_global_upper_of_type(ident, "WORLD") {
-                    self.read_world_names(ident, t.pos)?;
+                } else if ident == "enum" {
+                    // asset ids and sub-item names
+                    // (room triggers, animation loops, etc):
+                    // read to `data.enums`
+                    self.read_enum()?;
                     continue;
                 }
             }
 
             error(format!("unexpected '{}'", t), t.pos)?;
         }
-
         Ok(())
     }
 
-    fn create_store(self) -> Result<DataAssetStore> {
-        let mut asset_ids = AssetIdCollection::new();
-        let mut assets = AssetCollection::new();
+    // =========================================================
+    // === CONVERT DATA TO ASSETS
+    // =========================================================
 
-        // add asset ids
-        for tileset in self.data.tilesets.iter() { asset_ids.tilesets.push(tileset.asset_id); }
-        for map_data in self.data.maps.iter() { asset_ids.maps.push(map_data.asset_id); }
-        for room in self.data.rooms.iter() { asset_ids.rooms.push(room.asset_id); }
-        for world in self.data.worlds.iter() { asset_ids.worlds.push(world.asset_id); }
-        for sprite in self.data.sprites.iter() { asset_ids.sprites.push(sprite.asset_id); }
-        for pal_sprite in self.data.pal_sprites.iter() { asset_ids.pal_sprites.push(pal_sprite.asset_id); }
-        for anim in self.data.animations.iter() { asset_ids.animations.push(anim.asset_id); }
-        for sfx in self.data.sfxs.iter() { asset_ids.sfxs.push(sfx.asset_id); }
-        for mod_data in self.data.mods.iter() { asset_ids.mods.push(mod_data.asset_id); }
-        for font in self.data.fonts.iter() { asset_ids.fonts.push(font.asset_id); }
-        for prop_font in self.data.prop_fonts.iter() { asset_ids.prop_fonts.push(prop_font.asset_id); }
+    fn create_store(mut self) -> Result<DataAssetStore> {
+        // generate asset ids
+        let mut id_generator = DataAssetIdGenerator::new();
+        for (name, (data_vec, pos)) in self.data.assets.iter() {
+            let ids: Vec<DataAssetId> = (0..data_vec.len()).map(|_| id_generator.gen_id()).collect();
+            self.data.asset_ids_by_prefixed_name.insert(name.to_owned(), ids.clone());
+            let unprefixed_name = self.strip_lower_prefix(name).ok_or_else(|| {
+                err(format!("invalid asset array name: {}", name), *pos)
+            })?;
+            self.data.asset_ids.insert(unprefixed_name.to_owned(), ids);
+        }
 
         // create assets
-        for tileset in self.data.tilesets {
-            assets.tilesets.insert(tileset.asset_id, tileset.into_tileset());
-        }
-        for map_data in self.data.maps {
-            assets.maps.insert(map_data.asset_id, map_data.into_map(&asset_ids)?);
-        }
-        for sprite in self.data.sprites {
-            assets.sprites.insert(sprite.asset_id, sprite.into_sprite());
-        }
-        for pal_sprite in self.data.pal_sprites {
-            assets.pal_sprites.insert(pal_sprite.asset_id, pal_sprite.into_pal_sprite());
-        }
-        for anim in self.data.animations {
-            assets.animations.insert(anim.asset_id, anim.into_sprite_animation(&asset_ids)?);
-        }
-        for sfx in self.data.sfxs {
-            assets.sfxs.insert(sfx.asset_id, sfx.into_sfx());
-        }
-        for mod_data in self.data.mods {
-            assets.mods.insert(mod_data.asset_id, mod_data.into_mod());
-        }
-        for font in self.data.fonts {
-            assets.fonts.insert(font.asset_id, font.into_font());
-        }
-        for prop_font in self.data.prop_fonts {
-            assets.prop_fonts.insert(prop_font.asset_id, prop_font.into_prop_font());
-        }
-        for room in self.data.rooms {
-            assets.rooms.insert(room.asset_id, room.into_room(&asset_ids)?);
-        }
-        for world in self.data.worlds {
-            assets.worlds.insert(world.asset_id, world.into_world(&asset_ids)?);
-        }
-
-        // name unnamed animation loops
-        for anim in assets.animations.iter_mut() {
-            for (index, aloop) in anim.loops.iter_mut().enumerate() {
-                if aloop.name_id.is_empty() {
-                    aloop.name_id = format!("loop {}", index);
+        let mut assets = AssetCollection::new();
+        let mut asset_ids = AssetIdCollection::new();
+        let image_converter = ImageConverter::new(self.data.vga_bits_per_pixel);
+        for (name, (data_vec, data_pos)) in self.data.assets.iter() {
+            if let Some(name) = self.strip_lower_prefix(name) && let Some(asset_ids_of_type) = self.data.asset_ids.get(name) {
+                for (index, asset_data) in data_vec.iter().enumerate() {
+                    match name {
+                        "tilesets" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.tilesets.push(id);
+                                assets.tilesets.insert(id, tileset::create(id, asset_data, &self.data, &image_converter)?);
+                            }
+                        }
+                        "maps" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.maps.push(id);
+                                assets.maps.insert(id, map_data::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "rooms" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.rooms.push(id);
+                                assets.rooms.insert(id, room::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "worlds" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.worlds.push(id);
+                                assets.worlds.insert(id, world::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "sprites" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.sprites.push(id);
+                                assets.sprites.insert(id, sprite::create(id, asset_data, &self.data, &image_converter)?);
+                            }
+                        }
+                        "pal_sprites" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.pal_sprites.push(id);
+                                assets.pal_sprites.insert(id, pal_sprite::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "sprite_animations" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.animations.push(id);
+                                assets.animations.insert(id, sprite_animation::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "sfxs" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.sfxs.push(id);
+                                assets.sfxs.insert(id, sfx::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "mods" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.mods.push(id);
+                                assets.mods.insert(id, mod_data::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "fonts" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.fonts.push(id);
+                                assets.fonts.insert(id, font::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        "prop_fonts" => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.prop_fonts.push(id);
+                                assets.prop_fonts.insert(id, prop_font::create(id, asset_data, &self.data)?);
+                            }
+                        }
+                        _ => {
+                            return error(format!("unknown asset array: {}", name), *data_pos);
+                        }
+                    }
                 }
             }
         }
-
-        // name unnamed room triggers
-        for room in assets.rooms.iter_mut() {
-            for (index, trigger) in room.triggers.iter_mut().enumerate() {
-                if trigger.name_id.is_empty() {
-                    trigger.name_id = format!("trigger_{}", index);
-                }
-            }
-        }
-
-        // name unnamed world regions
-        for world in assets.worlds.iter_mut() {
-            for (index, region) in world.regions.iter_mut().enumerate() {
-                if region.name.is_empty() {
-                    region.name.push_str(&format!("region_{}", index));
-                }
-            }
-        }
-
         Ok(DataAssetStore {
-            id_generator: self.id_generator,
-            vga_bits_per_pixel: self.vga_bits_per_pixel,
-            vga_sync_bits: self.vga_sync_bits,
-            project_prefix: self.project_prefix,
+            id_generator,
             assets,
             asset_ids,
+            project_prefix: self.data.prefix,
+            vga_bits_per_pixel: self.data.vga_bits_per_pixel,
+            vga_sync_bits: self.data.vga_sync_bits,
         })
     }
 

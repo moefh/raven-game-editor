@@ -112,10 +112,8 @@ impl RoomTriggerTypeIdent {
 
     pub fn matches_enum_ident(&self, enum_ident: &str, prefix: &str) -> bool {
         let req_enum_ident = self.enum_ident();
-        enum_ident.len() == prefix.len() + 1 + req_enum_ident.len() &&
-            enum_ident.starts_with(prefix) &&
-            &enum_ident[prefix.len()..prefix.len()+1] == "_" &&
-            enum_ident.ends_with(req_enum_ident)
+        enum_ident.len() == prefix.len() + req_enum_ident.len() &&
+            enum_ident[..prefix.len()].eq_ignore_ascii_case(prefix) &&
+            enum_ident[prefix.len()..].eq_ignore_ascii_case(req_enum_ident)
     }
-
 }

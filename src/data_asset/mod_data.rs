@@ -36,6 +36,8 @@ pub struct ModData {
 }
 
 impl ModData {
+    pub const NUM_SAMPLES: usize = 31;
+
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let num_channels = 4;
         ModData {
@@ -85,7 +87,7 @@ impl ModData {
     }
 
     fn gen_samples() -> Vec<ModSample> {
-        let mut samples = Vec::with_capacity(31);
+        let mut samples = Vec::with_capacity(Self::NUM_SAMPLES);
         let sample_data_len = 5000;
         samples.push(ModSample {
             len: sample_data_len,
@@ -142,10 +144,10 @@ impl super::GenericAsset for ModData {
         //                finetune(1) + volume(1) + bits_per_sample(2) + data<ptr>(4)
         let sample_header = 3usize * 4usize + 4usize + 4usize;
 
-        // header: 31*sample_header + num_channels(1) +
+        // header: num_samples*sample_header + num_channels(1) +
         //         num_song_positions(1) + song_positions(128) +
         //         num_patterns(1) + pad(1) + pattern<ptr>(4)
-        let header = 31usize * sample_header + 132usize + 4usize;
+        let header = Self::NUM_SAMPLES * sample_header + 132usize + 4usize;
 
         // cell_header: sample(1) + note_index(1) + effect(2)
         let cell_header = 1usize + 1usize + 2usize;

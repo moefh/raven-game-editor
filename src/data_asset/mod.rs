@@ -250,10 +250,6 @@ impl AssetIdList {
         self.store.retain(|&id| id != remove_id)
     }
 
-    pub fn get(&self, index: usize) -> Option<&DataAssetId> {
-        self.store.get(index)
-    }
-
     pub fn len(&self) -> usize {
         self.store.len()
     }

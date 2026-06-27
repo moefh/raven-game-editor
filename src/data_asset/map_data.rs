@@ -1,4 +1,3 @@
-//#[allow(dead_code)]
 #[derive(std::hash::Hash)]
 pub struct MapData {
     pub asset: super::DataAsset,
