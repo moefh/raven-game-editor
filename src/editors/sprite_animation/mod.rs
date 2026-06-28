@@ -145,7 +145,6 @@ impl Editor {
 
         let asset_id = animation.asset.id;
 
-
         // toolbar:
         egui::Panel::top(format!("editor_panel_{}_toolbar", asset_id)).resizable(false).show_inside(ui, |ui| {
             ui.add_space(2.0);
@@ -207,16 +206,6 @@ impl Editor {
                 ui.add_space(2.0);
                 ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
 
-                if let Some(image_item) = animation.loops.get(self.selected_loop)
-                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
-                    .and_then(|frame| frame.head_index) {
-                        ui.label(format!("Frame {}", image_item));
-                    }
-
-                ui.add_space(5.0);
-                ui.separator();
-                ui.add_space(5.0);
-
                 ui.label("Collision: (");
                 let max_x = (animation.clip_rect.x + animation.clip_rect.w).max(0);
                 let max_y = (animation.clip_rect.y + animation.clip_rect.h).max(0);
@@ -244,6 +233,19 @@ impl Editor {
                 ui.add(egui::DragValue::new(&mut animation.clip_rect.w).speed(1.0).range(0..=max_w));
                 ui.label("x");
                 ui.add(egui::DragValue::new(&mut animation.clip_rect.h).speed(1.0).range(0..=max_h));
+
+                if let Some(image_item) = animation.loops.get(self.selected_loop)
+                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
+                    .and_then(|frame| frame.head_index) {
+                        ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("Frame {}", image_item));
+                                ui.add_space(5.0);
+                                ui.separator();
+                            });
+                            ui.add_space(0.0);  // don't remove this, it's necessary
+                        });
+                    }
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
