@@ -179,8 +179,9 @@ pub struct RoomEditorWidget {
     pub lock_maps: bool,
     pub show_screen: bool,
     screen_pos: ScreenPos,
-    selected_item_changed: bool,
     selected_item: RoomItemRef,
+    selected_item_changed: bool,
+    scroll_to_selected_item: bool,
     resize_border: Option<RectBorder>,
     dragging_item: bool,
     drag_item_origin: Pos2,
@@ -195,6 +196,7 @@ impl RoomEditorWidget {
             scroll: Vec2::ZERO,
             selected_item: RoomItemRef::None,
             selected_item_changed: false,
+            scroll_to_selected_item: false,
             lock_maps: true,
             show_screen: false,
             screen_pos: ScreenPos { x: 0, y: 0 },
@@ -210,9 +212,12 @@ impl RoomEditorWidget {
         self.selected_item
     }
 
-    pub fn set_selected_item(&mut self, item: RoomItemRef) {
+    pub fn set_selected_item(&mut self, item: RoomItemRef, scroll_to: bool) {
         self.selected_item = item;
         self.selected_item_changed = true;
+        if ! matches!(item, RoomItemRef::None) {
+            self.scroll_to_selected_item = scroll_to;
+        }
     }
 
     pub fn has_selected_item_changed(&self) -> bool {
@@ -255,12 +260,12 @@ impl RoomEditorWidget {
         TriggerRect::from_trigger(trigger, assets).egui_rect()
     }
 
-    fn get_item_rect(item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists, screen_pos: &ScreenPos) -> Option<Rect> {
+    fn get_item_rect(&self, item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
         match item {
             RoomItemRef::None => None,
 
             RoomItemRef::Screen => {
-                Some(screen_pos.get_rect())
+                Some(self.screen_pos.get_rect())
             }
 
             RoomItemRef::Map(map_index) => {
@@ -276,22 +281,21 @@ impl RoomEditorWidget {
         }
     }
 
-    fn move_item(item: &mut RoomItemRef, pos: Pos2, room: &mut Room, screen_pos: &mut ScreenPos,
-                 lock_maps: bool, grid: &GridAlign) -> Option<bool> {
-        match item {
+    fn move_selected_item(&mut self, pos: Pos2, room: &mut Room) -> Option<bool> {
+        match self.selected_item {
             RoomItemRef::None => { None }
 
             RoomItemRef::Screen => {
-                screen_pos.x = pos.x.round().clamp(0.0, u16::MAX as f32) as u16;
-                screen_pos.y = pos.y.round().clamp(0.0, u16::MAX as f32) as u16;
+                self.screen_pos.x = pos.x.round().clamp(0.0, u16::MAX as f32) as u16;
+                self.screen_pos.y = pos.y.round().clamp(0.0, u16::MAX as f32) as u16;
                 Some(true)
             }
 
             RoomItemRef::Map(map_index) => {
-                if lock_maps {
+                if self.lock_maps {
                     None
                 } else {
-                    let room_map = room.maps.get_mut(*map_index)?;
+                    let room_map = room.maps.get_mut(map_index)?;
                     room_map.x = (pos.x / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
                     room_map.y = (pos.y / TILE_SIZE).round().clamp(0.0, 1024.0) as u16;
                     Some(true)
@@ -299,9 +303,9 @@ impl RoomEditorWidget {
             }
 
             RoomItemRef::Trigger(trg_index) => {
-                let trigger = room.triggers.get_mut(*trg_index)?;
-                trigger.x = grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
-                trigger.y = grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                let trigger = room.triggers.get_mut(trg_index)?;
+                trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
                 Some(true)
             }
         }
@@ -388,7 +392,7 @@ impl RoomEditorWidget {
 
     fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        Self::move_item(&mut self.selected_item, new_pos, room, &mut self.screen_pos, self.lock_maps, &self.grid).unwrap_or(false)
+        self.move_selected_item(new_pos, room).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {
@@ -439,14 +443,14 @@ impl RoomEditorWidget {
             resp.dragged_by(egui::PointerButton::Primary) &&
             self.selected_item.is_trigger() &&
             let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) &&
-            let Some(rect) = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos) {
+            let Some(rect) = self.get_item_rect(self.selected_item, room, assets) {
                 self.resize_start(border, rect, mouse_pos);
                 return;
             }
 
         // click/drag selected trigger
         if self.selected_item.is_trigger() {
-            let rect = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
+            let rect = self.get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
@@ -469,9 +473,9 @@ impl RoomEditorWidget {
         // click/drag trigger under the cursor
         for index in 0..room.triggers.len() {
             let item = RoomItemRef::Trigger(index);
-            let rect = Self::get_item_rect(item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
+            let rect = self.get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.set_selected_item(item);
+                self.set_selected_item(item, false);
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
                 }
@@ -483,7 +487,7 @@ impl RoomEditorWidget {
         if self.show_screen {
             let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.set_selected_item(RoomItemRef::Screen);
+                self.set_selected_item(RoomItemRef::Screen, false);
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
                 }
@@ -493,7 +497,7 @@ impl RoomEditorWidget {
 
         // click/drag selected map
         if self.selected_item.is_map() {
-            let rect = Self::get_item_rect(self.selected_item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
+            let rect = self.get_item_rect(self.selected_item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
@@ -505,9 +509,9 @@ impl RoomEditorWidget {
         // click/drag map under the cursor
         for index in 0..room.maps.len() {
             let item = RoomItemRef::Map(index);
-            let rect = Self::get_item_rect(item, room, assets, &self.screen_pos).unwrap_or(Rect::NOTHING);
+            let rect = self.get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.set_selected_item(item);
+                self.set_selected_item(item, false);
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
                 }
@@ -517,24 +521,19 @@ impl RoomEditorWidget {
 
         // left-click nowhere deselects selected item
         if resp.dragged_by(egui::PointerButton::Primary) {
-            self.set_selected_item(RoomItemRef::None);
+            self.set_selected_item(RoomItemRef::None, false);
         }
     }
 
-    pub fn set_zoom<F>(&mut self, zoom: f32, center_delta: Vec2, canvas_size: Vec2, get_to_canvas: &F, room_rect: Rect)
-    where F: Fn(f32, Vec2) -> RectTransform {
+    pub fn set_zoom(&mut self, zoom: f32, center_delta: Vec2) {
         let zoom = zoom.max(0.25);
         let zoom_delta = zoom / self.zoom;
         self.zoom = zoom;
         self.scroll = center_delta - (center_delta - self.scroll) * zoom_delta;
-
-        let to_canvas = get_to_canvas(self.zoom, self.scroll);
-        let trans_room_size = to_canvas.transform_rect(room_rect).size();
-        self.clip_scroll(canvas_size, trans_room_size);
     }
 
-    pub fn clip_scroll(&mut self, canvas_size: Vec2, trans_room_size: Vec2) {
-        self.scroll = self.scroll.max(canvas_size - (trans_room_size + 2.0 * BORDER_SIZE)).min(Vec2::ZERO);
+    pub fn clip_scroll(&mut self, canvas_size: Vec2, room_size: Vec2) {
+        self.scroll = self.scroll.max(canvas_size - (self.zoom * room_size + 2.0 * BORDER_SIZE)).min(Vec2::ZERO);
     }
 
     fn draw_selection_rect(painter: &egui::Painter, rect: Rect) {
@@ -584,33 +583,43 @@ impl RoomEditorWidget {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
+        let room_size = Self::get_room_size(room, assets.maps);
+        let room_rect = Rect::from_min_size(Pos2::ZERO, room_size);
         self.grid.align = ui.ctx().input(|i| i.modifiers.shift);
 
         let min_size = ui.available_size();
         let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
+        let canvas_rect = response_rect.expand2(Vec2::splat(-1.0));
 
-        let room_size = Self::get_room_size(room, assets.maps);
-        let room_rect = Rect::from_min_size(Pos2::ZERO, room_size);
-        let canvas_rect = response_rect.expand2(-Vec2::splat(1.0));
-        let to_canvas_from_zoom = move |zoom, scroll| {
-            RectTransform::from_to(
-                Rect::from_min_size(Pos2::ZERO, room_size),
-                Rect::from_min_size(canvas_rect.min + BORDER_SIZE + scroll, room_size * zoom),
-            )
-        };
+        if self.scroll_to_selected_item {
+            self.scroll_to_selected_item = false;
+            if let Some(rect) = self.get_item_rect(self.selected_item, room, assets) {
+                match self.selected_item {
+                    RoomItemRef::Map(_) => {
+                        // scroll to map top-left
+                        self.scroll = -self.zoom * rect.min.to_vec2()
+                    }
+                    _ => {
+                        // center canvas on item any other item
+                        self.scroll = -self.zoom * rect.min.to_vec2() + 0.5 * (canvas_rect.size() - self.zoom * rect.size());
+                    }
+                }
+            }
+        }
+        self.clip_scroll(canvas_rect.size(), room_size);  // always needed in case the window was resized
 
-        let to_canvas = to_canvas_from_zoom(self.zoom, self.scroll);
+        let to_canvas = RectTransform::from_to(
+            Rect::from_min_size(Pos2::ZERO, room_size),
+            Rect::from_min_size(canvas_rect.min + BORDER_SIZE + self.scroll, room_size * self.zoom),
+        );
         let bg_rect = Rect {
             min: response_rect.min,
-            max: Pos2 {
-                x: response_rect.max.x.min(response_rect.min.x + room_size.x * self.zoom + 2.0 + 2.0*BORDER_SIZE.x),
-                y: response_rect.max.y.min(response_rect.min.y + room_size.y * self.zoom + 2.0 + 2.0*BORDER_SIZE.y),
-            },
+            max: response_rect.max.min(response_rect.min + room_size * self.zoom + Vec2::splat(2.0) + 2.0 * BORDER_SIZE),
         };
         painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0, 0));
         let stroke = egui::Stroke::new(1.0, Color32::WHITE);
-        painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Middle);
+        painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         painter.shrink_clip_rect(canvas_rect);
         ui.shrink_clip_rect(canvas_rect);
         Self::draw_outline_rect(&painter, canvas_rect);
@@ -618,9 +627,6 @@ impl RoomEditorWidget {
         if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
             return; // nothing to do!
         }
-
-        // limit scroll in case we've been resized
-        self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
 
         // draw maps
         for room_map in room.maps.iter() {
@@ -693,7 +699,7 @@ impl RoomEditorWidget {
         // check pan
         if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
             self.scroll += response.drag_delta();
-            self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(room_rect).size());
+            self.clip_scroll(canvas_rect.size(), room_size);
         }
 
         // check click
@@ -710,7 +716,7 @@ impl RoomEditorWidget {
                 ui.input(|i| i.zoom_delta())
             };
             if zoom_delta != 1.0 {
-                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min, canvas_rect.size(), &to_canvas_from_zoom, room_rect);
+                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min);
             }
         }
     }
