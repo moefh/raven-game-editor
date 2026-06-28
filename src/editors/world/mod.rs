@@ -86,7 +86,7 @@ impl WorldEditor {
                 maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, world, rooms, maps, tilesets);
 
-        self.base.show_window(wc, world, [500.0, 250.0], [650.0, 300.0], |ui, wc, world, base| {
+        self.base.show_window(wc, world, [500.0, 250.0], [650.0, 450.0], |ui, wc, world, base| {
             Self::show_footer(ui, wc, world, base);
             self.editor.show(ui, wc, &mut self.dialogs, world, rooms);
         });
@@ -133,7 +133,7 @@ struct Editor {
 }
 
 impl Editor {
-    const REGION_TREE_PANEL_WIDTH: f32 = 200.0;
+    const REGION_TREE_PANEL_WIDTH: f32 = 160.0;
     const ROOM_TREE_PANEL_WIDTH: f32 = 200.0;
 
     pub fn new(asset_id: DataAssetId) -> Self {
@@ -258,8 +258,23 @@ impl Editor {
         action
     }
 
-    fn show_world_editor(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, _dialogs: &mut Dialogs, world: &mut World) {
-        self.world_editor.show(ui, wc, world);
+    fn show_world_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, _dialogs: &mut Dialogs, world: &mut World) {
+        egui::Panel::top(format!("editor_panel_{}_world_header", self.asset_id)).show_inside(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                if ui.add(egui::Button::image_and_text(IMAGES.lock, "Regions")
+                          .selected(self.world_editor.lock_regions)
+                          .frame_when_inactive(self.world_editor.lock_regions))
+                    .on_hover_text("Lock regions in place").clicked() {
+                        self.world_editor.lock_regions = ! self.world_editor.lock_regions;
+                    }
+            });
+            ui.add_space(0.0);
+        });
+
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.world_editor.show(ui, wc, world);
+        });
     }
 
     fn show_region_rooms_tree(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext,
@@ -298,12 +313,17 @@ impl Editor {
         [header_action, item_action]
     }
 
-    fn show_region_editor(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                          world: &mut World, rooms: &AssetList<Room>) {
+    fn show_region_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
+                       world: &mut World, rooms: &AssetList<Room>) {
         let actions = {
             let region = match self.world_editor.get_selected_region().and_then(|region_index| world.regions.get_mut(region_index)) {
                 Some(r) => { r }
-                None => { return; }
+                None => {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                        ui.label("No selected region");
+                    });
+                    return;
+                }
             };
             egui::Panel::top(format!("editor_panel_{}_region_header", self.asset_id)).show_inside(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -370,11 +390,9 @@ impl Editor {
                 }
             });
         });
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            match self.selected_tab {
-                EditorTab::World => { self.show_world_editor(ui, wc, dialogs, world); }
-                EditorTab::Region => { self.show_region_editor(ui, wc, dialogs, world, rooms); }
-            }
-        });
+        match self.selected_tab {
+            EditorTab::World => { self.show_world_tab(ui, wc, dialogs, world); }
+            EditorTab::Region => { self.show_region_tab(ui, wc, dialogs, world, rooms); }
+        }
     }
 }

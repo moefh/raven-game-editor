@@ -70,20 +70,22 @@ pub struct WorldEditorWidget {
     dragging_region: bool,
     drag_region_origin: Pos2,
     drag_mouse_origin: Pos2,
+    world_borders: super::WorldBorders,
 }
 
 impl WorldEditorWidget {
     pub fn new() -> Self {
         WorldEditorWidget {
-            zoom: 10.0,
+            zoom: 20.0,
             scroll: Vec2::ZERO,
             selected_region: None,
             selected_region_changed: false,
-            lock_regions: false,
+            lock_regions: true,
             resize_border: None,
             dragging_region: false,
             drag_region_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
+            world_borders: super::WorldBorders::new(),
         }
     }
 
@@ -286,16 +288,11 @@ impl WorldEditorWidget {
         }
     }
 
-    pub fn set_zoom<F>(&mut self, zoom: f32, center_delta: Vec2, canvas_size: Vec2, get_to_canvas: &F, world_rect: Rect)
-    where F: Fn(f32, Vec2) -> RectTransform {
+    pub fn set_zoom(&mut self, zoom: f32, center_delta: Vec2) {
         let zoom = zoom.max(0.25);
         let zoom_delta = zoom / self.zoom;
         self.zoom = zoom;
         self.scroll = center_delta - (center_delta - self.scroll) * zoom_delta;
-
-        let to_canvas = get_to_canvas(self.zoom, self.scroll);
-        let trans_world_size = to_canvas.transform_rect(world_rect).size();
-        self.clip_scroll(canvas_size, trans_world_size);
     }
 
     pub fn clip_scroll(&mut self, canvas_size: Vec2, trans_world_size: Vec2) {
@@ -319,18 +316,40 @@ impl WorldEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
-    fn draw_region(painter: &egui::Painter, rect: Rect, region: &WorldRegion, zoom: f32) {
+    fn draw_region_blocks(&self, painter: &egui::Painter, rect: Rect, region: &WorldRegion) {
         if region.width == 0 || region.height == 0 { return; }
         let block_size = Vec2::new(
             rect.width() / region.width as f32,
             rect.height() / region.height as f32,
         );
+        let bg_color = Color32::from_rgb(128, 128, 128);
         for y in 0..region.height {
             for x in 0..region.width {
                 let block = region.blocks[y as usize * WorldRegion::BLOCK_STRIDE + x as usize];
                 if block.is_some() {
-                    let block_rect = Rect::from_min_size(rect.min + zoom * Vec2::new(x as f32, y as f32), block_size);
-                    painter.rect_filled(block_rect, egui::CornerRadius::ZERO, Color32::WHITE);
+                    let block_rect = Rect::from_min_size(rect.min + self.zoom * Vec2::new(x as f32, y as f32), block_size);
+                    painter.rect_filled(block_rect, egui::CornerRadius::ZERO, bg_color);
+                }
+            }
+        }
+    }
+
+    fn draw_world_borders(&mut self, painter: &egui::Painter, pos: Pos2, world: &World) {
+        self.world_borders.update(world);
+
+        let stroke = egui::Stroke::new(2.0, Color32::WHITE);
+        for y in 0..self.world_borders.height {
+            for x in 0..self.world_borders.width {
+                let flags = self.world_borders.get_block_borders(x, y);
+                if (flags & super::WorldBorders::BORDER_LEFT) != 0 {
+                    let rx = pos.x + self.zoom * x as f32;
+                    let ry = pos.y + self.zoom * y as f32;
+                    painter.vline(rx, egui::Rangef::new(ry, ry+self.zoom), stroke);
+                }
+                if (flags & super::WorldBorders::BORDER_TOP) != 0 {
+                    let rx = pos.x + self.zoom * x as f32;
+                    let ry = pos.y + self.zoom * y as f32;
+                    painter.hline(egui::Rangef::new(rx, rx+self.zoom), ry, stroke);
                 }
             }
         }
@@ -357,24 +376,19 @@ impl WorldEditorWidget {
         let world_size = Self::get_world_size(world);
         let world_rect = Rect::from_min_size(Pos2::ZERO, world_size);
         let canvas_rect = response_rect.expand2(-Vec2::splat(1.0));
-        let to_canvas_from_zoom = move |zoom, scroll| {
-            RectTransform::from_to(
-                Rect::from_min_size(Pos2::ZERO, world_size),
-                Rect::from_min_size(canvas_rect.min + BORDER_SIZE + scroll, world_size * zoom),
-            )
-        };
 
-        let to_canvas = to_canvas_from_zoom(self.zoom, self.scroll);
+        self.clip_scroll(canvas_rect.size(), world_rect.size() * self.zoom); // in case the window was resized
+        let to_canvas = RectTransform::from_to(
+            Rect::from_min_size(Pos2::ZERO, world_size),
+            Rect::from_min_size(canvas_rect.min + BORDER_SIZE + self.scroll, world_size * self.zoom),
+        );
         let bg_rect = Rect {
             min: response_rect.min,
-            max: Pos2 {
-                x: response_rect.max.x.min(response_rect.min.x + world_size.x * self.zoom + 2.0 + 2.0*BORDER_SIZE.x),
-                y: response_rect.max.y.min(response_rect.min.y + world_size.y * self.zoom + 2.0 + 2.0*BORDER_SIZE.y),
-            },
+            max: response_rect.max.min(response_rect.min + world_size * self.zoom + Vec2::splat(2.0) + 2.0 * BORDER_SIZE),
         };
         painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0, 0, 0));
         let stroke = egui::Stroke::new(1.0, Color32::WHITE);
-        painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Middle);
+        painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         painter.shrink_clip_rect(canvas_rect);
         ui.shrink_clip_rect(canvas_rect);
         Self::draw_outline_rect(&painter, canvas_rect);
@@ -383,17 +397,15 @@ impl WorldEditorWidget {
             return; // nothing to do!
         }
 
-        // limit scroll in case we've been resized
-        self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(world_rect).size());
-
-        // draw regions
+        // draw world
         for (region_index, region) in world.regions.iter().enumerate() {
             if let Some(rect) = Self::get_region_rect(Some(region_index), world) {
                 let rect = to_canvas.transform_rect(rect.egui_rect());
-                Self::draw_region(&painter, rect, region, self.zoom);
+                self.draw_region_blocks(&painter, rect, region);
                 Self::draw_outline_rect(&painter, rect);
             }
         }
+        self.draw_world_borders(&painter, to_canvas.transform_pos(Pos2::ZERO), world);
 
         // outline selected region
         if let Some(rect) = Self::get_region_rect(self.selected_region, world) {
@@ -431,7 +443,7 @@ impl WorldEditorWidget {
                 ui.input(|i| i.zoom_delta())
             };
             if zoom_delta != 1.0 {
-                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min, canvas_rect.size(), &to_canvas_from_zoom, world_rect);
+                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min);
             }
         }
     }

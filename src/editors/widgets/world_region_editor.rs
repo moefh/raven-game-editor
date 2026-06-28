@@ -13,7 +13,7 @@ pub struct WorldRegionEditorWidget {
 
 impl WorldRegionEditorWidget {
     pub fn new() -> Self {
-        let zoom = 10.0;
+        let zoom = 20.0;
         WorldRegionEditorWidget {
             zoom,
             scroll: Vec2::ZERO,
@@ -186,15 +186,6 @@ impl WorldRegionEditorWidget {
             }
         }
 
-        // check zoom
-        if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
-            let zoom_delta = ui.input(|i| i.zoom_delta());
-            if zoom_delta != 1.0 {
-                self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, region);
-            }
-            self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom).max(Vec2::ZERO);
-        }
-
         // check pan
         if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
             self.scroll += response.drag_delta();
@@ -204,6 +195,15 @@ impl WorldRegionEditorWidget {
         // check click
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! keys_pressed.alt {
             self.handle_mouse(pointer_pos, &response, region, &canvas_to_region);
+        }
+
+        // check zoom
+        if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            let zoom_delta = ui.input(|i| i.zoom_delta());
+            if zoom_delta != 1.0 {
+                self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, region);
+            }
+            self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom).max(Vec2::ZERO);
         }
     }
 }

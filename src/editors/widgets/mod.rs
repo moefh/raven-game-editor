@@ -14,7 +14,11 @@ mod image_picker;
 mod prop_font_editor;
 mod font_view;
 
-use crate::data_asset::MapData;
+use crate::data_asset::{
+    MapData,
+    World,
+    WorldRegion,
+};
 use crate::app::AppSettings;
 use crate::misc::current_time_as_millis;
 use super::MapLayer;
@@ -108,5 +112,84 @@ fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u8
         MapLayer::Effects    => map_data.fx_tiles[(map_data.width * y + x) as usize],
         MapLayer::Parallax   => map_data.para_tiles[(map_data.para_width * y + x) as usize],
         _ => MapData::NO_TILE,
+    }
+}
+
+struct WorldBorders {
+    pub width: i32,
+    pub height: i32,
+    pub world_hash: u64,
+    pub borders: Vec<u8>,
+}
+
+impl WorldBorders {
+    pub const BORDER_TOP: u8 = 1 << 0;
+    pub const BORDER_LEFT: u8 = 1 << 1;
+
+    pub fn new() -> Self {
+        WorldBorders {
+            width: 0,
+            height: 0,
+            world_hash: 0,
+            borders: Vec::new(),
+        }
+    }
+
+    pub fn update(&mut self, world: &World) {
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = std::hash::DefaultHasher::new();
+        world.hash(&mut hasher);
+        let hash = hasher.finish();
+        if self.world_hash != hash {
+            self.world_hash = hash;
+            self.calc_borders(&world);
+        }
+    }
+
+    pub fn get_block_borders(&self, x: i32, y: i32) -> u8 {
+        if x < 0 || y < 0 || x >= self.width || y >= self.height {
+            0
+        } else {
+            self.borders[(y * self.width + x) as usize]
+        }
+    }
+
+    fn get_world_block(x: i32, y: i32, world: &World) -> Option<u32> {
+        for (region_index, region) in world.regions.iter().enumerate() {
+            let bx = x - region.x as i32;
+            let by = y - region.y as i32;
+            let rw = region.width as i32;
+            let rh = region.height as i32;
+            if bx >= 0 && by >= 0 && bx < rw && by < rh {
+                return region.blocks[(by * WorldRegion::BLOCK_STRIDE as i32 + bx) as usize].map(|block| {
+                    block as u32 | ((region_index as u32) << 8)
+                });
+            }
+        }
+        None
+    }
+
+    fn calc_borders(&mut self, world: &World) {
+        let (world_width, world_height) = world.regions.iter().fold((0, 0), |size, region| {
+            (
+                size.0.max(region.x as i32 + region.width as i32),
+                size.1.max(region.y as i32 + region.height as i32),
+            )
+        });
+        self.width = world_width + 1;
+        self.height = world_height + 1;
+        if self.borders.len() < (self.width * self.height) as usize {
+            self.borders.resize((self.width * self.height) as usize, 0);
+        }
+        self.borders[..].fill(0);
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let block = Self::get_world_block(x, y, world);
+                let left = if block != Self::get_world_block(x-1, y, world) { Self::BORDER_LEFT } else { 0 };
+                let top  = if block != Self::get_world_block(x, y-1, world) { Self::BORDER_TOP  } else { 0 };
+                self.borders[(y*self.width + x) as usize] = left | top;
+            }
+        }
     }
 }
