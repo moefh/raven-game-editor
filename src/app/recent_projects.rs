@@ -46,7 +46,7 @@ impl RecentProjects {
     }
 
     pub fn add<P: AsRef<Path>>(&mut self, path: P) {
-        self.paths.push(path.as_ref().to_path_buf());
+        self.paths.insert(0, path.as_ref().to_path_buf());
         self.trim_paths();
     }
 
