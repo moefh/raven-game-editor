@@ -23,7 +23,10 @@ use crate::data_asset::{
 use properties::PropertiesDialog;
 use room_selection::RoomSelectionDialog;
 use region_properties::RegionPropertiesDialog;
-use super::AssetEditorBase;
+use super::{
+    world_grid,
+    AssetEditorBase,
+};
 use super::widgets::{
     WorldEditorWidget,
     WorldRegionEditorWidget,
@@ -127,6 +130,7 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     selected_tab: EditorTab,
+    world_grid: world_grid::WorldGridStore,
     world_editor: WorldEditorWidget,
     region_editor: WorldRegionEditorWidget,
     region_rooms_tree: Option<SimpleAssetTree>,
@@ -140,6 +144,7 @@ impl Editor {
         Editor {
             asset_id,
             selected_tab: EditorTab::World,
+            world_grid: world_grid::WorldGridStore::new(),
             world_editor: WorldEditorWidget::new(),
             region_editor: WorldRegionEditorWidget::new(),
             region_rooms_tree: None,
@@ -273,7 +278,7 @@ impl Editor {
         });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.world_editor.show(ui, wc, world);
+            self.world_editor.show(ui, wc, world, &self.world_grid.world_grid);
         });
     }
 
@@ -316,15 +321,16 @@ impl Editor {
     fn show_region_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                        world: &mut World, rooms: &AssetList<Room>) {
         let actions = {
-            let region = match self.world_editor.get_selected_region().and_then(|region_index| world.regions.get_mut(region_index)) {
-                Some(r) => { r }
-                None => {
+            let (region_index, region) = if
+                let Some(region_index) = self.world_editor.get_selected_region() &&
+                let Some(region) = world.regions.get_mut(region_index) {
+                    (region_index, region)
+                } else {
                     egui::CentralPanel::default().show_inside(ui, |ui| {
                         ui.label("No selected region");
                     });
                     return;
-                }
-            };
+                };
             egui::Panel::top(format!("editor_panel_{}_region_header", self.asset_id)).show_inside(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Name:");
@@ -339,7 +345,11 @@ impl Editor {
                 }).inner;
 
             egui::CentralPanel::default().show_inside(ui, |ui| {
-                self.region_editor.show(ui, wc, region);
+                if let Some(grid) = self.world_grid.region_grids.get(region_index) {
+                    self.region_editor.show(ui, wc, region, grid);
+                } else {
+                    ui.label("Invalid world grid");
+                }
             });
 
             action
@@ -380,6 +390,7 @@ impl Editor {
             });
 
         // tabs
+        self.world_grid.update(world);
         egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTab::World), "World").clicked() {

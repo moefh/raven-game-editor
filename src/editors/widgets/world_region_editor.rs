@@ -3,6 +3,8 @@ use crate::data_asset::WorldRegion;
 use egui::{Vec2, Sense, Rect, Pos2, Color32};
 use egui::emath;
 
+use super::super::world_grid;
+
 pub struct WorldRegionEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
@@ -109,17 +111,33 @@ impl WorldRegionEditorWidget {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, region: &mut WorldRegion) {
+    fn draw_region_grid(&self, painter: &egui::Painter, pos: Pos2, grid: &world_grid::Grid) {
+        let stroke = egui::Stroke::new(2.0, Color32::WHITE);
+        for y in 0..grid.height {
+            for x in 0..grid.width {
+                let flags = grid.get_block_borders(x, y);
+                if (flags & world_grid::Grid::BORDER_LEFT) != 0 {
+                    let rx = pos.x + self.zoom * x as f32;
+                    let ry = pos.y + self.zoom * y as f32;
+                    painter.vline(rx, egui::Rangef::new(ry, ry+self.zoom), stroke);
+                }
+                if (flags & world_grid::Grid::BORDER_TOP) != 0 {
+                    let rx = pos.x + self.zoom * x as f32;
+                    let ry = pos.y + self.zoom * y as f32;
+                    painter.hline(egui::Rangef::new(rx, rx+self.zoom), ry, stroke);
+                }
+            }
+        }
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, region: &mut WorldRegion, grid: &world_grid::Grid) {
         self.ensure_room_selection_is_valid(region);
 
         let min_size = (self.zoom * Vec2::splat(1.0)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
 
-        let canvas_rect = Rect {
-            min: response_rect.min.floor(),
-            max: response_rect.max.floor(),
-        };
+        let canvas_rect = response_rect.expand2(Vec2::splat(-1.0));
         let region_size = Vec2 {
             x: region.width as f32 * self.zoom,
             y: region.height as f32 * self.zoom,
@@ -145,14 +163,16 @@ impl WorldRegionEditorWidget {
         painter.rect_filled(region_area_rect, egui::CornerRadius::ZERO, Color32::BLACK);
 
         // background
+        let sel_room_color = Color32::from_rgb(255, 0, 0);
+        let room_color = Color32::from_rgb(128, 128, 128);
         for y in 0..region.height {
             for x in 0..region.width {
                 if let Some(block_room) = self.get_region_block(Pos2::new(x as f32, y as f32), region) {
                     let block_rect = Self::get_block_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
                     let color = if Some(block_room) == self.selected_room {
-                        Color32::RED
+                        sel_room_color
                     } else {
-                        Color32::WHITE
+                        room_color
                     };
                     painter.rect_filled(block_rect, egui::CornerRadius::ZERO, color);
                 }
@@ -171,6 +191,9 @@ impl WorldRegionEditorWidget {
         }
         let border_rect = region_area_rect.expand2(Vec2::splat(-ui.pixels_per_point()));
         painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
+
+        // room borders
+        self.draw_region_grid(&painter, canvas_to_region.inverse().transform_pos(Pos2::ZERO), grid);
 
         // ====================================================
         // == handle input

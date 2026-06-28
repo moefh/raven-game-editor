@@ -7,7 +7,10 @@ use crate::data_asset::{
 };
 use crate::app::WindowContext;
 
-use super::super::RectBorder;
+use super::super::{
+    world_grid,
+    RectBorder,
+};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
@@ -70,7 +73,6 @@ pub struct WorldEditorWidget {
     dragging_region: bool,
     drag_region_origin: Pos2,
     drag_mouse_origin: Pos2,
-    world_borders: super::WorldBorders,
 }
 
 impl WorldEditorWidget {
@@ -85,7 +87,6 @@ impl WorldEditorWidget {
             dragging_region: false,
             drag_region_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
-            world_borders: super::WorldBorders::new(),
         }
     }
 
@@ -334,19 +335,17 @@ impl WorldEditorWidget {
         }
     }
 
-    fn draw_world_borders(&mut self, painter: &egui::Painter, pos: Pos2, world: &World) {
-        self.world_borders.update(world);
-
+    fn draw_world_grid(&self, painter: &egui::Painter, pos: Pos2, grid: &world_grid::Grid) {
         let stroke = egui::Stroke::new(2.0, Color32::WHITE);
-        for y in 0..self.world_borders.height {
-            for x in 0..self.world_borders.width {
-                let flags = self.world_borders.get_block_borders(x, y);
-                if (flags & super::WorldBorders::BORDER_LEFT) != 0 {
+        for y in 0..grid.height {
+            for x in 0..grid.width {
+                let flags = grid.get_block_borders(x, y);
+                if (flags & world_grid::Grid::BORDER_LEFT) != 0 {
                     let rx = pos.x + self.zoom * x as f32;
                     let ry = pos.y + self.zoom * y as f32;
                     painter.vline(rx, egui::Rangef::new(ry, ry+self.zoom), stroke);
                 }
-                if (flags & super::WorldBorders::BORDER_TOP) != 0 {
+                if (flags & world_grid::Grid::BORDER_TOP) != 0 {
                     let rx = pos.x + self.zoom * x as f32;
                     let ry = pos.y + self.zoom * y as f32;
                     painter.hline(egui::Rangef::new(rx, rx+self.zoom), ry, stroke);
@@ -366,7 +365,7 @@ impl WorldEditorWidget {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, world: &mut World) {
+    pub fn show(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, world: &mut World, grid: &world_grid::Grid) {
         self.ensure_room_selection_is_valid(world);
 
         let min_size = ui.available_size();
@@ -375,7 +374,7 @@ impl WorldEditorWidget {
 
         let world_size = Self::get_world_size(world);
         let world_rect = Rect::from_min_size(Pos2::ZERO, world_size);
-        let canvas_rect = response_rect.expand2(-Vec2::splat(1.0));
+        let canvas_rect = response_rect.expand2(Vec2::splat(-1.0));
 
         self.clip_scroll(canvas_rect.size(), world_rect.size() * self.zoom); // in case the window was resized
         let to_canvas = RectTransform::from_to(
@@ -405,7 +404,7 @@ impl WorldEditorWidget {
                 Self::draw_outline_rect(&painter, rect);
             }
         }
-        self.draw_world_borders(&painter, to_canvas.transform_pos(Pos2::ZERO), world);
+        self.draw_world_grid(&painter, to_canvas.transform_pos(Pos2::ZERO), grid);
 
         // outline selected region
         if let Some(rect) = Self::get_region_rect(self.selected_region, world) {
