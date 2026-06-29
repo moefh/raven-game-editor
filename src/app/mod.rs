@@ -4,6 +4,7 @@ mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
+mod editor_action;
 mod settings;
 mod path_library;
 mod recent_projects;
@@ -16,6 +17,7 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
+pub use editor_action::EditorAction;
 pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
 pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
@@ -705,6 +707,7 @@ impl RavenEditorApp {
             map_clipboard: self.map_clipboard.take(),
             image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),
+            editor_actions: Vec::new(),
         };
 
         self.editors.refresh_room_names(&self.store.assets.rooms);
@@ -722,7 +725,7 @@ impl RavenEditorApp {
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) {
-                editor.show(&mut win_ctx, tileset, &mut self.store.assets.maps);
+                editor.show(&mut win_ctx, tileset);
             }
         }
         for map in self.store.assets.maps.iter_mut() {
@@ -797,6 +800,10 @@ impl RavenEditorApp {
                     Self::activate_window(ui, editor.egui_id);
                 }
             }
+
+        for editor_action in win_ctx.editor_actions {
+            editor_action.run(&mut self.store, &mut self.editors);
+        }
 
         self.map_clipboard = win_ctx.map_clipboard.take();
         self.image_clipboard = win_ctx.image_clipboard.take();

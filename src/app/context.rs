@@ -1,8 +1,19 @@
 use std::collections::{HashMap, HashSet};
+
 use crate::image::TextureManager;
-use crate::app::{AppDialogs, SysDialogs, AppSettings};
-use crate::data_asset::{DataAssetId, StringLogger};
-use crate::editors::{MapClipboardData, ImageClipboardData};
+use crate::app::{
+    AppDialogs,
+    SysDialogs,
+    AppSettings,
+};
+use crate::data_asset::{
+    DataAssetId,
+    StringLogger,
+};
+use crate::editors::{
+    MapClipboardData,
+    ImageClipboardData,
+};
 
 pub enum KeyboardPressed {
     CtrlC,
@@ -171,6 +182,7 @@ pub struct WindowContext<'a> {
     pub image_clipboard: ImageClipboardData,
     pub map_clipboard: MapClipboardData,
     pub keyboard_pressed: Option<KeyboardPressed>,
+    pub editor_actions: Vec<super::EditorAction>,
 }
 
 impl<'a> WindowContext<'a> {
@@ -207,5 +219,9 @@ impl<'a> WindowContext<'a> {
         } else {
             None
         }
+    }
+
+    pub fn add_editor_action(&mut self, action: super::EditorAction) {
+        self.editor_actions.push(action);
     }
 }

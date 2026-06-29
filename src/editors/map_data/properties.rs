@@ -49,6 +49,7 @@ pub struct PropertiesDialog {
     pub para_height: u32,
     pub new_tile: u8,
     pub resized: bool,
+    pub changed_tileset: bool,
 }
 
 impl PropertiesDialog {
@@ -63,6 +64,7 @@ impl PropertiesDialog {
             para_height: 0,
             new_tile: 0,
             resized: false,
+            changed_tileset: false,
         }
     }
 
@@ -80,6 +82,7 @@ impl PropertiesDialog {
         self.para_height = map_data.para_height;
         self.new_tile = new_tile;
         self.resized = false;
+        self.changed_tileset = false;
         self.open = true;
         wc.set_dialog_open(Self::id(), self.open);
     }
@@ -93,6 +96,8 @@ impl PropertiesDialog {
 
         map_data.asset.name.clear();
         map_data.asset.name.push_str(&self.name);
+
+        self.changed_tileset = map_data.tileset_id != self.tileset_id;
         map_data.tileset_id = self.tileset_id;
 
         let width = self.width;

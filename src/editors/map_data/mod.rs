@@ -6,8 +6,17 @@ use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, G
 use crate::misc::{IMAGES, STATIC_IMAGES};
 
 use properties::PropertiesDialog;
-use super::{AssetEditorBase, MapLayer};
-use super::widgets::{MapEditorWidget, MapDisplay, MapTool, ImagePickerWidget};
+use super::{
+    AssetEditorBase,
+    MapLayer,
+    MapTileFixer,
+};
+use super::widgets::{
+    MapEditorWidget,
+    MapDisplay,
+    MapTool,
+    ImagePickerWidget,
+};
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
@@ -72,6 +81,12 @@ impl MapDataEditor {
     }
 }
 
+impl MapTileFixer for MapDataEditor {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        self.editor.map_editor.get_tile_planes()
+    }
+}
+
 struct Dialogs {
     properties_dialog: Option<PropertiesDialog>,
 }
@@ -87,7 +102,7 @@ impl Dialogs {
                 map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
             dlg.show(wc, map_data, tileset_ids, tilesets);
-            if dlg.resized {
+            if dlg.resized || dlg.changed_tileset {
                 editor.map_editor.set_undo_target(map_data);
             }
         }

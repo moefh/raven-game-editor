@@ -1,7 +1,12 @@
+use std::collections::HashMap;
+
 use crate::data_asset::{
     DataAssetId,
-    AssetList,
+    DataAssetStore,
     MapData,
+};
+use super::super::{
+    MapDataEditor,
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -338,7 +343,7 @@ impl MapClipboardData {
 pub trait MapTileFixer {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]>;
 
-    fn add_hole(&mut self, tile_index: u8, num_tiles: u8) {
+    fn add_tileset_hole(&mut self, tile_index: u8, num_tiles: u8) {
         fn add_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
             for tile in tiles {
                 if *tile >= tile_index {
@@ -351,7 +356,7 @@ pub trait MapTileFixer {
         }
     }
 
-    fn remove_hole(&mut self, tile_index: u8, num_tiles: u8) {
+    fn remove_tileset_hole(&mut self, tile_index: u8, num_tiles: u8) {
         fn rm_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
             for tile in tiles {
                 if *tile >= tile_index + num_tiles && *tile != MapData::NO_TILE {
@@ -371,18 +376,26 @@ impl MapTileFixer for MapData {
     }
 }
 
-pub fn fix_maps_after_tiles_added(maps: &mut AssetList<MapData>, tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
-    for map_data in maps.iter_mut() {
-        if map_data.tileset_id == tileset_id {
-            map_data.add_hole(tile_index, num_tiles);
+pub fn fix_maps_after_tiles_added(store: &mut DataAssetStore, map_editors: &mut HashMap<DataAssetId,MapDataEditor>,
+                                  tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    for map_id in store.asset_ids.maps.iter() {
+        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
+            map_data.add_tileset_hole(tile_index, num_tiles);
+            if let Some(map_editor) = map_editors.get_mut(map_id) {
+                map_editor.add_tileset_hole(tile_index, num_tiles);
+            }
         }
     }
 }
 
-pub fn fix_maps_after_tiles_removed(maps: &mut AssetList<MapData>, tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
-    for map_data in maps.iter_mut() {
-        if map_data.tileset_id == tileset_id {
-            map_data.remove_hole(tile_index, num_tiles);
+pub fn fix_maps_after_tiles_removed(store: &mut DataAssetStore, map_editors: &mut HashMap<DataAssetId,MapDataEditor>,
+                                    tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    for map_id in store.asset_ids.maps.iter() {
+        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
+            map_data.remove_tileset_hole(tile_index, num_tiles);
+            if let Some(map_editor) = map_editors.get_mut(map_id) {
+                map_editor.remove_tileset_hole(tile_index, num_tiles);
+            }
         }
     }
 }

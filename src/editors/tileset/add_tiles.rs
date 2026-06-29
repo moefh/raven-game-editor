@@ -1,14 +1,10 @@
-use crate::app::WindowContext;
+use crate::app::{
+    WindowContext,
+    EditorAction,
+};
 use crate::image::ImageCollection;
-use crate::data_asset::{
-    AssetList,
-    Tileset,
-    MapData,
-};
-use super::super::{
-    fix_maps_after_tiles_added,
-    AssetEditorBase,
-};
+use crate::data_asset::Tileset;
+use super::super::AssetEditorBase;
 
 pub enum AddTilesAction {
     Insert,
@@ -49,16 +45,7 @@ impl AddTilesDialog {
         wc.set_dialog_open(Self::id(), self.open);
     }
 
-    fn fix_maps(&self, maps: &mut AssetList<MapData>, tileset: &Tileset) {
-        if self.sel_tile >= u8::MAX as u32 || self.num_tiles >= u8::MAX as u32 {
-            return;
-        }
-        let tile_index = self.sel_tile as u8;
-        let num_tiles = self.num_tiles as u8;
-        fix_maps_after_tiles_added(maps, tileset.asset.id, tile_index, num_tiles);
-    }
-
-    fn confirm(&mut self, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
+    fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
         let old_num_tiles = tileset.num_tiles;
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.clear_color);
         if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < old_num_tiles {
@@ -68,17 +55,23 @@ impl AddTilesDialog {
             let dst_start = (self.sel_tile + self.num_tiles) as usize * tile_size;
             tileset.data.copy_within(src_start..src_end, dst_start);
             tileset.data[src_start..dst_start].fill(self.clear_color);
-            self.fix_maps(maps, tileset);
+            if self.sel_tile <= u8::MAX as u32 && self.num_tiles <= u8::MAX as u32 {
+                wc.add_editor_action(EditorAction::FixMapsAfterTilesAdded {
+                    tileset_id: tileset.asset.id,
+                    tile_index: self.sel_tile as u8,
+                    num_tiles: self.num_tiles as u8,
+                });
+            }
         }
         self.confirmed = true;
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         let title = match self.action {
             AddTilesAction::Insert => { "Insert Tiles" }
             AddTilesAction::Append => { "Append Tiles" }
         };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
                     .num_columns(2)
@@ -100,7 +93,7 @@ impl AddTilesDialog {
                     ui.close();
                 }
                 if ui.button("Ok").clicked() {
-                    self.confirm(tileset, maps);
+                    self.confirm(tileset, wc);
                     ui.close();
                 }
             });

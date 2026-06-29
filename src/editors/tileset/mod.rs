@@ -11,9 +11,7 @@ use crate::image::{colors, ImageCollection, ImagePixels, ImageRotation};
 use crate::data_asset::{
     DataAssetId,
     GenericAsset,
-    AssetList,
     Tileset,
-    MapData,
 };
 
 use properties::PropertiesDialog;
@@ -74,8 +72,8 @@ impl TilesetEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
-        self.dialogs.show(wc, &mut self.editor, tileset, maps);
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        self.dialogs.show(wc, &mut self.editor, tileset);
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
         self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
@@ -117,17 +115,17 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
+    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
             editor.image_editor.set_image_changed();
         }
-        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset, maps) {
+        if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
             editor.image_editor.set_undo_target(tileset);
             editor.image_editor.set_image_changed();
         }
-        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset, maps) {
+        if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, false);
             editor.image_editor.set_undo_target(tileset);
             editor.image_editor.set_image_changed();

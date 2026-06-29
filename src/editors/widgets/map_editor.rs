@@ -7,7 +7,14 @@ use egui::emath;
 
 use crate::app::KeyboardPressed;
 use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
-use super::super::{MapClipboardData, MapUndoData, MapWholeFragment, MapLayerFragment, MapRect, MapLayer};
+use super::super::{
+    MapClipboardData,
+    MapUndoData,
+    MapWholeFragment,
+    MapLayerFragment,
+    MapRect,
+    MapLayer,
+};
 
 const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2 { x: 1.0, y: 1.0 } };
 
@@ -85,6 +92,26 @@ impl MapSelection {
                 })
             }
             MapSelection::None => None,
+        }
+    }
+
+    pub fn get_tile_planes<'a>(&'a mut self, planes: &mut Vec<&'a mut [u8]>) {
+        match self {
+            MapSelection::None => {}
+            MapSelection::Rect(..) => {}
+            MapSelection::LayerFragment(_, frag) => {
+                match frag.layer {
+                    MapLayer::Effects | MapLayer::Screen => {}
+                    MapLayer::Foreground | MapLayer::Background | MapLayer::Parallax => {
+                        planes.push(&mut frag.data)
+                    }
+                }
+            }
+            MapSelection::WholeFragment(_, frag) => {
+                planes.push(&mut frag.fg_data);
+                planes.push(&mut frag.bg_data);
+                planes.push(&mut frag.para_data);
+            }
         }
     }
 }
@@ -178,6 +205,17 @@ impl MapEditorWidget {
             edit_layer_changed: false,
             undo_target: None,
         }
+    }
+
+    pub fn get_tile_planes(&mut self) -> Vec<&mut [u8]> {
+        let mut ret = Vec::<&mut [u8]>::new();
+        self.selection.get_tile_planes(&mut ret);
+        if let Some(undo) = &mut self.undo_target {
+            ret.push(&mut undo.fg_tiles);
+            ret.push(&mut undo.bg_tiles);
+            ret.push(&mut undo.para_tiles);
+        }
+        ret
     }
 
     pub fn set_undo_target(&mut self, map_data: &MapData) {
