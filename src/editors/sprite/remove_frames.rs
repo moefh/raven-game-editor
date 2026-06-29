@@ -32,7 +32,7 @@ impl RemoveFramesDialog {
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
@@ -80,7 +80,7 @@ impl RemoveFramesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

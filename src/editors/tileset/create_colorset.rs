@@ -55,7 +55,7 @@ impl CreateColorsetDialog {
         self.selected_image = selected_image;
         self.created_colorset_index = 0;
         self.open = true;
-        wc.set_window_open(self.window_id, self.open);
+        wc.set_dialog_open(self.window_id, self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, image: &impl ImageCollection) -> bool {
@@ -113,7 +113,7 @@ impl CreateColorsetDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(self.window_id, self.open);
+            wc.set_dialog_open(self.window_id, self.open);
         }
         confirmed
     }

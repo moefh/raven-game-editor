@@ -42,7 +42,7 @@ impl RegionPropertiesDialog {
             self.height = region.height;
             self.region_index = region_index;
             self.open = true;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 
@@ -107,7 +107,7 @@ impl RegionPropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

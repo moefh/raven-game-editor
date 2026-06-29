@@ -60,7 +60,7 @@ impl ImportDialog {
         self.import_palette = ImportPaletteOption::GenerateNew;
         self.palette_depth = PalSpriteDepth::Bpp4;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn generate_palette(pal_sprite: &mut PalSprite, depth: PalSpriteDepth) {
@@ -260,7 +260,7 @@ impl ImportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         confirmed
     }

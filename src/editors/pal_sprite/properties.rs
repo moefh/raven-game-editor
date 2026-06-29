@@ -41,7 +41,7 @@ impl PropertiesDialog {
         self.depth = pal_sprite.depth;
         self.sel_color = sel_color;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite) {
@@ -114,7 +114,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

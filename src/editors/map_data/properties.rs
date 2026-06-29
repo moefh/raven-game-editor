@@ -81,7 +81,7 @@ impl PropertiesDialog {
         self.new_tile = new_tile;
         self.resized = false;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
@@ -166,7 +166,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

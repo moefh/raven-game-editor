@@ -42,7 +42,7 @@ impl MapSelectionDialog {
         self.display_map_id = room.maps.first().map(|m| m.map_id);
         self.map_tree = Some(SimpleAssetTree::from_assets(format!("map_sel_{}", room.asset.id), "Available Maps", maps.iter()));
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, room: &mut Room) -> bool {
@@ -136,7 +136,7 @@ impl MapSelectionDialog {
         });
         if modal_response.should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
             return modal_response.inner;
         }
         false

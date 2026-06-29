@@ -43,7 +43,7 @@ impl ConfirmationDialog {
         self.no_label.clear();
         self.no_label.push_str(no_label);
         self.open = true;
-        wt.set_open(self.id, self.open);
+        wt.set_dialog_open(self.id, self.open);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> ConfirmationDialogResult {
@@ -67,7 +67,7 @@ impl ConfirmationDialog {
         });
         if resp.should_close() {
             self.open = false;
-            wt.set_open(self.id, self.open);
+            wt.set_dialog_open(self.id, self.open);
         }
         resp.inner
     }

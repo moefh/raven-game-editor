@@ -173,7 +173,7 @@ impl TransposeDialog {
         self.replace_sample_opt = ReplaceSampleOption::DontReplace;
         self.replace_sample_val = 1;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn filter_cell(&self, cell: ModCell, cell_chan: u8, filter_period: u16) -> bool {
@@ -405,7 +405,7 @@ impl TransposeDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

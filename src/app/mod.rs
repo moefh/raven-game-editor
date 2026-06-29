@@ -38,22 +38,12 @@ enum ConfirmationDialogAction {
     NewProject,
 }
 
-pub struct AssetTreeActions {
-    pub remove_asset: Option<DataAssetId>,
-    pub duplicate_asset: Option<DataAssetId>,
-    pub toggle_asset_open: Option<DataAssetId>,
-    pub add_asset_at: Option<AssetTreeNodeId>,
-}
-
-impl AssetTreeActions {
-    pub fn new() -> Self {
-        AssetTreeActions {
-            remove_asset: None,
-            duplicate_asset: None,
-            toggle_asset_open: None,
-            add_asset_at: None,
-        }
-    }
+pub enum AssetTreeAction {
+    None,
+    RemoveAsset(DataAssetId),
+    DuplicateAsset(DataAssetId),
+    OpenEditor(DataAssetId),
+    AddAsset(AssetTreeNodeId),
 }
 
 pub struct RavenEditorApp {
@@ -605,8 +595,8 @@ impl RavenEditorApp {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
-                    let mut folder_actions = AssetTreeActions::new();
-                    let mut item_actions = AssetTreeActions::new();
+                    let mut folder_action = AssetTreeAction::None;
+                    let mut item_action = AssetTreeAction::None;
                     if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
                         let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
                             ui.horizontal(|ui| {
@@ -621,7 +611,7 @@ impl RavenEditorApp {
                                         ui.add(egui::Image::new(include_ref_image!(asset_def.image))
                                                .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.add_menu_item).clicked() {
-                                            folder_actions.add_asset_at = Some(folder.node_id);
+                                            folder_action = AssetTreeAction::AddAsset(folder.node_id);
                                         }
                                     });
                                 });
@@ -633,27 +623,27 @@ impl RavenEditorApp {
                                 ui.add_space(18.0);
                                 let button = ui.button(&asset_item.name);
                                 if button.clicked() {
-                                    item_actions.toggle_asset_open = Some(asset_item.id);
+                                    item_action = AssetTreeAction::OpenEditor(asset_item.id);
                                 }
                                 egui::Popup::context_menu(&button).show(|ui| {
                                     ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(include_ref_image!(asset_def.image))
                                                .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.add_menu_item).clicked() {
-                                            item_actions.add_asset_at = Some(folder.node_id);
+                                            item_action = AssetTreeAction::AddAsset(folder.node_id);
                                         }
                                     });
                                     ui.separator();
                                     ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(IMAGES.copy).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.duplicate_menu_item).clicked() {
-                                            item_actions.duplicate_asset = Some(asset_item.id);
+                                            item_action = AssetTreeAction::DuplicateAsset(asset_item.id);
                                         }
                                     });
                                     ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.remove_menu_item).clicked() {
-                                            item_actions.remove_asset = Some(asset_item.id);
+                                            item_action = AssetTreeAction::RemoveAsset(asset_item.id);
                                         }
                                     });
                                 });
@@ -661,19 +651,24 @@ impl RavenEditorApp {
                         };
                         tree.show_inside("project", ui, true, &mut show_folder, &mut show_item);
                     }
-                    for actions in &[folder_actions, item_actions] {
-                        if let Some(tree_node_id) = actions.add_asset_at {
-                            self.add_asset(asset_def.asset_type, self.asset_tree.get_node_name(asset_def.asset_type, tree_node_id));
-                        }
-                        if let Some(toggle_open_id) = actions.toggle_asset_open &&
-                            let Some(editor) = self.editors.get_editor_mut(toggle_open_id) {
-                                editor.toggle_open();
+                    for action in &[folder_action, item_action] {
+                        match action {
+                            AssetTreeAction::AddAsset(tree_node_id) => {
+                                self.add_asset(asset_def.asset_type,
+                                               self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id));
                             }
-                        if let Some(remove_asset_id) = actions.remove_asset {
-                            self.remove_asset(remove_asset_id);
-                        }
-                        if let Some(asset_id) = actions.duplicate_asset {
-                            self.duplicate_asset(asset_id, asset_def.asset_type);
+                            AssetTreeAction::OpenEditor(asset_id) => {
+                                if let Some(editor) = self.editors.get_editor_mut(*asset_id) {
+                                    editor.toggle_open(ui.ctx());
+                                }
+                            }
+                            AssetTreeAction::DuplicateAsset(asset_id) => {
+                                self.duplicate_asset(*asset_id, asset_def.asset_type);
+                            }
+                            AssetTreeAction::RemoveAsset(asset_id) => {
+                                self.remove_asset(*asset_id);
+                            }
+                            AssetTreeAction::None => {},
                         }
                     }
                 }

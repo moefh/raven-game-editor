@@ -40,7 +40,7 @@ impl ExportSampleDialog {
         self.bits_per_sample = bits_per_sample;
         self.sample_rate = sample_rate;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) -> bool {
@@ -133,7 +133,7 @@ impl ExportSampleDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

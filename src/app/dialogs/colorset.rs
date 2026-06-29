@@ -35,7 +35,7 @@ impl ColorsetEditorDialog {
     pub fn set_open(&mut self, wt: &mut AppWindowTracker, colorset: usize) {
         self.colorset = colorset;
         self.open = true;
-        wt.set_open(self.id, self.open);
+        wt.set_dialog_open(self.id, self.open);
     }
 
     fn show_colorset_editor(&mut self, ui: &mut egui::Ui, settings: &mut AppSettings) {
@@ -105,7 +105,7 @@ impl ColorsetEditorDialog {
             });
         }).should_close() {
             self.open = false;
-            wt.set_open(self.id, self.open);
+            wt.set_dialog_open(self.id, self.open);
         }
     }
 }

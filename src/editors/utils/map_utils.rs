@@ -1,4 +1,8 @@
-use crate::data_asset::MapData;
+use crate::data_asset::{
+    DataAssetId,
+    AssetList,
+    MapData,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {
@@ -328,5 +332,57 @@ impl MapClipboardData {
 
     pub fn take(&mut self) -> MapClipboardData {
         std::mem::replace(self, MapClipboardData::Empty)
+    }
+}
+
+pub trait MapTileFixer {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]>;
+
+    fn add_hole(&mut self, tile_index: u8, num_tiles: u8) {
+        fn add_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
+            for tile in tiles {
+                if *tile >= tile_index {
+                    *tile = (*tile).saturating_add(num_tiles);
+                }
+            }
+        }
+        for plane in self.get_tile_planes_mut() {
+            add_plane_hole(plane, tile_index, num_tiles);
+        }
+    }
+
+    fn remove_hole(&mut self, tile_index: u8, num_tiles: u8) {
+        fn rm_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
+            for tile in tiles {
+                if *tile >= tile_index + num_tiles && *tile != MapData::NO_TILE {
+                    *tile = (*tile).saturating_sub(num_tiles);
+                }
+            }
+        }
+        for plane in self.get_tile_planes_mut() {
+            rm_plane_hole(plane, tile_index, num_tiles);
+        }
+    }
+}
+
+impl MapTileFixer for MapData {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        vec![ &mut self.fg_tiles, &mut self.bg_tiles, &mut self.para_tiles ]
+    }
+}
+
+pub fn fix_maps_after_tiles_added(maps: &mut AssetList<MapData>, tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    for map_data in maps.iter_mut() {
+        if map_data.tileset_id == tileset_id {
+            map_data.add_hole(tile_index, num_tiles);
+        }
+    }
+}
+
+pub fn fix_maps_after_tiles_removed(maps: &mut AssetList<MapData>, tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    for map_data in maps.iter_mut() {
+        if map_data.tileset_id == tileset_id {
+            map_data.remove_hole(tile_index, num_tiles);
+        }
     }
 }

@@ -32,7 +32,7 @@ impl PropertiesDialog {
         self.num_tiles = tileset.num_tiles;
         self.sel_color = sel_color;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset) {
@@ -72,7 +72,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

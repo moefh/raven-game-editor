@@ -65,9 +65,9 @@ impl Window {
                 WindowItem {
                     window_id: layer_id.id,
                     layer: layer_id.order,
-                    asset_id: wc.window_tracker.editor_ids.get(&layer_id.id).copied(),
-                    dialog: wc.window_tracker.open_ids.get(&layer_id.id).copied(),
-                    is_non_asset_id: wc.window_tracker.non_asset_ids.contains(&layer_id.id),
+                    asset_id: wc.window_tracker.editor_window_ids.get(&layer_id.id).copied(),
+                    dialog: wc.window_tracker.open_dialog_ids.get(&layer_id.id).copied(),
+                    is_non_asset_id: wc.window_tracker.non_editor_window_ids.contains(&layer_id.id),
                 }
             }).collect()
         });

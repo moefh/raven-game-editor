@@ -108,7 +108,7 @@ impl ImportDialog {
         self.border = 0;
         self.space_between = 0;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, pfont: &mut PropFont) -> bool {
@@ -209,7 +209,7 @@ impl ImportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         confirmed
     }

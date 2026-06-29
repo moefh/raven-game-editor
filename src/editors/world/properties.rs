@@ -23,7 +23,7 @@ impl PropertiesDialog {
         self.name.clear();
         self.name.push_str(&world.asset.name);
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, world: &mut World) {
@@ -55,7 +55,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

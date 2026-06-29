@@ -31,7 +31,7 @@ impl ExportDialog {
         self.display_filename = None;
         self.num_items_x = (sprite.num_frames as f32).sqrt().ceil() as u32;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
@@ -97,7 +97,7 @@ impl ExportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

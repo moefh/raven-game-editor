@@ -57,7 +57,7 @@ impl RoomSelectionDialog {
             self.room_tree = Some(SimpleAssetTree::from_assets(format!("room_sel_{}", world.asset.id), "Available Rooms", rooms.iter()));
             self.region_index = region_index;
             self.open = true;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 
@@ -170,7 +170,7 @@ impl RoomSelectionDialog {
         });
         if modal_response.should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
             return modal_response.inner;
         }
         false

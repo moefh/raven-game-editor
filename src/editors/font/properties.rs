@@ -32,7 +32,7 @@ impl PropertiesDialog {
         self.width = font.width;
         self.height = font.height;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, font: &mut Font) {
@@ -77,7 +77,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

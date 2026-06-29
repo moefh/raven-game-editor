@@ -5,7 +5,10 @@ use crate::data_asset::{
     Tileset,
     MapData,
 };
-use super::super::AssetEditorBase;
+use super::super::{
+    fix_maps_after_tiles_removed,
+    AssetEditorBase,
+};
 
 pub struct RemoveTilesDialog {
     pub confirmed: bool,
@@ -36,20 +39,7 @@ impl RemoveTilesDialog {
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
-    }
-
-    fn fix_map(map_data: &mut MapData, tile_index: u8, num_tiles: u8) {
-        fn rm_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
-            for tile in tiles {
-                if *tile >= tile_index + num_tiles && *tile != MapData::NO_TILE {
-                    *tile = (*tile).saturating_sub(num_tiles);
-                }
-            }
-        }
-        rm_hole(&mut map_data.fg_tiles, tile_index, num_tiles);
-        rm_hole(&mut map_data.bg_tiles, tile_index, num_tiles);
-        rm_hole(&mut map_data.para_tiles, tile_index, num_tiles);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn fix_maps(&self, maps: &mut AssetList<MapData>, tileset: &Tileset) {
@@ -58,11 +48,7 @@ impl RemoveTilesDialog {
         }
         let tile_index = self.sel_tile as u8;
         let num_tiles = self.num_tiles as u8;
-        for map_data in maps.iter_mut() {
-            if map_data.tileset_id == tileset.asset.id {
-                Self::fix_map(map_data, tile_index, num_tiles);
-            }
-        }
+        fix_maps_after_tiles_removed(maps, tileset.asset.id, tile_index, num_tiles);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset, maps: &mut AssetList<MapData>) {
@@ -102,7 +88,7 @@ impl RemoveTilesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.confirmed {
             self.confirmed = false;

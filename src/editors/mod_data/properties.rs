@@ -23,7 +23,7 @@ impl PropertiesDialog {
         self.name.clear();
         self.name.push_str(&mod_data.asset.name);
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, mod_data: &mut ModData) {
@@ -55,7 +55,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

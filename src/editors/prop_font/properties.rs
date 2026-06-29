@@ -29,7 +29,7 @@ impl PropertiesDialog {
         self.name.push_str(&prop_font.asset.name);
         self.height = prop_font.height;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, prop_font: &mut PropFont) {
@@ -77,7 +77,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

@@ -26,7 +26,7 @@ impl AboutDialog {
 
     pub fn set_open(&mut self, wt: &mut AppWindowTracker) {
         self.open = true;
-        wt.set_open(self.id, self.open);
+        wt.set_dialog_open(self.id, self.open);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
@@ -82,7 +82,7 @@ impl AboutDialog {
             }
         }).should_close() {
             self.open = false;
-            wt.set_open(self.id, self.open);
+            wt.set_dialog_open(self.id, self.open);
         }
     }
 }

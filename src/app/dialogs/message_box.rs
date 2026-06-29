@@ -29,7 +29,7 @@ impl MessageBoxDialog {
         self.text.clear();
         self.text.push_str(text);
         self.open = true;
-        wt.set_open(self.id, self.open);
+        wt.set_dialog_open(self.id, self.open);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) {
@@ -44,7 +44,7 @@ impl MessageBoxDialog {
             }
         }).should_close() {
             self.open = false;
-            wt.set_open(self.id, self.open);
+            wt.set_dialog_open(self.id, self.open);
         }
     }
 }

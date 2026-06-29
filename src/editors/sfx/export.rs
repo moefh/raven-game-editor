@@ -37,7 +37,7 @@ impl ExportDialog {
         self.bits_per_sample = sfx.bits_per_sample;
         self.sample_rate = sample_rate;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sfx: &mut Sfx) -> bool {
@@ -128,7 +128,7 @@ impl ExportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

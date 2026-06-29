@@ -339,6 +339,7 @@ impl Editor {
             });
 
             let action = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
+                .resizable(false)
                 .min_size(Self::ROOM_TREE_PANEL_WIDTH)
                 .show_inside(ui, |ui| {
                     self.show_region_rooms_tree(ui, wc, dialogs, region, rooms)

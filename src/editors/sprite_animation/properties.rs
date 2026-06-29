@@ -43,7 +43,7 @@ impl PropertiesDialog {
         self.name.push_str(&animation.asset.name);
         self.sprite_id = animation.sprite_id;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, animation: &mut SpriteAnimation, sprites: &AssetList<Sprite>) {
@@ -99,7 +99,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
     }
 }

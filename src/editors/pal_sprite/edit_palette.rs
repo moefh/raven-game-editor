@@ -156,7 +156,7 @@ impl EditPaletteDialog {
         self.palette[..].copy_from_slice(&pal_sprite.palette);
         self.edit_color_index = 0;
         self.open = true;
-        wc.set_window_open(Self::id(), self.open);
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite) {
@@ -284,7 +284,7 @@ impl EditPaletteDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_window_open(Self::id(), self.open);
+            wc.set_dialog_open(Self::id(), self.open);
         }
         if self.image_changed {
             self.image_changed = false;

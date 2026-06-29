@@ -44,6 +44,7 @@ use crate::image::{
 };
 use crate::app::{
     WindowContext,
+    AppWindowTracker,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -109,10 +110,11 @@ impl AssetEditorBase {
         (min_size, default_size)
     }
 
-    pub fn toggle_open(&mut self) {
-        self.open = ! self.open;
-        if ! self.open {
-            self.closed_last_frame = true;
+    pub fn toggle_open(&mut self, ctx: &egui::Context) {
+        if self.open {
+            AppWindowTracker::bring_to_top(self.egui_id, ctx);
+        } else {
+            self.open = true;
         }
     }
 
