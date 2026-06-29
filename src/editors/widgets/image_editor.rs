@@ -1,9 +1,21 @@
-use crate::image::{colors, TextureSlot, ImageCollection, ImageFragment, ImagePixels, ImageRect, ImageRotation};
-use crate::app::{WindowContext, KeyboardPressed};
-use crate::data_asset::GenericAsset;
-
+use crate::image::{
+    colors,
+    ImageCollection,
+    ImageFragment,
+    ImagePixels,
+    ImageRect,
+    ImageRotation,
+};
+use crate::app::{
+    WindowContext,
+    KeyboardPressed,
+};
 use crate::data_asset;
-use super::super::ImageClipboardData;
+
+use super::super::{
+    AssetIdHolder,
+    ImageClipboardData,
+};
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub enum ImageEditorAction {
@@ -115,22 +127,6 @@ impl ImageDisplay {
     pub fn is_transparent(&self) -> bool {
         self.has_bits(Self::TRANSPARENT)
     }
-
-    pub fn texture_slot(&self) -> TextureSlot {
-        if self.is_transparent() {
-            TextureSlot::Transparent
-        } else {
-            TextureSlot::Opaque
-        }
-    }
-
-    pub fn float_texture_slot(&self) -> TextureSlot {
-        if self.is_transparent() {
-            TextureSlot::FloatTransparent
-        } else {
-            TextureSlot::FloatOpaque
-        }
-    }
 }
 
 pub struct ImageEditorWidget<ImageAsset> {
@@ -150,7 +146,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     _marker: std::marker::PhantomData<ImageAsset>,
 }
 
-impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection + GenericAsset {
+impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection + AssetIdHolder {
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
@@ -197,8 +193,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.image_changed = true;
     }
 
+    pub fn has_image_changed(&self) -> bool {
+        self.image_changed
+    }
+
     pub fn set_undo_target(&mut self, asset: &ImageAsset) {
-        self.undo_target = asset.copy_fragment(asset.asset().id, self.selected_image, ImageRect::from_image_item(asset));
+        self.undo_target = asset.copy_fragment(asset.get_asset_id(), self.selected_image, ImageRect::from_image_item(asset));
     }
 
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
@@ -215,7 +215,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             self.set_undo_target(asset);
             let image_rect = ImageRect::from_rect(sel_rect, asset);
             let bg_color = if self.display.is_transparent() { colors::TRANSPARENT } else { bg_color };
-            if let Some(frag) = asset.cut_fragment(asset.asset().id, self.selected_image, image_rect, bg_color) {
+            if let Some(frag) = asset.cut_fragment(asset.get_asset_id(), self.selected_image, image_rect, bg_color) {
                 self.selection = ImageSelection::Fragment(sel_rect.min, frag);
                 self.image_changed = true;
             } else {
@@ -293,7 +293,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         match &self.selection {
             ImageSelection::Fragment(pos, frag) => {
-                if let Some(rot_frag) = frag.rotate(asset.asset().id, 0, rotation) {
+                if let Some(rot_frag) = frag.rotate(asset.get_asset_id(), 0, rotation) {
                     let rot_pos = Pos2::new(
                         pos.x + ((frag.pixels.width as f32 - frag.pixels.height as f32) / 2.0).round_ties_even(),
                         pos.y + ((frag.pixels.height as f32 - frag.pixels.width as f32) / 2.0).round_ties_even(),
@@ -302,7 +302,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 }
             }
 
-            _ => if let Some(rot_frag) = asset.rotate(asset.asset().id, self.selected_image, rotation) {
+            _ => if let Some(rot_frag) = asset.rotate(asset.get_asset_id(), self.selected_image, rotation) {
                 asset.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
                 self.image_changed = true;
             }
@@ -482,7 +482,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    pub fn copy(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset) {
+    pub fn copy(&mut self, wc: &mut WindowContext, asset: &ImageAsset) {
         match &self.selection {
             ImageSelection::Rect(origin, end) => {
                 let sel_rect = Rect {
@@ -490,7 +490,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                     max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
                 };
                 let image_rect = ImageRect::from_rect(sel_rect, asset);
-                if let Some(frag) = asset.copy_fragment(asset.asset().id, self.selected_image, image_rect) {
+                if let Some(frag) = asset.copy_fragment(asset.get_asset_id(), self.selected_image, image_rect) {
                     wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
                 }
             }
@@ -514,7 +514,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             self.tool = ImageDrawingTool::Select;
             self.set_undo_target(asset);
             self.drop_selection(asset);
-            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset().id, pixels.clone()));
+            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.get_asset_id(), pixels.clone()));
         }
     }
 
@@ -522,7 +522,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.tool = ImageDrawingTool::Select;
         self.set_undo_target(asset);
         self.drop_selection(asset);
-        self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.asset().id, pixels));
+        self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.get_asset_id(), pixels));
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
@@ -582,12 +582,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         ImageEditorAction::None
     }
 
-    fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {
-        image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
-        image.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
+    pub fn update_texture(wc: &mut WindowContext, image: &impl ImageCollection) {
+        image.load_texture(wc.tex_man, wc.egui.ctx, image.texture_slot(false, false), true);
+        image.load_texture(wc.tex_man, wc.egui.ctx, image.texture_slot(true, false), true);
     }
 
-    //painter, canvas_rect, wc.settings.image_bg_color, wc.settings.image_grid_color, image_zoom, asset
     fn draw_background(painter: &egui::Painter, canvas_rect: Rect,
                        bg_color: egui::Color32, grid_color: egui::Color32, zoom: f32, asset: &ImageAsset) {
         painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, bg_color);
@@ -630,7 +629,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             Self::update_texture(wc, asset);
             self.image_changed = false;
         }
-        let slot = self.display.texture_slot();
+        let slot = asset.texture_slot(self.display.is_transparent(), false);
         let texture = asset.texture(wc.tex_man, ui.ctx(), slot);
 
         let image_size = asset.get_item_size();
@@ -659,7 +658,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         // draw floating selection
         if let ImageSelection::Fragment(pos, frag) = &mut self.selection {
-            let slot = self.display.float_texture_slot();
+            let slot = asset.texture_slot(self.display.is_transparent(), true);
             let frag_texture = frag.load_texture(wc.tex_man, ui.ctx(), slot, frag.changed);
             if frag.changed { frag.changed = false; }
             let uv = frag.get_item_uv(0);
@@ -697,7 +696,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             self.drop_selection(asset);
         }
 
-        // handle click
+        // handle mouse
         if let Some(pointer_pos) = resp.interact_pointer_pos() {
             let image_pos = canvas_to_image * pointer_pos;
             self.handle_mouse(image_pos, asset, &resp, colors);

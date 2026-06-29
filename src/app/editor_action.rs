@@ -3,10 +3,13 @@ use crate::data_asset::{
     DataAssetStore,
 };
 use crate::editors::{
-    fix_maps_after_tiles_added,
-    fix_maps_after_tiles_removed,
+    fix_editors_after_tiles_added,
+    fix_editors_after_tiles_removed,
 };
-use super::editors::AssetEditors;
+use super::{
+    WindowContext,
+    AssetEditors,
+};
 
 pub enum EditorAction {
     FixMapsAfterTilesAdded { tileset_id: DataAssetId, tile_index: u8, num_tiles: u8 },
@@ -14,14 +17,14 @@ pub enum EditorAction {
 }
 
 impl EditorAction {
-    pub fn run(self, store: &mut DataAssetStore, editors: &mut AssetEditors) {
+    pub fn run(self, wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors) {
         match self {
             EditorAction::FixMapsAfterTilesAdded { tileset_id, tile_index, num_tiles } => {
-                fix_maps_after_tiles_added(store, &mut editors.maps, tileset_id, tile_index, num_tiles);
+                fix_editors_after_tiles_added(wc, store, editors, tileset_id, tile_index, num_tiles);
             }
 
             EditorAction::FixMapsAfterTilesRemoved { tileset_id, tile_index, num_tiles } => {
-                fix_maps_after_tiles_removed(store, &mut editors.maps, tileset_id, tile_index, num_tiles);
+                fix_editors_after_tiles_removed(wc, store, editors, tileset_id, tile_index, num_tiles);
             }
         }
     }

@@ -17,6 +17,7 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
+pub use editors::AssetEditors;
 pub use editor_action::EditorAction;
 pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
 pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
@@ -57,7 +58,7 @@ pub struct RavenEditorApp {
     sys_dialogs: SysDialogs,
     dialogs: AppDialogs,
     windows: AppWindows,
-    editors: editors::AssetEditors,
+    editors: AssetEditors,
     image_clipboard: ImageClipboardData,
     map_clipboard: MapClipboardData,
     tex_manager: TextureManager,
@@ -83,7 +84,7 @@ impl RavenEditorApp {
             filename_changed: true,
             sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
-            editors: editors::AssetEditors::new(),
+            editors: AssetEditors::new(),
             windows: windows::AppWindows::new(),
             image_clipboard: ImageClipboardData::Empty,
             map_clipboard: MapClipboardData::Empty,
@@ -182,8 +183,8 @@ impl RavenEditorApp {
 
     fn prepare_for_saving(&mut self) {
         // Some editors may have assets in a transient state that must
-        // be resolved before saving state (e.g. images can have
-        // detached floating selections).
+        // be resolved before saving state (e.g. images with detached
+        // floating selections).
 
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) { editor.prepare_for_saving(tileset); }
@@ -801,8 +802,8 @@ impl RavenEditorApp {
                 }
             }
 
-        for editor_action in win_ctx.editor_actions {
-            editor_action.run(&mut self.store, &mut self.editors);
+        for editor_action in std::mem::take(&mut win_ctx.editor_actions) {
+            editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors);
         }
 
         self.map_clipboard = win_ctx.map_clipboard.take();

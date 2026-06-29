@@ -20,15 +20,29 @@ use add_tiles::{AddTilesDialog, AddTilesAction};
 use export::ExportDialog;
 use import::ImportDialog;
 use create_colorset::CreateColorsetDialog;
-use super::AssetEditorBase;
+use super::{
+    AssetEditorBase,
+    TileGrid,
+    TileGridImage,
+    MapTileFixer,
+};
 use super::widgets::{
     ColorPickerWidget,
     ColorPickerResponse,
     ImagePickerWidget,
     ImageEditorWidget,
+    TileGridEditorWidget,
+    TileGridEditorAction,
+    ImageEditorAction,
     ImageDrawingTool,
     ImageDisplay,
 };
+
+enum EditorTab {
+    Tile,
+    Grid,
+    GridTiles,
+}
 
 pub struct TilesetEditor {
     pub base: AssetEditorBase,
@@ -46,7 +60,7 @@ impl TilesetEditor {
     }
 
     pub fn prepare_for_saving(&mut self, tileset: &mut Tileset) {
-        self.editor.image_editor.drop_selection(tileset);
+        self.editor.prepare_for_saving(tileset);
     }
 
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, base: &AssetEditorBase, tileset: &Tileset) {
@@ -57,7 +71,7 @@ impl TilesetEditor {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
 
-                if let Some(tile) = editor.image_picker.get_selected_image() {
+                if let Some(tile) = editor.tile_picker.get_selected_image() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                         ui.horizontal(|ui| {
                             let spacing = ui.spacing().item_spacing;
@@ -76,10 +90,18 @@ impl TilesetEditor {
         self.dialogs.show(wc, &mut self.editor, tileset);
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
+        let min_size = min_size.max(egui::Vec2::new(500.0, 400.0));
+        let default_size = default_size.max(egui::Vec2::new(500.0, 400.0));
         self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
             Self::show_footer(ui, wc, &self.editor, base, tileset);
             self.editor.show(ui, wc, &mut self.dialogs, tileset);
         });
+    }
+}
+
+impl MapTileFixer for TilesetEditor {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        self.editor.tile_grid.get_tile_planes_mut()
     }
 }
 
@@ -105,12 +127,12 @@ impl Dialogs {
     }
 
     fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset, set_undo_target: bool) {
-        if editor.image_editor.get_selected_image() >= tileset.num_tiles {
+        if editor.tile_image_editor.get_selected_image() >= tileset.num_tiles {
             let selected_image = tileset.num_tiles - 1;
-            editor.image_picker.set_selected_image(Some(selected_image));
-            let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, tileset);
+            editor.tile_picker.set_selected_image(Some(selected_image));
+            let no_selection_change = ! editor.tile_image_editor.set_selected_image(selected_image, tileset);
             if no_selection_change && set_undo_target {
-                editor.image_editor.set_undo_target(tileset);
+                editor.tile_image_editor.set_undo_target(tileset);
             }
         }
     }
@@ -118,25 +140,25 @@ impl Dialogs {
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, false);
-            editor.image_editor.set_undo_target(tileset);
-            editor.image_editor.set_image_changed();
+            editor.tile_image_editor.set_undo_target(tileset);
+            editor.tile_image_editor.set_image_changed();
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
-            editor.image_editor.set_undo_target(tileset);
-            editor.image_editor.set_image_changed();
+            editor.tile_image_editor.set_undo_target(tileset);
+            editor.tile_image_editor.set_image_changed();
         }
         if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, false);
-            editor.image_editor.set_undo_target(tileset);
-            editor.image_editor.set_image_changed();
+            editor.tile_image_editor.set_undo_target(tileset);
+            editor.tile_image_editor.set_image_changed();
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, tileset);
-            editor.image_editor.set_image_changed();
+            editor.tile_image_editor.set_image_changed();
         }
         if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset, true);
-            editor.image_editor.set_image_changed();
+            editor.tile_image_editor.set_image_changed();
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, tileset) {
             editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
@@ -146,18 +168,184 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    tile_picker_panel_id: egui::Id,
+    selected_tab: EditorTab,
     color_picker: ColorPickerWidget,
-    image_picker: ImagePickerWidget,
-    image_editor: ImageEditorWidget<Tileset>,
+    tile_picker: ImagePickerWidget,
+    tile_image_editor: ImageEditorWidget<Tileset>,
+    grid_tile_picker: ImagePickerWidget,
+    grid_image_editor: ImageEditorWidget<TileGridImage>,
+    tile_grid_editor: TileGridEditorWidget,
+    tile_grid: TileGrid,
 }
 
 impl Editor {
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_left", asset_id)),
+            selected_tab: EditorTab::Tile,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
-            image_picker: ImagePickerWidget::new(),
-            image_editor: ImageEditorWidget::<Tileset>::new(),
+            tile_picker: ImagePickerWidget::new(),
+            tile_image_editor: ImageEditorWidget::new(),
+            grid_tile_picker: ImagePickerWidget::new().use_as_palette(true),
+            grid_image_editor: ImageEditorWidget::new(),
+            tile_grid_editor: TileGridEditorWidget::new(),
+            tile_grid: TileGrid::new(asset_id),
+        }
+    }
+
+    fn prepare_for_saving(&mut self, tileset: &mut Tileset) {
+        self.tile_image_editor.drop_selection(tileset);
+
+        let grid_image = self.tile_grid.get_image_mut(tileset);
+        self.grid_image_editor.drop_selection(grid_image);
+        self.tile_grid.image_to_tileset(tileset);
+    }
+
+    fn handle_grid_image_changed(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        self.tile_grid.image_to_tileset(tileset);
+        ImageEditorWidget::<Tileset>::update_texture(wc, tileset);
+    }
+
+    fn vflip(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.vflip(tileset, self.color_picker.state.right_color);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.vflip(image, self.color_picker.state.right_color);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn hflip(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.hflip(tileset, self.color_picker.state.right_color);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.hflip(image, self.color_picker.state.right_color);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn rotate(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, rotation: ImageRotation) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.rotate(tileset, rotation, self.color_picker.state.right_color);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.rotate(image, rotation, self.color_picker.state.right_color);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn can_undo(&self) -> bool {
+        match self.selected_tab {
+            EditorTab::Tile => { self.tile_image_editor.can_undo() }
+            EditorTab::GridTiles => { self.grid_image_editor.can_undo() }
+            _ => { false }
+        }
+    }
+
+    fn undo(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.undo(tileset);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.undo(image);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn selection_is_empty(&self) -> bool {
+        match self.selected_tab {
+            EditorTab::Tile => { self.tile_image_editor.selection.is_empty() }
+            EditorTab::GridTiles => { self.grid_image_editor.selection.is_empty() }
+            _ => { false }
+        }
+    }
+
+    fn delete_selection(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.delete_selection(tileset, self.color_picker.state.right_color);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.delete_selection(image, self.color_picker.state.right_color);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn paste_pixels(&mut self, wc: &mut WindowContext, tileset: &mut Tileset, pixels: ImagePixels) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.paste_pixels(tileset, pixels);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.paste_pixels(image, pixels);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn paste(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.paste(wc, tileset);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.paste(wc, image);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn cut(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.cut(wc, tileset, self.color_picker.state.right_color);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.cut(wc, image, self.color_picker.state.right_color);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn copy(&mut self, wc: &mut WindowContext, tileset: &Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.copy(wc, tileset);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image(tileset);
+                self.grid_image_editor.copy(wc, image);
+            }
+            _ => {}
         }
     }
 
@@ -171,7 +359,7 @@ impl Editor {
                     return;
                 }
             };
-            self.image_editor.paste_pixels(tileset, image);
+            self.paste_pixels(wc, tileset, image);
         }
 
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
@@ -201,41 +389,41 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     ui.horizontal(|ui| {
-                        if ! self.image_editor.can_undo() { ui.disable(); }
+                        if ! self.can_undo() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
                         if ui.button("Undo").clicked() {
-                            self.image_editor.undo(tileset);
+                            self.undo(wc, tileset);
                         }
                     });
 
                     ui.separator();
 
                     ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
+                        if self.selection_is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
                         if ui.button("Cut").clicked() {
-                            self.image_editor.cut(wc, tileset, self.color_picker.state.right_color);
+                            self.cut(wc, tileset);
                         }
                     });
                     ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
+                        if self.selection_is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
                         if ui.button("Copy").clicked() {
-                            self.image_editor.copy(wc, tileset);
+                            self.copy(wc, tileset);
                         }
                     });
                     ui.horizontal(|ui| {
                         if wc.image_clipboard.is_none() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
                         if ui.button("Paste").clicked() {
-                            self.image_editor.paste(wc, tileset);
+                            self.paste(wc, tileset);
                         }
                     });
                     ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
+                        if self.selection_is_empty() { ui.disable(); }
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Delete selection").clicked() {
-                            self.image_editor.delete_selection(tileset, self.color_picker.state.right_color);
+                            self.delete_selection(wc, tileset);
                         }
                     });
 
@@ -262,21 +450,21 @@ impl Editor {
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Insert tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.image_editor.get_selected_image(),
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.tile_image_editor.get_selected_image(),
                                                               self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
                         if ui.button("Append tiles...").clicked() {
-                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.image_editor.get_selected_image(),
+                            dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.tile_image_editor.get_selected_image(),
                                                               self.color_picker.state.right_color);
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
                         if ui.button("Remove tiles...").clicked() {
-                            dialogs.rm_tiles_dialog.set_open(wc, tileset, self.image_editor.get_selected_image());
+                            dialogs.rm_tiles_dialog.set_open(wc, tileset, self.tile_image_editor.get_selected_image());
                         }
                     });
                 });
@@ -284,7 +472,7 @@ impl Editor {
         });
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, tileset: &mut Tileset) {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
         egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
@@ -294,39 +482,45 @@ impl Editor {
                 ui.label("Tool:");
                 ui.add_space(1.0);
                 if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
-                    self.image_editor.set_tool(ImageDrawingTool::Pencil);
-                }
+                          .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Pencil)
+                          .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Pencil))
+                    .on_hover_text("Pencil").clicked() {
+                        self.tile_image_editor.set_tool(ImageDrawingTool::Pencil);
+                        self.grid_image_editor.set_tool(ImageDrawingTool::Pencil);
+                    }
 
                 if ui.add(egui::Button::image(IMAGES.fill)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Fill)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
-                    self.image_editor.set_tool(ImageDrawingTool::Fill);
-                }
+                          .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Fill)
+                          .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Fill))
+                    .on_hover_text("Fill").clicked() {
+                        self.tile_image_editor.set_tool(ImageDrawingTool::Fill);
+                        self.grid_image_editor.set_tool(ImageDrawingTool::Fill);
+                    }
 
                 if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Select)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
-                    self.image_editor.set_tool(ImageDrawingTool::Select);
-                }
+                          .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Select)
+                          .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Select))
+                    .on_hover_text("Select").clicked() {
+                        self.tile_image_editor.set_tool(ImageDrawingTool::Select);
+                        self.grid_image_editor.set_tool(ImageDrawingTool::Select);
+                    }
 
                 ui.add_space(5.0);
                 ui.separator();
                 ui.add_space(5.0);
 
                 if ui.add(egui::Button::image(IMAGES.v_flip)).on_hover_text("Flip vertically").clicked() {
-                    self.image_editor.vflip(tileset, self.color_picker.state.right_color);
+                    self.vflip(wc, tileset);
                 }
                 if ui.add(egui::Button::image(IMAGES.h_flip)).on_hover_text("Flip horizontally").clicked() {
-                    self.image_editor.hflip(tileset, self.color_picker.state.right_color);
+                    self.hflip(wc, tileset);
                 }
                 ui.add_space(5.0);
                 if ui.add(egui::Button::image(IMAGES.rot_cw)).on_hover_text("Rotate 90° clockwise").clicked() {
-                    self.image_editor.rotate(tileset, ImageRotation::CW90, self.color_picker.state.right_color);
+                    self.rotate(wc, tileset, ImageRotation::CW90);
                 }
                 if ui.add(egui::Button::image(IMAGES.rot_ccw)).on_hover_text("Rotate 90° counter-clockwise").clicked() {
-                    self.image_editor.rotate(tileset, ImageRotation::CCW90, self.color_picker.state.right_color);
+                    self.rotate(wc, tileset, ImageRotation::CCW90);
                 }
                 ui.spacing_mut().item_spacing = spacing;
 
@@ -335,16 +529,18 @@ impl Editor {
                         let spacing = ui.spacing().item_spacing;
                         ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                         if ui.add(egui::Button::image(IMAGES.grid)
-                                  .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
-                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
+                                  .selected(self.tile_image_editor.display.has_bits(ImageDisplay::GRID))
+                                  .frame_when_inactive(self.tile_image_editor.display.has_bits(ImageDisplay::GRID)))
                             .on_hover_text("Grid").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::GRID);
+                                self.tile_image_editor.toggle_display(ImageDisplay::GRID);
+                                self.grid_image_editor.display = self.tile_image_editor.display;
                             }
                         if ui.add(egui::Button::image(IMAGES.transparency)
-                                  .selected(self.image_editor.display.is_transparent())
-                                  .frame_when_inactive(self.image_editor.display.is_transparent()))
+                                  .selected(self.tile_image_editor.display.is_transparent())
+                                  .frame_when_inactive(self.tile_image_editor.display.is_transparent()))
                             .on_hover_text("Transparency").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                                self.tile_image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                                self.grid_image_editor.display = self.tile_image_editor.display;
                             }
                         ui.add_space(1.0);
                         ui.label("Display:");
@@ -356,21 +552,127 @@ impl Editor {
         });
     }
 
+    fn show_tile_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
+        // tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
+        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.tile_picker.zoom = 4.0;
+            self.tile_picker.display = self.tile_image_editor.display;
+            let slot = tileset.texture_slot(self.tile_picker.display.is_transparent(), false);
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
+            self.tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
+            if let Some(selected_image) = self.tile_picker.get_selected_image() {
+                self.tile_image_editor.set_selected_image(selected_image, tileset);
+            }
+        });
+
+        // tile editor
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
+            self.tile_image_editor.show(ui, wc, tileset, colors);
+            if self.tile_image_editor.has_image_changed() {
+                self.grid_image_editor.set_image_changed();
+            }
+            self.color_picker.maybe_set_colors(
+                self.tile_image_editor.pick_left_color.take(),
+                self.tile_image_editor.pick_right_color.take()
+            );
+        });
+
+        // keyboard shortcuts
+        if wc.is_editor_on_top(self.asset_id) {
+            self.tile_image_editor.handle_keyboard(ui, wc, tileset, self.color_picker.state.right_color);
+        }
+    }
+
+    fn show_grid_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
+        // grid tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
+        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            self.grid_tile_picker.zoom = 4.0;
+            self.grid_tile_picker.display = self.grid_image_editor.display;
+            let slot = tileset.texture_slot(self.grid_tile_picker.display.is_transparent(), false);
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
+            self.grid_tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
+            self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image();
+            self.tile_grid_editor.right_selected_tile = self.grid_tile_picker.get_selected_image_right();
+        });
+
+        // toolbar
+        egui::Panel::top(format!("editor_panel_{}_grid_tab_toolbar", self.asset_id)).show_inside(ui, |ui| {
+            ui.add_space(5.0);
+            ui.horizontal(|ui| {
+                ui.label("Width:");
+                if ui.button("\u{2796}").clicked() && self.tile_grid.width > 1 {
+                    self.tile_grid.resize(tileset, self.tile_grid.width-1, self.tile_grid.height, 0);
+                    self.grid_image_editor.set_image_changed();
+                }
+                ui.label(format!("{}", self.tile_grid.width));
+                if ui.button("\u{2795}").clicked() && self.tile_grid.width < 7 {
+                    self.tile_grid.resize(tileset, self.tile_grid.width+1, self.tile_grid.height, 0);
+                    self.grid_image_editor.set_image_changed();
+                }
+
+                ui.separator();
+                ui.label("Height:");
+
+                if ui.button("\u{2796}").clicked() && self.tile_grid.height > 1 {
+                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height-1, 0);
+                    self.grid_image_editor.set_image_changed();
+                }
+                ui.label(format!("{}", self.tile_grid.height));
+                if ui.button("\u{2795}").clicked() && self.tile_grid.height < 7 {
+                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height+1, 0);
+                    self.grid_image_editor.set_image_changed();
+                }
+            });
+        });
+
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            match self.tile_grid_editor.show(ui, wc, &mut self.tile_grid, tileset) {
+                TileGridEditorAction::None => {}
+                TileGridEditorAction::PickLeftTile(tile) => {
+                    self.grid_tile_picker.set_selected_image(tile);
+                }
+                TileGridEditorAction::PickRightTile(tile) => {
+                    self.grid_tile_picker.set_selected_image_right(tile);
+                }
+                TileGridEditorAction::SetTile => {
+                    self.tile_grid.tileset_to_image(tileset);
+                    self.grid_image_editor.set_image_changed();
+                }
+            }
+        });
+    }
+
+    fn show_grid_tiles_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
+
+            let grid_image = self.tile_grid.get_image_mut(tileset);
+            self.grid_image_editor.show(ui, wc, grid_image, colors);
+            if self.grid_image_editor.has_image_changed() {
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            self.color_picker.maybe_set_colors(
+                self.grid_image_editor.pick_left_color.take(),
+                self.grid_image_editor.pick_right_color.take(),
+            );
+        });
+
+        // keyboard shortcuts
+        if wc.is_editor_on_top(self.asset_id) {
+            let image = self.tile_grid.get_image_mut(tileset);
+            if ! matches!(self.grid_image_editor.handle_keyboard(ui, wc, image, self.color_picker.state.right_color),
+                          ImageEditorAction::None) {
+                self.handle_grid_image_changed(wc, tileset);
+            }
+        }
+    }
+
     fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         self.show_menu_bar(ui, wc, dialogs, tileset);
         self.show_toolbar(ui, wc, tileset);
-
-        // item picker:
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
-            ui.add_space(5.0);
-            self.image_picker.zoom = 4.0;
-            self.image_picker.display = self.image_editor.display;
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, self.image_picker.display.texture_slot());
-            self.image_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
-            if let Some(selected_image) = self.image_picker.get_selected_image() {
-                self.image_editor.set_selected_image(selected_image, tileset);
-            }
-        });
 
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
@@ -378,24 +680,29 @@ impl Editor {
             match self.color_picker.show(ui, wc) {
                 ColorPickerResponse::None => {}
                 ColorPickerResponse::CreateColorset => {
-                    dialogs.create_colorset_dialog.set_open(wc, self.image_editor.get_selected_image());
+                    dialogs.create_colorset_dialog.set_open(wc, self.tile_image_editor.get_selected_image());
                 }
             }
         });
 
-        // image:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
-            self.image_editor.show(ui, wc, tileset, colors);
-            self.color_picker.maybe_set_colors(
-                self.image_editor.pick_left_color.take(),
-                self.image_editor.pick_right_color.take()
-            );
+        // tabs
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.selectable_label(matches!(self.selected_tab, EditorTab::Tile), "Tile").clicked() {
+                    self.selected_tab = EditorTab::Tile;
+                }
+                if ui.selectable_label(matches!(self.selected_tab, EditorTab::Grid), "Grid").clicked() {
+                    self.selected_tab = EditorTab::Grid;
+                }
+                if ui.selectable_label(matches!(self.selected_tab, EditorTab::GridTiles), "Grid Tiles").clicked() {
+                    self.selected_tab = EditorTab::GridTiles;
+                }
+            });
         });
-
-        // keyboard shortcuts
-        if wc.is_editor_on_top(self.asset_id) {
-            self.image_editor.handle_keyboard(ui, wc, tileset, self.color_picker.state.right_color);
+        match self.selected_tab {
+            EditorTab::Tile => { self.show_tile_tab(ui, wc, tileset); }
+            EditorTab::Grid => { self.show_grid_tab(ui, wc, tileset); }
+            EditorTab::GridTiles => { self.show_grid_tiles_tab(ui, wc, tileset); }
         }
     }
 }

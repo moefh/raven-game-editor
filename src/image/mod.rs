@@ -9,11 +9,24 @@ pub mod colors;
 use egui::{Rect, Pos2};
 
 pub use texture_manager::TextureManager;
-pub use image_collection::ImageCollection;
-pub use image_collection_io::{ImageCollectionIO, ImageSlicingMethod};
 pub use static_image_store::StaticImageStore;
-pub use image_pixels::{ImagePixels, ImagePixelsCollection};
-pub use colorset::{ColorSet, ColorSetCollection, ColorSetSource};
+pub use image_collection::{
+    default_texture_slot,
+    ImageCollection,
+};
+pub use image_collection_io::{
+    ImageCollectionIO,
+    ImageSlicingMethod,
+};
+pub use image_pixels::{
+    ImagePixels,
+    ImagePixelsCollection,
+};
+pub use colorset::{
+    ColorSet,
+    ColorSetCollection,
+    ColorSetSource,
+};
 
 use crate::data_asset::DataAssetId;
 
@@ -86,6 +99,7 @@ impl ImageFragment {
 
 impl ImageCollection for ImageFragment {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { 1 }
@@ -118,6 +132,7 @@ impl StaticImageData {
 
 impl ImageCollection for StaticImageData {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Static(self.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.pixels.width }
     fn height(&self) -> u32 { self.pixels.height }
     fn num_items(&self) -> u32 { self.num_items }
@@ -134,6 +149,8 @@ pub enum TextureSlot {
     Transparent,
     FloatOpaque,
     FloatTransparent,
+    CustomOpaque(u32),
+    CustomTransparent(u32),
 }
 
 impl std::fmt::Display for TextureSlot {
@@ -143,6 +160,8 @@ impl std::fmt::Display for TextureSlot {
             TextureSlot::Transparent => write!(f, "tr"),
             TextureSlot::FloatOpaque => write!(f, "fl_op"),
             TextureSlot::FloatTransparent => write!(f, "fl_tr"),
+            TextureSlot::CustomOpaque(num) => write!(f, "op_{}", num),
+            TextureSlot::CustomTransparent(num) => write!(f, "tr_{}", num),
         }
     }
 }

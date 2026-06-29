@@ -260,7 +260,7 @@ impl Editor {
         egui::Panel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show_inside(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
-                let slot = self.image_editor.display.texture_slot();
+                let slot = sprite.texture_slot(self.image_editor.display.is_transparent(), false);
                 let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
                 let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, self.selected_loop_frame);
                 let scroll = view.show(ui, sprite, texture);
@@ -303,7 +303,7 @@ impl Editor {
         };
 
         let asset_id = animation.asset.id;
-        let slot = self.image_editor.display.texture_slot();
+        let slot = sprite.texture_slot(self.image_editor.display.is_transparent(), false);
         let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
 
         egui::Panel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show_inside(ui, |ui| {

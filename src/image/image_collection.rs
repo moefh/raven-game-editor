@@ -8,6 +8,7 @@ use crate::data_asset::{DataAssetId, Tileset, Sprite, PalSprite, Font, PropFont}
 
 pub trait ImageCollection {
     fn texture_name_id(&self) -> TextureNameId;
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
     fn num_items(&self) -> u32;
@@ -54,10 +55,14 @@ pub trait ImageCollection {
         let height = (self.height() * self.num_items()) as usize;
         let tex_name = TextureName::new(self.texture_name_id(), slot);
         match slot {
-            TextureSlot::Opaque | TextureSlot::FloatOpaque => {
+            TextureSlot::Opaque |
+            TextureSlot::FloatOpaque |
+            TextureSlot::CustomOpaque(_) => {
                 man.get_rgba_texture(ctx, tex_name, width, height, self.data(), force_load)
             }
-            TextureSlot::Transparent | TextureSlot::FloatTransparent => {
+            TextureSlot::Transparent |
+            TextureSlot::FloatTransparent |
+            TextureSlot::CustomTransparent(_) => {
                 man.get_rgba_texture_transparent(ctx, tex_name, width, height, self.data(), force_load)
             }
         }
@@ -337,8 +342,25 @@ pub trait ImageCollection {
     }
 }
 
+pub fn default_texture_slot(transparent: bool, float: bool) -> TextureSlot {
+    if float {
+        if transparent {
+            TextureSlot::FloatTransparent
+        } else {
+            TextureSlot::FloatOpaque
+        }
+    } else {
+        if transparent {
+            TextureSlot::Transparent
+        } else {
+            TextureSlot::Opaque
+        }
+    }
+}
+
 impl ImageCollection for Sprite {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.asset.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_frames }
@@ -351,6 +373,7 @@ impl ImageCollection for Sprite {
 
 impl ImageCollection for PalSprite {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.asset.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_frames }
@@ -363,6 +386,7 @@ impl ImageCollection for PalSprite {
 
 impl ImageCollection for Tileset {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.asset.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { self.num_tiles }
@@ -375,6 +399,7 @@ impl ImageCollection for Tileset {
 
 impl ImageCollection for Font {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.asset.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { Font::NUM_CHARS }
@@ -387,6 +412,7 @@ impl ImageCollection for Font {
 
 impl ImageCollection for PropFont {
     fn texture_name_id(&self) -> TextureNameId { TextureNameId::Asset(self.asset.id) }
+    fn texture_slot(&self, transparent: bool, float: bool) -> TextureSlot { default_texture_slot(transparent, float) }
     fn width(&self) -> u32 { self.max_width }
     fn height(&self) -> u32 { self.height }
     fn num_items(&self) -> u32 { PropFont::NUM_CHARS }

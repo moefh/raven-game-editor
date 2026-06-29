@@ -13,6 +13,7 @@ mod image_editor;
 mod image_picker;
 mod prop_font_editor;
 mod font_view;
+mod tile_grid_editor;
 
 use crate::data_asset::MapData;
 use crate::app::AppSettings;
@@ -40,6 +41,7 @@ pub use image_editor::{*};
 pub use image_picker::{*};
 pub use prop_font_editor::{*};
 pub use font_view::{*};
+pub use tile_grid_editor::{*};
 
 pub fn paint_marching_ants(painter: &egui::Painter, rect: egui::Rect, settings: &AppSettings) {
     let delay = settings.marching_ants_delay.max(10) as u64;

@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-
 use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
     MapData,
 };
-use super::super::{
-    MapDataEditor,
+use crate::app::{
+    WindowContext,
+    AssetEditors,
 };
+use crate::image::ImageCollection;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {
@@ -376,26 +376,61 @@ impl MapTileFixer for MapData {
     }
 }
 
-pub fn fix_maps_after_tiles_added(store: &mut DataAssetStore, map_editors: &mut HashMap<DataAssetId,MapDataEditor>,
-                                  tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+pub fn fix_editors_after_tiles_added(wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors,
+                                     tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
+        tileset_editor.add_tileset_hole(tile_index, num_tiles);
+    }
     for map_id in store.asset_ids.maps.iter() {
         if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
             map_data.add_tileset_hole(tile_index, num_tiles);
-            if let Some(map_editor) = map_editors.get_mut(map_id) {
+            if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.add_tileset_hole(tile_index, num_tiles);
             }
         }
     }
+    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
+    }
 }
 
-pub fn fix_maps_after_tiles_removed(store: &mut DataAssetStore, map_editors: &mut HashMap<DataAssetId,MapDataEditor>,
-                                    tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+pub fn fix_editors_after_tiles_removed(wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors,
+                                       tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
+        tileset_editor.remove_tileset_hole(tile_index, num_tiles);
+    }
     for map_id in store.asset_ids.maps.iter() {
         if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
             map_data.remove_tileset_hole(tile_index, num_tiles);
-            if let Some(map_editor) = map_editors.get_mut(map_id) {
+            if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.remove_tileset_hole(tile_index, num_tiles);
             }
         }
+    }
+    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
+    }
+}
+
+pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32, new_h: u32, new_tile: u8) {
+    let old_w = old_w as usize;
+    let old_h = old_h as usize;
+    let new_w = new_w as usize;
+    let new_h = new_h as usize;
+    for y in 0..usize::min(old_h, new_h) {
+        if new_w < old_w {
+            let start = new_w * y + new_w;
+            let len = old_w - new_w;
+            tiles.drain(start .. start + len);
+        } else if new_w > old_w {
+            let start = new_w * y + old_w;
+            let len = new_w - old_w;
+            tiles.splice(start .. start, std::iter::repeat_n(new_tile, len));
+        }
+    }
+    if new_h != old_h {
+        tiles.resize(new_w * new_h, new_tile);
     }
 }

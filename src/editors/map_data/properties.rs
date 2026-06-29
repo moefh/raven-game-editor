@@ -1,40 +1,24 @@
 use crate::app::WindowContext;
-use crate::data_asset::{MapData, Tileset, DataAssetId, AssetIdList, AssetList};
-use super::super::AssetEditorBase;
+use crate::data_asset::{
+    MapData,
+    Tileset,
+    DataAssetId,
+    AssetIdList,
+    AssetList,
+};
+use super::super::{
+    resize_map_tiles,
+    AssetEditorBase,
+};
 
 fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, new_para_h: u32, new_tile: u8) {
-    fn resize_tiles(tiles: &mut Vec<u8>, old_w: usize, old_h: usize, new_w: usize, new_h: usize, new_tile: u8) {
-        for y in 0..usize::min(old_h, new_h) {
-            if new_w < old_w {
-                let start = new_w * y + new_w;
-                let len = old_w - new_w;
-                tiles.drain(start .. start + len);
-            } else if new_w > old_w {
-                let start = new_w * y + old_w;
-                let len = new_w - old_w;
-                tiles.splice(start .. start, std::iter::repeat_n(new_tile, len));
-            }
-        }
-        if new_h != old_h {
-            tiles.resize(new_w * new_h, new_tile);
-        }
-    }
-
-    let new_width = new_w as usize;
-    let new_height = new_h as usize;
-    let old_width = map_data.width as usize;
-    let old_height = map_data.height as usize;
-    resize_tiles(&mut map_data.fg_tiles, old_width, old_height, new_width, new_height, new_tile);
-    resize_tiles(&mut map_data.bg_tiles, old_width, old_height, new_width, new_height, new_tile);
-    resize_tiles(&mut map_data.fx_tiles, old_width, old_height, new_width, new_height, new_tile);
+    resize_map_tiles(&mut map_data.fg_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
+    resize_map_tiles(&mut map_data.bg_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
+    resize_map_tiles(&mut map_data.fx_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
     map_data.width = new_w;
     map_data.height = new_h;
 
-    let new_para_width = new_para_w as usize;
-    let new_para_height = new_para_h as usize;
-    let old_para_width = map_data.para_width as usize;
-    let old_para_height = map_data.para_height as usize;
-    resize_tiles(&mut map_data.para_tiles, old_para_width, old_para_height, new_para_width, new_para_height, new_tile);
+    resize_map_tiles(&mut map_data.para_tiles, map_data.para_width, map_data.para_height, new_para_w, new_para_h, new_tile);
     map_data.para_width = new_para_w;
     map_data.para_height = new_para_h;
 }
