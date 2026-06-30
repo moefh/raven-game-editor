@@ -136,6 +136,9 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub pick_right_color: Option<u8>,
     pub collision_rect: Option<data_asset::Rect>,
     pub selection_enabled: bool,
+    pub hover_pos: Vec2,
+    zoom: f32,
+    scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
     undo_target: Option<ImageFragment>,
@@ -150,6 +153,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
+            zoom: 0.0,
+            scroll: Vec2::ZERO,
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
             collision_rect: None,
@@ -163,6 +168,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             selection_enabled: true,
             image_changed: false,
             drop_selection_next_show: false,
+            hover_pos: Vec2::ZERO,
         }
     }
 
@@ -197,8 +203,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.image_changed
     }
 
-    pub fn set_undo_target(&mut self, asset: &ImageAsset) {
-        self.undo_target = asset.copy_fragment(asset.get_asset_id(), self.selected_image, ImageRect::from_image_item(asset));
+    pub fn set_undo_target(&mut self, image: &ImageAsset) {
+        self.undo_target = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image));
     }
 
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
@@ -208,14 +214,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             }
     }
 
-    fn lift_selection(&mut self, asset: &mut ImageAsset, bg_color: u8) {
+    fn lift_selection(&mut self, image: &mut ImageAsset, bg_color: u8) {
         if self.selection.is_floating() { return; } // already lifted
 
         if let Some(sel_rect) = self.selection.get_rect() && sel_rect.is_positive() {
-            self.set_undo_target(asset);
-            let image_rect = ImageRect::from_rect(sel_rect, asset);
+            self.set_undo_target(image);
+            let image_rect = ImageRect::from_rect(sel_rect, image);
             let bg_color = if self.display.is_transparent() { colors::TRANSPARENT } else { bg_color };
-            if let Some(frag) = asset.cut_fragment(asset.get_asset_id(), self.selected_image, image_rect, bg_color) {
+            if let Some(frag) = image.cut_fragment(image.get_asset_id(), self.selected_image, image_rect, bg_color) {
                 self.selection = ImageSelection::Fragment(sel_rect.min, frag);
                 self.image_changed = true;
             } else {
@@ -228,72 +234,72 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.undo_target.is_some()
     }
 
-    pub fn undo(&mut self, asset: &mut ImageAsset) {
+    pub fn undo(&mut self, image: &mut ImageAsset) {
         if let Some(frag) = self.undo_target.take() {
-            asset.paste_fragment(self.selected_image, 0, 0, &frag, false);
+            image.paste_fragment(self.selected_image, 0, 0, &frag, false);
             self.image_changed = true;
             self.selection = ImageSelection::None;
         }
     }
 
-    pub fn delete_selection(&mut self, asset: &mut ImageAsset, fill_color: u8) {
-        self.lift_selection(asset, fill_color);
+    pub fn delete_selection(&mut self, image: &mut ImageAsset, fill_color: u8) {
+        self.lift_selection(image, fill_color);
         self.selection = ImageSelection::None;
     }
 
-    pub fn drop_selection(&mut self, asset: &mut ImageAsset) {
+    pub fn drop_selection(&mut self, image: &mut ImageAsset) {
         if let ImageSelection::Fragment(pos, frag) = &self.selection {
             let transparent = self.display.is_transparent();
-            asset.paste_fragment(self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
+            image.paste_fragment(self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
             self.image_changed = true;
         }
         self.selection = ImageSelection::None;
     }
 
-    pub fn vflip(&mut self, asset: &mut ImageAsset, bg_color: u8) {
+    pub fn vflip(&mut self, image: &mut ImageAsset, bg_color: u8) {
         if matches!(self.selection, ImageSelection::Rect(..)) {
-            self.lift_selection(asset, bg_color);
+            self.lift_selection(image, bg_color);
         }
 
         if let ImageSelection::Fragment(_, frag) = &mut self.selection {
             frag.v_flip(0);
             frag.changed = true;
         } else {
-            asset.v_flip(self.selected_image);
+            image.v_flip(self.selected_image);
             self.image_changed = true;
         }
     }
 
-    pub fn hflip(&mut self, asset: &mut ImageAsset, bg_color: u8) {
+    pub fn hflip(&mut self, image: &mut ImageAsset, bg_color: u8) {
         if matches!(self.selection, ImageSelection::Rect(..)) {
-            self.lift_selection(asset, bg_color);
+            self.lift_selection(image, bg_color);
         }
 
         if let ImageSelection::Fragment(_, frag) = &mut self.selection {
             frag.h_flip(0);
             frag.changed = true;
         } else {
-            asset.h_flip(self.selected_image);
+            image.h_flip(self.selected_image);
             self.image_changed = true;
         }
     }
 
-    pub fn rotate(&mut self, asset: &mut ImageAsset, rotation: ImageRotation, bg_color: u8) {
+    pub fn rotate(&mut self, image: &mut ImageAsset, rotation: ImageRotation, bg_color: u8) {
         if self.selection.is_empty() {
-            if asset.width() != asset.height() {   // empty selection with non-square image: float to rotate
+            if image.width() != image.height() {   // empty selection with non-square image: float to rotate
                 self.tool = ImageDrawingTool::Select;
                 self.selection = ImageSelection::Rect(
-                    Pos2::ZERO, Pos2::new(asset.width() as f32, asset.height() as f32)
+                    Pos2::ZERO, Pos2::new(image.width() as f32, image.height() as f32)
                 );
-                self.lift_selection(asset, bg_color);
+                self.lift_selection(image, bg_color);
             }
         } else if matches!(self.selection, ImageSelection::Rect(..)) {
-            self.lift_selection(asset, bg_color);  // float selected rectangle to rotate
+            self.lift_selection(image, bg_color);  // float selected rectangle to rotate
         }
 
         match &self.selection {
             ImageSelection::Fragment(pos, frag) => {
-                if let Some(rot_frag) = frag.rotate(asset.get_asset_id(), 0, rotation) {
+                if let Some(rot_frag) = frag.rotate(image.get_asset_id(), 0, rotation) {
                     let rot_pos = Pos2::new(
                         pos.x + ((frag.pixels.width as f32 - frag.pixels.height as f32) / 2.0).round_ties_even(),
                         pos.y + ((frag.pixels.height as f32 - frag.pixels.width as f32) / 2.0).round_ties_even(),
@@ -302,8 +308,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 }
             }
 
-            _ => if let Some(rot_frag) = asset.rotate(asset.get_asset_id(), self.selected_image, rotation) {
-                asset.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
+            _ => if let Some(rot_frag) = image.rotate(image.get_asset_id(), self.selected_image, rotation) {
+                image.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
                 self.image_changed = true;
             }
         }
@@ -326,10 +332,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.selected_image
     }
 
-    pub fn set_selected_image(&mut self, sel_image: u32, asset: &ImageAsset) -> bool {
+    pub fn set_selected_image(&mut self, sel_image: u32, image: &ImageAsset) -> bool {
         if self.selected_image != sel_image {
             self.selected_image = sel_image;
-            self.set_undo_target(asset);
+            self.set_undo_target(image);
             true
         } else {
             false
@@ -354,7 +360,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset,
+    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset,
                               resp: &egui::Response, colors: (u8, u8)) {
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             self.drag_mouse_origin = mouse_pos;
@@ -363,14 +369,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
 
         let orig_mouse_pos = mouse_pos;
-        let mouse_pos = Rect::from_min_size(Pos2::ZERO, asset.get_item_size()).clamp(mouse_pos);
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
         if resp.drag_started() {
             self.drag_mouse_origin = mouse_pos;
             match self.selection {
                 ImageSelection::Rect(..) => {
                     if let Some(sel_rect) = self.selection.get_rect() && sel_rect.contains(orig_mouse_pos) {
                         // lift fragment for the selected rectangle
-                        self.lift_selection(asset, colors.1);
+                        self.lift_selection(image, colors.1);
 
                         // prepare to move it
                         self.drag_frag_origin = sel_rect.min;
@@ -385,7 +391,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                             self.drag_frag_origin = sel_rect.min;
                         } else {
                             // drop fragment because the click was outside it
-                            self.drop_selection(asset);
+                            self.drop_selection(image);
                         }
                     }
                 }
@@ -401,10 +407,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    fn handle_collision_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset, resp: &egui::Response) {
-        let make_rect = || { data_asset::Rect::new(0, 0, asset.width() as i32, asset.height() as i32) };
+    fn handle_collision_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
+        let make_rect = || { data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32) };
 
-        let mouse_pos = Rect::from_min_size(Pos2::ZERO, asset.get_item_size()).clamp(mouse_pos);
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
         let mouse_pos = (mouse_pos.x.floor() as i32, mouse_pos.y.floor() as i32);
         let rect = self.collision_rect.get_or_insert_with(make_rect);
         if resp.dragged_by(egui::PointerButton::Primary) {
@@ -425,11 +431,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    fn pick_color(&mut self, x: i32, y: i32, asset: &mut ImageAsset, resp: &egui::Response) -> bool {
-        let mouse_in_image = x >= 0 && y >= 0 && (x as u32) < asset.width() && (y as u32) < asset.height();
+    fn pick_color(&mut self, x: i32, y: i32, image: &mut ImageAsset, resp: &egui::Response) -> bool {
+        let mouse_in_image = x >= 0 && y >= 0 && (x as u32) < image.width() && (y as u32) < image.height();
         if ! mouse_in_image { return false; }
 
-        let color = asset.get_pixel(x, y, self.selected_image);
+        let color = image.get_pixel(x, y, self.selected_image);
         if resp.dragged_by(egui::PointerButton::Primary) {
             self.pick_left_color = Some(color);
             return true;
@@ -441,7 +447,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         false
     }
 
-    fn handle_mouse(&mut self, mouse_pos: Pos2, asset: &mut ImageAsset, resp: &egui::Response, colors: (u8, u8)) {
+    fn handle_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response, colors: (u8, u8)) {
         let x = mouse_pos.x.floor() as i32;
         let y = mouse_pos.y.floor() as i32;
 
@@ -450,11 +456,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         match self.tool {
             ImageDrawingTool::Pencil => {
                 if ctrl_held {
-                    self.pick_color(x, y, asset, resp);
+                    self.pick_color(x, y, image, resp);
                 } else {
-                    if resp.drag_started() { self.set_undo_target(asset); }
+                    if resp.drag_started() { self.set_undo_target(image); }
                     if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
-                        asset.set_pixel(x, y, self.selected_image, color) {
+                        image.set_pixel(x, y, self.selected_image, color) {
                             self.image_changed = true;
                         }
                 }
@@ -462,35 +468,35 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
             ImageDrawingTool::Fill => {
                 if ctrl_held {
-                    self.pick_color(x, y, asset, resp);
+                    self.pick_color(x, y, image, resp);
                 } else {
-                    if resp.drag_started() { self.set_undo_target(asset); }
+                    if resp.drag_started() { self.set_undo_target(image); }
                     if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
-                        asset.flood_fill(x, y, self.selected_image, color) {
+                        image.flood_fill(x, y, self.selected_image, color) {
                             self.image_changed = true;
                         }
                 }
             }
 
             ImageDrawingTool::Select => {
-                self.handle_selection_mouse(mouse_pos, asset, resp, colors);
+                self.handle_selection_mouse(mouse_pos, image, resp, colors);
             }
 
             ImageDrawingTool::Collision => {
-                self.handle_collision_mouse(mouse_pos, asset, resp);
+                self.handle_collision_mouse(mouse_pos, image, resp);
             }
         }
     }
 
-    pub fn copy(&mut self, wc: &mut WindowContext, asset: &ImageAsset) {
+    pub fn copy(&mut self, wc: &mut WindowContext, image: &ImageAsset) {
         match &self.selection {
             ImageSelection::Rect(origin, end) => {
                 let sel_rect = Rect {
                     min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
                     max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
                 };
-                let image_rect = ImageRect::from_rect(sel_rect, asset);
-                if let Some(frag) = asset.copy_fragment(asset.get_asset_id(), self.selected_image, image_rect) {
+                let image_rect = ImageRect::from_rect(sel_rect, image);
+                if let Some(frag) = image.copy_fragment(image.get_asset_id(), self.selected_image, image_rect) {
                     wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
                 }
             }
@@ -501,34 +507,34 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    pub fn cut(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) {
-        self.set_undo_target(asset);
-        self.lift_selection(asset, fill_color);
+    pub fn cut(&mut self, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) {
+        self.set_undo_target(image);
+        self.lift_selection(image, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
             wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
         }
     }
 
-    pub fn paste(&mut self, wc: &mut WindowContext, asset: &mut ImageAsset) {
+    pub fn paste(&mut self, wc: &mut WindowContext, image: &mut ImageAsset) {
         if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
             self.tool = ImageDrawingTool::Select;
-            self.set_undo_target(asset);
-            self.drop_selection(asset);
-            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.get_asset_id(), pixels.clone()));
+            self.set_undo_target(image);
+            self.drop_selection(image);
+            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels.clone()));
         }
     }
 
-    pub fn paste_pixels(&mut self, asset: &mut ImageAsset, pixels: ImagePixels) {
+    pub fn paste_pixels(&mut self, image: &mut ImageAsset, pixels: ImagePixels) {
         self.tool = ImageDrawingTool::Select;
-        self.set_undo_target(asset);
-        self.drop_selection(asset);
-        self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(asset.get_asset_id(), pixels));
+        self.set_undo_target(image);
+        self.drop_selection(image);
+        self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels));
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
+    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
-            self.undo(asset);
+            self.undo(image);
             return ImageEditorAction::Undo;
         }
 
@@ -538,8 +544,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 if self.tool != ImageDrawingTool::Select {
                     self.set_tool_without_dropping_selection(ImageDrawingTool::Select);
                 }
-                let width = asset.width() as f32;
-                let height = asset.height() as f32;
+                let width = image.width() as f32;
+                let height = image.height() as f32;
                 match self.selection {
                     ImageSelection::None => {
                         self.selection = ImageSelection::Rect(Pos2::ZERO, Pos2::new(width, height));
@@ -559,21 +565,21 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
         if ui.input_mut(|i| i.consume_shortcut(&del)) {
-            self.delete_selection(asset, fill_color);
+            self.delete_selection(image, fill_color);
             return ImageEditorAction::None;
         }
 
         match wc.keyboard_pressed.take() {
             Some(KeyboardPressed::CtrlV) if self.selection_enabled => {
-                self.paste(wc, asset);
+                self.paste(wc, image);
                 return ImageEditorAction::Paste;
             }
             Some(KeyboardPressed::CtrlC) if self.selection_enabled => {
-                self.copy(wc, asset);
+                self.copy(wc, image);
                 return ImageEditorAction::Copy;
             }
             Some(KeyboardPressed::CtrlX) if self.selection_enabled => {
-                self.cut(wc, asset, fill_color);
+                self.cut(wc, image, fill_color);
                 return ImageEditorAction::Cut;
             }
             _ => {}
@@ -587,26 +593,25 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         image.load_texture(wc.tex_man, wc.egui.ctx, image.texture_slot(true, false), true);
     }
 
-    fn draw_background(painter: &egui::Painter, canvas_rect: Rect,
-                       bg_color: egui::Color32, grid_color: egui::Color32, zoom: f32, asset: &ImageAsset) {
-        painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, bg_color);
-        if zoom < 3.0 { return; }
+    fn draw_background(&self, painter: &egui::Painter, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset) {
+        painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
+        if self.zoom < 3.0 { return; }
 
-        let stroke = egui::Stroke::new(1.0, grid_color);
-        let width = asset.width();
-        let height = asset.height();
+        let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
+        let width = image.width();
+        let height = image.height();
         let (x_min, y_min) = if width > height {
             for x in 0..width-height {
                 let p1 = Vec2::new(x as f32, 0.0);
                 let p2 = Vec2::new((x + height) as f32, height as f32);
-                painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+                painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
             }
             (width-height, 1)
         } else if height > width {
             for y in 0..height-width {
                 let p1 = Vec2::new(0.0, y as f32);
                 let p2 = Vec2::new(width as f32, (y + width) as f32);
-                painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+                painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
             }
             (1, height-width)
         } else {
@@ -615,91 +620,140 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         for x in x_min..width {
             let p1 = Vec2::new(x as f32, 0.0);
             let p2 = Vec2::new(width as f32, (width - x) as f32);
-            painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+            painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
         }
         for y in y_min..height {
             let p1 = Vec2::new(0.0, y as f32);
             let p2 = Vec2::new((height - y) as f32, height as f32);
-            painter.line_segment([canvas_rect.min + zoom * p1, canvas_rect.min + zoom * p2], stroke);
+            painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, asset: &mut ImageAsset, colors: (u8, u8)) {
+    pub fn set_zoom(&mut self, zoom: f32, canvas_size: Vec2, zoom_center: Vec2, image: &ImageAsset) {
+        let zoom = zoom.max(1.0);
+        let zoomed_image_size = image.get_item_size() * zoom;
+        let zoom_delta = zoom / self.zoom;
+        self.zoom = zoom;
+
+        self.scroll = zoom_center - (zoom_center - self.scroll) * zoom_delta;
+        self.clip_scroll(canvas_size, zoomed_image_size);
+    }
+
+    pub fn clip_scroll(&mut self, canvas_size: Vec2, zoomed_image_size: Vec2) {
+        self.scroll = self.scroll.max(canvas_size - zoomed_image_size).min(Vec2::ZERO);
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, colors: (u8, u8)) {
         if self.image_changed {
-            Self::update_texture(wc, asset);
+            Self::update_texture(wc, image);
             self.image_changed = false;
         }
-        let slot = asset.texture_slot(self.display.is_transparent(), false);
-        let texture = asset.texture(wc.tex_man, ui.ctx(), slot);
-
-        let image_size = asset.get_item_size();
-        let min_size = Vec2::splat(100.0).min(image_size + Vec2::splat(10.0)).max(ui.available_size());
-        let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
-
-        let resp_size = resp.rect.size();
-        let (zoomx, zoomy) = (resp_size.x / (image_size.x + 1.0), (resp_size.y / (image_size.y + 1.0)));
-        let image_zoom = f32::max(f32::min(zoomx, zoomy).floor(), 1.0);
-        let center = resp.rect.center();
-        let canvas_rect = Rect {
-            min: center - image_zoom * image_size / 2.0,
-            max: center + image_zoom * image_size / 2.0,
+        let min_size = Vec2::splat(100.0).max(ui.available_size());
+        let (resp, mut painter) = ui.allocate_painter(min_size, Sense::drag());
+        if ui.is_sizing_pass() { return; }
+        let canvas_rect = resp.rect;
+        let image_size = image.get_item_size();
+        if self.zoom == 0.0 {
+            let canvas_size = canvas_rect.size();
+            let (zoomx, zoomy) = (canvas_size.x / image_size.x, canvas_size.y / image_size.y);
+            self.zoom = f32::max(f32::min(zoomx, zoomy), 1.0);
+        }
+        let zoomed_image_size = image_size * self.zoom;
+        let image_canvas_rect = if zoomed_image_size.x >= canvas_rect.width() && zoomed_image_size.y >= canvas_rect.height() {
+            canvas_rect
+        } else {
+            let size = zoomed_image_size.min(canvas_rect.size());
+            Rect::from_min_size(canvas_rect.min + 0.5 * (canvas_rect.size() - size).max(Vec2::ZERO), size)
         };
+        let grid_stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
+        painter.rect_stroke(image_canvas_rect, egui::CornerRadius::ZERO, grid_stroke, egui::StrokeKind::Inside);
+        let image_area_rect = image_canvas_rect.expand2(Vec2::splat(-1.0));
+        ui.shrink_clip_rect(image_area_rect);
+        painter.shrink_clip_rect(image_area_rect);
+
         let canvas_to_image = emath::RectTransform::from_to(
-            canvas_rect,
-            Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
+            Rect::from_min_size(image_area_rect.min + self.scroll, zoomed_image_size),
+            Rect::from_min_size(Pos2::ZERO, image_size),
         );
+        let paint_image_rect = Rect::from_min_size(image_area_rect.min + self.scroll, zoomed_image_size);
+
+        self.clip_scroll(canvas_rect.size(), zoomed_image_size); // in case we've been resized
 
         // draw background
-        Self::draw_background(&painter, canvas_rect, wc.settings.image_bg_color, wc.settings.image_grid_color, image_zoom, asset);
+        self.draw_background(&painter, wc, paint_image_rect, image);
 
         // draw image
-        let item_uv = asset.get_item_uv(self.selected_image);
-        Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
+        let slot = image.texture_slot(self.display.is_transparent(), false);
+        let texture = image.texture(wc.tex_man, ui.ctx(), slot);
+        let item_uv = image.get_item_uv(self.selected_image);
+        Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, paint_image_rect);
 
         // draw floating selection
         if let ImageSelection::Fragment(pos, frag) = &mut self.selection {
-            let slot = asset.texture_slot(self.display.is_transparent(), true);
+            let slot = image.texture_slot(self.display.is_transparent(), true);
             let frag_texture = frag.load_texture(wc.tex_man, ui.ctx(), slot, frag.changed);
             if frag.changed { frag.changed = false; }
             let uv = frag.get_item_uv(0);
             let frag_size = frag.get_item_size();
             let frag_canvas_rect = Rect {
-                min: canvas_rect.min + image_zoom * pos.to_vec2(),
-                max: canvas_rect.min + image_zoom * (*pos + frag_size).to_vec2(),
+                min: image_area_rect.min + self.zoom * pos.to_vec2(),
+                max: image_area_rect.min + self.zoom * (*pos + frag_size).to_vec2(),
             };
             Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
         }
 
-        // draw border
-        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
-        painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
-
-        // draw grid
-        let canvas_size = canvas_rect.size();
-        let display_grid =
-            self.display.has_bits(ImageDisplay::GRID) &&
-            (f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 3.0);
+        // draw grid and border
+        let display_grid = self.display.has_bits(ImageDisplay::GRID) && self.zoom >= 3.0;
         if display_grid {
             let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
-            for y in 0..=asset.height() {
-                let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / asset.height() as f32;
-                painter.hline(canvas_rect.x_range(), py, stroke);
+            for y in 0..image.height()+1 {
+                let py = image_area_rect.min.y + y as f32 * self.zoom + self.scroll.y % self.zoom;
+                painter.hline(image_area_rect.x_range(), py, stroke);
             }
-            for x in 0..=asset.width() {
-                let px = canvas_rect.min.x + canvas_rect.width() * x as f32 / asset.width() as f32;
-                painter.vline(px, canvas_rect.y_range(), stroke);
+            for x in 0..image.width()+1 {
+                let px = image_area_rect.min.x + x as f32 * self.zoom + self.scroll.x % self.zoom;
+                painter.vline(px, image_area_rect.y_range(), stroke);
             }
         }
 
         if self.drop_selection_next_show {
             self.drop_selection_next_show = false;
-            self.drop_selection(asset);
+            self.drop_selection(image);
         }
 
-        // handle mouse
-        if let Some(pointer_pos) = resp.interact_pointer_pos() {
+        // ====================================================
+        // == handle input
+
+        let keys_pressed = resp.ctx.input(|i| i.modifiers);
+
+        // set move cursor if ALT is pressed
+        if resp.contains_pointer() && resp.hovered() && keys_pressed.alt {
+            if resp.dragged() {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+            } else {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+            }
+        }
+
+        // check zoom
+        if resp.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            let zoom_delta = ui.input(|i| i.zoom_delta());
+            if zoom_delta != 1.0 {
+                self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - image_area_rect.min, image);
+            }
+            self.hover_pos = ((hover_pos - image_area_rect.min - self.scroll) / self.zoom).floor().max(Vec2::ZERO);
+        }
+
+        // check pan
+        if resp.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+            self.scroll += resp.drag_delta();
+            self.clip_scroll(canvas_rect.size(), zoomed_image_size);
+        }
+
+        // check click
+        if let Some(pointer_pos) = resp.interact_pointer_pos() && ! keys_pressed.alt {
             let image_pos = canvas_to_image * pointer_pos;
-            self.handle_mouse(image_pos, asset, &resp, colors);
+            self.handle_mouse(image_pos, image, &resp, colors);
         }
 
         // draw selection rectangle

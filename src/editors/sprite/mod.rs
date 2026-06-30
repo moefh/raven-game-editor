@@ -61,7 +61,8 @@ impl SpriteEditor {
                             let spacing = ui.spacing().item_spacing;
                             ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                             ui.add_space(1.0);
-                            ui.label(format!("sprite {}", sprite));
+                            let (hover_x, hover_y) = (editor.image_editor.hover_pos.x, editor.image_editor.hover_pos.y);
+                            ui.label(format!("({}, {}) sprite {}", hover_x, hover_y, sprite));
                             ui.spacing_mut().item_spacing = spacing;
                         });
                     });

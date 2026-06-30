@@ -668,10 +668,7 @@ impl MapEditorWidget {
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let response_rect = response.rect;
 
-        let canvas_rect = Rect {
-            min: response_rect.min.floor(),
-            max: response_rect.max.floor(),
-        };
+        let canvas_rect = response_rect.expand2(Vec2::splat(-1.0));
         let zoomed_tile_size = self.zoom * TILE_SIZE;
         let map_size = Vec2 {
             x: map_data.width as f32 * zoomed_tile_size,
@@ -684,10 +681,7 @@ impl MapEditorWidget {
         let map_area_rect = if map_size.x >= canvas_rect.width() && map_size.y >= canvas_rect.height() {
             canvas_rect
         } else {
-            Rect {
-                min: canvas_rect.min,
-                max: canvas_rect.min + map_size.min(canvas_rect.size()),
-            }
+            Rect::from_min_size(canvas_rect.min, map_size.min(canvas_rect.size()))
         };
 
         // limit scroll in case we've been resized

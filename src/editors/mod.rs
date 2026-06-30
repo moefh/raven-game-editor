@@ -103,10 +103,15 @@ impl AssetEditorBase {
     fn calc_image_editor_window_size(image: &impl ImageCollection) -> (egui::Vec2, egui::Vec2) {
         let img_w = image.width() as f32;
         let img_h = image.height() as f32;
+
         let min_width = img_w + 320.0;
-        let min_height = img_h + 240.0;
+        let min_height = (img_h + 240.0).max(350.0);
         let min_size = egui::Vec2::new(min_width, min_height);
-        let default_size = egui::Vec2::new(min_width + img_w * 0.5 + 100.0, min_height + img_h * 0.5 + 100.0);
+
+        let default_width = min_width + img_w * 0.5 + 100.0;
+        let default_height = (min_height + img_h * 0.5 + 50.0).max(350.0);
+        let default_size = egui::Vec2::new(default_width, default_height);
+
         (min_size, default_size)
     }
 
