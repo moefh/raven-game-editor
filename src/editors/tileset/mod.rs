@@ -180,6 +180,9 @@ struct Editor {
 }
 
 impl Editor {
+    const MAX_TILE_GRID_WIDTH: u32 = 10;
+    const MAX_TILE_GRID_HEIGHT: u32 = 10;
+
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
@@ -604,12 +607,12 @@ impl Editor {
             ui.horizontal(|ui| {
                 ui.label("Width:");
                 if ui.button("\u{2796}").clicked() && self.tile_grid.width > 1 {
-                    self.tile_grid.resize(tileset, self.tile_grid.width-1, self.tile_grid.height, 0);
+                    self.tile_grid.resize(tileset, self.tile_grid.width-1, self.tile_grid.height);
                     self.grid_image_editor.set_image_changed();
                 }
                 ui.label(format!("{}", self.tile_grid.width));
-                if ui.button("\u{2795}").clicked() && self.tile_grid.width < 7 {
-                    self.tile_grid.resize(tileset, self.tile_grid.width+1, self.tile_grid.height, 0);
+                if ui.button("\u{2795}").clicked() && self.tile_grid.width < Self::MAX_TILE_GRID_WIDTH {
+                    self.tile_grid.resize(tileset, self.tile_grid.width+1, self.tile_grid.height);
                     self.grid_image_editor.set_image_changed();
                 }
 
@@ -617,12 +620,12 @@ impl Editor {
                 ui.label("Height:");
 
                 if ui.button("\u{2796}").clicked() && self.tile_grid.height > 1 {
-                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height-1, 0);
+                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height-1);
                     self.grid_image_editor.set_image_changed();
                 }
                 ui.label(format!("{}", self.tile_grid.height));
-                if ui.button("\u{2795}").clicked() && self.tile_grid.height < 7 {
-                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height+1, 0);
+                if ui.button("\u{2795}").clicked() && self.tile_grid.height < Self::MAX_TILE_GRID_HEIGHT {
+                    self.tile_grid.resize(tileset, self.tile_grid.width, self.tile_grid.height+1);
                     self.grid_image_editor.set_image_changed();
                 }
             });

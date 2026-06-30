@@ -69,9 +69,9 @@ impl TileGrid {
         &mut self.image
     }
 
-    pub fn resize(&mut self, tileset: &Tileset, width: u32, height: u32, new_tile: u8) {
-        resize_map_tiles(&mut self.fg_tiles, self.width, self.height, width, height, new_tile);
-        resize_map_tiles(&mut self.buf_tiles, self.width, self.height, width, height, new_tile);
+    pub fn resize(&mut self, tileset: &Tileset, width: u32, height: u32) {
+        resize_map_tiles(&mut self.fg_tiles, self.width, self.height, width, height, MapData::NO_TILE);
+        resize_map_tiles(&mut self.buf_tiles, self.width, self.height, width, height, 0);
         self.width = width;
         self.height = height;
         self.tileset_to_image(tileset); // will resize image to match grid
@@ -99,32 +99,25 @@ impl TileGrid {
         }
     }
 
-    /*
-    fn copy_tr_tile(dest: &mut [u8], dst_stride: usize, src: &[u8], src_stride: usize) {
-        use crate::image::colors;
+    fn tiles_are_different(tile1: &[u8], stride1: usize, tile2: &[u8], stride2: usize) -> bool {
         let size = Tileset::TILE_SIZE as usize;
         for y in 0..size {
-            let dst_index = y * dst_stride;
-            let src_index = y * src_stride;
+            let index1 = y * stride1;
+            let index2 = y * stride2;
             for x in 0..size {
-                if src[src_index+x] != colors::TRANSPARENT {
-                    dest[dst_index + x] = src[src_index+x];
-                }
-            }
-        }
-    }
-    */
-
-    fn tiles_are_different(dest: &[u8], dst_stride: usize, src: &[u8], src_stride: usize) -> bool {
-        let size = Tileset::TILE_SIZE as usize;
-        for y in 0..size {
-            let dst_index = y * dst_stride;
-            let src_index = y * src_stride;
-            for x in 0..size {
-                if dest[dst_index + x] != src[src_index+x] {
+                if tile1[index1 + x] != tile2[index2+x] {
                     return true;
                 }
             }
+        }
+        false
+    }
+
+    fn clear_tile(tile: &mut [u8], stride: usize, color: u8) -> bool {
+        let size = Tileset::TILE_SIZE as usize;
+        for y in 0..size {
+            let index = y * stride;
+            tile[index..index+size].fill(color);
         }
         false
     }
@@ -142,10 +135,13 @@ impl TileGrid {
         for y in 0..num_tiles_y {
             for x in 0..num_tiles_x {
                 let fg_tile = self.fg_tiles[num_tiles_x * y + x];
-                if fg_tile != MapData::NO_TILE {
+                let img_pos = (img_width * y + x) * size;
+                if fg_tile == MapData::NO_TILE {
+                    // ensure image with no associted tile remains empty
+                    Self::clear_tile(&mut self.image.pixels.data[img_pos..], img_width, colors::TRANSPARENT);
+                } else {
                     if self.buf_set.contains(&fg_tile) { has_repeated_tiles = true; }
                     self.buf_set.insert(fg_tile);
-                    let img_pos = (img_width * y + x) * size;
                     if Self::tiles_are_different(&tileset.data[size*size * (fg_tile as usize)..], size,
                                                  &self.image.pixels.data[img_pos..], img_width) {
                         self.buf_tiles[num_tiles_x * y + x] = 1;
@@ -172,9 +168,11 @@ impl TileGrid {
     }
 
     pub fn tileset_to_image(&mut self, tileset: &Tileset) {
-        if self.image.pixels.width != self.width * Tileset::TILE_SIZE ||
-            self.image.pixels.height != self.height * Tileset::TILE_SIZE {
-                self.image.resize(self.width * Tileset::TILE_SIZE, self.height * Tileset::TILE_SIZE, 1, 0);
+        let req_img_width = self.width * Tileset::TILE_SIZE;
+        let req_img_height = self.height * Tileset::TILE_SIZE;
+        if self.image.pixels.width != req_img_height ||
+            self.image.pixels.height != req_img_height {
+                self.image.resize(req_img_width, req_img_height, 1, colors::TRANSPARENT);
             }
 
         self.image.pixels.data[..].fill(colors::TRANSPARENT);

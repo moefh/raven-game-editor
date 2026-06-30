@@ -83,7 +83,7 @@ impl TileGridEditorWidget {
         Self::draw_tiles(ui, wc, tile_grid, tileset, zoom, map_pos);
 
         // border and grid
-        let stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+        let stroke = egui::Stroke::new(1.0, wc.settings.map_grid_color);
         let border_rect = map_rect.expand2(Vec2::splat(1.0));
         painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         for y in 0..tile_grid.height {
