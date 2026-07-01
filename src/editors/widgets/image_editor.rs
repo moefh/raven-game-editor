@@ -593,7 +593,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         image.load_texture(wc.tex_man, wc.egui.ctx, image.texture_slot(true, false), true);
     }
 
-    fn draw_background(&self, painter: &egui::Painter, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset) {
+    fn draw_background(&self, ui: &mut egui::Ui, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset) {
+        let painter = ui.painter_at(bg_rect);
         painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
         if self.zoom < 3.0 { return; }
 
@@ -649,27 +650,25 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             self.image_changed = false;
         }
         let min_size = Vec2::splat(100.0).max(ui.available_size());
-        let (resp, mut painter) = ui.allocate_painter(min_size, Sense::drag());
+        let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
         if ui.is_sizing_pass() { return; }
-        let canvas_rect = resp.rect;
+        let canvas_rect = resp.rect.expand(-2.0);
         let image_size = image.get_item_size();
         if self.zoom == 0.0 {
-            let canvas_size = canvas_rect.size();
-            let (zoomx, zoomy) = (canvas_size.x / image_size.x, canvas_size.y / image_size.y);
+            let size = canvas_rect.expand(-1.0).size();
+            let (zoomx, zoomy) = (size.x / image_size.x, size.y / image_size.y);
             self.zoom = f32::max(f32::min(zoomx, zoomy), 1.0);
         }
         let zoomed_image_size = image_size * self.zoom;
-        let image_canvas_rect = if zoomed_image_size.x >= canvas_rect.width() && zoomed_image_size.y >= canvas_rect.height() {
+        let image_area_rect = if zoomed_image_size.x >= canvas_rect.width() && zoomed_image_size.y >= canvas_rect.height() {
             canvas_rect
         } else {
             let size = zoomed_image_size.min(canvas_rect.size());
             Rect::from_min_size(canvas_rect.min + 0.5 * (canvas_rect.size() - size).max(Vec2::ZERO), size)
         };
         let grid_stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
-        painter.rect_stroke(image_canvas_rect, egui::CornerRadius::ZERO, grid_stroke, egui::StrokeKind::Inside);
-        let image_area_rect = image_canvas_rect.expand2(Vec2::splat(-1.0));
+        painter.rect_stroke(image_area_rect.expand(1.0), egui::CornerRadius::ZERO, grid_stroke, egui::StrokeKind::Middle);
         ui.shrink_clip_rect(image_area_rect);
-        painter.shrink_clip_rect(image_area_rect);
 
         let canvas_to_image = emath::RectTransform::from_to(
             Rect::from_min_size(image_area_rect.min + self.scroll, zoomed_image_size),
@@ -680,7 +679,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.clip_scroll(canvas_rect.size(), zoomed_image_size); // in case we've been resized
 
         // draw background
-        self.draw_background(&painter, wc, paint_image_rect, image);
+        self.draw_background(ui, wc, paint_image_rect, image);
 
         // draw image
         let slot = image.texture_slot(self.display.is_transparent(), false);
