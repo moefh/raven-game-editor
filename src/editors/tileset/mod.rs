@@ -21,6 +21,8 @@ use export::ExportDialog;
 use import::ImportDialog;
 use create_colorset::CreateColorsetDialog;
 use super::{
+    IMAGE_ZOOM_OPTIONS,
+    ImageZoomOption,
     AssetEditorBase,
     TileGrid,
     TileGridImage,
@@ -548,6 +550,34 @@ impl Editor {
                         ui.add_space(1.0);
                         ui.label("Display:");
                         ui.spacing_mut().item_spacing = spacing;
+
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
+                        let cur_zoom = match self.selected_tab {
+                            EditorTab::Tile => { self.tile_image_editor.zoom }
+                            EditorTab::GridTiles => { self.grid_image_editor.zoom }
+                            EditorTab::Grid => { self.grid_image_editor.zoom }
+                        };
+                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(cur_zoom);
+                        egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_option.name())
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for option in IMAGE_ZOOM_OPTIONS {
+                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                                }
+                            });
+                        let new_zoom = cur_zoom_option.image_editor_zoom(cur_zoom);
+                        match self.selected_tab {
+                            EditorTab::Tile => { self.tile_image_editor.zoom = new_zoom; }
+                            EditorTab::GridTiles => { self.grid_image_editor.zoom = new_zoom; }
+                            EditorTab::Grid => { self.grid_image_editor.zoom = new_zoom; }
+                        };
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
                     });
                 });
             });

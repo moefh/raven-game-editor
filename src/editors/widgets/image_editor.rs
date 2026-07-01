@@ -18,6 +18,12 @@ use super::super::{
 };
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum ImageEditorZoom {
+    FitToWindow,
+    Custom(f32),
+}
+
 pub enum ImageEditorAction {
     None,
     Undo,
@@ -137,7 +143,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub collision_rect: Option<data_asset::Rect>,
     pub selection_enabled: bool,
     pub hover_pos: Vec2,
-    zoom: f32,
+    pub zoom: ImageEditorZoom,
     scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
@@ -153,7 +159,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
-            zoom: 0.0,
+            zoom: ImageEditorZoom::FitToWindow,
             scroll: Vec2::ZERO,
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
@@ -593,10 +599,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         image.load_texture(wc.tex_man, wc.egui.ctx, image.texture_slot(true, false), true);
     }
 
-    fn draw_background(&self, ui: &mut egui::Ui, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset) {
+    fn draw_background(&self, ui: &mut egui::Ui, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset, zoom: f32) {
         let painter = ui.painter_at(bg_rect);
         painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
-        if self.zoom < 3.0 { return; }
+        if zoom < 3.0 { return; }
 
         let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
         let width = image.width();
@@ -605,14 +611,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             for x in 0..width-height {
                 let p1 = Vec2::new(x as f32, 0.0);
                 let p2 = Vec2::new((x + height) as f32, height as f32);
-                painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
+                painter.line_segment([bg_rect.min + zoom * p1, bg_rect.min + zoom * p2], stroke);
             }
             (width-height, 1)
         } else if height > width {
             for y in 0..height-width {
                 let p1 = Vec2::new(0.0, y as f32);
                 let p2 = Vec2::new(width as f32, (y + width) as f32);
-                painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
+                painter.line_segment([bg_rect.min + zoom * p1, bg_rect.min + zoom * p2], stroke);
             }
             (1, height-width)
         } else {
@@ -621,20 +627,20 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         for x in x_min..width {
             let p1 = Vec2::new(x as f32, 0.0);
             let p2 = Vec2::new(width as f32, (width - x) as f32);
-            painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
+            painter.line_segment([bg_rect.min + zoom * p1, bg_rect.min + zoom * p2], stroke);
         }
         for y in y_min..height {
             let p1 = Vec2::new(0.0, y as f32);
             let p2 = Vec2::new((height - y) as f32, height as f32);
-            painter.line_segment([bg_rect.min + self.zoom * p1, bg_rect.min + self.zoom * p2], stroke);
+            painter.line_segment([bg_rect.min + zoom * p1, bg_rect.min + zoom * p2], stroke);
         }
     }
 
-    pub fn set_zoom(&mut self, zoom: f32, canvas_size: Vec2, zoom_center: Vec2, image: &ImageAsset) {
+    pub fn set_zoom(&mut self, zoom: f32, old_zoom: f32, canvas_size: Vec2, zoom_center: Vec2, image: &ImageAsset) {
         let zoom = zoom.max(1.0);
         let zoomed_image_size = image.get_item_size() * zoom;
-        let zoom_delta = zoom / self.zoom;
-        self.zoom = zoom;
+        let zoom_delta = zoom / old_zoom;
+        self.zoom = ImageEditorZoom::Custom(zoom);
 
         self.scroll = zoom_center - (zoom_center - self.scroll) * zoom_delta;
         self.clip_scroll(canvas_size, zoomed_image_size);
@@ -651,15 +657,17 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
         let min_size = Vec2::splat(100.0).max(ui.available_size());
         let (resp, painter) = ui.allocate_painter(min_size, Sense::drag());
-        if ui.is_sizing_pass() { return; }
         let canvas_rect = resp.rect.expand(-2.0);
         let image_size = image.get_item_size();
-        if self.zoom == 0.0 {
-            let size = canvas_rect.expand(-1.0).size();
-            let (zoomx, zoomy) = (size.x / image_size.x, size.y / image_size.y);
-            self.zoom = f32::max(f32::min(zoomx, zoomy), 1.0);
-        }
-        let zoomed_image_size = image_size * self.zoom;
+        let zoom = match self.zoom {
+            ImageEditorZoom::Custom(zoom) => { zoom }
+            ImageEditorZoom::FitToWindow => {
+                let size = canvas_rect.expand(-1.0).size();
+                let (zoomx, zoomy) = (size.x / image_size.x, size.y / image_size.y);
+                f32::max(f32::min(zoomx, zoomy), 1.0)
+            }
+        };
+        let zoomed_image_size = image_size * zoom;
         let image_area_rect = if zoomed_image_size.x >= canvas_rect.width() && zoomed_image_size.y >= canvas_rect.height() {
             canvas_rect
         } else {
@@ -679,7 +687,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.clip_scroll(canvas_rect.size(), zoomed_image_size); // in case we've been resized
 
         // draw background
-        self.draw_background(ui, wc, paint_image_rect, image);
+        self.draw_background(ui, wc, paint_image_rect, image, zoom);
 
         // draw image
         let slot = image.texture_slot(self.display.is_transparent(), false);
@@ -695,22 +703,22 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             let uv = frag.get_item_uv(0);
             let frag_size = frag.get_item_size();
             let frag_canvas_rect = Rect {
-                min: image_area_rect.min + self.zoom * pos.to_vec2(),
-                max: image_area_rect.min + self.zoom * (*pos + frag_size).to_vec2(),
+                min: image_area_rect.min + zoom * pos.to_vec2(),
+                max: image_area_rect.min + zoom * (*pos + frag_size).to_vec2(),
             };
             Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
         }
 
         // draw grid and border
-        let display_grid = self.display.has_bits(ImageDisplay::GRID) && self.zoom >= 3.0;
+        let display_grid = self.display.has_bits(ImageDisplay::GRID) && zoom >= 3.0;
         if display_grid {
             let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
             for y in 0..image.height()+1 {
-                let py = image_area_rect.min.y + y as f32 * self.zoom + self.scroll.y % self.zoom;
+                let py = image_area_rect.min.y + y as f32 * zoom + self.scroll.y % zoom;
                 painter.hline(image_area_rect.x_range(), py, stroke);
             }
             for x in 0..image.width()+1 {
-                let px = image_area_rect.min.x + x as f32 * self.zoom + self.scroll.x % self.zoom;
+                let px = image_area_rect.min.x + x as f32 * zoom + self.scroll.x % zoom;
                 painter.vline(px, image_area_rect.y_range(), stroke);
             }
         }
@@ -738,9 +746,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         if resp.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
             let zoom_delta = ui.input(|i| i.zoom_delta());
             if zoom_delta != 1.0 {
-                self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - image_area_rect.min, image);
+                self.set_zoom(zoom * zoom_delta, zoom, canvas_rect.size(), hover_pos - image_area_rect.min, image);
             }
-            self.hover_pos = ((hover_pos - image_area_rect.min - self.scroll) / self.zoom).floor().max(Vec2::ZERO);
+            self.hover_pos = ((hover_pos - image_area_rect.min - self.scroll) / zoom).floor().max(Vec2::ZERO);
         }
 
         // check pan
