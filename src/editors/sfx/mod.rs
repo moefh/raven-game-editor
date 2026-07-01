@@ -33,7 +33,7 @@ impl SfxEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, sfx: &Sfx, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, sfx.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", sfx.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", sfx.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!("{} bytes [samples: {}, bits/sample: {}]{}",
                              sfx.data_size(), sfx.samples.len(), sfx.bits_per_sample, dirty));
@@ -118,7 +118,7 @@ impl Editor {
         let mut loop_end = sfx.loop_start + sfx.loop_len;
 
         // header:
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("SFX", |ui| {
                     ui.horizontal(|ui| {
@@ -156,7 +156,7 @@ impl Editor {
         });
 
         // properties
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             egui::CollapsingHeader::new("Sample").default_open(true).show(ui, |ui| {
                 egui::Grid::new(format!("editor_{}_loop_grid", self.asset_id)).num_columns(2).show(ui, |ui| {
@@ -203,7 +203,7 @@ impl Editor {
         });
 
         // body:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.sfx_editor.show(ui, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
         });
 

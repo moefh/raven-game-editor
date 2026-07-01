@@ -117,7 +117,7 @@ impl RoomEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, maps: &AssetList<MapData>, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, room.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let room_size = RoomSize::from_room(room, maps);
             ui.label(format!(
@@ -502,7 +502,7 @@ impl Editor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -530,7 +530,7 @@ impl Editor {
 
     fn show_header(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                    room: &mut Room, _asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
                     ui.horizontal(|ui| {
@@ -565,7 +565,7 @@ impl Editor {
         self.show_toolbar(ui);
 
         // properties panel:
-        egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             let want_height = 70.0_f32.max(ui.available_height() / 2.0);
             ui.allocate_ui(egui::Vec2::new(200.0, want_height), |ui| {
@@ -588,7 +588,7 @@ impl Editor {
         });
 
         // body:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.room_editor.show(ui, wc, room, assets);
         });
     }

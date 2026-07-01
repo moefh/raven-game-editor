@@ -45,7 +45,7 @@ impl ModDataEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, mod_data: &ModData, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, mod_data.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", mod_data.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", mod_data.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
                 n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
@@ -137,7 +137,7 @@ impl Editor {
 
     fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
                    mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        egui::Panel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_size(160.0).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_size(160.0).show(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (sample_index, sample) in mod_data.samples.iter().enumerate() {
@@ -180,7 +180,7 @@ impl Editor {
         });
 
         // sample properties
-        egui::Panel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_sample_properties", self.asset_id)).show(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
                 let mut loop_start = sample.loop_start;
@@ -252,7 +252,7 @@ impl Editor {
         });
 
         // wave display
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
                 let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
                 let mut loop_end = sample.loop_start + sample.loop_len;
@@ -263,7 +263,7 @@ impl Editor {
     }
 
     fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let cur_song_position = mod_data.song_positions.get(self.selected_song_position).map_or_else(|| {
                 mod_data.song_positions.first().map_or(0, |&v| v)
             }, |&v| v);
@@ -446,7 +446,7 @@ impl Editor {
         }
 
         // header:
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("MOD", |ui| {
                     ui.horizontal(|ui| {
@@ -499,7 +499,7 @@ impl Editor {
         });
 
         // tabs:
-        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Samples), "Samples").clicked() {
                     self.selected_tab = EditorTabs::Samples;

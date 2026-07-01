@@ -25,7 +25,7 @@ impl FontViewWidget {
     }
 
     pub fn show(&self, ui: &mut egui::Ui, wc: &mut WindowContext, font_painter: &impl FontPainter) {
-        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: true, mouse_wheel: true };
+        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Always, mouse_wheel: true };
         let font_height = font_painter.font_height();
         let height = self.zoom * font_height;
         let width = font_painter.measure(height, &self.text);

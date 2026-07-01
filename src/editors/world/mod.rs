@@ -73,7 +73,7 @@ impl WorldEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, world: &World, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, world.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", world.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", world.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!(
                 "{} bytes [{} region{}] {}",
@@ -173,7 +173,7 @@ impl Editor {
 
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext,
                     dialogs: &mut Dialogs, world: &mut World, rooms: &AssetList<Room>) {
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("World", |ui| {
                     ui.horizontal(|ui| {
@@ -264,7 +264,7 @@ impl Editor {
     }
 
     fn show_world_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, _dialogs: &mut Dialogs, world: &mut World) {
-        egui::Panel::top(format!("editor_panel_{}_world_header", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_world_header", self.asset_id)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 if ui.add(egui::Button::image_and_text(IMAGES.lock, "Regions")
@@ -277,7 +277,7 @@ impl Editor {
             ui.add_space(0.0);
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.world_editor.show(ui, wc, world, &self.world_grid.world_grid);
         });
     }
@@ -314,7 +314,7 @@ impl Editor {
                 ui.label(&asset_item.name);
             }
         };
-        tree.show_inside(ui, true, &mut show_folder, &mut show_item);
+        tree.show(ui, true, &mut show_folder, &mut show_item);
         [header_action, item_action]
     }
 
@@ -326,12 +326,12 @@ impl Editor {
                 let Some(region) = world.regions.get_mut(region_index) {
                     (region_index, region)
                 } else {
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("No selected region");
                     });
                     return;
                 };
-            egui::Panel::top(format!("editor_panel_{}_region_header", self.asset_id)).show_inside(ui, |ui| {
+            egui::Panel::top(format!("editor_panel_{}_region_header", self.asset_id)).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Name:");
                     ui.text_edit_singleline(&mut region.name);
@@ -341,11 +341,11 @@ impl Editor {
             let action = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
                 .resizable(false)
                 .min_size(Self::ROOM_TREE_PANEL_WIDTH)
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     self.show_region_rooms_tree(ui, wc, dialogs, region, rooms)
                 }).inner;
 
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 if let Some(grid) = self.world_grid.region_grids.get(region_index) {
                     self.region_editor.show(ui, wc, region, grid);
                 } else {
@@ -374,7 +374,7 @@ impl Editor {
         // region tree
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id))
             .resizable(false)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.add_space(5.0);
                 ui.allocate_ui(egui::Vec2::new(Self::REGION_TREE_PANEL_WIDTH, ui.available_height()), |ui| {
                     egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -392,7 +392,7 @@ impl Editor {
 
         // tabs
         self.world_grid.update(world);
-        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTab::World), "World").clicked() {
                     self.selected_tab = EditorTab::World;

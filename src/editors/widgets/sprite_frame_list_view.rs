@@ -33,7 +33,7 @@ impl<'a> SpriteFrameListView<'a> {
 
     pub fn show(&self, ui: &mut egui::Ui, image: &impl ImageCollection, texture: &egui::TextureHandle)
                 -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
-        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
+        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
             let use_foot_frames = self.frame_indices.iter().any(|f| f.foot_index.is_some());
             let foot_overlap = if use_foot_frames { self.foot_overlap as f32 } else { 0.0 };

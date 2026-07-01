@@ -86,7 +86,7 @@ impl ImagePickerWidget {
 
     pub fn show(&mut self, ui: &mut egui::Ui, _settings: &AppSettings, image: &impl ImageCollection,
                 texture: &egui::TextureHandle, bg_color: Color32) {
-        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: false, mouse_wheel: true };
+        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
         let image_size = self.zoom * image.get_item_size();
 

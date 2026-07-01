@@ -72,7 +72,7 @@ impl Window {
             }).collect()
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 egui::Grid::new("editor_settings_main")
                     .num_columns(3)
@@ -116,13 +116,13 @@ impl Window {
     }
 
     fn show_textures_tab(&mut self, ui: &mut egui::Ui, wc: &WindowContext) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             wc.egui.ctx.texture_ui(ui);
         });
     }
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataAssetStore) {
-        egui::Panel::top("editor_status_window_tabs").show_inside(ui, |ui| {
+        egui::Panel::top("editor_status_window_tabs").show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, StatusWindowsTabs::Windows), "Windows").clicked() {
@@ -135,7 +135,7 @@ impl Window {
             ui.add_space(0.0);
         });
 
-        egui::Panel::bottom("editor_status_window_footer").show_inside(ui, |ui| {
+        egui::Panel::bottom("editor_status_window_footer").show(ui, |ui| {
             ui.add_space(5.0);
             ui.label("");
         });

@@ -53,7 +53,7 @@ impl SpriteEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, sprite: &Sprite, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, sprite.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", sprite.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", sprite.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
@@ -175,7 +175,7 @@ impl Editor {
             self.image_editor.paste_pixels(sprite, image);
         }
 
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Sprite", |ui| {
                     ui.horizontal(|ui| {
@@ -286,7 +286,7 @@ impl Editor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, sprite: &mut Sprite) {
-        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -386,7 +386,7 @@ impl Editor {
         self.show_toolbar(ui, wc, sprite);
 
         // item picker:
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             self.image_picker.zoom = 80.0 / sprite.width as f32;
             self.image_picker.display = self.image_editor.display;
@@ -399,7 +399,7 @@ impl Editor {
         });
 
         // color picker:
-        egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             match self.color_picker.show(ui, wc) {
                 ColorPickerResponse::None => {}
@@ -410,7 +410,7 @@ impl Editor {
         });
 
         // image:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
             self.image_editor.show(ui, wc, sprite, colors);
             self.color_picker.maybe_set_colors(

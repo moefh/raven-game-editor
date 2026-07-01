@@ -6,7 +6,7 @@ fn sys_time() -> i64 {
 }
 
 fn timestamp_date(timestamp: i64) -> String {
-    let format = time::format_description::parse("[year]-[month]-[day]").expect("invalid date format");
+    let format = time::format_description::parse_borrowed::<3>("[year]-[month]-[day]").expect("invalid date format");
     time::OffsetDateTime::from_unix_timestamp(timestamp)
         .expect("invalid timestamp")
         .format(&format)

@@ -69,7 +69,7 @@ impl PropFontEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, prop_font: &PropFont, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, prop_font.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", prop_font.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", prop_font.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!("{} bytes [height: {}]{}", prop_font.data_size(), prop_font.height, dirty));
         });
@@ -144,7 +144,7 @@ impl Editor {
     }
 
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Prop Font", |ui| {
                     ui.horizontal(|ui| {
@@ -221,7 +221,7 @@ impl Editor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, prop_font: &mut PropFont) {
-        egui::Panel::top(format!("editor_panel_{}_pfont_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_pfont_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
@@ -285,7 +285,7 @@ impl Editor {
     }
 
     fn show_samplebar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, prop_font: &mut PropFont) {
-        egui::Panel::top(format!("editor_panel_{}_pfont_sample", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_pfont_sample", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.label("Sample:");
@@ -315,7 +315,7 @@ impl Editor {
         self.show_samplebar(ui, wc, prop_font);
 
         // body:
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.prop_font_editor.show(ui, wc, prop_font);
         });
     }

@@ -109,7 +109,7 @@ impl RoomSelectionDialog {
         let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "World Region Rooms", |ui, wc| {
             let asset_id = world.asset.id;
 
-            egui::Panel::bottom(format!("editor_panel_{}_rooms_bot", asset_id)).show_separator_line(false).show_inside(ui, |ui| {
+            egui::Panel::bottom(format!("editor_panel_{}_rooms_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {
@@ -126,7 +126,7 @@ impl RoomSelectionDialog {
                 .resizable(false)
                 .show_separator_line(false)
                 .min_size(200.0)
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     let mut add_room: Option<DataAssetId> = None;
                     let mut remove_room: Option<DataAssetId> = None;
                     let mut display_room: Option<DataAssetId> = None;
@@ -152,14 +152,14 @@ impl RoomSelectionDialog {
                                 }
                             });
                         };
-                        room_tree.show_inside(ui, true, &mut show_folder, &mut show_item);
+                        room_tree.show(ui, true, &mut show_folder, &mut show_item);
                     }
                     if let Some(room_id) = add_room { self.sel_room_ids.insert(room_id); }
                     if let Some(room_id) = remove_room { self.sel_room_ids.remove(&room_id); }
                     if display_room.is_some() { self.display_room_id = display_room; }
                 });
 
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 if let Some(room) = self.display_room_id.and_then(|room_id| rooms.get(&room_id)) {
                     let room_size = RoomSize::from_room(room, maps);
                     ui.label(format!("Room: {} ({}x{})", room.asset.name, room_size.width, room_size.height));

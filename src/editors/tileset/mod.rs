@@ -68,7 +68,7 @@ impl TilesetEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, base: &AssetEditorBase, tileset: &Tileset) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, tileset.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show_inside(ui, |ui| {
+        egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
@@ -367,7 +367,7 @@ impl Editor {
             self.paste_pixels(wc, tileset, image);
         }
 
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tileset", |ui| {
                     ui.horizontal(|ui| {
@@ -478,7 +478,7 @@ impl Editor {
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
-        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -587,7 +587,7 @@ impl Editor {
 
     fn show_tile_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
         // tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
-        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             self.tile_picker.zoom = 4.0;
             self.tile_picker.display = self.tile_image_editor.display;
@@ -600,7 +600,7 @@ impl Editor {
         });
 
         // tile editor
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
             self.tile_image_editor.show(ui, wc, tileset, colors);
             if self.tile_image_editor.has_image_changed() {
@@ -620,7 +620,7 @@ impl Editor {
 
     fn show_grid_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
         // grid tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
-        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             self.grid_tile_picker.zoom = 4.0;
             self.grid_tile_picker.display = self.grid_image_editor.display;
@@ -632,7 +632,7 @@ impl Editor {
         });
 
         // toolbar
-        egui::Panel::top(format!("editor_panel_{}_grid_tab_toolbar", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_grid_tab_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 ui.label("Width:");
@@ -661,7 +661,7 @@ impl Editor {
             });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             match self.tile_grid_editor.show(ui, wc, &mut self.tile_grid, tileset) {
                 TileGridEditorAction::None => {}
                 TileGridEditorAction::PickLeftTile(tile) => {
@@ -679,7 +679,7 @@ impl Editor {
     }
 
     fn show_grid_tiles_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
 
             let grid_image = self.tile_grid.get_image_mut(tileset);
@@ -708,7 +708,7 @@ impl Editor {
         self.show_toolbar(ui, wc, tileset);
 
         // color picker:
-        egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show_inside(ui, |ui| {
+        egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             match self.color_picker.show(ui, wc) {
                 ColorPickerResponse::None => {}
@@ -719,7 +719,7 @@ impl Editor {
         });
 
         // tabs
-        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show_inside(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTab::Tile), "Tile").clicked() {
                     self.selected_tab = EditorTab::Tile;

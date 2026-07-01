@@ -75,7 +75,7 @@ impl MapSelectionDialog {
         let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "Room Properties", |ui, wc| {
             let asset_id = room.asset.id;
 
-            egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show_inside(ui, |ui| {
+            egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {
@@ -92,7 +92,7 @@ impl MapSelectionDialog {
                 .resizable(false)
                 .show_separator_line(false)
                 .min_size(200.0)
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     let mut add_map: Option<DataAssetId> = None;
                     let mut remove_map: Option<DataAssetId> = None;
                     let mut display_map: Option<DataAssetId> = None;
@@ -118,14 +118,14 @@ impl MapSelectionDialog {
                                 }
                             });
                         };
-                        map_tree.show_inside(ui, true, &mut show_folder, &mut show_item);
+                        map_tree.show(ui, true, &mut show_folder, &mut show_item);
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }
                     if display_map.is_some() { self.display_map_id = display_map; }
                 });
 
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 if let Some(map_data) = self.display_map_id.and_then(|map_id| maps.get(&map_id)) &&
                     let Some(tileset) = tilesets.get(&map_data.tileset_id) {
                         ui.label(format!("Map: {} ({}x{})", map_data.asset.name, map_data.width, map_data.height));

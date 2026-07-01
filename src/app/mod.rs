@@ -419,7 +419,7 @@ impl RavenEditorApp {
     }
 
     fn update_menu(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
-        egui::Panel::top("main_menu").show_inside(ui, |ui| {
+        egui::Panel::top("main_menu").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
             let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
@@ -535,7 +535,7 @@ impl RavenEditorApp {
     }
 
     fn update_toolbar(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
-        egui::Panel::top("main_toolbar").show_inside(ui, |ui| {
+        egui::Panel::top("main_toolbar").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
             ui.horizontal(|ui| {
@@ -583,7 +583,7 @@ impl RavenEditorApp {
     }
 
     fn update_footer(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::bottom("footer").show_inside(ui, |ui| {
+        egui::Panel::bottom("footer").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
 
@@ -594,7 +594,7 @@ impl RavenEditorApp {
 
     fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
         self.asset_tree.update(&self.store);
-        egui::Panel::left("asset_tree").resizable(false).exact_size(ASSET_TREE_PANEL_WIDTH).show_inside(ui, |ui| {
+        egui::Panel::left("asset_tree").resizable(false).exact_size(ASSET_TREE_PANEL_WIDTH).show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
@@ -652,7 +652,7 @@ impl RavenEditorApp {
                                 });
                             });
                         };
-                        tree.show_inside("project", ui, true, &mut show_folder, &mut show_item);
+                        tree.show("project", ui, true, &mut show_folder, &mut show_item);
                     }
                     for action in &[folder_action, item_action] {
                         match action {
@@ -680,7 +680,7 @@ impl RavenEditorApp {
     }
 
     fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will be placed
         });

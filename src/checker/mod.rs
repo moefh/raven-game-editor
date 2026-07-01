@@ -12,8 +12,8 @@ use std::sync::LazyLock;
 pub const SCREEN_WIDTH: u32 = 320;
 pub const SCREEN_HEIGHT: u32 = 240;
 
-static TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(|| {
-    time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap()
+static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(|| {
+    time::format_description::parse_borrowed::<3>("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap()
 });
 
 use crate::data_asset::{DataAssetStore, DataAssetId};

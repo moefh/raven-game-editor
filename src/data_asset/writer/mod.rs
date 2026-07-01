@@ -23,10 +23,10 @@ use super::{
 static RE_UNNAMED_LOOP: LazyLock<Regex> = LazyLock::new(
     || Regex::new(r"^loop_[0-9]+$").unwrap());
 
-static HUMAN_TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(
-    || time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
-static MACHINE_TIMESTAMP_FORMAT: LazyLock<Vec<time::format_description::BorrowedFormatItem<'_>>> = LazyLock::new(
-    || time::format_description::parse("[year][month][day]00[hour][minute][second]").unwrap());
+static HUMAN_TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
+    || time::format_description::parse_borrowed::<3>("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
+static MACHINE_TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
+    || time::format_description::parse_borrowed::<3>("[year][month][day]00[hour][minute][second]").unwrap());
 
 struct ModSampleRef {
     mod_id: DataAssetId,
