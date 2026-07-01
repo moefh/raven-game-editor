@@ -79,7 +79,12 @@ impl Window {
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         for w in &window_list {
-                            ui.label(format!("{:?}", w.window_id));
+                            ui.add_sized(
+                                [200.0, 20.0],
+                                egui::Label::new(format!("{:?}", w.window_id))
+                                    .show_tooltip_when_elided(false)
+                                    .truncate()
+                            );
                             ui.label(match w.layer {
                                 egui::layers::Order::Background => "background",
                                 egui::layers::Order::Middle => "middle",

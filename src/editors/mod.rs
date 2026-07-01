@@ -67,6 +67,7 @@ pub struct AssetEditorBase {
     pub egui_id: egui::Id,
     pub open: bool,
     pub closed_last_frame: bool,
+    title: String,
     maximized_state: MaximizedState,
     window_rect: egui::Rect,
     saved_hash: u64,
@@ -78,6 +79,7 @@ impl AssetEditorBase {
         AssetEditorBase {
             id,
             open,
+            title: String::new(),
             closed_last_frame: false,
             egui_id: egui::Id::new(format!("editor_{}", id)),
             maximized_state: MaximizedState::Normal,
@@ -160,13 +162,14 @@ impl AssetEditorBase {
                           min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
                           show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext, &mut Asset, &mut AssetEditorBase))
     where Asset: GenericAsset {
-        let title = if self.is_dirty() {
-            format!("{} (modified)", asset.asset().name)
-        } else {
-            asset.asset().name.clone()
+        self.title.clear();
+        self.title.push_str(&asset.asset().name);
+        if self.is_dirty() {
+            self.title.push_str(" (modified)");
         };
 
         let maximized_state = self.maximized_state;
+        let title = std::mem::take(&mut self.title);
         let mut open = self.open;
         let resp = self.create_window(wc, &mut open, &title, min_size, default_size).show(wc.egui.ctx, |ui| {
             let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
@@ -174,8 +177,8 @@ impl AssetEditorBase {
                 ui.horizontal(|ui| {
                     ui.add_space(3.0);
                     let title_image = get_asset_type_image(asset.asset().asset_type);
-                    ui.add(egui::Button::image(include_ref_image!(title_image)).frame(false));
-                    ui.add(egui::Label::new(title).selectable(false));
+                    ui.add(egui::Image::new(include_ref_image!(title_image)).max_size(egui::Vec2::splat(16.0)).shrink_to_fit());
+                    ui.add(egui::Label::new(&title).selectable(false));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let mut action = EditorWindowAction::None;
 
@@ -208,6 +211,7 @@ impl AssetEditorBase {
             action
         });
         self.open = open;
+        self.title = title;
 
         if let Some(resp) = resp {
             // close window if show() above returned true
@@ -253,18 +257,14 @@ impl AssetEditorBase {
             frame = frame.corner_radius(0.0);
             let (win_rect, constrain_rect) = match self.maximized_state {
                 MaximizedState::Maximized => {
-                    let win_rect = egui::Rect {
-                        min: wc.window_space.min + egui::Vec2::new(-10.0, 0.0),
-                        max: wc.window_space.max + egui::Vec2::new(-6.0, 0.0),
-                    };
-                    (win_rect, wc.window_space)
+                    (wc.window_space, wc.window_space)
                 }
                 MaximizedState::UnmaxRequested => {
                     self.maximized_state = MaximizedState::UnmaxSizeReset;
                     let rect = self.window_rect;
                     (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
                 }
-                _ => {
+                MaximizedState::UnmaxSizeReset | _ => {
                     self.maximized_state = MaximizedState::Normal;
                     let rect = self.window_rect;
                     (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
