@@ -27,9 +27,6 @@ pub use windows::AppWindows;
 pub use settings::AppSettings;
 pub use path_library::PathLibrary;
 
-const MENU_HEIGHT: f32 = 22.0;
-const TOOLBAR_HEIGHT: f32 = 25.0;
-const FOOTER_HEIGHT: f32 = 26.0;
 const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
 pub const IMAGE_TREE_SIZE: f32 = 20.0;
@@ -680,21 +677,11 @@ impl RavenEditorApp {
     }
 
     fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
-        egui::CentralPanel::default().show(ui, |ui| {
+        let window_space = egui::CentralPanel::no_frame().show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will be placed
-        });
-        let content_rect = ui.ctx().content_rect();
-        let window_space = egui::Rect {
-            min: egui::Pos2 {
-                x: content_rect.min.x + ASSET_TREE_PANEL_WIDTH,
-                y: content_rect.min.y + MENU_HEIGHT + TOOLBAR_HEIGHT,
-            },
-            max: egui::Pos2 {
-                x: content_rect.max.x,
-                y: content_rect.max.y - FOOTER_HEIGHT,
-            },
-        };
+            ui.available_rect_before_wrap()
+        }).inner;
         let mut win_ctx = WindowContext {
             window_space,
             vga_bits_per_pixel: self.store.vga_bits_per_pixel,
