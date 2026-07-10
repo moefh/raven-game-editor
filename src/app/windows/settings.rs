@@ -48,8 +48,22 @@ impl SettingsWindow {
                             ui.end_row();
 
                             ui.label("Zoom:");
-                            ui.menu_button(format!("{:3.1}x", wc.egui.ctx.zoom_factor()), |ui| {
-                                egui::gui_zoom::zoom_menu_buttons(ui);
+                            ui.horizontal(|ui| {
+                                if ui.button("\u{2796}").on_hover_text("Zoom out").clicked() {
+                                    let zoom = ui.ctx().zoom_factor();
+                                    if zoom > 0.5 {
+                                        ui.ctx().set_zoom_factor(((zoom - 0.1) * 10.0).round() / 10.0);
+                                    }
+                                }
+                                ui.menu_button(format!("{:3.1}x", wc.egui.ctx.zoom_factor()), |ui| {
+                                    egui::gui_zoom::zoom_menu_buttons(ui);
+                                });
+                                if ui.button("\u{2795}").on_hover_text("Zoom in").clicked() {
+                                    let zoom = ui.ctx().zoom_factor();
+                                    if zoom < 5.0 {
+                                        ui.ctx().set_zoom_factor(((zoom + 0.1) * 10.0).round() / 10.0);
+                                    }
+                                }
                             });
                             if wc.settings.zoom != (ui.ctx().zoom_factor() * 100.0).round() as u32 {
                                 wc.settings.zoom = (ui.ctx().zoom_factor() * 100.0).round() as u32;
