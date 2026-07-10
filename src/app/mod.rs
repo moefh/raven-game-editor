@@ -670,7 +670,8 @@ impl RavenEditorApp {
     }
 
     fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
-        let window_space = egui::CentralPanel::no_frame().show(ui, |ui| {
+        let frame = egui::Frame::NONE.fill(ui.visuals().panel_fill);
+        let window_space = egui::CentralPanel::default().frame(frame).show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             // big empty space where project windows will be placed
             ui.available_rect_before_wrap()
