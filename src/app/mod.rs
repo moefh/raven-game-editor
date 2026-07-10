@@ -100,13 +100,6 @@ impl RavenEditorApp {
         app
     }
 
-    pub fn from_file(cc: &eframe::CreationContext<'_>, logger: StringLogger,
-                     settings: AppSettings, path: std::path::PathBuf) -> Self {
-        let mut app = Self::new(cc, logger, settings);
-        app.open(path);
-        app
-    }
-
     fn activate_window(ctx: &egui::Context, window_id: egui::Id) {
         ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, window_id));
     }

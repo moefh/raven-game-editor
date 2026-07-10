@@ -77,12 +77,11 @@ fn main() -> eframe::Result {
         "Raven Game Editor",
         options,
         Box::new(|cc| {
-            Ok(Box::new(
-                match filename {
-                    Some(filename) => RavenEditorApp::from_file(cc, logger, settings, filename),
-                    None => RavenEditorApp::new(cc, logger, settings),
-                }
-            ))
+            let mut app = RavenEditorApp::new(cc, logger, settings);
+            if let Some(filename) = filename {
+                app.open(filename);
+            }
+            Ok(Box::new(app))
         })
     )
 }
