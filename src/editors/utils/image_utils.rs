@@ -9,8 +9,8 @@ pub enum ImageClipboardData {
 }
 
 impl ImageClipboardData {
-    pub fn is_none(&self) -> bool {
-        matches!(self, ImageClipboardData::Empty)
+    pub fn is_some(&self) -> bool {
+        matches!(self, ImageClipboardData::Image(_))
     }
 
     pub fn take(&mut self) -> ImageClipboardData {

@@ -6,7 +6,12 @@ mod import;
 mod export;
 
 use crate::misc::IMAGES;
-use crate::app::{WindowContext, SysDialogResponse};
+use crate::app::{
+    menu_item,
+    menu_item_no_image,
+    WindowContext,
+    SysDialogResponse,
+};
 use crate::image::{ImageCollection, ImagePixels, TextureSlot, ImageRotation};
 use crate::data_asset::{DataAssetId, PalSprite, GenericAsset};
 
@@ -204,121 +209,77 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Paletted Sprite", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                        if ui.button("Import...").clicked() {
-                            dialogs.import_dialog.set_open(wc, pal_sprite);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                        if ui.button("Export...").clicked() {
-                            dialogs.export_dialog.set_open(wc, pal_sprite);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        dialogs.import_dialog.set_open(wc, pal_sprite);
+                    }
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        dialogs.export_dialog.set_open(wc, pal_sprite);
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, pal_sprite, self.get_right_color(pal_sprite));
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, pal_sprite, self.get_right_color(pal_sprite));
+                    }
                 });
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        if ! self.image_editor.can_undo() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
-                        if ui.button("Undo").clicked() {
-                            self.image_editor.undo(pal_sprite);
-                        }
-                    });
+                    if ui.add_enabled(self.image_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
+                        self.image_editor.undo(pal_sprite);
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
-                        if ui.button("Cut").clicked() {
-                            self.image_editor.cut(wc, pal_sprite, self.get_right_color(pal_sprite));
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
-                        if ui.button("Copy").clicked() {
-                            self.image_editor.copy(wc, pal_sprite);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if wc.image_clipboard.is_none() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
-                        if ui.button("Paste").clicked() {
-                            self.image_editor.paste(wc, pal_sprite);
-                            self.force_palette(pal_sprite);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if self.image_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
-                        if ui.button("Delete selection").clicked() {
-                            self.image_editor.delete_selection(pal_sprite, self.get_right_color(pal_sprite));
-                        }
-                    });
+                    let has_selection = ! self.image_editor.selection.is_empty();
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
+                        self.image_editor.cut(wc, pal_sprite, self.get_right_color(pal_sprite));
+                    }
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
+                        self.image_editor.copy(wc, pal_sprite);
+                    }
+                    if ui.add_enabled(wc.image_clipboard.is_some(), menu_item(IMAGES.paste, " Paste")).clicked() {
+                        self.image_editor.paste(wc, pal_sprite);
+                        self.force_palette(pal_sprite);
+                    }
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
+                        self.image_editor.delete_selection(pal_sprite, self.get_right_color(pal_sprite));
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                        if ui.button("Paste from file...").clicked() {
-                            wc.sys_dialogs.open_file(
-                                Some(wc.egui.window),
-                                import_frame_dlg_id,
-                                "sprite",
-                                "Paste From File",
-                                &[
-                                    ("PNG files (*.png)", &["png"]),
-                                    ("All files (*.*)", &["*"]),
-                                ]
-                            );
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.import, " Paste from file...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            import_frame_dlg_id,
+                            "sprite",
+                            "Paste From File",
+                            &[
+                                ("PNG files (*.png)", &["png"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
-                        if ui.button("Insert frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert,
-                                                               self.image_editor.get_selected_image(),
-                                                               self.get_right_color(pal_sprite));
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.add).max_width(14.0).max_height(14.0));
-                        if ui.button("Append frames...").clicked() {
-                            dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append,
-                                                               self.image_editor.get_selected_image(),
-                                                               self.get_right_color(pal_sprite));
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if pal_sprite.num_frames == 1 { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
-                        if ui.button("Remove frames...").clicked() {
-                            dialogs.rm_frames_dialog.set_open(wc, pal_sprite, self.image_editor.get_selected_image());
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.add, " Insert frames...")).clicked() {
+                        dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert,
+                            self.image_editor.get_selected_image(),
+                            self.get_right_color(pal_sprite));
+                    }
+                    if ui.add(menu_item(IMAGES.add, " Append frames...")).clicked() {
+                        dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append,
+                            self.image_editor.get_selected_image(),
+                            self.get_right_color(pal_sprite));
+                    }
+                    if ui.add_enabled(pal_sprite.num_frames > 1, menu_item(IMAGES.trash, " Remove frames...")).clicked() {
+                        dialogs.rm_frames_dialog.set_open(wc, pal_sprite, self.image_editor.get_selected_image());
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
-                        if ui.button("Edit palette...").clicked() {
-                            dialogs.edit_pal_dialog.set_open(wc, pal_sprite);
-                        }
-                    });
+                    if ui.add(menu_item_no_image(" Edit palette...")).clicked() {
+                        dialogs.edit_pal_dialog.set_open(wc, pal_sprite);
+                    }
                 });
             });
         });

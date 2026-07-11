@@ -4,6 +4,8 @@ mod region_properties;
 
 use crate::misc::IMAGES;
 use crate::app::{
+    menu_item,
+    menu_item_no_image,
     WindowContext,
     SimpleAssetTree,
     AssetTreeContainer,
@@ -176,31 +178,21 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("World", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, world);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, world);
+                    }
                 });
 
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        if self.world_editor.get_selected_region().is_none() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Region properties...").clicked() &&
-                            let Some(region_index) = self.world_editor.get_selected_region() {
-                                dialogs.region_properties_dialog.set_open(wc, world, region_index);
-                            }
-                    });
-                    ui.horizontal(|ui| {
-                        if self.world_editor.get_selected_region().is_none() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.room).max_width(14.0).max_height(14.0));
-                        if ui.button("Select region rooms...").clicked() &&
-                            let Some(region_index) = self.world_editor.get_selected_region() {
-                                dialogs.room_selection_dialog.set_open(wc, world, region_index, rooms);
-                            }
-                    });
+                    let has_region = self.world_editor.get_selected_region().is_some();
+                    if ui.add_enabled(has_region, menu_item(IMAGES.properties, " Region properties...")).clicked() &&
+                        let Some(region_index) = self.world_editor.get_selected_region() {
+                            dialogs.region_properties_dialog.set_open(wc, world, region_index);
+                        }
+                    if ui.add_enabled(has_region, menu_item(IMAGES.room, " Select region rooms...")).clicked() &&
+                        let Some(region_index) = self.world_editor.get_selected_region() {
+                            dialogs.room_selection_dialog.set_open(wc, world, region_index, rooms);
+                        }
                 });
             });
         });
@@ -214,7 +206,7 @@ impl Editor {
         let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Regions").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
-                if ui.button("Add region").clicked() {
+                if ui.add(menu_item_no_image(" Add region")).clicked() {
                     action = RegionTreeAction::AddRegion;
                 }
             });
@@ -232,25 +224,16 @@ impl Editor {
                         action = RegionTreeAction::SelectRegion(region_index);
                     }
                     egui::Popup::context_menu(&resp).show(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.properties).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                            if ui.button("Properties...").clicked() {
-                                action = RegionTreeAction::EditRegion(region_index);
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.room).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                            if ui.button("Select Rooms...").clicked() {
-                                action = RegionTreeAction::SelectRegionRooms(region_index);
-                            }
-                        });
+                        if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                            action = RegionTreeAction::EditRegion(region_index);
+                        }
+                        if ui.add(menu_item(IMAGES.room, " Select Rooms...")).clicked() {
+                            action = RegionTreeAction::SelectRegionRooms(region_index);
+                        }
                         ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                            if ui.button("Remove region").clicked() {
-                                action = RegionTreeAction::RemoveRegion(region_index);
-                            }
-                        });
+                        if ui.add(menu_item(IMAGES.trash, " Remove region")).clicked() {
+                            action = RegionTreeAction::RemoveRegion(region_index);
+                        }
                     });
                     selected
                 });
@@ -294,12 +277,9 @@ impl Editor {
         let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
             let resp = ui.add(egui::Button::new(&folder.name).frame_when_inactive(false));
             egui::Popup::context_menu(&resp).show(|ui| {
-                ui.horizontal(|ui| {
-                    ui.add(egui::Image::new(IMAGES.room).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_CTX_MENU_SIZE)));
-                    if ui.button("Select rooms...").clicked() {
-                        header_action = RoomTreeAction::SelectRegionRooms;
-                    }
-                });
+                if ui.add(menu_item(IMAGES.room, " Select rooms...")).clicked() {
+                    header_action = RoomTreeAction::SelectRegionRooms;
+                }
             });
             resp
         };

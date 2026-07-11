@@ -1,3 +1,4 @@
+mod menu;
 mod asset_tree;
 mod context;
 mod sys_dialogs;
@@ -17,6 +18,7 @@ use crate::editors::{ImageClipboardData, MapClipboardData};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
+pub use menu::{*};
 pub use editors::AssetEditors;
 pub use editor_action::EditorAction;
 pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
@@ -432,8 +434,7 @@ impl RavenEditorApp {
 
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    ui.set_max_width(150.0);
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.new), " New")).clicked() {
+                    if ui.add(menu_item(IMAGES.new, " New")).clicked() {
                         if self.editors.is_dirty() {
                             self.open_confirmation_dialog_for(ConfirmationDialogAction::NewProject);
                         } else {
@@ -441,7 +442,7 @@ impl RavenEditorApp {
                         }
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.open), " Open...")).clicked() {
+                    if ui.add(menu_item(IMAGES.open, " Open...")).clicked() {
                         self.sys_dialogs.open_file(
                             Some(window),
                             "open_project".to_owned(),
@@ -455,7 +456,7 @@ impl RavenEditorApp {
                     };
                     ui.add_enabled_ui(self.recent_projects.num_files() > 0, |ui| {
                         let mut selected_project = None;
-                        ui.menu_image_text_button(egui::Image::new(IMAGES.blank), " Open Recent", |ui| {
+                        menu_item_no_image_with_submenu(" Open Recent", ui, |ui| {
                             for (index, path) in self.recent_projects.files().enumerate() {
                                 if ui.button(path.to_string_lossy()).clicked() {
                                     selected_project = Some(index);
@@ -466,33 +467,32 @@ impl RavenEditorApp {
                             self.open(filename.clone());
                         }
                     });
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.save), " Save")).clicked() {
+                    if ui.add(menu_item(IMAGES.save, " Save")).clicked() {
                         self.save(window);
                     }
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.blank), " Save As...")).clicked() {
+                    if ui.add(menu_item_no_image(" Save As...")).clicked() {
                         self.save_as(window);
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.properties), " Settings")).clicked() {
+                    if ui.add(menu_item(IMAGES.properties, " Settings")).clicked() {
                         self.windows.open_settings();
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.chicken), " Quit")).clicked() {
+                    if ui.add(menu_item(IMAGES.chicken, " Quit")).clicked() {
                         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
                 ui.menu_button("Project", |ui| {
                     for asset_def in ASSET_DEFS {
-                        if ui.add(egui::Button::image_and_text(egui::Image::new(include_ref_image!(asset_def.image)),
-                                                               asset_def.add_menu_item)).clicked() {
+                        if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
                             self.add_asset(asset_def.asset_type, None);
                         }
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.properties), " Properties")).clicked() {
+                    if ui.add(menu_item(IMAGES.properties, " Properties")).clicked() {
                         self.windows.open_properties();
                     }
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.header), " Export header...")).clicked() {
+                    if ui.add(menu_item_no_image(" Export header...")).clicked() {
                         self.sys_dialogs.save_file(
                             Some(window),
                             "export_header".to_owned(),
@@ -505,18 +505,17 @@ impl RavenEditorApp {
                         );
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.blank), " Run Check (F5)")).clicked() {
+                    if ui.add(menu_item_no_image(" Run Check (F5)")).clicked() {
                         self.windows.open_check();
                         self.windows.check.run_check(&self.store);
                     }
                 });
                 ui.menu_button("Help", |ui| {
-                    ui.set_max_width(80.0);
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.info), " Status")).clicked() {
+                    if ui.add(menu_item(IMAGES.info, " Status")).clicked() {
                         self.windows.open_status();
                     }
                     ui.separator();
-                    if ui.add(egui::Button::image_and_text(egui::Image::new(IMAGES.pico), " About")).clicked() {
+                    if ui.add(menu_item(IMAGES.pico, " About")).clicked() {
                         self.dialogs.open_about(&mut self.window_tracker);
                     }
                 });
@@ -559,7 +558,7 @@ impl RavenEditorApp {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.add(egui::Button::image_and_text(IMAGES.log, "Log")
+                if ui.add(menu_item(IMAGES.log, "Log")
                           .selected(self.windows.log_window.base.open)
                           .frame_when_inactive(self.windows.log_window.base.open)).on_hover_text("Log Window").clicked() {
                     self.windows.log_window.toggle_open();

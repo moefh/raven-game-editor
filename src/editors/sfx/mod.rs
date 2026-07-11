@@ -2,10 +2,21 @@ mod properties;
 mod export;
 
 use std::io::Error;
-use crate::app::{WindowContext, SysDialogResponse};
+use crate::app::{
+    menu_item,
+    WindowContext,
+    SysDialogResponse,
+};
 use crate::sound::SoundPlayer;
-use crate::misc::{IMAGES, wav_utils};
-use crate::data_asset::{Sfx, DataAssetId, GenericAsset};
+use crate::misc::{
+    IMAGES,
+    wav_utils,
+};
+use crate::data_asset::{
+    Sfx,
+    DataAssetId,
+    GenericAsset,
+};
 
 use properties::PropertiesDialog;
 use export::ExportDialog;
@@ -43,7 +54,7 @@ impl SfxEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
 
-        self.base.show_window(wc, sfx, [400.0, 220.0], [500.0, 220.0], |ui, wc, sfx, base| {
+        self.base.show_window(wc, sfx, [400.0, 250.0], [500.0, 250.0], |ui, wc, sfx, base| {
             Self::show_footer(ui, wc, sfx, base);
             self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
         });
@@ -121,36 +132,27 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("SFX", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                        if ui.button("Import...").clicked() {
-                            wc.sys_dialogs.open_file(
-                                Some(wc.egui.window),
-                                format!("editor_{}", self.asset_id),
-                                "sfx",
-                                "Import WAVE file",
-                                &[
-                                    ("WAVE files (*.wav)", &["wav"]),
-                                    ("All files (*.*)", &["*"]),
-                                ]
-                            );
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                        if ui.button("Export...").clicked() {
-                            dialogs.export_dialog.set_open(wc, sfx, 22050);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            format!("editor_{}", self.asset_id),
+                            "sfx",
+                            "Import WAVE file",
+                            &[
+                                ("WAVE files (*.wav)", &["wav"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        dialogs.export_dialog.set_open(wc, sfx, 22050);
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, sfx);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, sfx);
+                    }
                 });
             });
         });

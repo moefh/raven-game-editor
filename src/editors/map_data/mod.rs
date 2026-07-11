@@ -1,9 +1,25 @@
 mod properties;
 
-use crate::app::WindowContext;
-use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{MapData, Tileset, AssetIdList, AssetList, DataAssetId, GenericAsset};
-use crate::misc::{IMAGES, STATIC_IMAGES};
+use crate::app::{
+    menu_item,
+    WindowContext,
+};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
+use crate::data_asset::{
+    MapData,
+    Tileset,
+    AssetIdList,
+    AssetList,
+    DataAssetId,
+    GenericAsset,
+};
+use crate::misc::{
+    IMAGES,
+    STATIC_IMAGES,
+};
 
 use properties::PropertiesDialog;
 use super::{
@@ -152,55 +168,33 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Map", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
-                                PropertiesDialog::new(map_data.tileset_id)
-                            });
-                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_right()));
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
+                            PropertiesDialog::new(map_data.tileset_id)
+                        });
+                        dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_right()));
+                    }
                 });
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        if ! self.map_editor.can_undo() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.undo).max_width(14.0).max_height(14.0));
-                        if ui.button("Undo").clicked() {
-                            self.map_editor.undo(map_data);
-                        }
-                    });
+                    if ui.add_enabled(self.map_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
+                        self.map_editor.undo(map_data);
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        if self.map_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.cut).max_width(14.0).max_height(14.0));
-                        if ui.button("Cut").clicked() {
-                            self.map_editor.cut(wc, map_data);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if self.map_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.copy).max_width(14.0).max_height(14.0));
-                        if ui.button("Copy").clicked() {
-                            self.map_editor.copy(wc, map_data);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if wc.map_clipboard.is_none() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.paste).max_width(14.0).max_height(14.0));
-                        if ui.button("Paste").clicked() {
-                            self.map_editor.paste(wc, map_data);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if self.map_editor.selection.is_empty() { ui.disable(); }
-                        ui.add(egui::Image::new(IMAGES.trash).max_width(14.0).max_height(14.0));
-                        if ui.button("Delete selection").clicked() {
-                            self.map_editor.delete_selection(map_data);
-                        }
-                    });
+                    let has_selection = ! self.map_editor.selection.is_empty();
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
+                        self.map_editor.cut(wc, map_data);
+                    }
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
+                        self.map_editor.copy(wc, map_data);
+                    }
+                    if ui.add_enabled(! wc.map_clipboard.is_none(), menu_item(IMAGES.paste, " Paste")).clicked() {
+                        self.map_editor.paste(wc, map_data);
+                    }
+                    if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
+                        self.map_editor.delete_selection(map_data);
+                    }
                 });
             });
         });

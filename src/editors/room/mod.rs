@@ -4,7 +4,10 @@ mod map_selection;
 use std::collections::HashMap;
 
 use crate::misc::IMAGES;
-use crate::app::WindowContext;
+use crate::app::{
+    menu_item,
+    WindowContext,
+};
 use crate::data_asset::{
     Room,
     RoomTrigger,
@@ -246,12 +249,9 @@ impl Editor {
         let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Maps").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
-                ui.horizontal(|ui| {
-                    ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    if ui.button("Select maps...").clicked() {
-                        choose_maps = true;
-                    }
-                });
+                if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
+                    choose_maps = true;
+                }
             });
             toggle_node_open = resp.clicked();
         });
@@ -269,12 +269,9 @@ impl Editor {
                             sel_map = Some(map_index);
                         }
                         egui::Popup::context_menu(&resp).show(|ui| {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                                if ui.button("Select maps...").clicked() {
-                                    choose_maps = true;
-                                }
-                            });
+                            if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
+                                choose_maps = true;
+                            }
                         });
                         selected
                     });
@@ -295,12 +292,9 @@ impl Editor {
         let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Triggers").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
-                ui.horizontal(|ui| {
-                    ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    if ui.button("Add trigger").clicked() {
-                        add_trigger = true;
-                    }
-                });
+                if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
+                    add_trigger = true;
+                }
             });
             toggle_node_open = resp.clicked();
         });
@@ -317,19 +311,13 @@ impl Editor {
                         sel_trigger = Some(trg_index);
                     }
                     egui::Popup::context_menu(&resp).show(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                            if ui.button("Add trigger").clicked() {
-                                add_trigger = true;
-                            }
-                        });
+                        if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
+                            add_trigger = true;
+                        }
                         ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                            if ui.button("Remove trigger").clicked() {
-                                rm_trigger = Some(trg_index);
-                            }
-                        });
+                        if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
+                            rm_trigger = Some(trg_index);
+                        }
                     });
                     selected
                 });
@@ -533,27 +521,18 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, room);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, room);
+                    }
                 });
 
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.map_data).max_width(14.0).max_height(14.0));
-                        if ui.button("Select maps...").clicked() {
-                            dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.animation).max_width(14.0).max_height(14.0));
-                        if ui.button("Add trigger").clicked() {
-                            self.add_trigger(room);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
+                        dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
+                    }
+                    if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
+                        self.add_trigger(room);
+                    }
                 });
             });
         });

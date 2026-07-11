@@ -5,10 +5,23 @@ mod transpose;
 use std::io::Error;
 use egui_extras::{TableBuilder, Column};
 
-use crate::app::{WindowContext, SysDialogResponse};
-use crate::misc::{IMAGES, mod_utils, wav_utils};
+use crate::app::{
+    menu_item,
+    menu_item_no_image,
+    WindowContext,
+    SysDialogResponse,
+};
+use crate::misc::{
+    IMAGES,
+    mod_utils,
+    wav_utils,
+};
 use crate::sound::SoundPlayer;
-use crate::data_asset::{ModData, DataAssetId, GenericAsset};
+use crate::data_asset::{
+    ModData,
+    DataAssetId,
+    GenericAsset,
+};
 
 use properties::PropertiesDialog;
 use export_sample::ExportSampleDialog;
@@ -152,28 +165,21 @@ impl Editor {
                         self.select_sample(sample_index);
                     }
                     egui::Popup::context_menu(&resp).show(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                            if ui.button("Import WAV...").clicked() {
-                                wc.sys_dialogs.open_file(
-                                    Some(wc.egui.window),
-                                    format!("editor_{}_import_sample", self.asset_id),
-                                    "mod",
-                                    "Import WAVE file",
-                                    &[
-                                        ("WAVE files (*.wav)", &["wav"]),
-                                        ("All files (*)", &[""]),
-                                    ]
-                                );
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                            let enabled = sample.len != 0;
-                            if ui.add_enabled(enabled, egui::Button::new("Export WAV...")).clicked() {
-                                dialogs.export_sample_dialog.set_open(wc, self.selected_sample, 22050, sample.bits_per_sample);
-                            }
-                        });
+                        if ui.add(menu_item(IMAGES.import, " Import WAV...")).clicked() {
+                            wc.sys_dialogs.open_file(
+                                Some(wc.egui.window),
+                                format!("editor_{}_import_sample", self.asset_id),
+                                "mod",
+                                "Import WAVE file",
+                                &[
+                                    ("WAVE files (*.wav)", &["wav"]),
+                                    ("All files (*)", &[""]),
+                                ]
+                            );
+                        }
+                        if ui.add_enabled(sample.len != 0, menu_item(IMAGES.export, " Export WAV...")).clicked() {
+                            dialogs.export_sample_dialog.set_open(wc, self.selected_sample, 22050, sample.bits_per_sample);
+                        }
                     });
                 }
             });
@@ -452,51 +458,39 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("MOD", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                        if ui.button("Import...").clicked() {
-                            wc.sys_dialogs.open_file(
-                                Some(wc.egui.window),
-                                format!("editor_{}_import_mod", self.asset_id),
-                                "mod",
-                                "Import MOD file",
-                                &[
-                                    ("MOD files (*.mod)", &["mod"]),
-                                    ("All files (*)", &[""]),
-                                ]
-                            );
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                        if ui.button("Export...").clicked() {
-                            wc.sys_dialogs.save_file(
-                                Some(wc.egui.window),
-                                format!("editor_{}_export_mod", self.asset_id),
-                                "mod",
-                                "Export MOD file",
-                                &[
-                                    ("MOD files (*.mod)", &["mod"]),
-                                    ("All files (*)", &[""]),
-                                ]
-                            );
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            format!("editor_{}_import_mod", self.asset_id),
+                            "mod",
+                            "Import MOD file",
+                            &[
+                                ("MOD files (*.mod)", &["mod"]),
+                                ("All files (*)", &[""]),
+                            ]
+                        );
+                    }
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.sys_dialogs.save_file(
+                            Some(wc.egui.window),
+                            format!("editor_{}_export_mod", self.asset_id),
+                            "mod",
+                            "Export MOD file",
+                            &[
+                                ("MOD files (*.mod)", &["mod"]),
+                                ("All files (*)", &[""]),
+                            ]
+                        );
+                    }
                     ui.separator();
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, mod_data);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, mod_data);
+                    }
                 });
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
-                        if ui.button("Transpose...").clicked() {
-                            dialogs.transpose_dialog.set_open(wc, mod_data);
-                        }
-                    });
+                    if ui.add(menu_item_no_image(" Transpose...")).clicked() {
+                        dialogs.transpose_dialog.set_open(wc, mod_data);
+                    }
                 });
             });
         });

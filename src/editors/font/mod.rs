@@ -2,14 +2,31 @@ mod properties;
 mod import;
 
 use crate::misc::IMAGES;
-use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollection, ImageCollectionIO, TextureSlot};
-use crate::data_asset::{Font, DataAssetId, GenericAsset};
+use crate::app::{
+    menu_item,
+    menu_item_no_image,
+    WindowContext,
+    SysDialogResponse,
+};
+use crate::image::{
+    ImageCollection,
+    ImageCollectionIO,
+    TextureSlot,
+};
+use crate::data_asset::{
+    Font,
+    DataAssetId,
+    GenericAsset,
+};
 
 use properties::PropertiesDialog;
 use import::ImportDialog;
 use super::AssetEditorBase;
-use super::widgets::{ImageEditorWidget, FontViewWidget, FontPainter};
+use super::widgets::{
+    ImageEditorWidget,
+    FontViewWidget,
+    FontPainter,
+};
 
 impl FontPainter for Font {
     fn font_height(&self) -> f32 {
@@ -140,74 +157,50 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Font", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.import).max_width(14.0).max_height(14.0));
-                        if ui.button("Import...").clicked() {
-                            dialogs.import_dialog.set_open(wc, font);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.export).max_width(14.0).max_height(14.0));
-                        if ui.button("Export...").clicked() {
-                            wc.sys_dialogs.save_file(
-                                Some(wc.egui.window),
-                                Self::export_dlg_id(font),
-                                "font",
-                                "Export Font",
-                                &[
-                                    ("PNG files (*.png)", &["png"]),
-                                    ("All files (*.*)", &["*"]),
-                                ]
-                            );
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        dialogs.import_dialog.set_open(wc, font);
+                    }
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.sys_dialogs.save_file(
+                            Some(wc.egui.window),
+                            Self::export_dlg_id(font),
+                            "font",
+                            "Export Font",
+                            &[
+                                ("PNG files (*.png)", &["png"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            dialogs.properties_dialog.set_open(wc, font);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(wc, font);
+                    }
                 });
                 ui.menu_button("Edit", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.blank).max_width(14.0).max_height(14.0));
-                        if ui.button("Invert colors").clicked() {
-                            for color in font.data.iter_mut() {
-                                *color = if *color == Font::FG_COLOR { Font::BG_COLOR } else { Font::FG_COLOR };
-                            }
-                            self.image_editor.set_image_changed();
+                    if ui.add(menu_item_no_image(" Invert colors")).clicked() {
+                        for color in font.data.iter_mut() {
+                            *color = if *color == Font::FG_COLOR { Font::BG_COLOR } else { Font::FG_COLOR };
                         }
-                    });
+                        self.image_editor.set_image_changed();
+                    }
 
                     ui.separator();
 
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.arrow_up).max_width(14.0).max_height(14.0));
-                        if ui.button("Shift up").clicked() {
-                            self.shift_image(font, 0, -1);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.arrow_down).max_width(14.0).max_height(14.0));
-                        if ui.button("Shift down").clicked() {
-                            self.shift_image(font, 0, 1);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.arrow_left).max_width(14.0).max_height(14.0));
-                        if ui.button("Shift left").clicked() {
-                            self.shift_image(font, -1, 0);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.arrow_right).max_width(14.0).max_height(14.0));
-                        if ui.button("Shift right").clicked() {
-                            self.shift_image(font, 1, 0);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.arrow_up, " Shift up")).clicked() {
+                        self.shift_image(font, 0, -1);
+                    }
+                    if ui.add(menu_item(IMAGES.arrow_down, " Shift down")).clicked() {
+                        self.shift_image(font, 0, 1);
+                    }
+                    if ui.add(menu_item(IMAGES.arrow_left, " Shift left")).clicked() {
+                        self.shift_image(font, -1, 0);
+                    }
+                    if ui.add(menu_item(IMAGES.arrow_right, " Shift right")).clicked() {
+                        self.shift_image(font, 1, 0);
+                    }
                 });
             });
         });

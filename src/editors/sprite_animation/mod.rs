@@ -1,16 +1,34 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::app::WindowContext;
-use crate::image::{colors, ImageCollection};
+use crate::app::{
+    menu_item,
+    menu_item_no_image,
+    WindowContext,
+};
+use crate::image::{
+    colors,
+    ImageCollection,
+};
 use crate::data_asset::{
-    SpriteAnimation, SpriteAnimationFrame, Sprite,
-    DataAssetId, GenericAsset, AssetList, AssetIdList,
+    SpriteAnimation,
+    SpriteAnimationFrame,
+    Sprite,
+    DataAssetId,
+    GenericAsset,
+    AssetList,
+    AssetIdList,
 };
 
 use properties::PropertiesDialog;
 use super::AssetEditorBase;
-use super::widgets::{ColorPickerWidget, ImageEditorWidget, SpriteFrameListView, ImageDisplay, ImageDrawingTool};
+use super::widgets::{
+    ColorPickerWidget,
+    ImageEditorWidget,
+    SpriteFrameListView,
+    ImageDisplay,
+    ImageDrawingTool,
+};
 
 enum EditorTabs {
     Sprite,
@@ -371,7 +389,7 @@ impl Editor {
                 ui.columns_const(|[head_ui, foot_ui]| {
                     head_ui.label("Head frames:");
                     head_ui.take_available_space();
-                    egui::ScrollArea::both().id_salt("head").auto_shrink([false, false]).show(head_ui, |ui| {
+                    egui::ScrollArea::vertical().id_salt("head").auto_shrink([false, false]).show(head_ui, |ui| {
                         for frame in &mut aloop.frame_indices {
                             let (_, dropped_payload) = ui.dnd_drop_zone::<FrameDragPayload, ()>(drop_frame, |ui| {
                                 let name = match frame.head_index {
@@ -380,7 +398,7 @@ impl Editor {
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
-                                    if ui.button("Remove").clicked() {
+                                    if ui.add(menu_item_no_image(" Remove")).clicked() {
                                         frame.head_index.take();
                                     }
                                 });
@@ -392,7 +410,7 @@ impl Editor {
                     });
 
                     foot_ui.label("Foot frames:");
-                    egui::ScrollArea::both().id_salt("foot").auto_shrink([false, false]).show(foot_ui, |ui| {
+                    egui::ScrollArea::vertical().id_salt("foot").auto_shrink([false, false]).show(foot_ui, |ui| {
                         for frame in &mut aloop.frame_indices {
                             let (_, dropped_payload) = ui.dnd_drop_zone::<FrameDragPayload, ()>(drop_frame, |ui| {
                                 let name = match frame.foot_index {
@@ -401,7 +419,7 @@ impl Editor {
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
-                                    if ui.button("Remove").clicked() {
+                                    if ui.add(menu_item_no_image(" Remove")).clicked() {
                                         frame.foot_index.take();
                                     }
                                 });
@@ -426,15 +444,12 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Animation", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.properties).max_width(14.0).max_height(14.0));
-                        if ui.button("Properties...").clicked() {
-                            let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
-                                PropertiesDialog::new(animation.sprite_id)
-                            });
-                            dlg.set_open(wc, animation);
-                        }
-                    });
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
+                            PropertiesDialog::new(animation.sprite_id)
+                        });
+                        dlg.set_open(wc, animation);
+                    }
                 });
             });
         });
