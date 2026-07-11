@@ -170,7 +170,7 @@ impl TileGrid {
     pub fn tileset_to_image(&mut self, tileset: &Tileset) {
         let req_img_width = self.width * Tileset::TILE_SIZE;
         let req_img_height = self.height * Tileset::TILE_SIZE;
-        if self.image.pixels.width != req_img_height ||
+        if self.image.pixels.width != req_img_width ||
             self.image.pixels.height != req_img_height {
                 self.image.resize(req_img_width, req_img_height, 1, colors::TRANSPARENT);
             }
