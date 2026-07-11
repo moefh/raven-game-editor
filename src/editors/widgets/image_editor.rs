@@ -704,11 +704,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             if frag.changed { frag.changed = false; }
             let uv = frag.get_item_uv(0);
             let frag_size = frag.get_item_size();
-            let frag_canvas_rect = Rect {
-                min: image_area_rect.min + zoom * pos.to_vec2(),
-                max: image_area_rect.min + zoom * (*pos + frag_size).to_vec2(),
-            };
-            Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, frag_canvas_rect);
+            let paint_frag_rect = Rect::from_min_size(image_area_rect.min + self.scroll + pos.to_vec2() * zoom, frag_size * zoom);
+            Image::from_texture((frag_texture.id(), frag_size)).uv(uv).paint_at(ui, paint_frag_rect);
         }
 
         // draw grid and border
