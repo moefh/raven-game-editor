@@ -73,6 +73,7 @@ pub struct WorldEditorWidget {
     dragging_region: bool,
     drag_region_origin: Pos2,
     drag_mouse_origin: Pos2,
+    tool_mouse_down: bool,
 }
 
 impl WorldEditorWidget {
@@ -87,6 +88,7 @@ impl WorldEditorWidget {
             dragging_region: false,
             drag_region_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
+            tool_mouse_down: false,
         }
     }
 
@@ -423,15 +425,23 @@ impl WorldEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(world_rect).size());
         }
 
         // check click
+        if response.drag_stopped() {
+            self.tool_mouse_down = false;
+        }
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
-            let click_pos = to_canvas.inverse() * pointer_pos;
-            self.handle_mouse_down(&response, click_pos, world);
+            if response.drag_started() {
+                self.tool_mouse_down = true;
+            }
+            if self.tool_mouse_down {
+                let click_pos = to_canvas.inverse() * pointer_pos;
+                self.handle_mouse_down(&response, click_pos, world);
+            }
         }
 
         // check zoom (must be last)

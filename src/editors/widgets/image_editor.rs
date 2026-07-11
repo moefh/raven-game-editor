@@ -152,6 +152,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     drop_selection_next_show: bool,
     drag_mouse_origin: Pos2,
     drag_frag_origin: Pos2,
+    tool_mouse_down: bool,
     _marker: std::marker::PhantomData<ImageAsset>,
 }
 
@@ -175,6 +176,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             image_changed: false,
             drop_selection_next_show: false,
             hover_pos: Vec2::ZERO,
+            tool_mouse_down: false,
         }
     }
 
@@ -752,15 +754,23 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
 
         // check pan
-        if resp.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if resp.dragged_by(egui::PointerButton::Middle) || (resp.dragged() && keys_pressed.alt) {
             self.scroll += resp.drag_delta();
             self.clip_scroll(canvas_rect.size(), zoomed_image_size);
         }
 
         // check click
+        if resp.drag_stopped() {
+            self.tool_mouse_down = false;
+        }
         if let Some(pointer_pos) = resp.interact_pointer_pos() && ! keys_pressed.alt {
-            let image_pos = canvas_to_image * pointer_pos;
-            self.handle_mouse(image_pos, image, &resp, colors);
+            if resp.drag_started() {
+                self.tool_mouse_down = true;
+            }
+            if self.tool_mouse_down {
+                let image_pos = canvas_to_image * pointer_pos;
+                self.handle_mouse(image_pos, image, &resp, colors);
+            }
         }
 
         // draw selection rectangle

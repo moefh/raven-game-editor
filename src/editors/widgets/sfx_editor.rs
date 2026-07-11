@@ -5,6 +5,7 @@ const MIN_SAMPLES_PER_POINT: f32 = 0.125;
 pub struct SfxEditorWidget {
     pub samples_per_point: f32,
     pub first_sample: f32,
+    pub tool_mouse_down: bool,
 }
 
 impl SfxEditorWidget {
@@ -12,12 +13,14 @@ impl SfxEditorWidget {
         SfxEditorWidget {
             samples_per_point: 100.0,
             first_sample: 0.0,
+            tool_mouse_down: false,
         }
     }
 
     pub fn reset(&mut self) {
         self.samples_per_point = 100.0;
         self.first_sample = 0.0;
+        self.tool_mouse_down = false;
     }
 
     fn get_marker_pos(&self, sample_index: f32) -> f32 {
@@ -165,20 +168,28 @@ impl SfxEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.first_sample -= response.drag_delta().x * self.samples_per_point;
             self.first_sample = self.first_sample.round();
             self.clip_scroll(canvas_rect.width(), samples);
         }
 
         // check click
-        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
-            let pos = ((pointer_pos.x - canvas_rect.min.x) * self.samples_per_point + self.first_sample).floor();
-            if response.dragged_by(egui::PointerButton::Primary) {
-                *loop_start = pos.clamp(0.0, samples.len() as f32) as u32;
-            } else if response.dragged_by(egui::PointerButton::Secondary) {
-                *loop_end = pos.clamp((*loop_start) as f32, samples.len() as f32) as u32;
-            }
+        if response.drag_stopped() {
+            self.tool_mouse_down = false;
         }
+        if (self.tool_mouse_down || response.drag_started()) &&
+            let Some(pointer_pos) = response.interact_pointer_pos() &&
+            ! (keys_pressed.alt || keys_pressed.ctrl) {
+                if response.drag_started() {
+                    self.tool_mouse_down = true;
+                }
+                let pos = ((pointer_pos.x - canvas_rect.min.x) * self.samples_per_point + self.first_sample).floor();
+                if response.dragged_by(egui::PointerButton::Primary) {
+                    *loop_start = pos.clamp(0.0, samples.len() as f32) as u32;
+                } else if response.dragged_by(egui::PointerButton::Secondary) {
+                    *loop_end = pos.clamp((*loop_start) as f32, samples.len() as f32) as u32;
+                }
+            }
     }
 }

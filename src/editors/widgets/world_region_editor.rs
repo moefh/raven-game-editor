@@ -11,6 +11,7 @@ pub struct WorldRegionEditorWidget {
     pub selected_room: Option<u8>,
     pub selected_room_changed: bool,
     pub hover_pos: Vec2,
+    tool_mouse_down: bool,
 }
 
 impl WorldRegionEditorWidget {
@@ -22,6 +23,7 @@ impl WorldRegionEditorWidget {
             selected_room: None,
             selected_room_changed: false,
             hover_pos: Vec2::ZERO,
+            tool_mouse_down: false,
         }
     }
 
@@ -210,14 +212,22 @@ impl WorldRegionEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), region_size);
         }
 
         // check click
+        if response.drag_stopped() {
+            self.tool_mouse_down = false;
+        }
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! keys_pressed.alt {
-            self.handle_mouse(pointer_pos, &response, region, &canvas_to_region);
+            if response.drag_started() {
+                self.tool_mouse_down = true;
+            }
+            if self.tool_mouse_down {
+                self.handle_mouse(pointer_pos, &response, region, &canvas_to_region);
+            }
         }
 
         // check zoom

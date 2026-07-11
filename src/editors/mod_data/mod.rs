@@ -58,7 +58,7 @@ impl ModDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
-        self.base.show_window(wc, mod_data, [600.0, 300.0], [600.0, 300.0], |ui, wc, mod_data, base| {
+        self.base.show_window(wc, mod_data, [610.0, 340.0], [610.0, 350.0], |ui, wc, mod_data, base| {
             Self::show_footer(ui, wc, mod_data, base);
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });
@@ -296,8 +296,9 @@ impl Editor {
             for _ in 0..num_channels {
                 table = table.columns(Column::exact(45.0).clip(true), MOD_PATTERN_CELL_NAMES.len());
             }
+            table = table.column(Column::exact(10.0).clip(true));
 
-            let scroll = table.auto_shrink(false)
+            let scroll = table.auto_shrink(true)
                 .striped(true)
                 .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                 .min_scrolled_height(0.0)
@@ -309,6 +310,7 @@ impl Editor {
                             header.col(|ui| { ui.label(*h); });
                         }
                     }
+                    header.col(|_ui| {});
                 })
                 .body(|body| {
                     body.rows(20.0, 64, |mut row| {
@@ -369,6 +371,7 @@ impl Editor {
                                 }
                             });
                         }
+                        row.col(|_ui| {});
                     });
                 });
 

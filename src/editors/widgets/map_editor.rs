@@ -176,6 +176,7 @@ pub struct MapEditorWidget {
     tool_changed: bool,
     edit_layer_changed: bool,
     undo_target: Option<MapUndoData>,
+    tool_mouse_down: bool,
 }
 
 impl MapEditorWidget {
@@ -204,6 +205,7 @@ impl MapEditorWidget {
             tool_changed: false,
             edit_layer_changed: false,
             undo_target: None,
+            tool_mouse_down: false,
         }
     }
 
@@ -465,6 +467,7 @@ impl MapEditorWidget {
     fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
                     canvas_to_map_full: &emath::RectTransform, canvas_to_map_para: &emath::RectTransform) {
         if matches!(self.edit_layer, MapLayer::Screen) {
+            if ! response.dragged_by(egui::PointerButton::Primary) { return; }
             let mouse_pos = canvas_to_map_full * pointer_pos * TILE_SIZE;
             if response.drag_started() {
                 let display_rect = egui::Rect::from_min_size(self.screen_display_pos, SCREEN_SIZE);
@@ -856,14 +859,22 @@ impl MapEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), map_size);
         }
 
         // check click
+        if response.drag_stopped() {
+            self.tool_mouse_down = false;
+        }
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! keys_pressed.alt {
-            self.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_full, &canvas_to_map_para);
+            if response.drag_started() {
+                self.tool_mouse_down = true;
+            }
+            if self.tool_mouse_down {
+                self.handle_mouse(pointer_pos, &response, map_data, &canvas_to_map_full, &canvas_to_map_para);
+            }
         }
 
         // draw selection rectangle

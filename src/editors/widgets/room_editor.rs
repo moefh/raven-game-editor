@@ -187,6 +187,7 @@ pub struct RoomEditorWidget {
     drag_item_origin: Pos2,
     drag_mouse_origin: Pos2,
     grid: GridAlign,
+    tool_mouse_down: bool,
 }
 
 impl RoomEditorWidget {
@@ -205,6 +206,7 @@ impl RoomEditorWidget {
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
             grid: GridAlign::new(Tileset::TILE_SIZE as u16),
+            tool_mouse_down: false,
         }
     }
 
@@ -418,6 +420,9 @@ impl RoomEditorWidget {
     fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) {
         if resp.drag_stopped() {
             self.drag_stop();
+            return;
+        }
+        if ! self.tool_mouse_down {
             return;
         }
 
@@ -697,13 +702,19 @@ impl RoomEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || keys_pressed.alt {
+        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.scroll += response.drag_delta();
             self.clip_scroll(canvas_rect.size(), room_size);
         }
 
         // check click
+        if response.drag_stopped() {
+            self.tool_mouse_down = false;
+        }
         if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
+            if response.drag_started() {
+                self.tool_mouse_down = true;
+            }
             let click_pos = to_canvas.inverse() * pointer_pos;
             self.handle_mouse_down(&response, click_pos, room, assets);
         }
