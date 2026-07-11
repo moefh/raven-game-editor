@@ -10,25 +10,25 @@ const ALLOWED_BITS_PER_SAMPLE: &[u16] = &[ 8, 16 ];
 
 pub struct ExportDialog {
     pub open: bool,
+    pub dlg_window_id: egui::Id,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
     pub sample_rate: u32,
     pub bits_per_sample: u16,
+    pub export_sys_dlg_id: String,
 }
 
 impl ExportDialog {
     pub fn new() -> Self {
         ExportDialog {
             open: false,
+            dlg_window_id: egui::Id::new("dlg_sfx_export"),
             filename: None,
             display_filename: None,
             bits_per_sample: 0,
             sample_rate: 0,
+            export_sys_dlg_id: String::new(),
         }
-    }
-
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_sfx_export")
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sfx: &Sfx, sample_rate: u32) {
@@ -36,8 +36,9 @@ impl ExportDialog {
         self.display_filename = None;
         self.bits_per_sample = sfx.bits_per_sample;
         self.sample_rate = sample_rate;
+        self.export_sys_dlg_id.replace_range(.., &format!("editor_{}_export_sfx", sfx.asset.id));
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sfx: &mut Sfx) -> bool {
@@ -57,13 +58,12 @@ impl ExportDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx) {
         if ! self.open { return; }
-        let export_dlg_id = format!("editor_{}_export_sfx", sfx.asset.id);
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&export_dlg_id) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) {
             self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
             self.filename = Some(filename);
         }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Export Sfx", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 300.0, "Export Sfx", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_export_sfx_grid", sfx.asset.id))
                     .num_columns(2)
@@ -79,7 +79,7 @@ impl ExportDialog {
                             if ui.button("...").clicked() {
                                 wc.sys_dialogs.save_file(
                                     Some(wc.egui.window),
-                                    export_dlg_id,
+                                    self.export_sys_dlg_id.clone(),
                                     "sfx",
                                     "Export Sfx",
                                     &[
@@ -128,7 +128,7 @@ impl ExportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_window_id, self.open);
         }
     }
 }

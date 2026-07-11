@@ -123,6 +123,7 @@ struct Editor {
     asset_id: DataAssetId,
     image_editor: ImageEditorWidget<Font>,
     font_view: FontViewWidget,
+    export_sys_dlg_id: String,
 }
 
 impl Editor {
@@ -131,6 +132,7 @@ impl Editor {
             asset_id,
             image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR).with_selection_enabled(false),
             font_view: FontViewWidget::new(),
+            export_sys_dlg_id: format!("editor_{}_export_font", asset_id),
         }
     }
 
@@ -142,10 +144,6 @@ impl Editor {
         } else {
             ch.to_string()
         }
-    }
-
-    fn export_dlg_id(font: &Font) -> String {
-        format!("editor_{}_export_font", font.asset.id)
     }
 
     fn shift_image(&mut self, font: &mut Font, dx: i32, dy: i32) {
@@ -163,7 +161,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
                         wc.sys_dialogs.save_file(
                             Some(wc.egui.window),
-                            Self::export_dlg_id(font),
+                            self.export_sys_dlg_id.clone(),
                             "font",
                             "Export Font",
                             &[
@@ -277,7 +275,7 @@ impl Editor {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(font)) &&
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
             let Err(e) = font.save_font_png(&filename, 16) {
                 wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
             }

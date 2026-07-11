@@ -161,6 +161,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_frame_sys_dlg_id: String,
     color_picker: ColorPickerWidget,
     image_picker: ImagePickerWidget,
     image_editor: ImageEditorWidget<Sprite>,
@@ -170,6 +171,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_frame_sys_dlg_id: format!("editor_{}_import_frame", asset_id),
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, true),
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::<Sprite>::new(),
@@ -177,8 +179,7 @@ impl Editor {
     }
 
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
-        let import_frame_dlg_id = format!("editor_{}_import_frame", sprite.asset.id);
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&import_frame_dlg_id) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_frame_sys_dlg_id) {
             let image = match ImagePixels::load_png(&filename) {
                 Ok(img) => img,
                 Err(e) => {
@@ -231,7 +232,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.import, " Paste from file...")).clicked() {
                         wc.sys_dialogs.open_file(
                             Some(wc.egui.window),
-                            import_frame_dlg_id,
+                            self.import_frame_sys_dlg_id.clone(),
                             "sprite",
                             "Paste From File",
                             &[

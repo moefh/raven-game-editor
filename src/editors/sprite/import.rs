@@ -9,37 +9,38 @@ use super::super::ImageSlicingMethodOption;
 
 pub struct ImportDialog {
     pub open: bool,
+    pub dlg_window_id: egui::Id,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
     pub slicing_method: ImageSlicingMethod,
     pub border: u32,
     pub space_between: u32,
+    pub import_sprite_sys_dlg_id: String,
 }
 
 impl ImportDialog {
     pub fn new() -> Self {
         ImportDialog {
             open: false,
+            dlg_window_id: egui::Id::new("dlg_sprite_import"),
             filename: None,
             display_filename: None,
             slicing_method: ImageSlicingMethod::by_number(1, 1),
             border: 0,
             space_between: 0,
+            import_sprite_sys_dlg_id: String::new(),
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_sprite_import")
-    }
-
-    pub fn set_open(&mut self, wc: &mut WindowContext, _sprite: &Sprite) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
         self.filename = None;
         self.display_filename = None;
         self.slicing_method = ImageSlicingMethod::by_number(1, 1);
         self.border = 0;
         self.space_between = 0;
+        self.import_sprite_sys_dlg_id.replace_range(.., &format!("editor_{}_import_sprite", sprite.asset.id));
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
@@ -66,13 +67,13 @@ impl ImportDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if ! self.open { return false; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_sprite", sprite.asset.id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sprite_sys_dlg_id) {
             self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
             self.filename = Some(filename);
         }
 
         let mut confirmed = false;
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Import Sprite", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Import Sprite", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_import_grid", sprite.asset.id))
                     .num_columns(2)
@@ -88,7 +89,7 @@ impl ImportDialog {
                             if ui.button("...").clicked() {
                                 wc.sys_dialogs.open_file(
                                     Some(wc.egui.window),
-                                    format!("editor_{}_import_sprite", sprite.asset.id),
+                                    self.import_sprite_sys_dlg_id.clone(),
                                     "sprite",
                                     "Import Sprite",
                                     &[
@@ -164,7 +165,7 @@ impl ImportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_window_id, self.open);
         }
         confirmed
     }

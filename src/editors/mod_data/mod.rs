@@ -108,6 +108,9 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sample_sys_dlg_id: String,
+    import_mod_sys_dlg_id: String,
+    export_mod_sys_dlg_id: String,
     selected_tab: EditorTabs,
     selected_sample: usize,
     selected_song_position: usize,
@@ -120,6 +123,9 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sample_sys_dlg_id: format!("editor_{}_import_sample", asset_id),
+            import_mod_sys_dlg_id: format!("editor_{}_import_mod", asset_id),
+            export_mod_sys_dlg_id: format!("editor_{}_export_mod", asset_id),
             selected_tab: EditorTabs::Samples,
             selected_sample: 0,
             selected_song_position: 0,
@@ -168,7 +174,7 @@ impl Editor {
                         if ui.add(menu_item(IMAGES.import, " Import WAV...")).clicked() {
                             wc.sys_dialogs.open_file(
                                 Some(wc.egui.window),
-                                format!("editor_{}_import_sample", self.asset_id),
+                                self.import_sample_sys_dlg_id.clone(),
                                 "mod",
                                 "Import WAVE file",
                                 &[
@@ -178,7 +184,7 @@ impl Editor {
                             );
                         }
                         if ui.add_enabled(sample.len != 0, menu_item(IMAGES.export, " Export WAV...")).clicked() {
-                            dialogs.export_sample_dialog.set_open(wc, self.selected_sample, 22050, sample.bits_per_sample);
+                            dialogs.export_sample_dialog.set_open(wc, mod_data, self.selected_sample, 22050, sample.bits_per_sample);
                         }
                     });
                 }
@@ -442,15 +448,21 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_sample", self.asset_id)) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        mod_data: &mut ModData,
+        sound_player: &mut SoundPlayer
+    ) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sample_sys_dlg_id) {
             self.import_sample(wc, &filename, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_mod", self.asset_id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_mod_sys_dlg_id) {
             self.import_mod(wc, &filename, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_export_mod", self.asset_id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_mod_sys_dlg_id) {
             self.export_mod(wc, &filename, mod_data);
         }
 
@@ -461,7 +473,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
                         wc.sys_dialogs.open_file(
                             Some(wc.egui.window),
-                            format!("editor_{}_import_mod", self.asset_id),
+                            self.import_mod_sys_dlg_id.clone(),
                             "mod",
                             "Import MOD file",
                             &[
@@ -473,7 +485,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
                         wc.sys_dialogs.save_file(
                             Some(wc.egui.window),
-                            format!("editor_{}_export_mod", self.asset_id),
+                            self.export_mod_sys_dlg_id.clone(),
                             "mod",
                             "Export MOD file",
                             &[

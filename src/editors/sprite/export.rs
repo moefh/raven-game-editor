@@ -7,31 +7,32 @@ use super::super::AssetEditorBase;
 
 pub struct ExportDialog {
     pub open: bool,
+    pub dlg_window_id: egui::Id,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
     pub num_items_x: u32,
+    pub export_sprite_sys_dlg_id: String,
 }
 
 impl ExportDialog {
     pub fn new() -> Self {
         ExportDialog {
             open: false,
+            dlg_window_id: egui::Id::new("dlg_sprite_export"),
             filename: None,
             display_filename: None,
             num_items_x: 1,
+            export_sprite_sys_dlg_id: String::new(),
         }
-    }
-
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_sprite_export")
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
         self.filename = None;
         self.display_filename = None;
         self.num_items_x = (sprite.num_frames as f32).sqrt().ceil() as u32;
+        self.export_sprite_sys_dlg_id.replace_range(.., &format!("editor_{}_export_sprite", sprite.asset.id));
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
@@ -48,12 +49,12 @@ impl ExportDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) {
         if ! self.open { return; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_export_sprite", sprite.asset.id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sprite_sys_dlg_id) {
             self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
             self.filename = Some(filename);
         }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Export Sprite", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Export Sprite", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_export_grid", sprite.asset.id))
                     .num_columns(2)
@@ -69,7 +70,7 @@ impl ExportDialog {
                             if ui.button("...").clicked() {
                                 wc.sys_dialogs.save_file(
                                     Some(wc.egui.window),
-                                    format!("editor_{}_export_sprite", sprite.asset.id),
+                                    self.export_sprite_sys_dlg_id.clone(),
                                     "sprite",
                                     "Export Sprite",
                                     &[
@@ -97,7 +98,7 @@ impl ExportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_window_id, self.open);
         }
     }
 }

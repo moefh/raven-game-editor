@@ -130,6 +130,7 @@ struct Editor {
     asset_id: DataAssetId,
     prop_font_editor: PropFontEditorWidget,
     font_view: FontViewWidget,
+    export_sys_dlg_id: String,
 }
 
 impl Editor {
@@ -138,6 +139,7 @@ impl Editor {
             asset_id,
             prop_font_editor: PropFontEditorWidget::new().with_selected_char('@' as u32 - PropFont::FIRST_CHAR),
             font_view: FontViewWidget::new(),
+            export_sys_dlg_id: format!("editor_{}_export_pfont", asset_id),
         }
     }
 
@@ -149,10 +151,6 @@ impl Editor {
         } else {
             ch.to_string()
         }
-    }
-
-    fn export_dlg_id(pfont: &PropFont) -> String {
-        format!("editor_{}_export_pfont", pfont.asset.id)
     }
 
     fn shift_image(&mut self, prop_font: &mut PropFont, dx: i32, dy: i32) {
@@ -170,7 +168,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
                         wc.sys_dialogs.save_file(
                             Some(wc.egui.window),
-                            Self::export_dlg_id(prop_font),
+                            self.export_sys_dlg_id.clone(),
                             "prop_font",
                             "Export Prop Font",
                             &[
@@ -298,7 +296,7 @@ impl Editor {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, prop_font: &mut PropFont) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(Self::export_dlg_id(prop_font)) &&
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
             let Err(e) = ImagePixels::save_prop_font_png(&filename, prop_font) {
                 wc.open_message_box("Error Exporting", format!("Error exporting prop font to {}:\n{}", filename.display(), e));
             }

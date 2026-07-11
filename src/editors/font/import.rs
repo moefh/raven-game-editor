@@ -7,6 +7,8 @@ use super::super::AssetEditorBase;
 
 pub struct ImportDialog {
     pub open: bool,
+    pub dlg_window_id: egui::Id,
+    pub import_sys_dlg_id: String,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
     pub width: u32,
@@ -19,6 +21,8 @@ impl ImportDialog {
     pub fn new() -> Self {
         ImportDialog {
             open: false,
+            dlg_window_id: egui::Id::new("dlg_font_import"),
+            import_sys_dlg_id: String::new(),
             filename: None,
             display_filename: None,
             width: 0,
@@ -28,10 +32,6 @@ impl ImportDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_font_import")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, font: &Font) {
         self.filename = None;
         self.display_filename = None;
@@ -39,8 +39,9 @@ impl ImportDialog {
         self.height = font.height;
         self.border = 0;
         self.space_between = 0;
+        self.import_sys_dlg_id.replace_range(.., &format!("editor_{}_import_font", font.asset.id));
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
     fn fix_font_colors(font: &mut Font) {
@@ -88,13 +89,13 @@ impl ImportDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) -> bool {
         if ! self.open { return false; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}_import_font", font.asset.id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
             self.filename = Some(filename);
         }
 
         let mut confirmed = false;
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Import Font", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Import Font", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_import_grid", font.asset.id))
                     .num_columns(2)
@@ -151,7 +152,7 @@ impl ImportDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_window_id, self.open);
         }
         confirmed
     }

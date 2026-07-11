@@ -180,6 +180,7 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     tile_picker_panel_id: egui::Id,
+    import_tile_sys_dlg_id: String,
     selected_tab: EditorTab,
     color_picker: ColorPickerWidget,
     tile_picker: ImagePickerWidget,
@@ -198,6 +199,7 @@ impl Editor {
         Editor {
             asset_id,
             tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_left", asset_id)),
+            import_tile_sys_dlg_id: format!("editor_{}_import_tile", asset_id),
             selected_tab: EditorTab::Tile,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
             tile_picker: ImagePickerWidget::new(),
@@ -364,8 +366,7 @@ impl Editor {
     }
 
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
-        let import_tile_dlg_id = format!("editor_{}_import_tile", tileset.asset.id);
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&import_tile_dlg_id) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_tile_sys_dlg_id) {
             let image = match ImagePixels::load_png(&filename) {
                 Ok(img) => img,
                 Err(e) => {
@@ -380,7 +381,7 @@ impl Editor {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tileset", |ui| {
                     if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
-                        dialogs.import_dialog.set_open(wc);
+                        dialogs.import_dialog.set_open(wc, tileset);
                     }
                     if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
                         dialogs.export_dialog.set_open(wc, tileset);
@@ -422,7 +423,7 @@ impl Editor {
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.import, " Paste from file...")).clicked() {
                         wc.sys_dialogs.open_file(
                             Some(wc.egui.window),
-                            import_tile_dlg_id,
+                            self.import_tile_sys_dlg_id.clone(),
                             "tileset",
                             "Paste From File",
                             &[

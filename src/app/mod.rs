@@ -72,6 +72,9 @@ pub struct RavenEditorApp {
 
 impl RavenEditorApp {
     const DEFAULT_BITS_PER_PIXEL: u8 = 8;
+    const OPEN_PROJECT_SYS_DLG_ID: &str = "open_project";
+    const SAVE_PROJECT_SYS_DLG_ID: &str = "save_project_as";
+    const EXPORT_HEADER_SYS_DLG_ID: &str = "export_header";
 
     pub fn new(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings) -> Self {
         let mut app = RavenEditorApp {
@@ -238,7 +241,7 @@ impl RavenEditorApp {
     pub fn save_as(&mut self, window: &eframe::Frame) {
         self.sys_dialogs.save_file(
             Some(window),
-            "save_project_as".to_owned(),
+            Self::SAVE_PROJECT_SYS_DLG_ID.to_owned(),
             "project",
             "Save Project As",
             &[
@@ -445,7 +448,7 @@ impl RavenEditorApp {
                     if ui.add(menu_item(IMAGES.open, " Open...")).clicked() {
                         self.sys_dialogs.open_file(
                             Some(window),
-                            "open_project".to_owned(),
+                            Self::OPEN_PROJECT_SYS_DLG_ID.to_owned(),
                             "project",
                             "Open Project",
                             &[
@@ -495,7 +498,7 @@ impl RavenEditorApp {
                     if ui.add(menu_item_no_image(" Export header...")).clicked() {
                         self.sys_dialogs.save_file(
                             Some(window),
-                            "export_header".to_owned(),
+                            Self::EXPORT_HEADER_SYS_DLG_ID.to_owned(),
                             "project",
                             "Export Header File",
                             &[
@@ -541,7 +544,7 @@ impl RavenEditorApp {
                 if ui.add(egui::Button::image(IMAGES.open).frame_when_inactive(false)).on_hover_text("Open Project").clicked() {
                     self.sys_dialogs.open_file(
                         Some(window),
-                        "open_project".to_owned(),
+                        Self::OPEN_PROJECT_SYS_DLG_ID.to_owned(),
                         "project",
                         "Open Project",
                         &[
@@ -826,14 +829,14 @@ impl eframe::App for RavenEditorApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("save_project_as") &&
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::SAVE_PROJECT_SYS_DLG_ID) &&
             self.write_project(&filename) {
                 self.set_filename(Some(filename));
             }
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("open_project") {
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::OPEN_PROJECT_SYS_DLG_ID) {
             self.open(filename);
         }
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for("export_header") {
+        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
             self.export_header(&filename);
         }
 

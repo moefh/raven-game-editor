@@ -86,6 +86,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     sfx_editor: SfxEditorWidget,
     play_volume: f32,
     play_freq: f32,
@@ -95,6 +96,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_sfx", asset_id),
             sfx_editor: SfxEditorWidget::new(),
             play_volume: 0.5,
             play_freq: 11025.0,
@@ -121,7 +123,7 @@ impl Editor {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(format!("editor_{}", self.asset_id)) {
+        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.import_wav(wc, &filename, sfx);
         }
 
@@ -135,7 +137,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
                         wc.sys_dialogs.open_file(
                             Some(wc.egui.window),
-                            format!("editor_{}", self.asset_id),
+                            self.import_sys_dlg_id.clone(),
                             "sfx",
                             "Import WAVE file",
                             &[
