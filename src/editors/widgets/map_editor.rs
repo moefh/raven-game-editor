@@ -840,12 +840,21 @@ impl MapEditorWidget {
 
         let keys_pressed = ui.ctx().input(|i| i.modifiers);
 
-        // set move cursor if ALT is pressed
-        if response.contains_pointer() && response.hovered() && keys_pressed.alt {
-            if response.dragged() {
-                response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+        // set cursor
+        if response.contains_pointer() && response.hovered() {
+            if keys_pressed.alt {
+                response.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
+            } else if keys_pressed.ctrl {
+                response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
+            } else if matches!(self.edit_layer, MapLayer::Screen) {
+                response.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
             } else {
-                response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+                match self.tool {
+                    MapTool::Pencil => {}
+                    MapTool::SelectLayer | MapTool::SelectFullLayers | MapTool::SelectAllLayers => {
+                        response.ctx.set_cursor_icon(egui::CursorIcon::Crosshair)
+                    }
+                }
             }
         }
 

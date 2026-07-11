@@ -405,11 +405,7 @@ impl RoomEditorWidget {
     fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) {
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
         if keys_pressed.alt {
-            if resp.dragged() {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
-            } else {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grab);
-            }
+            resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
         } else if keys_pressed.ctrl {
             resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
         } else if let Some(border) = Self::get_trigger_border(self.selected_item, room, mouse_pos, self.zoom, assets) {

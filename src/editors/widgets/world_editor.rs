@@ -219,11 +219,9 @@ impl WorldEditorWidget {
     fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, world: &mut World) {
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
         if keys_pressed.alt {
-            if resp.dragged() {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
-            } else {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grab);
-            }
+            resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
+        } else if keys_pressed.ctrl {
+            resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
         } else if let Some(border) = Self::get_region_border(self.selected_region, world, mouse_pos, self.zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
         }

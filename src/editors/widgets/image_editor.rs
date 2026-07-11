@@ -732,12 +732,14 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
 
-        // set move cursor if ALT is pressed
-        if resp.contains_pointer() && resp.hovered() && keys_pressed.alt {
-            if resp.dragged() {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
-            } else {
-                resp.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+        // set cursor
+        if resp.contains_pointer() && resp.hovered() {
+            if keys_pressed.alt {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
+            } else if keys_pressed.ctrl {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
+            } else if self.tool == ImageDrawingTool::Select {
+                resp.ctx.set_cursor_icon(egui::CursorIcon::Crosshair)
             }
         }
 
