@@ -523,7 +523,6 @@ impl Editor {
                             }
                         ui.add_space(1.0);
                         ui.label("Display:");
-                        ui.spacing_mut().item_spacing = spacing;
 
                         ui.add_space(5.0);
                         ui.separator();
@@ -552,6 +551,8 @@ impl Editor {
                         };
                         ui.add_space(1.0);
                         ui.label("Zoom:");
+
+                        ui.spacing_mut().item_spacing = spacing;
                     });
                 });
             });

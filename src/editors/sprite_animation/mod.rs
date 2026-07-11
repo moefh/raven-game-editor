@@ -21,7 +21,11 @@ use crate::data_asset::{
 };
 
 use properties::PropertiesDialog;
-use super::AssetEditorBase;
+use super::{
+    IMAGE_ZOOM_OPTIONS,
+    ImageZoomOption,
+    AssetEditorBase,
+};
 use super::widgets::{
     ColorPickerWidget,
     ImageEditorWidget,
@@ -210,6 +214,25 @@ impl Editor {
                             }
                         ui.add_space(1.0);
                         ui.label("Display:");
+
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
+                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
+                        egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_option.name())
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for option in IMAGE_ZOOM_OPTIONS {
+                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                                }
+                            });
+                        self.image_editor.zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+
                         ui.spacing_mut().item_spacing = spacing;
                     });
                 });

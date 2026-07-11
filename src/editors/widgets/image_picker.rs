@@ -16,6 +16,8 @@ pub struct ImagePickerWidget {
 }
 
 impl ImagePickerWidget {
+    const BORDER: f32 = 3.0;
+
     pub fn new() -> Self {
         ImagePickerWidget {
             allow_empty_selection: false,
@@ -69,13 +71,17 @@ impl ImagePickerWidget {
         }
     }
 
-    fn draw_selection_rectangle(&self, painter: &egui::Painter, canvas_pos: Pos2, image_size: Vec2,
-                                selected_image: Option<u32>, shrink: f32, colors: (Color32, Color32)) {
+    fn draw_selection_rectangle(
+        &self,
+        painter: &egui::Painter,
+        canvas_pos: Pos2,
+        image_size: Vec2,
+        selected_image: Option<u32>,
+        shrink: f32,
+        colors: (Color32, Color32)
+    ) {
         let pos = canvas_pos + Vec2::new(shrink, self.selection_to_ui_pos(selected_image) * image_size.y + shrink);
-        let sel_rect = Rect {
-            min: pos,
-            max: pos + image_size - Vec2::splat(2.0 * shrink),
-        };
+        let sel_rect = Rect::from_min_size(pos, image_size - Vec2::splat(2.0 * shrink) + Vec2::splat(2.0 * Self::BORDER));
         let stroke = egui::Stroke::new(3.0, colors.0);
         painter.rect_stroke(sel_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
 
@@ -84,8 +90,14 @@ impl ImagePickerWidget {
         painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, _settings: &AppSettings, image: &impl ImageCollection,
-                texture: &egui::TextureHandle, bg_color: Color32) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        _settings: &AppSettings,
+        image: &impl ImageCollection,
+        texture: &egui::TextureHandle,
+        bg_color: Color32
+    ) {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
         let image_size = self.zoom * image.get_item_size();
@@ -105,32 +117,31 @@ impl ImagePickerWidget {
 
         let resp = scroll_area.show(ui, |ui| {
             let empty_item_size = self.zoom * if self.allow_empty_selection { Vec2::new(0.0, image.height() as f32) } else { Vec2::ZERO };
-            let image_picker_size = self.zoom * image.get_full_size() + empty_item_size;
+            let image_picker_size = self.zoom * image.get_full_size() + empty_item_size + 2.0 * Vec2::splat(Self::BORDER);
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
             let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
             let space = response.rect;
-            let images_rect = Rect {
-                min: space.min + empty_item_size,
-                max: space.min + empty_item_size + self.zoom * image.get_full_size(),
-            };
-            let canvas_rect = Rect {
-                min: space.min,
-                max: space.min + image_picker_size,
-            };
+            let images_rect = Rect::from_min_size(space.min + empty_item_size + Vec2::splat(Self::BORDER), self.zoom * image.get_full_size());
+            let canvas_rect = Rect::from_min_size(space.min, image_picker_size);
 
             // draw background
-            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, bg_color);
+            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, Color32::BLACK);
+            if self.allow_empty_selection {
+                let empty_image_rect = Rect::from_min_size(space.min + Vec2::splat(Self::BORDER), self.zoom * image.get_item_size());
+                painter.rect_filled(empty_image_rect, egui::CornerRadius::ZERO, bg_color);
+            }
+            painter.rect_filled(images_rect, egui::CornerRadius::ZERO, bg_color);
 
             // draw items
             egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);
 
             // draw selection rectangles
-            self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
-                                          0.0, (Color32::BLUE, Color32::WHITE));
             if self.allow_second_selection {
                 self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image_right,
-                                              4.0, (Color32::RED, Color32::WHITE));
+                                              3.0, (Color32::RED, Color32::WHITE));
             }
+            self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
+                                          0.0, (Color32::BLUE, Color32::WHITE));
 
             response
         });
