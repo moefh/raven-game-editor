@@ -1,7 +1,10 @@
 use super::AppWindow;
 use super::super::WindowContext;
 
-use crate::data_asset::{DataAssetId, DataAssetStore};
+use crate::data_asset::{
+    DataAssetId,
+    DataAssetStore,
+};
 use crate::checker::CheckResult;
 
 pub struct CheckWindow {
@@ -27,8 +30,8 @@ impl CheckWindow {
 
     pub fn show(&mut self, wc: &WindowContext, store: &DataAssetStore) -> Option<DataAssetId> {
         let default_rect = egui::Rect {
-            min: egui::Pos2::new(wc.window_space.min.x + 5.0, wc.window_space.max.y - 130.0),
-            max: wc.window_space.max - egui::Vec2::splat(20.0),
+            min: egui::Pos2::new(wc.window_space.min.x + 5.0, wc.window_space.max.y - 150.0),
+            max: wc.window_space.max - egui::Vec2::splat(5.0),
         };
         let mut open_asset_id = None;
         self.base.create_window(wc, "✔ Project Check", default_rect).show(wc.egui.ctx, |ui| {
