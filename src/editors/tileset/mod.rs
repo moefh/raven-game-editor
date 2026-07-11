@@ -393,20 +393,24 @@ impl Editor {
                     }
                 });
                 ui.menu_button("Edit", |ui| {
-                    if ui.add_enabled(self.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
+                    let can_undo = self.can_undo();
+                    let has_selection = ! self.selection_is_empty();
+                    let can_paste = wc.image_clipboard.is_some();
+                    let can_change_tiles = matches!(self.selected_tab, EditorTab::Tile);
+
+                    if ui.add_enabled(can_undo, menu_item(IMAGES.undo, " Undo")).clicked() {
                         self.undo(wc, tileset);
                     }
 
                     ui.separator();
 
-                    let has_selection = ! self.selection_is_empty();
                     if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
                         self.cut(wc, tileset);
                     }
                     if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
                         self.copy(wc, tileset);
                     }
-                    if ui.add_enabled(wc.image_clipboard.is_some(), menu_item(IMAGES.paste, " Paste")).clicked() {
+                    if ui.add_enabled(can_paste, menu_item(IMAGES.paste, " Paste")).clicked() {
                         self.paste(wc, tileset);
                     }
                     if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
@@ -415,7 +419,7 @@ impl Editor {
 
                     ui.separator();
 
-                    if ui.add(menu_item(IMAGES.import, " Paste from file...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.import, " Paste from file...")).clicked() {
                         wc.sys_dialogs.open_file(
                             Some(wc.egui.window),
                             import_tile_dlg_id,
@@ -430,15 +434,15 @@ impl Editor {
 
                     ui.separator();
 
-                    if ui.add(menu_item(IMAGES.add, " Insert tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Insert tiles...")).clicked() {
                         dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.tile_image_editor.get_selected_image(),
                             self.color_picker.state.right_color);
                     }
-                    if ui.add(menu_item(IMAGES.add, " Append tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Append tiles...")).clicked() {
                         dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.tile_image_editor.get_selected_image(),
                             self.color_picker.state.right_color);
                     }
-                    if ui.add(menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
                         dialogs.rm_tiles_dialog.set_open(wc, tileset, self.tile_image_editor.get_selected_image());
                     }
                 });
