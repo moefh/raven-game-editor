@@ -264,7 +264,7 @@ impl AssetEditorBase {
                     let rect = self.window_rect;
                     (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
                 }
-                MaximizedState::UnmaxSizeReset | _ => {
+                _ => {
                     self.maximized_state = MaximizedState::Normal;
                     let rect = self.window_rect;
                     (rect, rect.with_max_x(rect.max.x-2.0).with_max_y(rect.max.y-2.0))
