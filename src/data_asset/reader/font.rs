@@ -1,9 +1,9 @@
 use std::io::Result;
 
 use super::{
-    error,
-    Value,
-    AssetDef,
+    ValueDef,
+    ValueDefStruct,
+    ValueStruct,
     ProjectData,
 };
 use super::super::{
@@ -12,6 +12,15 @@ use super::super::{
     DataAssetType,
     Font,
 };
+
+pub fn get_asset_def() -> ValueDefStruct
+{
+    ValueDefStruct::new(vec![
+        (String::from("width"), ValueDef::U8),
+        (String::from("height"), ValueDef::U8),
+        (String::from("data"), ValueDef::ArrayRef),
+    ])
+}
 
 fn bits_to_pixels(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
     let stride = width.div_ceil(8) as usize;
@@ -29,23 +38,19 @@ fn bits_to_pixels(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
     pixels
 }
 
-pub fn create(asset_id: DataAssetId, asset_def: &AssetDef, project_data: &ProjectData) -> Result<Font> {
-    if let Value::Struct(value) = &asset_def.value && let [
-        Value::U8(width),
-        Value::U8(height),
-        Value::ArrayRef(array),
-    ] = &value[..] {
-        let width = *width as u32;
-        let height = *height as u32;
-        let data = array.get_u8_array(project_data)?;
-        let name = project_data.extract_asset_name("font_data_", array)?;
-        Ok(Font {
-            asset: DataAsset::new(DataAssetType::Font, asset_id, DataAsset::identifier_to_name(name)),
-            width,
-            height,
-            data: bits_to_pixels(data, width, height),
-        })
-    } else {
-        error(format!("bad font data : {:?}", asset_def.value), asset_def.pos)
-    }
+pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &ProjectData) -> Result<Font> {
+    let width = asset_struct.get_u8("width")?;
+    let height = asset_struct.get_u8("height")?;
+    let array = asset_struct.get_array_ref("data")?;
+
+    let width = width as u32;
+    let height = height as u32;
+    let data = array.get_u8_array(project_data)?;
+    let name = project_data.extract_asset_name("font_data_", array)?;
+    Ok(Font {
+        asset: DataAsset::new(DataAssetType::Font, asset_id, DataAsset::identifier_to_name(name)),
+        width,
+        height,
+        data: bits_to_pixels(data, width, height),
+    })
 }

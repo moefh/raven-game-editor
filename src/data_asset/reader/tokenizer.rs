@@ -30,9 +30,9 @@ impl std::fmt::Display for Token {
             TokenData::String(s) => write!(f, "\"{}\"", s),
             TokenData::Char(c) => write!(f, "'{}'", c),
             TokenData::Number(n) => write!(f, "{}", n),
-            TokenData::Ident(id) => write!(f, "{}", &id),
+            TokenData::Ident(id) => write!(f, "{}", id),
             TokenData::Punct(c) => write!(f, "{}", c),
-            TokenData::PreProcessor(pre) => write!(f, "{}", &pre),
+            TokenData::PreProcessor(pre) => write!(f, "{}", pre),
         }
     }
 }

@@ -1,11 +1,15 @@
 use std::io::Result;
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use super::{
     error,
     Value,
-    AssetDef,
+    ValueDef,
+    ValueDefStruct,
+    ValueStruct,
     ProjectData,
-    TokenPosition,
+    ProjectDataReader,
 };
 use super::super::{
     DataAsset,
@@ -18,157 +22,211 @@ use super::super::{
     RoomTriggerTypeIdent,
 };
 
-fn conv_map(map: &Value, project_data: &ProjectData, pos: TokenPosition) -> Result<RoomMap> {
-    if let Value::Struct(value) = map && let [
-        Value::U16(x),
-        Value::U16(y),
-        Value::AssetRef(map_ref),
-    ] = &value[..] {
-        Ok(RoomMap {
-            x: *x,
-            y: *y,
-            map_id: map_ref.get_asset_id(project_data)?,
-        })
+pub fn get_asset_def() -> ValueDefStruct {
+    ValueDefStruct::new(vec![
+        (String::from("num_maps"), ValueDef::U16),
+        (String::from("num_triggers"), ValueDef::U16),
+        (String::from("maps"), ValueDef::ArrayRef),      // ROOM_MAP_INFO
+        (String::from("triggers"), ValueDef::ArrayRef),  // ROOM_TRIGGER_INFO
+    ])
+}
+
+pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
+    vec![
+        (String::from("ROOM_MAP_INFO"), ValueDefStruct::new(vec![
+            (String::from("x"), ValueDef::U16),
+            (String::from("y"), ValueDef::U16),
+            (String::from("map"), ValueDef::AssetRef),
+        ])),
+        (String::from("ROOM_TRIGGER_INFO"), ValueDefStruct::new(vec![
+            (String::from("type"), ValueDef::Identifier),
+            (String::from("x"), ValueDef::I16),
+            (String::from("y"), ValueDef::I16),
+            (String::from("trigger"), ValueDef::Custom(custom_read_room_trigger_info)),  // ValueStruct
+        ])),
+    ]
+}
+
+pub fn read_custom_global_struct(reader: &mut ProjectDataReader, struct_tag: &str) -> Result<bool> {
+    if struct_tag == "ROOM_SCRIPT" {   // ignore room script table
+        reader.expect_punct('*')?;
+        reader.expect_any_ident("room script table identifier")?;
+        reader.expect_punct('[')?;
+        reader.expect_punct(']')?;
+        reader.expect_punct('=')?;
+        reader.expect_punct('{')?;
+        while let Some(t) = reader.read_loop()? {
+            if ! t.is_punct('&') {
+                return error(format!("expected '&', found '{}'", t), t.pos);
+            }
+            reader.expect_any_ident("room script table")?;
+        }
+        reader.expect_punct(';')?;
+        Ok(true)
     } else {
-        error(format!("bad room map data: {:?}", map), pos)
+        Ok(false)
     }
 }
 
-fn conv_trigger_any(data: &Vec<Value>, _project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTriggerType> {
-    if let [
-        Value::U16(data0),
-        Value::U16(data1),
-        Value::U16(data2),
-        Value::U16(data3),
-    ] = &data[..] {
-        Ok(RoomTriggerType::Unknown {
-            data0: *data0,
-            data1: *data1,
-            data2: *data2,
-            data3: *data3,
-        })
-    } else {
-        error(format!("bad room trigger data for any: {:?}", data), pos)
-    }
-}
+// structs inside the room trigger data union
+static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("any"), ValueDefStruct::new(vec![
+            (String::from("data0"), ValueDef::U32),
+            (String::from("data1"), ValueDef::U32),
+            (String::from("data2"), ValueDef::U32),
+            (String::from("data3"), ValueDef::U32),
+        ])),
 
-fn conv_trigger_door(data: &Vec<Value>, project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTriggerType> {
-    if let [
-        Value::AssetRef(room_ref),
-        Value::U16(door_id),
-    ] = &data[..] {
-        Ok(RoomTriggerType::Door {
-            room_id: room_ref.get_asset_id(project_data)?,
-            door_id: *door_id,
-        })
-    } else {
-        error(format!("bad room trigger data for door: {:?}", data), pos)
-    }
-}
+        (String::from("door"), ValueDefStruct::new(vec![
+            (String::from("room"), ValueDef::AssetRef),
+            (String::from("door_id"), ValueDef::U16),
+        ])),
 
-fn conv_trigger_player_spawn(data: &Vec<Value>, _project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTriggerType> {
-    if let [ Value::U8(direction) ] = &data[..] {
-        Ok(RoomTriggerType::PlayerSpawn { direction: *direction })
-    } else {
-        error(format!("bad room trigger data for player_spawn: {:?}", data), pos)
-    }
-}
+        (String::from("player_spawn"), ValueDefStruct::new(vec![
+            (String::from("direction"), ValueDef::U8),
+        ])),
 
-fn conv_trigger_enemy_spawn(data: &Vec<Value>, project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTriggerType> {
-    if let [
-        Value::AssetRef(animation_ref),
-    ] = &data[..] {
-        Ok(RoomTriggerType::EnemySpawn {
-            animation_id: animation_ref.get_asset_id(project_data)?,
-        })
-    } else {
-        error(format!("bad room trigger data for enemy_spawn: {:?}", data), pos)
-    }
-}
+        (String::from("enemy_spawn"), ValueDefStruct::new(vec![
+            (String::from("animation"), ValueDef::AssetRef),
+        ])),
 
-fn conv_trigger_trap(data: &Vec<Value>, _project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTriggerType> {
-    if let [
-        Value::U16(width),
-        Value::U16(height),
-        Value::U16(type_id),
+        (String::from("trap"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("trap_type"), ValueDef::U16),
+        ])),
+    ])
+});
 
-    ] = &data[..] {
-        Ok(RoomTriggerType::Trap {
-            width: *width,
-            height: *height,
-            type_id: *type_id,
-        })
-    } else {
-        error(format!("bad room trigger data for trap: {:?}", data), pos)
-    }
-}
-
-fn conv_trigger(trigger: &Value, name: String, project_data: &ProjectData, pos: TokenPosition) -> Result<RoomTrigger> {
-    if let Value::Struct(value) = trigger && let [
-        Value::Identifier(trigger_type),
-        Value::I16(x),
-        Value::I16(y),
-        Value::Struct(type_data),
-    ] = &value[..] {
-        let prefix = &project_data.prefix_upper;
-        let trigger_type = if RoomTriggerTypeIdent::Unknown.matches_enum_ident(&trigger_type.name, prefix) {
-            conv_trigger_any(type_data, project_data, trigger_type.pos)?
-        } else if RoomTriggerTypeIdent::Door.matches_enum_ident(&trigger_type.name, prefix) {
-            conv_trigger_door(type_data, project_data, trigger_type.pos)?
-        } else if RoomTriggerTypeIdent::PlayerSpawn.matches_enum_ident(&trigger_type.name, prefix) {
-            conv_trigger_player_spawn(type_data, project_data, trigger_type.pos)?
-        } else if RoomTriggerTypeIdent::EnemySpawn.matches_enum_ident(&trigger_type.name, prefix) {
-            conv_trigger_enemy_spawn(type_data, project_data, trigger_type.pos)?
-        } else if RoomTriggerTypeIdent::Trap.matches_enum_ident(&trigger_type.name, prefix) {
-            conv_trigger_trap(type_data, project_data, trigger_type.pos)?
+fn custom_read_room_trigger_info(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.expect_punct('.')?;
+    let mut trigger_type_token = reader.expect_any_ident("trigger union member name")?;
+    reader.expect_punct('=')?;
+    if let Some(trigger_type) = trigger_type_token.drain_ident() {
+        if let Some(struct_def) = TRIGGER_VALUE_TYPES.get(&trigger_type) {
+            Ok(Value::Struct(reader.read_struct(struct_def)?))
         } else {
-            error(format!("unknown trigger type: {}", &trigger_type.name), trigger_type.pos)?
-        };
-        Ok(RoomTrigger {
-            name_id: name,
-            x: *x,
-            y: *y,
-            trigger_type,
-        })
+            error(format!("unknown trigger type: {}", trigger_type), trigger_type_token.pos)
+        }
     } else {
-        error(format!("bad room trigger data: {:?}", trigger), pos)
+        error(format!("unexpected {}", trigger_type_token), trigger_type_token.pos)
     }
 }
 
-pub fn create(asset_id: DataAssetId, asset_def: &AssetDef, project_data: &ProjectData) -> Result<Room> {
-    if let Value::Struct(value) = &asset_def.value && let [
-        Value::U16(num_maps),
-        Value::U16(num_triggers),
-        Value::ArrayRef(maps_array),
-        Value::ArrayRef(triggers_array),
-    ] = &value[..] {
-        let name = project_data.extract_asset_name("room_maps_", maps_array)?;
-        let maps = maps_array.get_struct_array(project_data)?;
-        let triggers = triggers_array.get_struct_array(project_data)?;
+fn conv_map(map: &ValueStruct, project_data: &ProjectData) -> Result<RoomMap> {
+    let x = map.get_u16("x")?;
+    let y = map.get_u16("y")?;
+    let map_ref = map.get_asset_ref("map")?;
+    Ok(RoomMap {
+        x,
+        y,
+        map_id: map_ref.get_asset_id(project_data)?,
+    })
+}
 
-        let maps: Vec<_> = maps.iter().map(|m| conv_map(m, project_data, asset_def.pos)).collect::<Result<Vec<_>>>()?;
-        let triggers: Vec<_> = triggers.iter().enumerate().map(|(index, trigger)| {
-            let name = project_data
-                .get_asset_data_name(index, "ROOM", name, "TRG")
-                .unwrap_or_else(|| format!("trigger_{}", index));
-            conv_trigger(trigger, name, project_data, asset_def.pos)
-        }).collect::<Result<Vec<_>>>()?;
+fn conv_trigger_any(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::Unknown {
+        data0: data.get_u16("data0")?,
+        data1: data.get_u16("data1")?,
+        data2: data.get_u16("data2")?,
+        data3: data.get_u16("data3")?,
+    })
+}
 
-        if *num_maps as usize != maps.len() {
-            return error(format!("invalid number of room maps: expected {}, got {}",
-                                 *num_maps, maps.len()), maps_array.pos);
-        }
-        if *num_triggers as usize != triggers.len() {
-            return error(format!("invalid number of room triggers: expected {}, got {}",
-                                 *num_triggers, triggers.len()), triggers_array.pos);
-        }
+fn conv_trigger_door(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let room_ref = data.get_asset_ref("room")?;
+    let door_id = data.get_u16("door_id")?;
+    Ok(RoomTriggerType::Door {
+        room_id: room_ref.get_asset_id(project_data)?,
+        door_id,
+    })
+}
 
-        Ok(Room {
-            asset: DataAsset::new(DataAssetType::Room, asset_id, DataAsset::identifier_to_name(name)),
-            maps,
-            triggers,
-        })
+fn conv_trigger_player_spawn(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::PlayerSpawn {
+        direction: data.get_u8("direction")?
+    })
+}
+
+fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let animation_ref = data.get_asset_ref("animation")?;
+    Ok(RoomTriggerType::EnemySpawn {
+        animation_id: animation_ref.get_asset_id(project_data)?,
+    })
+}
+
+fn conv_trigger_trap(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::Trap {
+        width: data.get_u16("width")?,
+        height: data.get_u16("height")?,
+        type_id: data.get_u16("trap_type")?,
+    })
+}
+
+fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData) -> Result<RoomTrigger> {
+    let trigger_type = trigger.get_identifier("type")?;
+    let x = trigger.get_i16("x")?;
+    let y = trigger.get_i16("y")?;
+    let type_data = trigger.get_struct("trigger")?;
+
+    let prefix = &project_data.prefix_upper;
+    let trigger_type = if RoomTriggerTypeIdent::Unknown.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_any(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::Door.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_door(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::PlayerSpawn.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_player_spawn(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::EnemySpawn.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_enemy_spawn(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::Trap.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_trap(type_data, project_data)?
     } else {
-        error(format!("bad room data: {:?}", asset_def.value), asset_def.pos)
+        error(format!("unknown trigger type: {}", trigger_type.name), trigger_type.pos)?
+    };
+
+    Ok(RoomTrigger {
+        name_id: name,
+        x,
+        y,
+        trigger_type,
+    })
+}
+
+pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &ProjectData) -> Result<Room> {
+    let num_maps = asset_struct.get_u16("num_maps")?;
+    let num_triggers = asset_struct.get_u16("num_triggers")?;
+    let maps_array = asset_struct.get_array_ref("maps")?;
+    let triggers_array = asset_struct.get_array_ref("triggers")?;
+
+    let name = project_data.extract_asset_name("room_maps_", maps_array)?;
+    let maps = maps_array.get_struct_array(project_data)?;
+    let triggers = triggers_array.get_struct_array(project_data)?;
+
+    let maps: Vec<_> = maps.values.iter().map(|m| conv_map(m, project_data)).collect::<Result<Vec<_>>>()?;
+    let triggers: Vec<_> = triggers.values.iter().enumerate().map(|(index, trigger)| {
+        let name = project_data
+            .get_asset_data_name(index, "ROOM", name, "TRG")
+            .unwrap_or_else(|| format!("trigger_{}", index));
+        conv_trigger(trigger, name, project_data)
+    }).collect::<Result<Vec<_>>>()?;
+
+    if num_maps as usize != maps.len() {
+        return error(
+            format!("invalid number of room maps: expected {}, got {}", num_maps, maps.len()),
+            maps_array.pos
+        );
     }
+    if num_triggers as usize != triggers.len() {
+        return error(
+            format!("invalid number of room triggers: expected {}, got {}", num_triggers, triggers.len()),
+            triggers_array.pos
+        );
+    }
+
+    Ok(Room {
+        asset: DataAsset::new(DataAssetType::Room, asset_id, DataAsset::identifier_to_name(name)),
+        maps,
+        triggers,
+    })
 }
