@@ -1009,7 +1009,7 @@ impl<'a> ProjectDataWriter<'a> {
             let trg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
                 Error::other(format!("error reading name of trigger {} room {}", index, room.asset.id))
             })?;
-            self.write(format!("  {}_ROOM_{}_TRG_{},\n", self.ident.prefix_upper, name_id_upper, &trg_name_id.to_ascii_uppercase()));
+            self.write(format!("  {}_ROOM_{}_TRG_{},\n", self.ident.prefix_upper, name_id_upper, trg_name_id.to_ascii_uppercase()));
         }
         self.write("};\n");
         self.write("\n");
@@ -1161,7 +1161,7 @@ impl<'a> ProjectDataWriter<'a> {
             let reg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
                 Error::other(format!("error reading name of region {} world {}", index, world.asset.id))
             })?;
-            self.write(format!("  {}_WORLD_{}_REGION_{},\n", self.ident.prefix_upper, name_id_upper, &reg_name_id.to_ascii_uppercase()));
+            self.write(format!("  {}_WORLD_{}_REGION_{},\n", self.ident.prefix_upper, name_id_upper, reg_name_id.to_ascii_uppercase()));
         }
         self.write("};\n");
         self.write("\n");
