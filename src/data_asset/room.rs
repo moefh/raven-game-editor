@@ -12,12 +12,13 @@ pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
     PlayerSpawn { direction: u8 },
     EnemySpawn { animation_id: DataAssetId },
-    Door { room_id: DataAssetId, door_id: u16 },
-    Trap { width: u16, height: u16, type_id: u16 },
+    Door { dest_room_id: DataAssetId, dest_trigger_id: u16 },
+    Trap { width: u16, height: u16, trap_type: u16 },
 }
 
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomTrigger {
+    pub trigger_id: u16,
     pub name_id: String,
     pub x: i16,
     pub y: i16,

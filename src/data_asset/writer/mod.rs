@@ -937,27 +937,34 @@ impl<'a> ProjectDataWriter<'a> {
             let enum_type_ident = super::RoomTriggerTypeIdent::from_trigger_type(&trg.trigger_type).enum_ident();
 
             self.write("  {  ");
-            self.write(format!("{}_{}, {}, {}, ", self.ident.prefix_upper, enum_type_ident, trg.x, trg.y));
+            self.write(format!("{}_{}, {}, {}, {}, ", self.ident.prefix_upper, enum_type_ident, trg.trigger_id, trg.x, trg.y));
             match trg.trigger_type {
                 RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
-                    self.write(format!(".any = {{ {}, {}, {}, {} }}",
-                                       data0, data1, data2, data3));
+                    self.write(format!(".any = {{ {}, {}, {}, {} }}", data0, data1, data2, data3));
                 }
-                RoomTriggerType::Door { room_id, door_id } => {
-                    let room_index = self.ident.get_asset_index(DataAssetType::Room, room_id)?;
-                    self.write(format!(".door = {{ &{}_rooms[{}], {} }}",
-                                       self.ident.prefix_lower, room_index, door_id));
+                RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+                    let dest_room_index = self.ident.get_asset_index(DataAssetType::Room, dest_room_id)?;
+                    self.write(
+                        format!(
+                            ".door = {{ &{}_rooms[{}], {} }}",
+                            self.ident.prefix_lower, dest_room_index, dest_trigger_id
+                        )
+                    );
                 }
                 RoomTriggerType::PlayerSpawn { direction } => {
                     self.write(format!(".player_spawn = {{ {} }}", direction));
                 }
                 RoomTriggerType::EnemySpawn { animation_id } => {
                     let animation_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
-                    self.write(format!(".enemy_spawn = {{ &{}_sprite_animations[{}] }}",
-                                       self.ident.prefix_lower, animation_index));
+                    self.write(
+                        format!(
+                            ".enemy_spawn = {{ &{}_sprite_animations[{}] }}",
+                            self.ident.prefix_lower, animation_index
+                        )
+                    );
                 }
-                RoomTriggerType::Trap { width, height, type_id } => {
-                    self.write(format!(".trap = {{ {}, {}, {} }}", width, height, type_id ));
+                RoomTriggerType::Trap { width, height, trap_type } => {
+                    self.write(format!(".trap = {{ {}, {}, {} }}", width, height, trap_type));
                 }
             }
             self.write(" },\n");

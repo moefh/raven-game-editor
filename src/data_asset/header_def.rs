@@ -157,22 +157,23 @@ struct $<PREFIX>_ROOM_MAP_INFO {
 };
 
 struct $<PREFIX>_ROOM_TRIGGER_INFO {
-    enum $<PREFIX>_ROOM_TRIGGER_TYPE type;
+    uint16_t type; // enum $<PREFIX>_ROOM_TRIGGER_TYPE
+    uint16_t trigger_id;
     int16_t x;
     int16_t y;
     union {
         struct {
-            uint32_t data0;
-            uint32_t data1;
-            uint32_t data2;
-            uint32_t data3;
+            uint16_t data0;
+            uint16_t data1;
+            uint16_t data2;
+            uint16_t data3;
         } any;
         struct {
             uint8_t direction;
         } player_spawn;
         struct {
-             const struct $<PREFIX>_ROOM *room;
-             uint16_t door;
+             const struct $<PREFIX>_ROOM *dest_room;
+             uint16_t dest_trigger_id;
         } door;
         struct {
              const struct $<PREFIX>_SPRITE_ANIMATION *animation;

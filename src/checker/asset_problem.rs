@@ -31,6 +31,7 @@ pub enum AssetProblem {
     RoomInvalidMapId { map_id: DataAssetId },
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
+    RoomTriggersWithSameId { trigger1: String, trigger2: String, trigger_id: u16 },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
 }
@@ -131,6 +132,15 @@ impl AssetProblem {
                     map_id,
                     y,
                     (i16::MAX as u32 + 1) / Tileset::TILE_SIZE
+                ));
+            }
+
+            AssetProblem::RoomTriggersWithSameId { trigger1, trigger2, trigger_id } => {
+                ui.label(format!(
+                    "  -> triggers '{}' and '{}' have the same id: {}",
+                    trigger1,
+                    trigger2,
+                    trigger_id
                 ));
             }
 

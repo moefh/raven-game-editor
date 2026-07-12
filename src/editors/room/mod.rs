@@ -140,7 +140,7 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, assets);
 
-        self.base.show_window(wc, room, [400.0, 300.0], [600.0, 400.0], |ui, wc, room, base| {
+        self.base.show_window(wc, room, [600.0, 300.0], [700.0, 400.0], |ui, wc, room, base| {
             Self::show_footer(ui, wc, room, assets.maps, base);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
@@ -218,11 +218,22 @@ impl Editor {
         new_name_id
     }
 
+    fn get_new_trigger_id(triggers: &[RoomTrigger]) -> u16 {
+        let mut new_id = 0;
+        loop {
+            if ! triggers.iter().any(|tr| tr.trigger_id == new_id) { break; }
+            new_id += 1;
+        }
+        new_id
+    }
+
     fn add_trigger(&mut self, room: &mut Room) {
+        let trigger_id = Self::get_new_trigger_id(&room.triggers);
         let name_id = Self::get_new_item_name_id(&room.triggers, "trigger");
         let pos = if self.room_editor.zoom <= 0.0 { egui::Vec2::ZERO } else { self.room_editor.scroll / -self.room_editor.zoom };
         let new_trigger_index = room.triggers.len();
         room.triggers.push(RoomTrigger {
+            trigger_id,
             name_id,
             x: pos.x.floor().clamp(0.0, i16::MAX as f32) as i16,
             y: pos.y.floor().clamp(0.0, i16::MAX as f32) as i16,
@@ -368,116 +379,141 @@ impl Editor {
         None
     }
 
-    fn show_trigger_properties(&self, ui: &mut egui::Ui, trg_index: usize, room: &mut Room, asset_ids: &AssetIdCollection,
-                               assets: &RoomEditorAssetLists) -> Option<()> {
+    fn show_trigger_properties_grid(
+        &self,
+        ui: &mut egui::Ui,
+        trigger: &mut RoomTrigger,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        ui.label("Trigger id:");
+        ui.horizontal(|ui| {
+            if ui.button("\u{2796}").clicked() && trigger.trigger_id > 0 { trigger.trigger_id -= 1; }
+            ui.label(format!("{}", trigger.trigger_id));
+            if ui.button("\u{2795}").clicked() && trigger.trigger_id < u16::MAX-1 { trigger.trigger_id += 1; }
+        });
+        ui.end_row();
+
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut trigger.name_id);
+        ui.end_row();
+
+        ui.label("Type:");
+        let mut type_sel = RoomTriggerTypeSel::from_trigger_type(&trigger.trigger_type);
+        egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_type", self.asset_id))
+            .selected_text(type_sel.text())
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Unknown, RoomTriggerTypeSel::Unknown.text());
+                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::EnemySpawn, RoomTriggerTypeSel::EnemySpawn.text());
+                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Door, RoomTriggerTypeSel::Door.text());
+                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Trap, RoomTriggerTypeSel::Trap.text());
+                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::PlayerSpawn, RoomTriggerTypeSel::PlayerSpawn.text());
+            });
+        type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
+        ui.end_row();
+
+        ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
+        ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
+
+        match &mut trigger.trigger_type {
+            RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
+                ui.label("Data0:"); ui.add(egui::DragValue::new(data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data1:"); ui.add(egui::DragValue::new(data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data2:"); ui.add(egui::DragValue::new(data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data3:"); ui.add(egui::DragValue::new(data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+            }
+
+            RoomTriggerType::Trap { width, height, trap_type } => {
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Type:");
+                ui.add(egui::DragValue::new(trap_type).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+            }
+
+            RoomTriggerType::PlayerSpawn { direction } => {
+                ui.label("Dir:");
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_direction", self.asset_id))
+                    .selected_text(if *direction == 0 { "Right" } else { "Left" })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(direction, 0, "Right");
+                        ui.selectable_value(direction, 1, "Left");
+                    });
+                ui.end_row();
+            }
+
+            RoomTriggerType::EnemySpawn { animation_id } => {
+                ui.label("Anim:");
+                let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
+                    &anim.asset.name
+                } else {
+                    "??"
+                };
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_animation", self.asset_id))
+                    .selected_text(cur_anim_name)
+                    .show_ui(ui, |ui| {
+                        for anim_id in asset_ids.animations.iter() {
+                            if let Some(anim) = assets.animations.get(anim_id) {
+                                ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
+                            }
+                        }
+                    });
+                ui.end_row();
+            }
+
+            RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+                ui.label("To room:");
+                let cur_room_name = if let Some(name) = assets.room_names.get(dest_room_id) {
+                    name
+                } else {
+                    "??"
+                };
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_door", self.asset_id))
+                    .selected_text(cur_room_name)
+                    .show_ui(ui, |ui| {
+                        for sel_room_id in asset_ids.rooms.iter() {
+                            if let Some(sel_room_name) = assets.room_names.get(sel_room_id) {
+                                ui.selectable_value(dest_room_id, *sel_room_id, sel_room_name);
+                            }
+                        }
+                    });
+                ui.end_row();
+
+                ui.label("To trigger:");
+                ui.add(egui::DragValue::new(dest_trigger_id).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+            }
+        }
+    }
+
+    fn show_trigger_properties(
+        &self,
+        ui: &mut egui::Ui,
+        trg_index: usize,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) -> Option<()> {
         let trigger = room.triggers.get_mut(trg_index)?;
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", self.asset_id));
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
-            ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-            ui.add(egui::Label::new("Trigger").selectable(false));
-        }).body(|ui| {
-            egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
-                .num_columns(2)
-                .spacing([8.0, 2.0])
-                .show(ui, |ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut trigger.name_id);
-                    ui.end_row();
-
-                    ui.label("Type:");
-                    let mut type_sel = RoomTriggerTypeSel::from_trigger_type(&trigger.trigger_type);
-                    egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_type", self.asset_id))
-                        .selected_text(type_sel.text())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Unknown, RoomTriggerTypeSel::Unknown.text());
-                            ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::EnemySpawn, RoomTriggerTypeSel::EnemySpawn.text());
-                            ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Door, RoomTriggerTypeSel::Door.text());
-                            ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Trap, RoomTriggerTypeSel::Trap.text());
-                            ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::PlayerSpawn, RoomTriggerTypeSel::PlayerSpawn.text());
-                        });
-                    type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
-                    ui.end_row();
-
-                    match &mut trigger.trigger_type {
-                        RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
-                            ui.label("Data0:"); ui.add(egui::DragValue::new(data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
-                            ui.label("Data1:"); ui.add(egui::DragValue::new(data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
-                            ui.label("Data2:"); ui.add(egui::DragValue::new(data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
-                            ui.label("Data3:"); ui.add(egui::DragValue::new(data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
-                        }
-
-                        RoomTriggerType::Trap { width, height, type_id } => {
-                            ui.label("Width:");
-                            ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
-                            ui.end_row();
-
-                            ui.label("Height:");
-                            ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
-                            ui.end_row();
-
-                            ui.label("Type:");
-                            ui.add(egui::DragValue::new(type_id).speed(1.0).range(0..=u16::MAX));
-                            ui.end_row();
-                        }
-
-                        RoomTriggerType::PlayerSpawn { direction } => {
-                            ui.label("Dir:");
-                            egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_direction", self.asset_id))
-                                .selected_text(if *direction == 0 { "Right" } else { "Left" })
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(direction, 0, "Right");
-                                    ui.selectable_value(direction, 1, "Left");
-                                });
-                            ui.end_row();
-                        }
-
-                        RoomTriggerType::EnemySpawn { animation_id } => {
-                            ui.label("Anim:");
-                            let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
-                                &anim.asset.name
-                            } else {
-                                "??"
-                            };
-                            egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_animation", self.asset_id))
-                                .selected_text(cur_anim_name)
-                                .show_ui(ui, |ui| {
-                                    for anim_id in asset_ids.animations.iter() {
-                                        if let Some(anim) = assets.animations.get(anim_id) {
-                                            ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
-                                        }
-                                    }
-                                });
-                            ui.end_row();
-                        }
-
-                        RoomTriggerType::Door { room_id, door_id } => {
-                            ui.label("To room:");
-                            let cur_room_name = if let Some(name) = assets.room_names.get(room_id) {
-                                name
-                            } else {
-                                "??"
-                            };
-                            egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_door", self.asset_id))
-                                .selected_text(cur_room_name)
-                                .show_ui(ui, |ui| {
-                                    for sel_room_id in asset_ids.rooms.iter() {
-                                        if let Some(sel_room_name) = assets.room_names.get(sel_room_id) {
-                                            ui.selectable_value(room_id, *sel_room_id, sel_room_name);
-                                        }
-                                    }
-                                });
-                            ui.end_row();
-
-                            ui.label("To door:");
-                            ui.add(egui::DragValue::new(door_id).speed(1.0).range(0..=u16::MAX));
-                            ui.end_row();
-                        }
-                    }
-
-                    ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
-                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
-                });
-        });
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true)
+            .show_header(ui, |ui| {
+                ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
+                ui.add(egui::Label::new("Trigger").selectable(false));
+            }).body(|ui| {
+                egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
+                    .num_columns(2)
+                    .spacing([8.0, 2.0])
+                    .show(ui, |ui| {
+                        self.show_trigger_properties_grid(ui, trigger, asset_ids, assets);
+                    });
+            });
         None
     }
 
@@ -547,7 +583,7 @@ impl Editor {
         egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             let want_height = 70.0_f32.max(ui.available_height() / 2.0);
-            ui.allocate_ui(egui::Vec2::new(200.0, want_height), |ui| {
+            ui.allocate_ui(egui::Vec2::new(300.0, want_height), |ui| {
                 egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                     let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
                     let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
@@ -555,8 +591,14 @@ impl Editor {
 
                     if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
                     if add_trigger { self.add_trigger(room); }
-                    if let Some(map_index) = sel_map { self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true); }
-                    if let Some(trg_index) = sel_trigger { self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true); }
+                    if let Some(map_index) = sel_map {
+                        self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
+                    }
+                    if let Some(trg_index) = sel_trigger {
+                        //FIXME
+
+                        self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
+                    }
                     if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
                 });
             });

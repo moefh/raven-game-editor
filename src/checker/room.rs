@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::collections::{
+    HashSet,
+    BTreeMap,
+};
 
 use crate::data_asset::{DataAssetId, DataAssetStore, AssetList, Room, MapData, Tileset};
 
@@ -8,13 +11,7 @@ use super::{
     AssetProblem,
 };
 
-fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
-    let mut problems = Vec::new();
-
-    if room.maps.is_empty() {
-        problems.push(AssetProblem::RoomWithNoMaps);
-    }
-
+fn check_room_maps(room: &Room, maps: &AssetList<MapData>, problems: &mut Vec<AssetProblem>) {
     for map in &room.maps {
         if let Some(map_data) = maps.get(&map.map_id) {
             let map_x = map.x as u32;
@@ -37,7 +34,9 @@ fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
             });
         }
     }
+}
 
+fn check_room_size(room: &Room, maps: &AssetList<MapData>, problems: &mut Vec<AssetProblem>) {
     let room_size = room.maps.iter().fold((0, 0), |max, room_map| {
         match maps.get(&room_map.map_id) {
             Some(map_data) => { (
@@ -54,6 +53,43 @@ fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
             height: room_size.1,
         });
     }
+}
+
+fn check_room_triggers(room: &Room, problems: &mut Vec<AssetProblem>) {
+    let num_triggers = room.triggers.len();
+    if num_triggers < 1 {
+        return;
+    }
+    let mut warned = HashSet::new();
+    for t1_index in 0..num_triggers-1 {
+        if warned.contains(&t1_index) {
+            continue;
+        }
+        let t1 = &room.triggers[t1_index];
+        for t2_index in t1_index+1..num_triggers {
+            let t2 = &room.triggers[t2_index];
+            if t1.trigger_id == t2.trigger_id {
+                warned.insert(t2_index);
+                problems.push(AssetProblem::RoomTriggersWithSameId {
+                    trigger1: t1.name_id.clone(),
+                    trigger2: t2.name_id.clone(),
+                    trigger_id: t1.trigger_id,
+                });
+            }
+        }
+    }
+}
+
+fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
+    let mut problems = Vec::new();
+
+    if room.maps.is_empty() {
+        problems.push(AssetProblem::RoomWithNoMaps);
+    }
+
+    check_room_maps(room, maps, &mut problems);
+    check_room_size(room, maps, &mut problems);
+    check_room_triggers(room, &mut problems);
 
     problems
 }

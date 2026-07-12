@@ -348,7 +348,7 @@ impl AssetCollection {
                     RoomTriggerType::PlayerSpawn {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
-                    RoomTriggerType::Door { room_id, .. } => { room_id == id }
+                    RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id }
                 }
             }) {
                 return true;
@@ -455,8 +455,8 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const VERSION: u32 = 6;
-    pub const VERSION_DATE: &str = "2026-06-25";
+    pub const VERSION: u32 = 7;
+    pub const VERSION_DATE: &str = "2026-07-12";
 
     pub fn new() -> Self {
         DataAssetStore {

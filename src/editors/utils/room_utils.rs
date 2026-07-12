@@ -29,7 +29,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
             }
             RoomTriggerTypeSel::Trap if ! matches!(trigger_type, RoomTriggerType::Trap {..}) => {
-                *trigger_type = RoomTriggerType::Trap { width: 64, height: 64, type_id: 0 };
+                *trigger_type = RoomTriggerType::Trap { width: 64, height: 64, trap_type: 0 };
             }
             RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
                 *trigger_type = RoomTriggerType::PlayerSpawn { direction: 0 };
@@ -41,7 +41,7 @@ impl RoomTriggerTypeSel {
             }
             RoomTriggerTypeSel::Door if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
                 if let Some(room_id) = asset_ids.rooms.get_first() {
-                    *trigger_type = RoomTriggerType::Door { room_id, door_id: 0 };
+                    *trigger_type = RoomTriggerType::Door { dest_room_id: room_id, dest_trigger_id: 0 };
                 }
             }
             _ => {}

@@ -40,12 +40,44 @@ pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
         ])),
         (String::from("ROOM_TRIGGER_INFO"), ValueDefStruct::new(vec![
             (String::from("type"), ValueDef::Identifier),
+            (String::from("trigger_id"), ValueDef::U16),
             (String::from("x"), ValueDef::I16),
             (String::from("y"), ValueDef::I16),
             (String::from("trigger"), ValueDef::Custom(custom_read_room_trigger_info)),  // ValueStruct
         ])),
     ]
 }
+
+// structs inside the room trigger data union
+static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("any"), ValueDefStruct::new(vec![
+            (String::from("data0"), ValueDef::U32),
+            (String::from("data1"), ValueDef::U32),
+            (String::from("data2"), ValueDef::U32),
+            (String::from("data3"), ValueDef::U32),
+        ])),
+
+        (String::from("door"), ValueDefStruct::new(vec![
+            (String::from("dest_room"), ValueDef::AssetRef),
+            (String::from("dest_trigger_id"), ValueDef::U16),
+        ])),
+
+        (String::from("player_spawn"), ValueDefStruct::new(vec![
+            (String::from("direction"), ValueDef::U8),
+        ])),
+
+        (String::from("enemy_spawn"), ValueDefStruct::new(vec![
+            (String::from("animation"), ValueDef::AssetRef),
+        ])),
+
+        (String::from("trap"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("trap_id"), ValueDef::U16),
+        ])),
+    ])
+});
 
 pub fn read_custom_global_struct(reader: &mut ProjectDataReader, struct_tag: &str) -> Result<bool> {
     if struct_tag == "ROOM_SCRIPT" {   // ignore room script table
@@ -67,37 +99,6 @@ pub fn read_custom_global_struct(reader: &mut ProjectDataReader, struct_tag: &st
         Ok(false)
     }
 }
-
-// structs inside the room trigger data union
-static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
-    HashMap::from([
-        (String::from("any"), ValueDefStruct::new(vec![
-            (String::from("data0"), ValueDef::U32),
-            (String::from("data1"), ValueDef::U32),
-            (String::from("data2"), ValueDef::U32),
-            (String::from("data3"), ValueDef::U32),
-        ])),
-
-        (String::from("door"), ValueDefStruct::new(vec![
-            (String::from("room"), ValueDef::AssetRef),
-            (String::from("door_id"), ValueDef::U16),
-        ])),
-
-        (String::from("player_spawn"), ValueDefStruct::new(vec![
-            (String::from("direction"), ValueDef::U8),
-        ])),
-
-        (String::from("enemy_spawn"), ValueDefStruct::new(vec![
-            (String::from("animation"), ValueDef::AssetRef),
-        ])),
-
-        (String::from("trap"), ValueDefStruct::new(vec![
-            (String::from("width"), ValueDef::U16),
-            (String::from("height"), ValueDef::U16),
-            (String::from("trap_type"), ValueDef::U16),
-        ])),
-    ])
-});
 
 fn custom_read_room_trigger_info(reader: &mut ProjectDataReader) -> Result<Value> {
     reader.expect_punct('.')?;
@@ -135,11 +136,11 @@ fn conv_trigger_any(data: &ValueStruct, _project_data: &ProjectData) -> Result<R
 }
 
 fn conv_trigger_door(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
-    let room_ref = data.get_asset_ref("room")?;
-    let door_id = data.get_u16("door_id")?;
+    let dest_room_ref = data.get_asset_ref("dest_room")?;
+    let dest_trigger_id = data.get_u16("dest_trigger_id")?;
     Ok(RoomTriggerType::Door {
-        room_id: room_ref.get_asset_id(project_data)?,
-        door_id,
+        dest_room_id: dest_room_ref.get_asset_id(project_data)?,
+        dest_trigger_id,
     })
 }
 
@@ -160,12 +161,13 @@ fn conv_trigger_trap(data: &ValueStruct, _project_data: &ProjectData) -> Result<
     Ok(RoomTriggerType::Trap {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
-        type_id: data.get_u16("trap_type")?,
+        trap_type: data.get_u16("trap_type")?,
     })
 }
 
 fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData) -> Result<RoomTrigger> {
     let trigger_type = trigger.get_identifier("type")?;
+    let trigger_id = trigger.get_u16("trigger_id")?;
     let x = trigger.get_i16("x")?;
     let y = trigger.get_i16("y")?;
     let type_data = trigger.get_struct("trigger")?;
@@ -187,6 +189,7 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
 
     Ok(RoomTrigger {
         name_id: name,
+        trigger_id,
         x,
         y,
         trigger_type,
