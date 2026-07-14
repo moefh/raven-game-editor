@@ -460,17 +460,14 @@ impl Editor {
                         }).inner
                     }).inner;
                     ui.separator();
-                    //egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                        if let Some(region) = world.regions.get(region_index) &&
-                            let Some(room_index) = self.region_editor.get_selected_room() &&
-                            let Some(room_id) = region.rooms.get(room_index as usize) &&
-                            let Some(room) = assets.rooms.get(room_id) {
-                                ui.label(&room.asset.name);
-                                RoomGridViewWidget::show(ui, wc, room, world, assets.maps, &self.world_grid, region_index);
-                            } else {
-                                ui.label("No room selected");
-                            }
-                    //});
+                    if let Some(region) = world.regions.get(region_index) &&
+                        let Some(room_index) = self.region_editor.get_selected_room() &&
+                        let Some(room_id) = region.rooms.get(room_index as usize) &&
+                        let Some(room) = assets.rooms.get(room_id) {
+                            RoomGridViewWidget::show(ui, wc, room, world, assets.maps, &self.world_grid, region_index);
+                        } else {
+                            ui.label("No room selected");
+                        }
                     actions
                 }).inner;
 

@@ -681,6 +681,7 @@ impl RavenEditorApp {
         let mut win_ctx = WindowContext {
             window_space,
             vga_bits_per_pixel: self.store.vga_bits_per_pixel,
+            tiles_per_world_block: self.store.tiles_per_world_block,
             egui: WindowEguiContext::new(ui.ctx(), window),
             tex_man: &mut self.tex_manager,
             sys_dialogs: &mut self.sys_dialogs,
@@ -775,10 +776,7 @@ impl RavenEditorApp {
 
         self.windows.show_settings(&mut win_ctx);
         self.windows.show_status(&win_ctx, &self.store);
-        self.windows.show_properties(&mut win_ctx,
-                                     &mut self.store.vga_bits_per_pixel,
-                                     &mut self.store.vga_sync_bits,
-                                     &mut self.store.project_prefix);
+        self.windows.show_properties(&mut win_ctx, &mut self.store);
         self.windows.show_log_window(&win_ctx);
         if let Some(asset_id) = self.windows.show_check(&win_ctx, &self.store) &&
             let Some(editor) = self.editors.get_editor_mut(asset_id) {

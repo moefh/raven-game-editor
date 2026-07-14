@@ -101,6 +101,7 @@ pub struct ProjectData {
     prefix_upper: String,
     vga_bits_per_pixel: u8,
     vga_sync_bits: u8,
+    tiles_per_world_block: u32,
 
     arrays: HashMap<String, Value>,
     structs: HashMap<String, ValueArray<ValueStruct>>,
@@ -119,6 +120,7 @@ impl ProjectData {
             prefix_upper: String::new(),
             vga_bits_per_pixel: 6,
             vga_sync_bits: 0xc0,
+            tiles_per_world_block: 22,
 
             arrays: HashMap::new(),
             structs: HashMap::new(),
@@ -742,6 +744,7 @@ impl<'a> ProjectDataReader<'a> {
             project_prefix: self.data.prefix,
             vga_bits_per_pixel: self.data.vga_bits_per_pixel,
             vga_sync_bits: self.data.vga_sync_bits,
+            tiles_per_world_block: self.data.tiles_per_world_block,
         })
     }
 

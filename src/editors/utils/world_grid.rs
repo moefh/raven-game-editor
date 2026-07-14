@@ -128,8 +128,8 @@ impl RoomInfo {
                 block_y: min_y as f32,
                 block_width: (max_x - min_x + 1) as f32,
                 block_height: (max_y - min_y + 1) as f32,
-                width: ((tile_size.0 + 1) * Tileset::TILE_SIZE) as f32,
-                height: ((tile_size.1 + 1) * Tileset::TILE_SIZE) as f32,
+                width: (tile_size.0 * Tileset::TILE_SIZE) as f32,
+                height: (tile_size.1 * Tileset::TILE_SIZE) as f32,
             })
         } else {
             None

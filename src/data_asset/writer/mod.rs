@@ -83,6 +83,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("\n");
         self.write(format!("#define {}_DATA_VGA_BITS_PER_PIXEL {}\n", self.ident.prefix_upper, self.store.vga_bits_per_pixel));
         self.write(format!("#define {}_DATA_VGA_SYNC_BITS {:#04x}\n", self.ident.prefix_upper, self.store.vga_sync_bits));
+        self.write(format!("#define {}_DATA_TILES_PER_WORLD_BLOCK {}\n", self.ident.prefix_upper, self.store.tiles_per_world_block));
 
         if let Ok(now) = local_time && let Ok(formatted_date) = now.format(&MACHINE_TIMESTAMP_FORMAT) {
             self.write(format!("#define {}_DATA_SAVE_TIMESTAMP 0x{}\n", self.ident.prefix_upper, formatted_date));

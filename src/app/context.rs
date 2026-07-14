@@ -172,6 +172,7 @@ impl<'a> WindowEguiContext<'a> {
 pub struct WindowContext<'a> {
     pub window_space: egui::Rect,
     pub vga_bits_per_pixel: u8,
+    pub tiles_per_world_block: u32,
     pub egui: WindowEguiContext<'a>,
     pub tex_man: &'a mut TextureManager,
     pub dialogs: &'a mut AppDialogs,

@@ -45,7 +45,7 @@ impl RoomGridViewWidget {
 
     pub fn show(
         ui: &mut egui::Ui,
-        _wc: &mut WindowContext,
+        wc: &mut WindowContext,
         room: &Room,
         world: &World,
         maps: &AssetList<MapData>,
@@ -59,10 +59,10 @@ impl RoomGridViewWidget {
         painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, Color32::from_rgb(0,0,0));
 
         let room_size = Self::get_room_size(room, maps);
-        let grid_size = Size::new(room_size.width.div_ceil(World::TILES_PER_BLOCK), room_size.height.div_ceil(World::TILES_PER_BLOCK));
+        let grid_size = Size::new(room_size.width.div_ceil(wc.tiles_per_world_block), room_size.height.div_ceil(wc.tiles_per_world_block));
         let area_size = Size::new(
-            grid_size.width * World::TILES_PER_BLOCK * Tileset::TILE_SIZE,
-            grid_size.height * World::TILES_PER_BLOCK * Tileset::TILE_SIZE
+            grid_size.width * wc.tiles_per_world_block * Tileset::TILE_SIZE,
+            grid_size.height * wc.tiles_per_world_block * Tileset::TILE_SIZE
         );
         let zoom = 0.8 * (canvas_rect.width() / area_size.width as f32).min(canvas_rect.height() / area_size.height as f32);
         let area_pos = canvas_rect.min + 0.5 * Vec2::new(
@@ -75,11 +75,11 @@ impl RoomGridViewWidget {
         let grid_stroke = egui::Stroke::new(1.0, Color32::from_rgb(192, 192, 192));
         painter.rect(area_rect, egui::CornerRadius::ZERO, Color32::from_rgb(128, 128, 128), grid_stroke, egui::StrokeKind::Middle);
         for y in 1..grid_size.height {
-            let cy = area_rect.min.y + (y * World::TILES_PER_BLOCK) as f32 * TILE_SIZE * zoom;
+            let cy = area_rect.min.y + (y * wc.tiles_per_world_block) as f32 * TILE_SIZE * zoom;
             painter.hline(area_rect.x_range(), cy, grid_stroke);
         }
         for x in 1..grid_size.width {
-            let cx = area_rect.min.x + (x * World::TILES_PER_BLOCK) as f32 * TILE_SIZE * zoom;
+            let cx = area_rect.min.x + (x * wc.tiles_per_world_block) as f32 * TILE_SIZE * zoom;
             painter.vline(cx, area_rect.y_range(), grid_stroke);
         }
 
@@ -96,10 +96,10 @@ impl RoomGridViewWidget {
         }
 
         // doors
-        let door_zoom = (World::TILES_PER_BLOCK * Tileset::TILE_SIZE) as f32 * zoom;
         if let Some(grid) = grid_store.region_grids.get(region_index) &&
             let Some(region) = world.regions.get(region_index) &&
             let Some(room_info) = world_grid::RoomInfo::calculate(region, room, maps) {
+                let door_zoom = zoom * room_info.width / room_info.block_width;
                 for &door_index in grid.door_indices.iter() {
                     if let Some(door) = grid_store.doors.get(door_index) &&
                         door.room_id == Some(room.asset.id) &&

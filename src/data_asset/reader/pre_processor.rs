@@ -103,6 +103,23 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
             }
         }
 
+        if name == "DATA_TILES_PER_WORLD_BLOCK" {
+            match parse_number(value) {
+                Some(tiles_per_world_block) => {
+                    if ! (8..=32).contains(&tiles_per_world_block) {
+                        return error(format!("bad tiles_per_world_block value: {} (must be between 8 and 32)",
+                                             tiles_per_world_block), pos);
+                    }
+                    logger.log(format!("-> got tiles_per_world_block {}", tiles_per_world_block));
+                    data.tiles_per_world_block = tiles_per_world_block as u32;
+                    return Ok(());
+                }
+                None => {
+                    return error(format!("bad tiles_per_world_block value: {}", value), pos);
+                }
+            }
+        }
+
         if name.starts_with("SPRITE_WIDTH_") ||
             name.starts_with("SPRITE_HEIGHT_") ||
             name.starts_with("SPRITE_STRIDE_") ||

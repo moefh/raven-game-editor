@@ -83,8 +83,8 @@ impl AppWindows {
         self.check.clear();
     }
 
-    pub fn show_properties(&mut self, wc: &mut WindowContext, vga_bits_per_pixel: &mut u8, vga_sync_bits: &mut u8, project_prefix: &mut String) {
-        self.properties.show(wc, vga_bits_per_pixel, vga_sync_bits, project_prefix);
+    pub fn show_properties(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) {
+        self.properties.show(wc, store);
     }
 
     pub fn show_settings(&mut self, wc: &mut WindowContext) {
