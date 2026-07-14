@@ -32,7 +32,32 @@ use super::{
 use super::widgets::{
     WorldEditorWidget,
     WorldRegionEditorWidget,
+    RoomGridViewWidget,
 };
+
+#[derive(Copy, Clone)]
+enum ShiftDirection {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+pub struct WorldEditorAssetLists<'a> {
+    pub rooms: &'a AssetList<Room>,
+    pub maps: &'a AssetList<MapData>,
+    pub tilesets: &'a AssetList<Tileset>,
+}
+
+impl<'a> WorldEditorAssetLists<'a> {
+    pub fn new(rooms: &'a AssetList<Room>, maps: &'a AssetList<MapData>, tilesets: &'a AssetList<Tileset>) -> Self {
+        WorldEditorAssetLists {
+            rooms,
+            maps,
+            tilesets,
+        }
+    }
+}
 
 enum EditorTab {
     World,
@@ -87,13 +112,17 @@ impl WorldEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, world: &mut World, rooms: &AssetList<Room>,
-                maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
-        self.dialogs.show(wc, &mut self.editor, world, rooms, maps, tilesets);
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        world: &mut World,
+        assets: &WorldEditorAssetLists,
+    ) {
+        self.dialogs.show(wc, &mut self.editor, world, assets);
 
-        self.base.show_window(wc, world, [500.0, 250.0], [650.0, 450.0], |ui, wc, world, base| {
+        self.base.show_window(wc, world, [550.0, 350.0], [650.0, 450.0], |ui, wc, world, base| {
             Self::show_footer(ui, wc, world, base);
-            self.editor.show(ui, wc, &mut self.dialogs, world, rooms);
+            self.editor.show(ui, wc, &mut self.dialogs, world, assets);
         });
     }
 }
@@ -113,8 +142,13 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, world: &mut World,
-            rooms: &AssetList<Room>, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
+    fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        editor: &mut Editor,
+        world: &mut World,
+        assets: &WorldEditorAssetLists,
+    ) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, world);
         }
@@ -122,7 +156,7 @@ impl Dialogs {
             self.region_properties_dialog.show(wc, world);
         }
         if self.room_selection_dialog.open &&
-            self.room_selection_dialog.show(wc, world, rooms, maps, tilesets) &&
+            self.room_selection_dialog.show(wc, world, assets) &&
             let Some(region) = world.regions.get(self.room_selection_dialog.region_index) {
                 editor.region_editor.ensure_room_selection_is_valid(region);
             }
@@ -136,6 +170,7 @@ struct Editor {
     world_editor: WorldEditorWidget,
     region_editor: WorldRegionEditorWidget,
     region_rooms_tree: Option<SimpleAssetTree>,
+    done_init: bool,
 }
 
 impl Editor {
@@ -150,6 +185,7 @@ impl Editor {
             world_editor: WorldEditorWidget::new(),
             region_editor: WorldRegionEditorWidget::new(),
             region_rooms_tree: None,
+            done_init: false,
         }
     }
 
@@ -173,8 +209,14 @@ impl Editor {
         }
     }
 
-    fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext,
-                    dialogs: &mut Dialogs, world: &mut World, rooms: &AssetList<Room>) {
+    fn show_menubar(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        world: &mut World,
+        rooms: &AssetList<Room>
+    ) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("World", |ui| {
@@ -261,19 +303,32 @@ impl Editor {
         });
 
         egui::CentralPanel::default().show(ui, |ui| {
-            self.world_editor.show(ui, wc, world, &self.world_grid.world_grid);
+            self.world_editor.show(ui, wc, world, &self.world_grid);
         });
     }
 
-    fn show_region_rooms_tree(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext,
-                              _dialogs: &mut Dialogs, region: &mut WorldRegion, rooms: &AssetList<Room>) -> [RoomTreeAction; 2] {
+    fn show_region_rooms_tree(
+        &mut self,
+        ui: &mut egui::Ui,
+        _wc: &mut WindowContext,
+        _dialogs: &mut Dialogs,
+        world: &mut World,
+        region_index: usize,
+        rooms: &AssetList<Room>
+    ) -> [RoomTreeAction; 2] {
+        let (mut header_action, mut item_action) = (RoomTreeAction::None, RoomTreeAction::None);
+
+        let region = if let Some(region) = world.regions.get_mut(region_index) {
+            region
+        } else {
+            return [header_action, item_action];
+        };
         let tree = self.region_rooms_tree.get_or_insert_with(|| {
             SimpleAssetTree::new(format!("editor_{}_region_rooms_tree", self.asset_id), "Rooms")
         });
         let region_rooms = rooms.iter().filter(|room| region.rooms.contains(&room.asset.id));
         tree.update_assets(region_rooms);
 
-        let (mut header_action, mut item_action) = (RoomTreeAction::None, RoomTreeAction::None);
         let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
             let resp = ui.add(egui::Button::new(&folder.name).frame_when_inactive(false));
             egui::Popup::context_menu(&resp).show(|ui| {
@@ -298,42 +353,132 @@ impl Editor {
         [header_action, item_action]
     }
 
-    fn show_region_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                       world: &mut World, rooms: &AssetList<Room>) {
-        let actions = {
-            let (region_index, region) = if
-                let Some(region_index) = self.world_editor.get_selected_region() &&
-                let Some(region) = world.regions.get_mut(region_index) {
-                    (region_index, region)
-                } else {
-                    egui::CentralPanel::default().show(ui, |ui| {
-                        ui.label("No selected region");
-                    });
-                    return;
-                };
-            egui::Panel::top(format!("editor_panel_{}_region_header", self.asset_id)).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut region.name);
+    fn shift_region(&mut self, region: &mut WorldRegion, direction: ShiftDirection) {
+        if region.width == 0 || region.height == 0 {
+            return;
+        }
+
+        const MAX_WIDTH: usize = WorldRegion::MAX_WIDTH as usize;
+        const MAX_HEIGHT: usize = WorldRegion::MAX_HEIGHT as usize;
+        let region_width = region.width as usize;
+        let region_height = region.height as usize;
+
+        // shift
+        match direction {
+            ShiftDirection::Up => {
+                let mut row = [None; MAX_WIDTH];
+                row[..].copy_from_slice(&region.blocks[0 .. MAX_WIDTH]);
+                region.blocks[..].copy_within(MAX_WIDTH.., 0);
+                region.blocks[(region_height-1)*MAX_WIDTH .. region_height*MAX_WIDTH].copy_from_slice(&row[..]);
+            }
+            ShiftDirection::Down => {
+                let mut row = [None; MAX_WIDTH];
+                row[..].copy_from_slice(&region.blocks[(region_height-1)*MAX_WIDTH .. region_height*MAX_WIDTH]);
+                region.blocks[..].copy_within(0 .. (MAX_WIDTH-1)*MAX_WIDTH, MAX_WIDTH);
+                region.blocks[0 .. MAX_WIDTH].copy_from_slice(&row[..]);
+            }
+            ShiftDirection::Left => {
+                let mut row = [None; MAX_HEIGHT];
+                for (y, block) in row.iter_mut().enumerate() {
+                    *block = region.blocks[y*MAX_WIDTH];
+                }
+                region.blocks[..].copy_within(1.., 0);
+                for (y, block) in row.iter().enumerate() {
+                    region.blocks[y*MAX_WIDTH + region_width - 1] = *block;
+                }
+            }
+            ShiftDirection::Right => {
+                let mut row = [None; MAX_HEIGHT];
+                for (y, block) in row.iter_mut().enumerate() {
+                    *block = region.blocks[y*MAX_WIDTH + region_width - 1];
+                }
+                region.blocks[..].copy_within(0..MAX_WIDTH*MAX_HEIGHT-1, 1);
+                for (y, block) in row.iter().enumerate() {
+                    region.blocks[y*MAX_WIDTH] = *block;
+                }
+            }
+        }
+
+        // clear unused region
+        if region_width < MAX_WIDTH {
+            for y in 0..MAX_HEIGHT {
+                region.blocks[y*MAX_WIDTH + region_width] = None;
+            }
+        }
+        if region_height < MAX_HEIGHT {
+            region.blocks[region_height*MAX_WIDTH .. (region_height+1)*MAX_WIDTH].fill(None);
+        }
+    }
+
+    fn show_region_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        world: &mut World,
+        assets: &WorldEditorAssetLists,
+    ) {
+        let region_index = match self.world_editor.get_selected_region() {
+            Some(region_index) => { region_index }
+            None => {
+                egui::CentralPanel::default().show(ui, |ui| {
+                    ui.label("No selected region");
                 });
+                return;
+            }
+        };
+
+        let actions = {
+            egui::Panel::top(format!("editor_panel_{}_region_toolbar", self.asset_id)).show(ui, |ui| {
+                ui.add_space(2.0);
+                if let Some(region) = world.regions.get_mut(region_index) {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
+                            self.shift_region(region, ShiftDirection::Up);
+                        }
+                        if ui.add(egui::Button::image(IMAGES.arrow_down)).on_hover_text("Shift Down").clicked() {
+                            self.shift_region(region, ShiftDirection::Down);
+                        }
+                        if ui.add(egui::Button::image(IMAGES.arrow_left)).on_hover_text("Shift Left").clicked() {
+                            self.shift_region(region, ShiftDirection::Left);
+                        }
+                        if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
+                            self.shift_region(region, ShiftDirection::Right);
+                        }
+                    });
+                }
+                ui.add_space(1.0);
             });
 
-            let action = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
+            let actions = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
                 .resizable(false)
-                .min_size(Self::ROOM_TREE_PANEL_WIDTH)
                 .show(ui, |ui| {
-                    self.show_region_rooms_tree(ui, wc, dialogs, region, rooms)
+                    let want_height = 70.0_f32.max(ui.available_height() / 2.0);
+                    let actions = ui.allocate_ui(egui::Vec2::new(Self::ROOM_TREE_PANEL_WIDTH, want_height), |ui| {
+                        egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                            self.show_region_rooms_tree(ui, wc, dialogs, world, region_index, assets.rooms)
+                        }).inner
+                    }).inner;
+                    ui.separator();
+                    //egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                        if let Some(region) = world.regions.get(region_index) &&
+                            let Some(room_index) = self.region_editor.get_selected_room() &&
+                            let Some(room_id) = region.rooms.get(room_index as usize) &&
+                            let Some(room) = assets.rooms.get(room_id) {
+                                ui.label(&room.asset.name);
+                                RoomGridViewWidget::show(ui, wc, room, world, assets.maps, &self.world_grid, region_index);
+                            } else {
+                                ui.label("No room selected");
+                            }
+                    //});
+                    actions
                 }).inner;
 
             egui::CentralPanel::default().show(ui, |ui| {
-                if let Some(grid) = self.world_grid.region_grids.get(region_index) {
-                    self.region_editor.show(ui, wc, region, grid);
-                } else {
-                    ui.label("Invalid world grid");
-                }
+                self.region_editor.show(ui, wc, world, &self.world_grid, region_index);
             });
 
-            action
+            actions
         };
         for action in actions {
             match action {
@@ -341,15 +486,33 @@ impl Editor {
                 RoomTreeAction::SelectRoom(index) => { self.region_editor.set_selected_room(Some((index & 0xff) as u8)); }
                 RoomTreeAction::SelectRegionRooms => {
                     if let Some(region_index) = self.world_editor.get_selected_region() {
-                        dialogs.room_selection_dialog.set_open(wc, world, region_index, rooms);
+                        dialogs.room_selection_dialog.set_open(wc, world, region_index, assets.rooms);
                     }
                 }
             }
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, world: &mut World, rooms: &AssetList<Room>) {
-        self.show_menubar(ui, wc, dialogs, world, rooms);
+    pub fn init(&mut self, world: &World) {
+        if ! world.regions.is_empty() {
+            self.world_editor.set_selected_region(Some(0));
+        }
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        world: &mut World,
+        assets: &WorldEditorAssetLists,
+    ) {
+        if ! self.done_init {
+            self.done_init = true;
+            self.init(world);
+        }
+
+        self.show_menubar(ui, wc, dialogs, world, assets.rooms);
 
         // region tree
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id))
@@ -364,14 +527,16 @@ impl Editor {
                             RegionTreeAction::SelectRegion(index) => { self.select_region(world, index); }
                             RegionTreeAction::RemoveRegion(index) => { self.remove_region(world, index); }
                             RegionTreeAction::EditRegion(index) => { dialogs.region_properties_dialog.set_open(wc, world, index); }
-                            RegionTreeAction::SelectRegionRooms(index) => { dialogs.room_selection_dialog.set_open(wc, world, index, rooms); }
+                            RegionTreeAction::SelectRegionRooms(index) => {
+                                dialogs.room_selection_dialog.set_open(wc, world, index, assets.rooms);
+                            }
                         }
                     });
                 });
             });
 
         // tabs
-        self.world_grid.update(world);
+        self.world_grid.update(world, assets.rooms, assets.maps);
         egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTab::World), "World").clicked() {
@@ -384,7 +549,7 @@ impl Editor {
         });
         match self.selected_tab {
             EditorTab::World => { self.show_world_tab(ui, wc, dialogs, world); }
-            EditorTab::Region => { self.show_region_tab(ui, wc, dialogs, world, rooms); }
+            EditorTab::Region => { self.show_region_tab(ui, wc, dialogs, world, assets); }
         }
     }
 }

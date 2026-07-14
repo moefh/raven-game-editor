@@ -595,8 +595,6 @@ impl Editor {
                         self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
                     }
                     if let Some(trg_index) = sel_trigger {
-                        //FIXME
-
                         self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
                     }
                     if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }

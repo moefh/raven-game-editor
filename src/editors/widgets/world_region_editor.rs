@@ -1,5 +1,8 @@
 use crate::app::WindowContext;
-use crate::data_asset::WorldRegion;
+use crate::data_asset::{
+    World,
+    WorldRegion,
+};
 use egui::{Vec2, Sense, Rect, Pos2, Color32};
 use egui::emath;
 
@@ -113,7 +116,7 @@ impl WorldRegionEditorWidget {
         }
     }
 
-    fn draw_region_grid(&self, painter: &egui::Painter, pos: Pos2, grid: &world_grid::Grid) {
+    fn draw_region_grid(&self, painter: &egui::Painter, pos: Pos2, grid_store: &world_grid::WorldGridStore, grid: &world_grid::Grid) {
         let stroke = egui::Stroke::new(2.0, Color32::WHITE);
         for y in 0..grid.height {
             for x in 0..grid.width {
@@ -130,9 +133,34 @@ impl WorldRegionEditorWidget {
                 }
             }
         }
+
+        // room doors
+        for &door_index in grid.door_indices.iter() {
+            if let Some(door) = grid_store.doors.get(door_index) &&
+                let Some(door_pos) = door.pos {
+                    let door_pos = pos + self.zoom * egui::Vec2::new(door_pos.x - grid.region_x, door_pos.y - grid.region_y);
+                    painter.circle_filled(door_pos, 5.0, Color32::from_rgb(0, 0, 0xff));
+                }
+        }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, region: &mut WorldRegion, grid: &world_grid::Grid) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        world: &mut World,
+        grid_store: &world_grid::WorldGridStore,
+        region_index: usize,
+    ) {
+        let (region, grid) =
+            if let Some(region) = world.regions.get_mut(region_index) &&
+            let Some(grid) = grid_store.region_grids.get(region_index) {
+                (region, grid)
+            } else {
+                ui.label("Invalid world grid");
+                return;
+            };
+
         self.ensure_room_selection_is_valid(region);
 
         let min_size = (self.zoom * Vec2::splat(1.0)).max(ui.available_size());
@@ -164,7 +192,7 @@ impl WorldRegionEditorWidget {
         // draw background
         painter.rect_filled(region_area_rect, egui::CornerRadius::ZERO, Color32::BLACK);
 
-        // background
+        // room blocks
         let sel_room_color = Color32::from_rgb(255, 0, 0);
         let room_color = Color32::from_rgb(128, 128, 128);
         for y in 0..region.height {
@@ -195,7 +223,7 @@ impl WorldRegionEditorWidget {
         painter.rect_stroke(border_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Outside);
 
         // room borders
-        self.draw_region_grid(&painter, canvas_to_region.inverse().transform_pos(Pos2::ZERO), grid);
+        self.draw_region_grid(&painter, canvas_to_region.inverse().transform_pos(Pos2::ZERO), grid_store, grid);
 
         // ====================================================
         // == handle input

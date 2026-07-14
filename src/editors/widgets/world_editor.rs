@@ -271,15 +271,17 @@ impl WorldEditorWidget {
         }
 
         // click/drag trigger under the cursor
-        for region_index in 0..world.regions.len() {
-            let sel_region = Some(region_index);
-            let rect = Self::get_region_rect(sel_region, world).map(|r| r.egui_rect()).unwrap_or(Rect::NOTHING);
-            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
-                self.set_selected_region(sel_region);
-                if resp.drag_started() {
-                    self.drag_start(rect.min, mouse_pos);
+        if self.tool_mouse_down {
+            for region_index in 0..world.regions.len() {
+                let sel_region = Some(region_index);
+                let rect = Self::get_region_rect(sel_region, world).map(|r| r.egui_rect()).unwrap_or(Rect::NOTHING);
+                if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
+                    self.set_selected_region(sel_region);
+                    if resp.drag_started() {
+                        self.drag_start(rect.min, mouse_pos);
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -335,7 +337,8 @@ impl WorldEditorWidget {
         }
     }
 
-    fn draw_world_grid(&self, painter: &egui::Painter, pos: Pos2, grid: &world_grid::Grid) {
+    fn draw_world_grid(&self, painter: &egui::Painter, pos: Pos2, grid_store: &world_grid::WorldGridStore) {
+        let grid = &grid_store.world_grid;
         let stroke = egui::Stroke::new(2.0, Color32::WHITE);
         for y in 0..grid.height {
             for x in 0..grid.width {
@@ -352,6 +355,13 @@ impl WorldEditorWidget {
                 }
             }
         }
+
+        for door in grid_store.doors.iter() {
+            if let Some(door_pos) = door.pos {
+                let door_pos = pos + self.zoom * egui::Vec2::new(door_pos.x, door_pos.y);
+                painter.circle_filled(door_pos, 5.0, Color32::from_rgb(0, 0, 0xff));
+            }
+        }
     }
 
     pub fn ensure_room_selection_is_valid(&mut self, world: &World) {
@@ -365,7 +375,7 @@ impl WorldEditorWidget {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, world: &mut World, grid: &world_grid::Grid) {
+    pub fn show(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, world: &mut World, grid_store: &world_grid::WorldGridStore) {
         self.ensure_room_selection_is_valid(world);
 
         let min_size = ui.available_size();
@@ -404,7 +414,7 @@ impl WorldEditorWidget {
                 Self::draw_outline_rect(&painter, rect);
             }
         }
-        self.draw_world_grid(&painter, to_canvas.transform_pos(Pos2::ZERO), grid);
+        self.draw_world_grid(&painter, to_canvas.transform_pos(Pos2::ZERO), grid_store);
 
         // outline selected region
         if let Some(rect) = Self::get_region_rect(self.selected_region, world) {
@@ -436,10 +446,8 @@ impl WorldEditorWidget {
             if response.drag_started() {
                 self.tool_mouse_down = true;
             }
-            if self.tool_mouse_down {
-                let click_pos = to_canvas.inverse() * pointer_pos;
-                self.handle_mouse_down(&response, click_pos, world);
-            }
+            let click_pos = to_canvas.inverse() * pointer_pos;
+            self.handle_mouse_down(&response, click_pos, world);
         }
 
         // check zoom (must be last)

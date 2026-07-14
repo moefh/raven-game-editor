@@ -36,6 +36,8 @@ pub struct World {
 }
 
 impl World {
+    pub const TILES_PER_BLOCK: u32 = 16;
+
     pub fn new(id: DataAssetId, name: String) -> Self {
         World {
             asset: super::DataAsset::new(super::DataAssetType::World, id, name),

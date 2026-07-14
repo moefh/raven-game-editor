@@ -730,7 +730,11 @@ impl RavenEditorApp {
         }
         for world in self.store.assets.worlds.iter_mut() {
             if let Some(editor) = self.editors.worlds.get_mut(&world.asset.id) {
-                editor.show(&mut win_ctx, world, &self.store.assets.rooms, &self.store.assets.maps, &self.store.assets.tilesets);
+                let assets = crate::editors::WorldEditorAssetLists::new(
+                    &self.store.assets.rooms,
+                    &self.store.assets.maps,
+                    &self.store.assets.tilesets);
+                editor.show(&mut win_ctx, world, &assets);
             }
         }
         for sprite in self.store.assets.sprites.iter_mut() {

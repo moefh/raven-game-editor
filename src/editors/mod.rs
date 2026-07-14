@@ -18,7 +18,7 @@ pub use utils::world_grid;
 pub use tileset::TilesetEditor;
 pub use map_data::MapDataEditor;
 pub use room::{RoomEditor, RoomEditorAssetLists};
-pub use world::WorldEditor;
+pub use world::{WorldEditor, WorldEditorAssetLists};
 pub use sprite::SpriteEditor;
 pub use pal_sprite::PalSpriteEditor;
 pub use sprite_animation::SpriteAnimationEditor;

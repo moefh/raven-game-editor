@@ -13,8 +13,6 @@ use crate::data_asset::{
     Room,
     World,
     WorldRegion,
-    Tileset,
-    MapData,
     DataAssetId,
     AssetList,
 };
@@ -23,6 +21,7 @@ use super::super::{
     RoomSize,
     AssetEditorBase,
 };
+use super::WorldEditorAssetLists;
 
 pub struct RoomSelectionDialog {
     pub open: bool,
@@ -103,8 +102,7 @@ impl RoomSelectionDialog {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, world: &mut World, rooms: &AssetList<Room>,
-                maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, world: &mut World, assets: &WorldEditorAssetLists) -> bool {
         let mut rooms_changed = false;
         let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "World Region Rooms", |ui, wc| {
             let asset_id = world.asset.id;
@@ -160,10 +158,10 @@ impl RoomSelectionDialog {
                 });
 
             egui::CentralPanel::default().show(ui, |ui| {
-                if let Some(room) = self.display_room_id.and_then(|room_id| rooms.get(&room_id)) {
-                    let room_size = RoomSize::from_room(room, maps);
+                if let Some(room) = self.display_room_id.and_then(|room_id| assets.rooms.get(&room_id)) {
+                    let room_size = RoomSize::from_room(room, assets.maps);
                     ui.label(format!("Room: {} ({}x{})", room.asset.name, room_size.width, room_size.height));
-                    RoomViewWidget::show(ui, wc, room, maps, tilesets);
+                    RoomViewWidget::show(ui, wc, room, assets.maps, assets.tilesets);
                 }
             });
             rooms_changed
