@@ -32,6 +32,16 @@ use super::{
 };
 use super::widgets::RoomEditorWidget;
 
+fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
+    match trigger.trigger_type {
+        RoomTriggerType::Trap {..} => { IMAGES.log }
+        RoomTriggerType::Door {..} => { IMAGES.room }
+        RoomTriggerType::PlayerSpawn {..} => { IMAGES.room }
+        RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
+       _ => { IMAGES.info }
+    }
+}
+
 pub struct RoomEditorAssetLists<'a> {
     pub maps: &'a AssetList<MapData>,
     pub tilesets: &'a AssetList<Tileset>,
@@ -273,10 +283,13 @@ impl Editor {
             for (map_index, room_map) in room.maps.iter().enumerate() {
                 if let Some(map) = maps.get(&room_map.map_id) {
                     let item = ui.horizontal(|ui| {
-                        ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
                         let mut selected = self.room_editor.get_selected_item().is_the_map(map_index);
-                        let resp = ui.toggle_value(&mut selected, &map.asset.name);
-                        if resp.clicked() || resp.secondary_clicked() {
+                        let button = egui::Button::image_and_text(IMAGES.map_data, &map.asset.name)
+                            .frame_when_inactive(selected)
+                            .frame(true);
+                        let resp = ui.add(button);
+                        if resp.clicked() {
+                            selected = ! selected;
                             sel_map = Some(map_index);
                         }
                         egui::Popup::context_menu(&resp).show(|ui| {
@@ -303,7 +316,7 @@ impl Editor {
         let mut node_resp = node.show_header(ui, |ui| {
             let resp = ui.add(egui::Label::new("Triggers").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
-                if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
+                if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
                     add_trigger = true;
                 }
             });
@@ -314,26 +327,26 @@ impl Editor {
         }
         node_resp.body(|ui| {
             for (trg_index, trg) in room.triggers.iter().enumerate() {
-                let item = ui.horizontal(|ui| {
-                    ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                    let mut selected = self.room_editor.get_selected_item().is_the_trigger(trg_index);
-                    let resp = ui.toggle_value(&mut selected, &trg.name_id);
-                    if resp.clicked() || resp.secondary_clicked() {
-                        sel_trigger = Some(trg_index);
+                let mut selected = self.room_editor.get_selected_item().is_the_trigger(trg_index);
+                let button = egui::Button::image_and_text(get_trigger_image(trg), &trg.name_id)
+                    .frame_when_inactive(selected)
+                    .frame(true);
+                let resp = ui.add(button);
+                if resp.clicked() {
+                    selected = ! selected;
+                    sel_trigger = Some(trg_index);
+                }
+                egui::Popup::context_menu(&resp).show(|ui| {
+                    if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
+                        add_trigger = true;
                     }
-                    egui::Popup::context_menu(&resp).show(|ui| {
-                        if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
-                            add_trigger = true;
-                        }
-                        ui.separator();
-                        if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
-                            rm_trigger = Some(trg_index);
-                        }
-                    });
-                    selected
+                    ui.separator();
+                    if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
+                        rm_trigger = Some(trg_index);
+                    }
                 });
-                if item.inner && self.room_editor.has_selected_item_changed() {
-                    item.response.scroll_to_me(None);
+                if selected && self.room_editor.has_selected_item_changed() {
+                    resp.scroll_to_me(None);
                 }
             }
         });
@@ -352,8 +365,7 @@ impl Editor {
         };
 
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
-            ui.add(egui::Image::new(IMAGES.map_data).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-            ui.add(egui::Label::new("Map").selectable(false));
+            ui.add(egui::Button::image_and_text(IMAGES.map_data, "Map").frame(false));
         }).body(|ui| {
             egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
                 .num_columns(2)
@@ -504,8 +516,7 @@ impl Editor {
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", self.asset_id));
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true)
             .show_header(ui, |ui| {
-                ui.add(egui::Image::new(IMAGES.animation).max_size(egui::Vec2::splat(crate::app::IMAGE_TREE_SIZE)));
-                ui.add(egui::Label::new("Trigger").selectable(false));
+                ui.add(egui::Button::image_and_text(get_trigger_image(trigger), "Trigger").frame(false));
             }).body(|ui| {
                 egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
                     .num_columns(2)
@@ -566,7 +577,7 @@ impl Editor {
                     if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
                         dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
                     }
-                    if ui.add(menu_item(IMAGES.animation, " Add trigger")).clicked() {
+                    if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
                         self.add_trigger(room);
                     }
                 });
