@@ -99,16 +99,17 @@ impl RoomGridViewWidget {
         if let Some(grid) = grid_store.region_grids.get(region_index) &&
             let Some(region) = world.regions.get(region_index) &&
             let Some(room_info) = world_grid::RoomInfo::calculate(region, room, maps) {
-                let door_zoom = zoom * room_info.width / room_info.block_width;
+                let door_zoom_x = zoom * room_info.width / room_info.block_width;
+                let door_zoom_y = zoom * room_info.height / room_info.block_height;
                 for &door_index in grid.door_indices.iter() {
                     if let Some(door) = grid_store.doors.get(door_index) &&
                         door.room_id == Some(room.asset.id) &&
                         let Some(door_pos) = door.pos {
                             let door_pos = Vec2::new(
-                                door_pos.x - grid.region_x - room_info.block_x,
-                                door_pos.y - grid.region_y - room_info.block_y
+                                door_zoom_x * (door_pos.x - grid.region_x - room_info.block_x),
+                                door_zoom_y * (door_pos.y - grid.region_y - room_info.block_y)
                             );
-                            painter.circle_filled(area_pos + door_zoom * door_pos, 5.0, Color32::from_rgb(0, 0, 255));
+                            painter.circle_filled(area_pos + door_pos, 5.0, Color32::from_rgb(0, 0, 255));
                         }
                 }
             }
