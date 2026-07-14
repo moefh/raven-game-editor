@@ -36,8 +36,8 @@ pub const IMAGE_TREE_CTX_MENU_SIZE: f32 = 16.0;
 
 #[derive(Clone, Copy)]
 enum ConfirmationDialogAction {
-    None,
     NewProject,
+    DeleteAsset(DataAssetId),
 }
 
 pub enum AssetTreeAction {
@@ -64,7 +64,7 @@ pub struct RavenEditorApp {
     sound_player: SoundPlayer,
     settings: AppSettings,
     recent_projects: recent_projects::RecentProjects,
-    confirmation_dialog_action: ConfirmationDialogAction,
+    confirmation_dialog_action: Option<ConfirmationDialogAction>,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
     asset_tree: StoreAssetTree,
@@ -92,7 +92,7 @@ impl RavenEditorApp {
             map_clipboard: MapClipboardData::Empty,
             tex_manager: TextureManager::new(Self::DEFAULT_BITS_PER_PIXEL),
             sound_player: SoundPlayer::new(),
-            confirmation_dialog_action: ConfirmationDialogAction::None,
+            confirmation_dialog_action: None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
             asset_tree: StoreAssetTree::new(),
@@ -298,16 +298,20 @@ impl RavenEditorApp {
         format!("{:?}", asset_type)
     }
 
-    fn remove_asset(&mut self, id: DataAssetId) {
+    fn request_remove_asset(&mut self, id: DataAssetId) {
         if let Some(editor) = self.editors.get_editor(id) && editor.open {
             self.open_message_box("Editor Open", "This asset is open for editing.\n\nClose the editor to delete it.");
         } else if self.store.assets.asset_has_dependents(id) {
             self.open_message_box("Asset Has Dependents", "This asset is being used.");
         } else {
-            self.store.remove_asset(id);
-            self.editors.remove_editor(id);
-            self.window_tracker.remove_editor(id);
+            self.open_confirmation_dialog_for(ConfirmationDialogAction::DeleteAsset(id));
         }
+    }
+
+    fn remove_asset(&mut self, id: DataAssetId) {
+        self.store.remove_asset(id);
+        self.editors.remove_editor(id);
+        self.window_tracker.remove_editor(id);
     }
 
     fn duplicate_asset(&mut self, id: DataAssetId, asset_type: DataAssetType) {
@@ -383,7 +387,7 @@ impl RavenEditorApp {
     }
 
     fn open_confirmation_dialog_for(&mut self, action: ConfirmationDialogAction) {
-        self.confirmation_dialog_action = action;
+        self.confirmation_dialog_action = Some(action);
         match action {
             ConfirmationDialogAction::NewProject => {
                 self.dialogs.open_confirmation_dialog(
@@ -394,22 +398,42 @@ impl RavenEditorApp {
                     "No"
                 );
             }
-            ConfirmationDialogAction::None => {}
+            ConfirmationDialogAction::DeleteAsset(asset_id) => {
+                if let Some(asset) = self.store.assets.get_asset(asset_id) {
+                    self.dialogs.open_confirmation_dialog(
+                        &mut self.window_tracker,
+                        "Remove Asset",
+                        format!("Remove asset '{}'?", asset.name),
+                        "Yes",
+                        "No"
+                    );
+                } else {
+                    self.confirmation_dialog_action = None;
+                }
+            }
         };
     }
 
     fn update_dialogs(&mut self, ui: &mut egui::Ui) {
         self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
 
-        if matches!(self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs),
-                    ConfirmationDialogResult::Yes) {
-            match self.confirmation_dialog_action {
+        let confirmation_dialog_result = self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
+        if let Some(action) = self.confirmation_dialog_action {
+            match action {
                 ConfirmationDialogAction::NewProject => {
-                    self.new_project();
+                    if confirmation_dialog_result == ConfirmationDialogResult::Yes {
+                        self.new_project();
+                    }
                 }
-                ConfirmationDialogAction::None => {}
-            };
-            self.confirmation_dialog_action = ConfirmationDialogAction::None;
+                ConfirmationDialogAction::DeleteAsset(asset_id) => {
+                    if confirmation_dialog_result == ConfirmationDialogResult::Yes {
+                        self.remove_asset(asset_id);
+                    }
+                }
+            }
+        }
+        if confirmation_dialog_result != ConfirmationDialogResult::None {
+            self.confirmation_dialog_action = None;
         }
     }
 
@@ -628,13 +652,13 @@ impl RavenEditorApp {
                                             item_action = AssetTreeAction::AddAsset(folder.node_id);
                                         }
                                     });
-                                    ui.separator();
                                     ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(IMAGES.copy).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.duplicate_menu_item).clicked() {
                                             item_action = AssetTreeAction::DuplicateAsset(asset_item.id);
                                         }
                                     });
+                                    ui.separator();
                                     ui.horizontal(|ui| {
                                         ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
                                         if ui.button(asset_def.remove_menu_item).clicked() {
@@ -661,7 +685,7 @@ impl RavenEditorApp {
                                 self.duplicate_asset(*asset_id, asset_def.asset_type);
                             }
                             AssetTreeAction::RemoveAsset(asset_id) => {
-                                self.remove_asset(*asset_id);
+                                self.request_remove_asset(*asset_id);
                             }
                             AssetTreeAction::None => {},
                         }

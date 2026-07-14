@@ -4,10 +4,12 @@ use super::{
     create_dialog_window,
 };
 
+#[derive(PartialEq)]
 pub enum ConfirmationDialogResult {
     None,
     Yes,
     No,
+    Cancel,
 }
 
 pub struct ConfirmationDialog {
@@ -47,7 +49,7 @@ impl ConfirmationDialog {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> ConfirmationDialogResult {
-        if ! self.open { return ConfirmationDialogResult::No; }
+        if ! self.open { return ConfirmationDialogResult::None; }
 
         let resp = create_dialog_window(sys_dialogs, ui, self.id, Self::WINDOW_WIDTH, &self.title, |ui| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
@@ -68,6 +70,10 @@ impl ConfirmationDialog {
         if resp.should_close() {
             self.open = false;
             wt.set_dialog_open(self.id, self.open);
+            if resp.inner == ConfirmationDialogResult::None {
+                // we're closing because the user clicked outside the window
+                return ConfirmationDialogResult::Cancel;
+            }
         }
         resp.inner
     }
