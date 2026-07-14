@@ -1,4 +1,8 @@
-use crate::data_asset::{DataAssetId, Tileset};
+use crate::data_asset::{
+    DataAssetId,
+    DataAssetStore,
+    Tileset,
+};
 
 pub enum MapLayer {
     Foreground,
@@ -31,13 +35,14 @@ pub enum AssetProblem {
     RoomInvalidMapId { map_id: DataAssetId },
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
-    RoomTriggersWithSameId { trigger1: String, trigger2: String, trigger_id: u16 },
+    RoomTriggersWithSameId { trigger1_index: usize, trigger2_index: usize, trigger_id: u16 },
+    WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
 }
 
 impl AssetProblem {
-    pub fn log(&self, ui: &mut egui::Ui) {
+    pub fn log(&self, ui: &mut egui::Ui, asset_id: DataAssetId, store: &DataAssetStore) {
         match self {
             AssetProblem::TilesetTooBig { num_tiles } => {
                 ui.label(format!("  -> tileset has too many tiles: {} (max is 255)", num_tiles));
@@ -135,13 +140,37 @@ impl AssetProblem {
                 ));
             }
 
-            AssetProblem::RoomTriggersWithSameId { trigger1, trigger2, trigger_id } => {
-                ui.label(format!(
-                    "  -> triggers '{}' and '{}' have the same id: {}",
-                    trigger1,
-                    trigger2,
-                    trigger_id
-                ));
+            AssetProblem::RoomTriggersWithSameId { trigger1_index, trigger2_index, trigger_id } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(tr1) = room.triggers.get(*trigger1_index) &&
+                    let Some(tr2) = room.triggers.get(*trigger2_index) {
+                        ui.label(format!(
+                            "  -> triggers '{}' and '{}' have the same id: {}",
+                            tr1.name_id,
+                            tr2.name_id,
+                            trigger_id
+                        ));
+                    } else {
+                        ui.label("*** ERROR: INVALID ROOM TRIGGER REFERENCE");
+                        ui.label(format!("*** trigger1_index={}, trigger2_index={}", trigger1_index, trigger2_index));
+                    }
+            }
+
+            AssetProblem::WorldRegionsUsingSameRoom { room_id, region1_index, region2_index } => {
+                if let Some(world) = store.assets.worlds.get(&asset_id) &&
+                    let Some(room) = store.assets.rooms.get(room_id) &&
+                    let Some(region1) = world.regions.get(*region1_index) &&
+                    let Some(region2) = world.regions.get(*region2_index) {
+                        ui.label(format!(
+                            "  -> room '{}' is used in multiple regions: '{}', '{}'",
+                            room.asset.name,
+                            region1.name,
+                            region2.name,
+                        ));
+                    } else {
+                        ui.label("*** ERROR: INVALID WORLD REGION REFERENCE");
+                        ui.label(format!("*** room_id={}, region1_index={}, region2_index={}", room_id, region1_index, region2_index));
+                    }
             }
 
             AssetProblem::ModPatternTooSmall { expected, got } => {

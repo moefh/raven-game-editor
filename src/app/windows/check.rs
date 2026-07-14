@@ -57,7 +57,7 @@ impl CheckWindow {
                                         None => { ui.label("-> <unknown asset>:"); }
                                     }
                                     for problem in problems {
-                                        problem.log(ui);
+                                        problem.log(ui, *asset_id, store);
                                     }
                                 }
                             }

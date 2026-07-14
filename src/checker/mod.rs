@@ -5,6 +5,7 @@ mod sprite;
 mod pal_sprite;
 mod mod_data;
 mod room;
+mod world;
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
@@ -55,6 +56,7 @@ impl CheckResult {
         pal_sprite::check_pal_sprites(&mut asset_problems, store);
         mod_data::check_mods(&mut asset_problems, store);
         room::check_rooms(&mut asset_problems, store);
+        world::check_worlds(&mut asset_problems, store);
 
         let merged_samples = mod_data::check_merged_samples(store);
         let merged_samples_saved_size = merged_samples.iter().fold(0, |sum, m| sum + m.saved_size);

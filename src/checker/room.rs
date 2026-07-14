@@ -61,18 +61,18 @@ fn check_room_triggers(room: &Room, problems: &mut Vec<AssetProblem>) {
         return;
     }
     let mut warned = HashSet::new();
-    for t1_index in 0..num_triggers-1 {
-        if warned.contains(&t1_index) {
+    for trigger1_index in 0..num_triggers-1 {
+        if warned.contains(&trigger1_index) {
             continue;
         }
-        let t1 = &room.triggers[t1_index];
-        for t2_index in t1_index+1..num_triggers {
-            let t2 = &room.triggers[t2_index];
+        let t1 = &room.triggers[trigger1_index];
+        for trigger2_index in trigger1_index+1..num_triggers {
+            let t2 = &room.triggers[trigger2_index];
             if t1.trigger_id == t2.trigger_id {
-                warned.insert(t2_index);
+                warned.insert(trigger2_index);
                 problems.push(AssetProblem::RoomTriggersWithSameId {
-                    trigger1: t1.name_id.clone(),
-                    trigger2: t2.name_id.clone(),
+                    trigger1_index,
+                    trigger2_index,
                     trigger_id: t1.trigger_id,
                 });
             }
