@@ -101,10 +101,14 @@ impl WorldEditor {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, world.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", world.asset.id)).frame(bottom_frame).show(ui, |ui| {
+            let world_size = world_grid::get_world_size(world);
+
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.label(format!(
-                "{} bytes [{} region{}] {}",
+                "{} bytes [{}x{} blocks, {} region{}] {}",
                 world.data_size(),
+                world_size.0,
+                world_size.1,
                 world.regions.len(),
                 if world.regions.len() != 1 { "s" } else { "" },
                 dirty,
@@ -422,7 +426,7 @@ impl Editor {
             Some(region_index) => { region_index }
             None => {
                 egui::CentralPanel::default().show(ui, |ui| {
-                    ui.label("No selected region");
+                    ui.label("No region selected");
                 });
                 return;
             }
@@ -531,6 +535,18 @@ impl Editor {
                     });
                 });
             });
+
+        // bottom bar
+        egui::Panel::bottom(format!("editor_panel_{}_window_bottom", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
+            if let Some(region_index) = self.world_editor.get_selected_region() &&
+                let Some(region) = world.regions.get_mut(region_index) {
+                    ui.label(format!("{}x{} blocks", region.width, region.height));
+                } else {
+                    ui.label("No region selected");
+                }
+            ui.add_space(1.0);
+        });
 
         // tabs
         self.world_grid.update(world, assets.rooms, assets.maps);

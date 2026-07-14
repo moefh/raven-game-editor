@@ -19,7 +19,7 @@ fn get_dest_door(map: &HashMap<DataAssetId, HashMap<u16, (usize, usize)>>, room_
     map.get(&room_id).and_then(|m| m.get(&trigger_id)).copied()
 }
 
-fn get_world_size(world: &World) -> (i32, i32) {
+pub fn get_world_size(world: &World) -> (i32, i32) {
     world.regions.iter().fold((0, 0), |size, region| {
         (
             size.0.max(region.x as i32 + region.width as i32),

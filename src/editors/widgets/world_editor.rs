@@ -79,7 +79,7 @@ pub struct WorldEditorWidget {
 impl WorldEditorWidget {
     pub fn new() -> Self {
         WorldEditorWidget {
-            zoom: 20.0,
+            zoom: 10.0,
             scroll: Vec2::ZERO,
             selected_region: None,
             selected_region_changed: false,
@@ -203,7 +203,7 @@ impl WorldEditorWidget {
     }
 
     fn drag_move(&mut self, mouse_pos: Pos2, world: &mut World) -> bool {
-        if ! self.lock_regions && let Some(region_index) = self.selected_region {
+        if let Some(region_index) = self.selected_region {
             let new_pos = self.drag_region_origin + (mouse_pos - self.drag_mouse_origin);
             Self::move_region(world, region_index, new_pos).unwrap_or(false)
         } else {
@@ -222,7 +222,7 @@ impl WorldEditorWidget {
             resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
         } else if keys_pressed.ctrl {
             resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
-        } else if let Some(border) = Self::get_region_border(self.selected_region, world, mouse_pos, self.zoom) {
+        } else if (! self.lock_regions) && let Some(border) = Self::get_region_border(self.selected_region, world, mouse_pos, self.zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
         }
     }
@@ -238,14 +238,16 @@ impl WorldEditorWidget {
                 self.drag_stop();
                 return;
             }
-            if let Some(border) = self.resize_border {
-                resp.ctx.set_cursor_icon(border.cursor());
-                if self.resize_move(mouse_pos, world, border) {
+            if ! self.lock_regions {
+                if let Some(border) = self.resize_border {
+                    resp.ctx.set_cursor_icon(border.cursor());
+                    if self.resize_move(mouse_pos, world, border) {
+                        return;
+                    }
+                }
+                if self.drag_move(mouse_pos, world) {
                     return;
                 }
-            }
-            if self.drag_move(mouse_pos, world) {
-                return;
             }
             self.drag_stop();
         }
@@ -292,7 +294,7 @@ impl WorldEditorWidget {
     }
 
     pub fn set_zoom(&mut self, zoom: f32, center_delta: Vec2) {
-        let zoom = zoom.max(0.25);
+        let zoom = zoom.max(2.0);
         let zoom_delta = zoom / self.zoom;
         self.zoom = zoom;
         self.scroll = center_delta - (center_delta - self.scroll) * zoom_delta;
@@ -314,8 +316,9 @@ impl WorldEditorWidget {
     fn draw_outline_rect(painter: &egui::Painter, rect: Rect) {
         let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
         let inner_stroke = egui::Stroke::new(1.0, Color32::BLUE);
+        let fill = egui::Color32::from_rgba_unmultiplied_const(0, 0, 255, 64);
 
-        painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
+        painter.rect(rect, egui::CornerRadius::ZERO, fill, outer_stroke, egui::StrokeKind::Outside);
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
@@ -400,18 +403,24 @@ impl WorldEditorWidget {
         painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         painter.shrink_clip_rect(canvas_rect);
         ui.shrink_clip_rect(canvas_rect);
-        Self::draw_outline_rect(&painter, canvas_rect);
 
         if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || world_rect.width() == 0.0 || world_rect.height() == 0.0 {
             return; // nothing to do!
         }
 
-        // draw world
+        // draw region outlines
+        for region_index in 0..world.regions.len() {
+            if let Some(rect) = Self::get_region_rect(Some(region_index), world) {
+                let rect = to_canvas.transform_rect(rect.egui_rect());
+                Self::draw_outline_rect(&painter, rect);
+            }
+        }
+
+        // draw regions
         for (region_index, region) in world.regions.iter().enumerate() {
             if let Some(rect) = Self::get_region_rect(Some(region_index), world) {
                 let rect = to_canvas.transform_rect(rect.egui_rect());
                 self.draw_region_blocks(&painter, rect, region);
-                Self::draw_outline_rect(&painter, rect);
             }
         }
         self.draw_world_grid(&painter, to_canvas.transform_pos(Pos2::ZERO), grid_store);

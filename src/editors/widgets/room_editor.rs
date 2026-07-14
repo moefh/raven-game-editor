@@ -549,6 +549,15 @@ impl RoomEditorWidget {
     fn draw_outline_rect(painter: &egui::Painter, rect: Rect) {
         let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
         let inner_stroke = egui::Stroke::new(1.0, Color32::BLUE);
+        let fill = egui::Color32::from_rgba_unmultiplied_const(0, 0, 255, 64);
+
+        painter.rect(rect, egui::CornerRadius::ZERO, fill, outer_stroke, egui::StrokeKind::Outside);
+        painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
+    }
+
+    fn draw_screen_rect(painter: &egui::Painter, rect: Rect) {
+        let outer_stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        let inner_stroke = egui::Stroke::new(1.0, Color32::GREEN);
 
         painter.rect_stroke(rect, egui::CornerRadius::ZERO, outer_stroke, egui::StrokeKind::Outside);
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
@@ -623,7 +632,7 @@ impl RoomEditorWidget {
         painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         painter.shrink_clip_rect(canvas_rect);
         ui.shrink_clip_rect(canvas_rect);
-        Self::draw_outline_rect(&painter, canvas_rect);
+        //Self::draw_outline_rect(&painter, canvas_rect);
 
         if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
             return; // nothing to do!
@@ -667,7 +676,7 @@ impl RoomEditorWidget {
             if self.selected_item.is_screen() {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             } else {
-                Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
+                Self::draw_screen_rect(&painter, to_canvas.transform_rect(rect));
             }
         }
 
