@@ -7,11 +7,18 @@ use crate::app::{
     AssetTreeContainer,
 };
 use crate::data_asset::{
-    Room, RoomMap, MapData, Tileset,
-    DataAssetId, AssetList,
+    Room,
+    RoomMap,
+    MapData,
+    Tileset,
+    AssetList,
+    DataAssetId,
 };
 use super::super::widgets::MapViewWidget;
-use super::super::AssetEditorBase;
+use super::super::{
+    sorted_assets,
+    AssetEditorBase,
+};
 
 pub struct MapSelectionDialog {
     pub open: bool,
@@ -40,7 +47,7 @@ impl MapSelectionDialog {
             self.sel_map_ids.insert(map.map_id);
         }
         self.display_map_id = room.maps.first().map(|m| m.map_id);
-        self.map_tree = Some(SimpleAssetTree::from_assets(format!("map_sel_{}", room.asset.id), "Available Maps", maps.iter()));
+        self.map_tree = Some(SimpleAssetTree::from_assets(format!("map_sel_{}", room.asset.id), "Available Maps", sorted_assets(maps)));
         self.open = true;
         wc.set_dialog_open(Self::id(), self.open);
     }
@@ -118,7 +125,9 @@ impl MapSelectionDialog {
                                 }
                             });
                         };
-                        map_tree.show(ui, true, &mut show_folder, &mut show_item);
+                        egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                            map_tree.show(ui, true, &mut show_folder, &mut show_item);
+                        });
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }
                     if let Some(map_id) = remove_map { self.sel_map_ids.remove(&map_id); }

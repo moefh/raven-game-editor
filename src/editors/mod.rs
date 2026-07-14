@@ -36,6 +36,7 @@ use crate::misc::{
     IMAGES,
 };
 use crate::data_asset::{
+    AssetList,
     DataAssetId,
     GenericAsset,
 };
@@ -60,6 +61,12 @@ enum MaximizedState {
     UnmaxRequested,
     UnmaxSizeReset,
     Normal,
+}
+
+fn sorted_assets<T: GenericAsset>(assets: &AssetList<T>) -> impl Iterator<Item = &T> {
+    let mut assets: Vec<&T> = assets.iter().collect();
+    assets.sort_by_key(|a| &a.asset().name);
+    assets.into_iter()
 }
 
 pub struct AssetEditorBase {

@@ -18,6 +18,7 @@ use crate::data_asset::{
 };
 use super::super::widgets::RoomViewWidget;
 use super::super::{
+    sorted_assets,
     RoomSize,
     AssetEditorBase,
 };
@@ -47,17 +48,18 @@ impl RoomSelectionDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, world: &World, region_index: usize, rooms: &AssetList<Room>) {
-        if let Some(region) = world.regions.get(region_index) {
-            self.sel_room_ids.clear();
-            for &room_id in region.rooms.iter() {
-                self.sel_room_ids.insert(room_id);
-            }
-            self.display_room_id = region.rooms.first().copied();
-            self.room_tree = Some(SimpleAssetTree::from_assets(format!("room_sel_{}", world.asset.id), "Available Rooms", rooms.iter()));
-            self.region_index = region_index;
-            self.open = true;
-            wc.set_dialog_open(Self::id(), self.open);
+        let region = if let Some(region) = world.regions.get(region_index) { region } else {
+            return;
+        };
+        self.sel_room_ids.clear();
+        for &room_id in region.rooms.iter() {
+            self.sel_room_ids.insert(room_id);
         }
+        self.display_room_id = region.rooms.first().copied();
+        self.room_tree = Some(SimpleAssetTree::from_assets(format!("room_sel_{}", world.asset.id), "Available Rooms", sorted_assets(rooms)));
+        self.region_index = region_index;
+        self.open = true;
+        wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn fix_room_indices(region: &mut WorldRegion, old_rooms: &[DataAssetId]) {
@@ -150,7 +152,9 @@ impl RoomSelectionDialog {
                                 }
                             });
                         };
-                        room_tree.show(ui, true, &mut show_folder, &mut show_item);
+                        egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                            room_tree.show(ui, true, &mut show_folder, &mut show_item);
+                        });
                     }
                     if let Some(room_id) = add_room { self.sel_room_ids.insert(room_id); }
                     if let Some(room_id) = remove_room { self.sel_room_ids.remove(&room_id); }
