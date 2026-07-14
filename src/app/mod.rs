@@ -11,10 +11,21 @@ mod path_library;
 mod recent_projects;
 
 use crate::include_ref_image;
-use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, StringLogger};
-use crate::misc::asset_defs::ASSET_DEFS;
+use crate::data_asset::{
+    DataAssetType,
+    DataAssetId,
+    DataAssetStore,
+    StringLogger,
+};
+use crate::misc::asset_defs::{
+    ASSET_DEFS,
+    get_asset_type_display_name,
+};
 use crate::misc::IMAGES;
-use crate::editors::{ImageClipboardData, MapClipboardData};
+use crate::editors::{
+    ImageClipboardData,
+    MapClipboardData,
+};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
@@ -35,11 +46,13 @@ enum ConfirmationDialogAction {
 }
 
 enum TextInputDialogAction {
+    RenameAsset(DataAssetType, DataAssetId),
     RenameAssetFolder(DataAssetType, AssetTreeNodeId),
 }
 
 pub enum AssetTreeAction {
     None,
+    RenameAsset(DataAssetId),
     RemoveAsset(DataAssetId),
     DuplicateAsset(DataAssetId),
     OpenEditor(DataAssetId),
@@ -281,23 +294,34 @@ impl RavenEditorApp {
         self.filename_changed = true;
     }
 
-    fn new_asset_name(&self, asset_type: DataAssetType, given_prefix: Option<String>) -> String {
-        if let Some(prefix) = ASSET_DEFS.iter().find(|def| def.asset_type == asset_type).map(|def| def.default_name_prefix) {
-            let mut num = 1;
-            loop {
-                let name = match &given_prefix {
-                    Some(s) => { format!("{}/new_{}{}", s, prefix, num) }
-                    None => { format!("new_{}{}", prefix, num) }
-                };
-                if ! self.store.asset_ids
-                    .ids_of_type(asset_type)
-                    .any(|&id| self.store.assets.get_asset(id).is_some_and(|a| a.name == name)) {
-                        return name;
-                    }
-                num += 1;
-            }
+    fn make_unique_asset_name(&self, asset_type: DataAssetType, name: &str, force_number: bool) -> String {
+        let mut num = 1;
+        let mut unique_name = String::from(name);
+        if force_number {
+            unique_name.push_str(&format!("{}", num));
+            num += 1;
         }
-        format!("{:?}", asset_type)
+        loop {
+            if ! self.store.asset_ids
+                .ids_of_type(asset_type)
+                .any(|&id| self.store.assets.get_asset(id).is_some_and(|a| a.name == unique_name)) {
+                    return unique_name;
+                }
+            unique_name.replace_range(.., &format!("{}{}", name, num));
+            num += 1;
+        }
+    }
+
+    fn new_asset_name(&self, asset_type: DataAssetType, given_prefix: Option<String>) -> String {
+        let name = if let Some(prefix) = ASSET_DEFS.iter().find(|def| def.asset_type == asset_type).map(|def| def.default_name_prefix) {
+            match &given_prefix {
+                Some(s) => { format!("{}/new_{}", s, prefix) }
+                None => { format!("new_{}", prefix) }
+            }
+        } else {
+            format!("{:?}", asset_type)
+        };
+        self.make_unique_asset_name(asset_type, &name, true)
     }
 
     fn rename_asset_folder(&mut self, asset_type: DataAssetType, tree_node_id: AssetTreeNodeId, new_name: String) {
@@ -328,7 +352,7 @@ impl RavenEditorApp {
 
     fn duplicate_asset(&mut self, id: DataAssetId, asset_type: DataAssetType) {
         let dup_name = if let Some(asset) = self.store.assets.get_asset(id) {
-            format!("{}_copy", asset.name)
+            self.make_unique_asset_name(asset_type, &format!("{}_copy", asset.name), false)
         } else {
             self.new_asset_name(asset_type, None)
         };
@@ -432,14 +456,30 @@ impl RavenEditorApp {
                 if let Some(name) = self.asset_tree.get_node_name(asset_type, tree_node_id) {
                     self.dialogs.open_text_input_dialog(
                         &mut self.window_tracker,
-                        "Rename Asset Folder",
+                        "Rename Folder",
                         "Name:",
                         name,
                         "Ok",
                         "Cancel"
                     );
                 } else {
-                    self.open_message_box("Error", "Error renaming asset folder.");
+                    self.open_message_box("Error", "Error renaming asset folder: folder not found.");
+                    return; // don't open the text input dialog
+                }
+            }
+
+            TextInputDialogAction::RenameAsset(asset_type, asset_id) => {
+                if let Some(asset) = self.store.assets.get_asset(asset_id) {
+                    self.dialogs.open_text_input_dialog(
+                        &mut self.window_tracker,
+                        format!("Rename {}", get_asset_type_display_name(asset_type).unwrap_or("Asset")),
+                        "Name:",
+                        &asset.name,
+                        "Ok",
+                        "Cancel"
+                    );
+                } else {
+                    self.open_message_box("Error", "Error renaming asset: asset not found.");
                     return; // don't open the text input dialog
                 }
             }
@@ -477,8 +517,15 @@ impl RavenEditorApp {
                 match action {
                     TextInputDialogAction::RenameAssetFolder(asset_type, tree_node_id) => {
                         if text_input_dialog_result == DialogResult::Yes {
-                            let old_name = self.dialogs.get_text_input_dialog_input();
-                            self.rename_asset_folder(*asset_type, *tree_node_id, old_name);
+                            let new_name = self.dialogs.get_text_input_dialog_input();
+                            self.rename_asset_folder(*asset_type, *tree_node_id, new_name);
+                        }
+                    }
+                    TextInputDialogAction::RenameAsset(_asset_type, asset_id) => {
+                        if text_input_dialog_result == DialogResult::Yes {
+                            if let Some(asset) = self.store.assets.get_asset_mut(*asset_id) {
+                                asset.name = self.dialogs.get_text_input_dialog_input();
+                            }
                         }
                     }
                 }
@@ -689,7 +736,7 @@ impl RavenEditorApp {
                                 header
                             }).inner
                         };
-                        let mut show_item = |ui: &mut egui::Ui, folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
+                        let mut show_item = |ui: &mut egui::Ui, _folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
                             ui.horizontal(|ui| {
                                 ui.add_space(18.0);
                                 let button = ui.button(&asset_item.name);
@@ -697,8 +744,8 @@ impl RavenEditorApp {
                                     item_action = AssetTreeAction::OpenEditor(asset_item.id);
                                 }
                                 egui::Popup::context_menu(&button).show(|ui| {
-                                    if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
-                                        item_action = AssetTreeAction::AddAsset(folder.node_id);
+                                    if ui.add(menu_item_no_image(asset_def.rename_menu_item)).clicked() {
+                                        item_action = AssetTreeAction::RenameAsset(asset_item.id);
                                     }
                                     if ui.add(menu_item(IMAGES.copy, asset_def.duplicate_menu_item)).clicked() {
                                         item_action = AssetTreeAction::DuplicateAsset(asset_item.id);
@@ -722,6 +769,9 @@ impl RavenEditorApp {
                             }
                             AssetTreeAction::RenameFolder(tree_node_id) => {
                                 self.open_text_input_dialog_for(TextInputDialogAction::RenameAssetFolder(asset_def.asset_type, *tree_node_id))
+                            }
+                            AssetTreeAction::RenameAsset(asset_id) => {
+                                self.open_text_input_dialog_for(TextInputDialogAction::RenameAsset(asset_def.asset_type, *asset_id))
                             }
                             AssetTreeAction::OpenEditor(asset_id) => {
                                 if let Some(editor) = self.editors.get_editor_mut(*asset_id) {
