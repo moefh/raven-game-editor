@@ -24,20 +24,18 @@ pub use editor_action::EditorAction;
 pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
 pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
 pub use sys_dialogs::{SysDialogs, SysDialogResponse};
-pub use dialogs::{AppDialogs, ConfirmationDialogResult};
+pub use dialogs::{AppDialogs, DialogResult};
 pub use windows::AppWindows;
 pub use settings::AppSettings;
 pub use path_library::PathLibrary;
 
-const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
-
-pub const IMAGE_TREE_SIZE: f32 = 20.0;
-pub const IMAGE_TREE_CTX_MENU_SIZE: f32 = 16.0;
-
-#[derive(Clone, Copy)]
 enum ConfirmationDialogAction {
     NewProject,
     DeleteAsset(DataAssetId),
+}
+
+enum TextInputDialogAction {
+    RenameAssetFolder(DataAssetType, AssetTreeNodeId),
 }
 
 pub enum AssetTreeAction {
@@ -46,6 +44,7 @@ pub enum AssetTreeAction {
     DuplicateAsset(DataAssetId),
     OpenEditor(DataAssetId),
     AddAsset(AssetTreeNodeId),
+    RenameFolder(AssetTreeNodeId),
 }
 
 pub struct RavenEditorApp {
@@ -65,6 +64,7 @@ pub struct RavenEditorApp {
     settings: AppSettings,
     recent_projects: recent_projects::RecentProjects,
     confirmation_dialog_action: Option<ConfirmationDialogAction>,
+    text_input_dialog_action: Option<TextInputDialogAction>,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
     asset_tree: StoreAssetTree,
@@ -75,6 +75,7 @@ impl RavenEditorApp {
     const OPEN_PROJECT_SYS_DLG_ID: &str = "open_project";
     const SAVE_PROJECT_SYS_DLG_ID: &str = "save_project_as";
     const EXPORT_HEADER_SYS_DLG_ID: &str = "export_header";
+    const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
     pub fn new(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings) -> Self {
         let mut app = RavenEditorApp {
@@ -93,6 +94,7 @@ impl RavenEditorApp {
             tex_manager: TextureManager::new(Self::DEFAULT_BITS_PER_PIXEL),
             sound_player: SoundPlayer::new(),
             confirmation_dialog_action: None,
+            text_input_dialog_action: None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
             asset_tree: StoreAssetTree::new(),
@@ -298,6 +300,16 @@ impl RavenEditorApp {
         format!("{:?}", asset_type)
     }
 
+    fn rename_asset_folder(&mut self, asset_type: DataAssetType, tree_node_id: AssetTreeNodeId, new_name: String) {
+        if let Some(old_name) = self.asset_tree.get_node_name(asset_type, tree_node_id) {
+            for &asset_id in self.store.asset_ids.ids_of_type(asset_type) {
+                if let Some(asset) = self.store.assets.get_asset_mut(asset_id) && asset.name.starts_with(&old_name) {
+                    asset.name.replace_range(0..old_name.len(), &new_name);
+                }
+            }
+        }
+    }
+
     fn request_remove_asset(&mut self, id: DataAssetId) {
         if let Some(editor) = self.editors.get_editor(id) && editor.open {
             self.open_message_box("Editor Open", "This asset is open for editing.\n\nClose the editor to delete it.");
@@ -387,7 +399,6 @@ impl RavenEditorApp {
     }
 
     fn open_confirmation_dialog_for(&mut self, action: ConfirmationDialogAction) {
-        self.confirmation_dialog_action = Some(action);
         match action {
             ConfirmationDialogAction::NewProject => {
                 self.dialogs.open_confirmation_dialog(
@@ -411,29 +422,68 @@ impl RavenEditorApp {
                     self.confirmation_dialog_action = None;
                 }
             }
-        };
+        }
+        self.confirmation_dialog_action = Some(action);
+    }
+
+    fn open_text_input_dialog_for(&mut self, action: TextInputDialogAction) {
+        match action {
+            TextInputDialogAction::RenameAssetFolder(asset_type, tree_node_id) => {
+                if let Some(name) = self.asset_tree.get_node_name(asset_type, tree_node_id) {
+                    self.dialogs.open_text_input_dialog(
+                        &mut self.window_tracker,
+                        "Rename Asset Folder",
+                        "Name:",
+                        name,
+                        "Ok",
+                        "Cancel"
+                    );
+                } else {
+                    self.open_message_box("Error", "Error renaming asset folder.");
+                    return; // don't open the text input dialog
+                }
+            }
+        }
+        self.text_input_dialog_action = Some(action);
     }
 
     fn update_dialogs(&mut self, ui: &mut egui::Ui) {
         self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
 
+        // confirmation dialog
         let confirmation_dialog_result = self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
-        if let Some(action) = self.confirmation_dialog_action {
-            match action {
-                ConfirmationDialogAction::NewProject => {
-                    if confirmation_dialog_result == ConfirmationDialogResult::Yes {
-                        self.new_project();
+        if confirmation_dialog_result != DialogResult::None {
+            if let Some(action) = &self.confirmation_dialog_action {
+                match action {
+                    ConfirmationDialogAction::NewProject => {
+                        if confirmation_dialog_result == DialogResult::Yes {
+                            self.new_project();
+                        }
                     }
-                }
-                ConfirmationDialogAction::DeleteAsset(asset_id) => {
-                    if confirmation_dialog_result == ConfirmationDialogResult::Yes {
-                        self.remove_asset(asset_id);
+                    ConfirmationDialogAction::DeleteAsset(asset_id) => {
+                        if confirmation_dialog_result == DialogResult::Yes {
+                            self.remove_asset(*asset_id);
+                        }
                     }
                 }
             }
-        }
-        if confirmation_dialog_result != ConfirmationDialogResult::None {
             self.confirmation_dialog_action = None;
+        }
+
+        // text input dialog
+        let text_input_dialog_result = self.dialogs.show_text_input_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
+        if text_input_dialog_result != DialogResult::None {
+            if let Some(action) = &self.text_input_dialog_action {
+                match action {
+                    TextInputDialogAction::RenameAssetFolder(asset_type, tree_node_id) => {
+                        if text_input_dialog_result == DialogResult::Yes {
+                            let old_name = self.dialogs.get_text_input_dialog_input();
+                            self.rename_asset_folder(*asset_type, *tree_node_id, old_name);
+                        }
+                    }
+                }
+            }
+            self.text_input_dialog_action = None;
         }
     }
 
@@ -610,7 +660,7 @@ impl RavenEditorApp {
 
     fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
         self.asset_tree.update(&self.store);
-        egui::Panel::left("asset_tree").resizable(false).exact_size(ASSET_TREE_PANEL_WIDTH).show(ui, |ui| {
+        egui::Panel::left("asset_tree").resizable(false).exact_size(Self::ASSET_TREE_PANEL_WIDTH).show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
@@ -619,20 +669,22 @@ impl RavenEditorApp {
                     if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
                         let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
                             ui.horizontal(|ui| {
-                                let header = if folder.level == 0 {
-                                    ui.add(egui::Button::image_and_text(include_ref_image!(asset_def.image),
-                                                                        &folder.name).frame_when_inactive(false))
+                                let button = if folder.level == 0 {
+                                    egui::Button::image_and_text(include_ref_image!(asset_def.image), &folder.name)
                                 } else {
-                                    ui.add(egui::Button::new(&folder.name).frame_when_inactive(false))
+                                    egui::Button::new(&folder.name)
                                 };
+                                let header = ui.add(button.frame_when_inactive(false));
                                 egui::Popup::context_menu(&header).show(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                        if ui.button(asset_def.add_menu_item).clicked() {
-                                            folder_action = AssetTreeAction::AddAsset(folder.node_id);
+                                    if folder.level != 0 {
+                                        if ui.add(menu_item_no_image("Rename folder")).clicked() {
+                                            folder_action = AssetTreeAction::RenameFolder(folder.node_id);
                                         }
-                                    });
+                                        ui.separator();
+                                    }
+                                    if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
+                                        folder_action = AssetTreeAction::AddAsset(folder.node_id);
+                                    }
                                 });
                                 header
                             }).inner
@@ -645,26 +697,16 @@ impl RavenEditorApp {
                                     item_action = AssetTreeAction::OpenEditor(asset_item.id);
                                 }
                                 egui::Popup::context_menu(&button).show(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add(egui::Image::new(include_ref_image!(asset_def.image))
-                                               .max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                        if ui.button(asset_def.add_menu_item).clicked() {
-                                            item_action = AssetTreeAction::AddAsset(folder.node_id);
-                                        }
-                                    });
-                                    ui.horizontal(|ui| {
-                                        ui.add(egui::Image::new(IMAGES.copy).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                        if ui.button(asset_def.duplicate_menu_item).clicked() {
-                                            item_action = AssetTreeAction::DuplicateAsset(asset_item.id);
-                                        }
-                                    });
+                                    if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
+                                        item_action = AssetTreeAction::AddAsset(folder.node_id);
+                                    }
+                                    if ui.add(menu_item(IMAGES.copy, asset_def.duplicate_menu_item)).clicked() {
+                                        item_action = AssetTreeAction::DuplicateAsset(asset_item.id);
+                                    }
                                     ui.separator();
-                                    ui.horizontal(|ui| {
-                                        ui.add(egui::Image::new(IMAGES.trash).max_size(egui::Vec2::splat(IMAGE_TREE_CTX_MENU_SIZE)));
-                                        if ui.button(asset_def.remove_menu_item).clicked() {
-                                            item_action = AssetTreeAction::RemoveAsset(asset_item.id);
-                                        }
-                                    });
+                                    if ui.add(menu_item(IMAGES.trash, asset_def.remove_menu_item)).clicked() {
+                                        item_action = AssetTreeAction::RemoveAsset(asset_item.id);
+                                    }
                                 });
                             });
                         };
@@ -673,8 +715,13 @@ impl RavenEditorApp {
                     for action in &[folder_action, item_action] {
                         match action {
                             AssetTreeAction::AddAsset(tree_node_id) => {
-                                self.add_asset(asset_def.asset_type,
-                                               self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id));
+                                self.add_asset(
+                                    asset_def.asset_type,
+                                    self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id)
+                                );
+                            }
+                            AssetTreeAction::RenameFolder(tree_node_id) => {
+                                self.open_text_input_dialog_for(TextInputDialogAction::RenameAssetFolder(asset_def.asset_type, *tree_node_id))
                             }
                             AssetTreeAction::OpenEditor(asset_id) => {
                                 if let Some(editor) = self.editors.get_editor_mut(*asset_id) {

@@ -2,21 +2,34 @@ mod about;
 mod message_box;
 mod confirmation;
 mod colorset;
+mod text_input;
 
 use about::{*};
 use message_box::{*};
 use confirmation::{*};
 use colorset::{*};
+use text_input::{*};
 
-pub use confirmation::ConfirmationDialogResult;
+use super::{
+    SysDialogs,
+    AppSettings,
+    AppWindowTracker,
+};
 
-use super::{SysDialogs, AppSettings, AppWindowTracker};
+#[derive(PartialEq, Debug)]
+pub enum DialogResult {
+    None,
+    Yes,
+    No,
+    Cancel,
+}
 
 pub struct AppDialogs {
     about: AboutDialog,
     message_box: MessageBoxDialog,
     confirmation: ConfirmationDialog,
     colorset: ColorsetEditorDialog,
+    text_input: TextInputDialog,
 }
 
 impl AppDialogs {
@@ -26,6 +39,7 @@ impl AppDialogs {
             message_box: MessageBoxDialog::new(),
             confirmation: ConfirmationDialog::new(),
             colorset: ColorsetEditorDialog::new(),
+            text_input: TextInputDialog::new(),
         }
     }
 
@@ -33,9 +47,27 @@ impl AppDialogs {
         self.message_box.set_open(wt, title.as_ref(), text.as_ref());
     }
 
-    pub fn open_confirmation_dialog(&mut self, wt: &mut AppWindowTracker, title: impl AsRef<str>,
-                                    text: impl AsRef<str>, yes: impl AsRef<str>, no: impl AsRef<str>) {
+    pub fn open_confirmation_dialog(
+        &mut self,
+        wt: &mut AppWindowTracker,
+        title: impl AsRef<str>,
+        text: impl AsRef<str>,
+        yes: impl AsRef<str>,
+        no: impl AsRef<str>
+    ) {
         self.confirmation.set_open(wt, title.as_ref(), text.as_ref(), yes.as_ref(), no.as_ref());
+    }
+
+    pub fn open_text_input_dialog(
+        &mut self,
+        wt: &mut AppWindowTracker,
+        title: impl AsRef<str>,
+        prompt: impl AsRef<str>,
+        input: impl AsRef<str>,
+        yes: impl AsRef<str>,
+        no: impl AsRef<str>
+    ) {
+        self.text_input.set_open(wt, title.as_ref(), prompt.as_ref(), input.as_ref(), yes.as_ref(), no.as_ref());
     }
 
     pub fn open_about(&mut self, wt: &mut AppWindowTracker) {
@@ -53,11 +85,17 @@ impl AppDialogs {
         self.colorset.show(ui, wt, sys_dialogs, settings);
     }
 
-    pub fn show_confirmation_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs)
-                                    -> ConfirmationDialogResult {
+    pub fn show_confirmation_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> DialogResult {
         self.confirmation.show(ui, wt, sys_dialogs)
     }
 
+    pub fn show_text_input_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> DialogResult {
+        self.text_input.show(ui, wt, sys_dialogs)
+    }
+
+    pub fn get_text_input_dialog_input(&mut self) -> String {
+        self.text_input.get_input()
+    }
 }
 
 pub fn create_dialog_window<T>(sys_dialogs: &SysDialogs, ui: &mut egui::Ui, id: egui::Id, width: f32, title: &str,

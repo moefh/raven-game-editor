@@ -309,7 +309,6 @@ impl AssetCollection {
         None
     }
 
-    /*
     pub fn get_asset_mut(&mut self, asset_id : DataAssetId) -> Option<&mut DataAsset> {
         if let Some(v) = self.tilesets.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.maps.get_mut(&asset_id) { return Some(&mut v.asset); }
@@ -324,7 +323,6 @@ impl AssetCollection {
         if let Some(v) = self.prop_fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
         None
     }
-    */
 
     pub fn asset_has_dependents(&self, id: DataAssetId) -> bool {
         for map in self.maps.iter() {
