@@ -162,8 +162,10 @@ impl RavenEditorApp {
             }
             Err(e) => {
                 self.logger.log(format!("ERROR writing header content to {}:\n{}", path.display(), e));
-                self.open_message_box("Error Exportint Header",
-                                      "Error exporting header.\n\nConsult the log window for details.");
+                self.open_message_box(
+                    "Error Exportint Header",
+                    "Error exporting header.\n\nConsult the log window for details."
+                );
                 self.windows.open_log_window();
                 false
             }
@@ -184,18 +186,22 @@ impl RavenEditorApp {
             },
             Err(e) => {
                 self.logger.log(format!("ERROR: {}", e));
-                self.open_message_box("Error Reading Project",
-                                      &format!("Error reading project: {}.\n\nConsult the log window for details.", e));
+                self.open_message_box(
+                    "Error Reading Project",
+                    &format!("Error reading project: {}.\n\nConsult the log window for details.", e)
+                );
                 self.windows.open_log_window();
             }
         }
     }
 
+    /// Some editors may have assets in a transient state that must
+    /// be resolved before saving (e.g. images with detached
+    /// floating selections).
+    ///
+    /// All assets will be ready for saving when this function
+    /// returns.
     fn prepare_for_saving(&mut self) {
-        // Some editors may have assets in a transient state that must
-        // be resolved before saving state (e.g. images with detached
-        // floating selections).
-
         for tileset in self.store.assets.tilesets.iter_mut() {
             if let Some(editor) = self.editors.tilesets.get_mut(&tileset.asset.id) { editor.prepare_for_saving(tileset); }
         }
@@ -245,8 +251,10 @@ impl RavenEditorApp {
             }
             Err(e) => {
                 self.logger.log(format!("ERROR:\n{}", e));
-                self.open_message_box("Error Writing Project",
-                                      "Error writing project.\n\nConsult the log window for details.");
+                self.open_message_box(
+                    "Error Writing Project",
+                    "Error writing project.\n\nConsult the log window for details."
+                );
                 self.windows.open_log_window();
                 false
             }
@@ -522,11 +530,10 @@ impl RavenEditorApp {
                         }
                     }
                     TextInputDialogAction::RenameAsset(_asset_type, asset_id) => {
-                        if text_input_dialog_result == DialogResult::Yes {
-                            if let Some(asset) = self.store.assets.get_asset_mut(*asset_id) {
+                        if text_input_dialog_result == DialogResult::Yes &&
+                            let Some(asset) = self.store.assets.get_asset_mut(*asset_id) {
                                 asset.name = self.dialogs.get_text_input_dialog_input();
                             }
-                        }
                     }
                 }
             }
@@ -682,9 +689,9 @@ impl RavenEditorApp {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.add(menu_item(IMAGES.log, "Log")
-                          .selected(self.windows.log_window.base.open)
-                          .frame_when_inactive(self.windows.log_window.base.open)).on_hover_text("Log Window").clicked() {
+                let log_is_open = self.windows.log_window.base.open;
+                let log_button = egui::Button::image_and_text(IMAGES.log, "Log").selected(log_is_open).frame_when_inactive(log_is_open);
+                if ui.add(log_button).on_hover_text("Log Window").clicked() {
                     self.windows.log_window.toggle_open();
                 }
 

@@ -23,28 +23,39 @@ impl RoomTriggerTypeSel {
         }
     }
 
-    pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, asset_ids: &AssetIdCollection) {
+    pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, asset_ids: &AssetIdCollection) -> bool {
         match self {
             RoomTriggerTypeSel::Unknown if ! matches!(trigger_type, RoomTriggerType::Unknown {..}) => {
                 *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
+                true
             }
             RoomTriggerTypeSel::Trap if ! matches!(trigger_type, RoomTriggerType::Trap {..}) => {
                 *trigger_type = RoomTriggerType::Trap { width: 64, height: 64, trap_type: 0 };
+                true
             }
             RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
                 *trigger_type = RoomTriggerType::PlayerSpawn { direction: 0 };
+                true
             }
             RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
                 if let Some(animation_id) = asset_ids.animations.get_first() {
                     *trigger_type = RoomTriggerType::EnemySpawn { animation_id };
+                    true
+                } else {
+                    false
                 }
             }
             RoomTriggerTypeSel::Door if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
                 if let Some(room_id) = asset_ids.rooms.get_first() {
                     *trigger_type = RoomTriggerType::Door { dest_room_id: room_id, dest_trigger_id: 0 };
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => {
+                false
+            }
         }
     }
 

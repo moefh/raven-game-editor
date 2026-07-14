@@ -124,7 +124,7 @@ impl WorldEditor {
     ) {
         self.dialogs.show(wc, &mut self.editor, world, assets);
 
-        self.base.show_window(wc, world, [550.0, 350.0], [650.0, 450.0], |ui, wc, world, base| {
+        self.base.show_window(wc, world, [600.0, 350.0], [700.0, 450.0], |ui, wc, world, base| {
             Self::show_footer(ui, wc, world, base);
             self.editor.show(ui, wc, &mut self.dialogs, world, assets);
         });

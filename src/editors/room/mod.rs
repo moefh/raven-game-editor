@@ -36,7 +36,7 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {
         RoomTriggerType::Trap {..} => { IMAGES.log }
         RoomTriggerType::Door {..} => { IMAGES.room }
-        RoomTriggerType::PlayerSpawn {..} => { IMAGES.room }
+        RoomTriggerType::PlayerSpawn {..} => { IMAGES.log }
         RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
        _ => { IMAGES.info }
     }
@@ -406,10 +406,6 @@ impl Editor {
         });
         ui.end_row();
 
-        ui.label("Name:");
-        ui.text_edit_singleline(&mut trigger.name_id);
-        ui.end_row();
-
         ui.label("Type:");
         let mut type_sel = RoomTriggerTypeSel::from_trigger_type(&trigger.trigger_type);
         egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_type", self.asset_id))
@@ -422,6 +418,10 @@ impl Editor {
                 ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::PlayerSpawn, RoomTriggerTypeSel::PlayerSpawn.text());
             });
         type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
+        ui.end_row();
+
+        ui.label("Name:");
+        ui.text_edit_singleline(&mut trigger.name_id);
         ui.end_row();
 
         ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();

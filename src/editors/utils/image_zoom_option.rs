@@ -10,6 +10,15 @@ pub const IMAGE_ZOOM_OPTIONS: &[ImageZoomOption] = &[
     ImageZoomOption::Custom("Custom"),
 ];
 
+pub const FONT_ZOOM_OPTIONS: &[ImageZoomOption] = &[
+    ImageZoomOption::FitToWindow("Fit"),
+    ImageZoomOption::Value(5.0, "5x"),
+    ImageZoomOption::Value(10.0, "10x"),
+    ImageZoomOption::Value(20.0, "20x"),
+    ImageZoomOption::Value(50.0, "50x"),
+    ImageZoomOption::Custom("Custom"),
+];
+
 #[derive(PartialEq)]
 pub enum ImageZoomOption<'a> {
     FitToWindow(&'a str),

@@ -21,7 +21,11 @@ use crate::data_asset::{
 
 use properties::PropertiesDialog;
 use import::ImportDialog;
-use super::AssetEditorBase;
+use super::{
+    FONT_ZOOM_OPTIONS,
+    ImageZoomOption,
+    AssetEditorBase
+};
 use super::widgets::{
     ImageEditorWidget,
     FontViewWidget,
@@ -47,10 +51,7 @@ impl FontPainter for Font {
         let width = zoom * self.width as f32;
         let texture = self.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         let image_size = self.get_item_size();
-        let rect = egui::Rect {
-            min: pos,
-            max: pos + egui::Vec2::new(width, height),
-        };
+        let rect = egui::Rect::from_min_size(pos, egui::Vec2::new(width, height));
         egui::Image::from_texture((texture.id(), image_size)).uv(self.get_item_uv(ch as u32 - Font::FIRST_CHAR)).paint_at(ui, rect);
         width
     }
@@ -87,7 +88,7 @@ impl FontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         self.dialogs.show(wc, &mut self.editor, font);
 
-        self.base.show_window(wc, font, [300.0, 350.0], [400.0, 400.0], |ui, wc, font, base| {
+        self.base.show_window(wc, font, [400.0, 350.0], [400.0, 400.0], |ui, wc, font, base| {
             Self::show_footer(ui, wc, font, base);
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });
@@ -249,6 +250,28 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
                     self.shift_image(font, 1, 0);
                 }
+
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
+                        egui::ComboBox::from_id_salt(format!("sprite_editor_{}_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_option.name())
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for option in FONT_ZOOM_OPTIONS {
+                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                                }
+                            });
+                        self.image_editor.zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+
+                        ui.spacing_mut().item_spacing = spacing;
+                    });
+                });
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
