@@ -80,16 +80,10 @@ impl ImageSelection {
     pub fn get_rect(&self) -> Option<Rect> {
         match self {
             ImageSelection::Rect(origin, end) => {
-                Some(Rect {
-                    min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
-                    max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
-                })
+                Some(Rect::from_min_max(origin.min(*end), origin.max(*end)))
             }
             ImageSelection::Fragment(pos, frag) => {
-                Some(Rect {
-                    min: *pos,
-                    max: *pos + Vec2::new(frag.width() as f32, frag.height() as f32),
-                })
+                Some(Rect::from_min_size(*pos, Vec2::new(frag.width() as f32, frag.height() as f32)))
             }
             ImageSelection::None => None,
         }
@@ -775,10 +769,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         // draw selection rectangle
         if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
             let image_to_canvas = canvas_to_image.inverse();
-            let sel_rect = Rect {
-                min: image_to_canvas * sel_rect.min,
-                max: image_to_canvas * sel_rect.max,
-            };
+            let sel_rect = image_to_canvas.transform_rect(sel_rect);
             if sel_rect.is_positive() || resp.dragged_by(egui::PointerButton::Primary) {
                 super::paint_marching_ants(&painter, sel_rect, wc.settings);
                 wc.request_marching_ants_repaint();
@@ -788,11 +779,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         // draw collision
         if self.display.has_bits(ImageDisplay::COLLISION) && let Some(col_rect) = self.collision_rect {
             let image_to_canvas = canvas_to_image.inverse();
-            let col_rect = Rect {
-                min: image_to_canvas * Pos2::new(col_rect.x as f32, col_rect.y as f32),
-                max: image_to_canvas * Pos2::new((col_rect.x+col_rect.w) as f32, (col_rect.y+col_rect.h) as f32),
-            };
-            super::paint_ants(&painter, col_rect, wc.settings, 0);
+            let col_rect = Rect::from_min_size(
+                Pos2::new(col_rect.x as f32, col_rect.y as f32),
+                Vec2::new(col_rect.w as f32, col_rect.h as f32)
+            );
+            let paint_col_rect = image_to_canvas.transform_rect(col_rect);
+            super::paint_ants(&painter, paint_col_rect, wc.settings, 0);
         }
     }
 }

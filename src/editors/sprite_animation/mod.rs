@@ -120,7 +120,6 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
-    force_reload_image: bool,
     selected_tab: EditorTabs,
     selected_loop: usize,
     selected_loop_frame: usize,
@@ -134,7 +133,6 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            force_reload_image: false,
             selected_tab: EditorTabs::Sprite,
             selected_loop: 0,
             selected_loop_frame: 0,
@@ -301,10 +299,8 @@ impl Editor {
         egui::Panel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
-                let slot = sprite.texture_slot(self.image_editor.display.is_transparent(), false);
-                let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
                 let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, self.selected_loop_frame);
-                let scroll = view.show(ui, sprite, texture);
+                let scroll = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
                 let num_frames = aloop.frame_indices.len();
                 if num_frames != 0 &&
                     let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
@@ -336,16 +332,20 @@ impl Editor {
         });
     }
 
-    fn frames_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, animation: &mut SpriteAnimation,
-                  _sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
+    fn frames_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        animation: &mut SpriteAnimation,
+        _sprite_ids: &AssetIdList,
+        sprites: &mut AssetList<Sprite>
+    ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
             Some(s) => s,
             None => { return; }
         };
 
         let asset_id = animation.asset.id;
-        let slot = sprite.texture_slot(self.image_editor.display.is_transparent(), false);
-        let texture = sprite.load_texture(wc.tex_man, wc.egui.ctx, slot, self.force_reload_image);
 
         egui::Panel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show(ui, |ui| {
             ui.add_space(5.0);
@@ -384,7 +384,7 @@ impl Editor {
                     });
                 ui.add_space(5.0);
                 let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, aloop.frame_indices.len() + 1);
-                view.show(ui, sprite, texture);
+                view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
             }
         });
 
@@ -392,7 +392,7 @@ impl Editor {
             ui.add_space(5.0);
             ui.label("Sprite frames (drag to the lists below):");
             let view = SpriteFrameListView::new(&self.sprite_frames, 0, self.selected_sprite_frame);
-            let scroll = view.show(ui, sprite, texture);
+            let scroll = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
             let num_frames = self.sprite_frames.len();
             if num_frames != 0 &&
                 let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&

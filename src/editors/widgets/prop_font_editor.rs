@@ -52,10 +52,7 @@ impl PropFontEditorWidget {
         let (zoomx, zoomy) = (resp_size.x / (image_size.x + 1.0), (resp_size.y / (image_size.y + 1.0)));
         let image_zoom = f32::max(f32::min(zoomx, zoomy).floor(), 1.0);
         let center = resp.rect.center();
-        let canvas_rect = Rect {
-            min: center - image_zoom * image_size / 2.0,
-            max: center + image_zoom * image_size / 2.0,
-        };
+        let canvas_rect = Rect::from_center_size(center, image_zoom * image_size);
 
         // draw background
         painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
@@ -75,7 +72,7 @@ impl PropFontEditorWidget {
         let canvas_size = canvas_rect.size();
         let display_grid = f32::min(canvas_size.x, canvas_size.y) / f32::max(image_size.x, image_size.y) > 3.0;
         if display_grid {
-            let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(112, 112, 112));
+            let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
             for y in 0..=prop_font.height {
                 let py = canvas_rect.min.y + canvas_rect.height() * y as f32 / prop_font.height as f32;
                 painter.hline(canvas_rect.x_range(), py, stroke);
@@ -87,7 +84,7 @@ impl PropFontEditorWidget {
         }
         let canvas_to_image = emath::RectTransform::from_to(
             canvas_rect,
-            Rect { min: Pos2::ZERO, max: Pos2::ZERO + image_size }
+            Rect::from_min_size(Pos2::ZERO, image_size)
         );
 
         if let Some(pointer_pos) = resp.interact_pointer_pos() && canvas_rect.contains(pointer_pos) {

@@ -23,7 +23,6 @@ pub struct WorldRegionEditorWidget {
     pub scroll: Vec2,
     pub selected_region: Option<usize>,
     pub selected_room: Option<u8>,
-    //pub selected_room_changed: bool,
     pub hover_pos: Vec2,
     pub tool: WorldEditorTool,
     pub highlight_door_index: Option<usize>,
@@ -37,7 +36,6 @@ impl WorldRegionEditorWidget {
             zoom,
             scroll: Vec2::ZERO,
             selected_room: None,
-            //selected_room_changed: false,
             selected_region: None,
             hover_pos: Vec2::ZERO,
             tool: WorldEditorTool::Block,
@@ -88,7 +86,6 @@ impl WorldRegionEditorWidget {
 
     pub fn set_selected_room(&mut self, room: Option<u8>) {
         self.selected_room = room;
-        //self.selected_room_changed = true;
     }
 
     fn set_region_block(&self, pos: Pos2, room: Option<u8>, region: &mut WorldRegion) {
@@ -146,14 +143,8 @@ impl WorldRegionEditorWidget {
     }
 
     fn get_block_rect(x: u8, y: u8, zoom: f32, canvas_pos: Pos2) -> Rect {
-        let pos = Vec2 {
-            x: x as f32 * zoom,
-            y: y as f32 * zoom,
-        };
-        Rect {
-            min: canvas_pos + pos,
-            max: canvas_pos + pos + zoom * Vec2::splat(1.0),
-        }
+        let pos = zoom * Vec2::new(x as f32, y as f32);
+        Rect::from_min_size(canvas_pos + pos, zoom * Vec2::splat(1.0))
     }
 
     pub fn ensure_room_selection_is_valid(&mut self, region: &WorldRegion) {

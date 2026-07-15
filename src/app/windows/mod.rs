@@ -28,12 +28,7 @@ impl AppWindow {
     }
 
     pub fn default_rect(&self, wc: &WindowContext, width: f32, height: f32) -> egui::Rect {
-        let x = wc.window_space.min.x + 10.0;
-        let y = wc.window_space.min.y + 10.0;
-        egui::Rect {
-            min: egui::Pos2::new(x, y),
-            max: egui::Pos2::new(x + width, y + height),
-        }
+        egui::Rect::from_min_size(wc.window_space.min + egui::Vec2::splat(10.0), egui::Vec2::new(width, height))
     }
 
     pub fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str, default_rect: egui::Rect) -> egui::Window<'a> {

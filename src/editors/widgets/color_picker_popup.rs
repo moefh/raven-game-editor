@@ -1,5 +1,5 @@
 use std::sync;
-use egui::{Vec2, Sense, Rect, Pos2};
+use egui::{Vec2, Sense, Rect};
 
 use crate::app::AppSettings;
 use crate::image::colors::{color_to_rgb, color_to_rgb_contrast};
@@ -79,14 +79,10 @@ impl ColorPickerPopupWidget {
     }
 
     fn draw_palette(painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8], sel_color: Option<u8>) {
-        let item_w = rect.width() / (dims.0 as f32);
-        let item_h = rect.height() / (dims.1 as f32);
+        let item_size = Vec2::new(rect.width() / (dims.0 as f32), rect.height() / (dims.1 as f32));
         for y in 0..dims.1 {
             for x in 0..dims.0 {
-                let item_rect = Rect {
-                    min: Pos2::new(rect.min.x + (x     as f32) * item_w, rect.min.y + (y     as f32) * item_h),
-                    max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
-                };
+                let item_rect = Rect::from_min_size(rect.min + item_size * Vec2::new(x as f32, y as f32), item_size);
                 let color = palette[(y*dims.0+x) as usize];
                 painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
                 if let Some(sel_color) = sel_color && sel_color == color {
@@ -170,10 +166,10 @@ impl ColorPickerPopupWidget {
                             let alloc_size = Vec2::new(32.0 * COLOR_BLOCK_SIZE - 6.0, COLOR_BLOCK_SIZE);
                             let (response, painter) = ui.allocate_painter(alloc_size, Sense::click_and_drag());
                             let pal_width = h_color_block_size * num_colors as f32;
-                            let draw_rect = egui::Rect {
-                                min: egui::Pos2::new(response.rect.center().x - pal_width/2.0, response.rect.min.y),
-                                max: egui::Pos2::new(response.rect.center().x + pal_width/2.0, response.rect.max.y),
-                            };
+                            let draw_rect = egui::Rect::from_min_max(
+                                egui::Pos2::new(response.rect.center().x - pal_width/2.0, response.rect.min.y),
+                                egui::Pos2::new(response.rect.center().x + pal_width/2.0, response.rect.max.y)
+                            );
                             Self::draw_palette(&painter, draw_rect, (num_colors, 1), &GRAY_PAL8, Some(*pick_color));
                             if let Some(pos) = response.interact_pointer_pos() && response.rect.contains(pos) {
                                 let index = ((pos.x - draw_rect.min.x) / h_color_block_size).floor() as i32;
@@ -193,10 +189,10 @@ impl ColorPickerPopupWidget {
                             let alloc_size = Vec2::new(32.0 * COLOR_BLOCK_SIZE - 6.0, 6.0 * COLOR_BLOCK_SIZE);
                             let (response, painter) = ui.allocate_painter(alloc_size, Sense::click_and_drag());
                             let pal_width = COLOR_BLOCK_SIZE * 13.0;
-                            let draw_rect = egui::Rect {
-                                min: egui::Pos2::new(response.rect.center().x - pal_width/2.0, response.rect.min.y),
-                                max: egui::Pos2::new(response.rect.center().x + pal_width/2.0, response.rect.max.y),
-                            };
+                            let draw_rect = egui::Rect::from_min_max(
+                                egui::Pos2::new(response.rect.center().x - pal_width/2.0, response.rect.min.y),
+                                egui::Pos2::new(response.rect.center().x + pal_width/2.0, response.rect.max.y)
+                            );
                             Self::draw_palette(&painter, draw_rect, (13, 6), &GRAD_PAL8, Some(*pick_color));
                             if let Some(pos) = response.interact_pointer_pos() && response.rect.contains(pos) {
                                 let x = ((pos.x - draw_rect.min.x) / COLOR_BLOCK_SIZE).floor() as i32;

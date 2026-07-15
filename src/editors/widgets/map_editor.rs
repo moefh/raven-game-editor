@@ -74,22 +74,13 @@ impl MapSelection {
     pub fn get_rect(&self) -> Option<Rect> {
         match self {
             MapSelection::Rect(origin, end) => {
-                Some(Rect {
-                    min: Pos2::new(origin.x.min(end.x), origin.y.min(end.y)),
-                    max: Pos2::new(origin.x.max(end.x), origin.y.max(end.y)),
-                })
+                Some(Rect::from_min_max(origin.min(*end), origin.max(*end)))
             }
             MapSelection::LayerFragment(pos, frag) => {
-                Some(Rect {
-                    min: *pos,
-                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
-                })
+                Some(Rect::from_min_size(*pos, Vec2::new(frag.width as f32, frag.height as f32)))
             }
             MapSelection::WholeFragment(pos, frag) => {
-                Some(Rect {
-                    min: *pos,
-                    max: *pos + Vec2::new(frag.width as f32, frag.height as f32),
-                })
+                Some(Rect::from_min_size(*pos, Vec2::new(frag.width as f32, frag.height as f32)))
             }
             MapSelection::None => None,
         }
@@ -523,14 +514,8 @@ impl MapEditorWidget {
     }
 
     fn get_tile_rect(x: u32, y: u32, zoom: f32, canvas_pos: Pos2) -> Rect {
-        let pos = Vec2 {
-            x: x as f32 * TILE_SIZE * zoom,
-            y: y as f32 * TILE_SIZE * zoom,
-        };
-        Rect {
-            min: canvas_pos + pos,
-            max: canvas_pos + pos + zoom * Vec2::splat(TILE_SIZE),
-        }
+        let pos = TILE_SIZE * zoom * Vec2::new(x as f32, y as f32);
+        Rect::from_min_size(canvas_pos + pos, zoom * Vec2::splat(TILE_SIZE))
     }
 
     pub fn can_undo(&self) -> bool {
@@ -691,13 +676,13 @@ impl MapEditorWidget {
         self.clip_scroll(canvas_rect.size(), map_size);
 
         let canvas_to_map_full = emath::RectTransform::from_to(
-            Rect { min: canvas_rect.min + self.scroll, max: canvas_rect.min + map_size + self.scroll },
-            Rect { min: Pos2::ZERO, max: Pos2::new(map_data.width as f32, map_data.height as f32) }
+            Rect::from_min_size(canvas_rect.min + self.scroll, map_size),
+            Rect::from_min_size(Pos2::ZERO, Vec2::new(map_data.width as f32, map_data.height as f32))
         );
         let para_scroll = self.calc_para_scroll(map_area_rect, map_data);
         let canvas_to_map_para = emath::RectTransform::from_to(
-            Rect { min: canvas_rect.min + para_scroll, max: canvas_rect.min + map_para_size + para_scroll },
-            Rect { min: Pos2::ZERO, max: Pos2::new(map_data.para_width as f32, map_data.para_height as f32) }
+            Rect::from_min_size(canvas_rect.min + para_scroll, map_para_size),
+            Rect::from_min_size(Pos2::ZERO, Vec2::new(map_data.para_width as f32, map_data.para_height as f32))
         );
 
         // ensure we don't draw outside the map area
@@ -827,10 +812,7 @@ impl MapEditorWidget {
             let stroke1 = egui::Stroke::new(3.0, Color32::PURPLE);
             let stroke2 = egui::Stroke::new(1.0, Color32::YELLOW);
             let pos = canvas_rect.min + self.zoom * self.screen_display_pos.to_vec2() + self.scroll;
-            let screen_rect = Rect {
-                min: pos,
-                max: pos + self.zoom * SCREEN_SIZE,
-            };
+            let screen_rect = Rect::from_min_size(pos, self.zoom * SCREEN_SIZE);
             painter.rect_stroke(screen_rect, egui::CornerRadius::ZERO, stroke1, egui::StrokeKind::Middle);
             painter.rect_stroke(screen_rect, egui::CornerRadius::ZERO, stroke2, egui::StrokeKind::Middle);
         }
@@ -892,10 +874,7 @@ impl MapEditorWidget {
                 MapLayer::Parallax => canvas_to_map_para.inverse(),
                 _ => canvas_to_map_full.inverse(),
             };
-            let sel_rect = Rect {
-                min: map_to_canvas * sel_rect.min,
-                max: map_to_canvas * sel_rect.max,
-            };
+            let sel_rect = map_to_canvas.transform_rect(sel_rect);
             if sel_rect.is_positive() || response.dragged_by(egui::PointerButton::Primary) {
                 super::paint_marching_ants(&painter, sel_rect, wc.settings);
                 wc.request_marching_ants_repaint();

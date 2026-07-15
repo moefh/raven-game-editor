@@ -1,5 +1,6 @@
-use egui::{Vec2, Sense, Image, Rect, Pos2};
+use egui::{Vec2, Sense, Image, Rect};
 
+use crate::app::WindowContext;
 use crate::data_asset::SpriteAnimationFrame;
 use crate::image::ImageCollection;
 
@@ -19,20 +20,18 @@ impl<'a> SpriteFrameListView<'a> {
     }
 
     fn get_frame_rect(index: usize, y_offset: f32, image_size: Vec2, canvas_rect: Rect) -> Rect {
-        Rect {
-            min: Pos2 {
-                x: canvas_rect.min.x + index as f32 * image_size.x,
-                y: canvas_rect.min.y + y_offset,
-            },
-            max: Pos2 {
-                x: canvas_rect.min.x + (index+1) as f32 * image_size.x,
-                y: canvas_rect.min.y + y_offset + image_size.y,
-            },
-        }
+        Rect::from_min_size(canvas_rect.min + Vec2::new(index as f32 * image_size.x, y_offset), image_size)
     }
 
-    pub fn show(&self, ui: &mut egui::Ui, image: &impl ImageCollection, texture: &egui::TextureHandle)
-                -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
+    pub fn show(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        image: &impl ImageCollection,
+        transparent_display: bool,
+    ) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
+        let slot = image.texture_slot(transparent_display, false);
+        let texture = image.load_texture(wc.tex_man, wc.egui.ctx, slot, false);
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
             let use_foot_frames = self.frame_indices.iter().any(|f| f.foot_index.is_some());
@@ -43,13 +42,10 @@ impl<'a> SpriteFrameListView<'a> {
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(ui.available_width(), 0.0));
             let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
             let space = response.rect;
-            let canvas_rect = Rect {
-                min: space.min,
-                max: space.min + image_picker_size,
-            };
+            let canvas_rect = Rect::from_min_size(space.min, image_picker_size);
 
             // draw background
-            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0xe0u8, 0xffu8, 0xffu8));
+            painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
             let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
             painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
 

@@ -36,14 +36,8 @@ impl TileGridEditorWidget {
     }
 
     fn get_tile_rect(x: u32, y: u32, zoom: f32, canvas_pos: Pos2) -> Rect {
-        let pos = Vec2 {
-            x: x as f32 * zoom * TILE_SIZE,
-            y: y as f32 * zoom * TILE_SIZE,
-        };
-        Rect {
-            min: canvas_pos + pos,
-            max: canvas_pos + pos + zoom * Vec2::splat(TILE_SIZE),
-        }
+        let pos = zoom * TILE_SIZE * Vec2::new(x as f32, y as f32);
+        Rect::from_min_size(canvas_pos + pos, zoom * Vec2::splat(TILE_SIZE))
     }
 
     fn draw_tiles(ui: &mut egui::Ui, wc: &mut WindowContext, tile_grid: &TileGrid, tileset: &Tileset, zoom: f32, pos: Pos2) {

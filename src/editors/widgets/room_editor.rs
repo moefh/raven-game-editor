@@ -239,23 +239,14 @@ impl RoomEditorWidget {
     }
 
     fn get_tile_rect(x: u32, y: u32, map_pos: Pos2) -> Rect {
-        let tile_pos = Vec2 {
-            x: TILE_SIZE * (x as f32),
-            y: TILE_SIZE * (y as f32),
-        };
-        Rect {
-            min: map_pos + tile_pos,
-            max: map_pos + tile_pos + Vec2::splat(TILE_SIZE),
-        }
+        let tile_pos = TILE_SIZE * Vec2::new(x as f32, y as f32);
+        Rect::from_min_size(map_pos + tile_pos, Vec2::splat(TILE_SIZE))
     }
 
     fn get_map_rect(room_map: &RoomMap, map_data: &MapData) -> Rect {
         let map_pos = Pos2::new(room_map.x as f32, room_map.y as f32);
         let map_size = Vec2::new(map_data.width as f32, map_data.height as f32);
-        egui::Rect {
-            min: TILE_SIZE * map_pos,
-            max: TILE_SIZE * (map_pos + map_size),
-        }
+        TILE_SIZE * egui::Rect::from_min_size(map_pos, map_size)
     }
 
     fn get_trigger_rect(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Rect {

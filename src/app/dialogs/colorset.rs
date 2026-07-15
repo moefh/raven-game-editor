@@ -5,7 +5,7 @@ use super::{
     create_dialog_window,
 };
 
-use egui::{Vec2, Pos2, Rect};
+use egui::{Vec2, Rect};
 
 use crate::image::colors::color_to_rgb;
 use crate::editors::ColorPickerPopupWidget;
@@ -19,7 +19,7 @@ pub struct ColorsetEditorDialog {
 }
 
 impl ColorsetEditorDialog {
-    const MIN_PICKER_WIDTH: f32 = 200.0;
+    const MIN_PICKER_WIDTH: f32 = 150.0;
     const MIN_WINDOW_WIDTH: f32 = Self::MIN_PICKER_WIDTH + 12.0;
 
     pub fn new() -> Self {
@@ -46,31 +46,28 @@ impl ColorsetEditorDialog {
             }
         });
 
-        let min_size = Vec2::new(Self::MIN_PICKER_WIDTH, Self::MIN_PICKER_WIDTH * 7.0 / 8.0);
+        let min_size = Vec2::new(Self::MIN_PICKER_WIDTH, Self::MIN_PICKER_WIDTH * 1.6);
         let (response, painter) = ui.allocate_painter(min_size, egui::Sense::click());
 
         let mut rect = response.rect.shrink(3.0);
-        let color_block_w = rect.width() / 4.0;
-        let color_block_h = color_block_w / 2.0;
+        let color_block_size = Vec2::new(rect.width() / 4.0, rect.height() / 8.0);
 
         if let Some(colors) = settings.colorsets.get_colorset_colors(self.colorset) {
-            rect.max.y = rect.min.y + color_block_h * colors.len().div_ceil(4) as f32;
+            rect.max.y = rect.min.y + color_block_size.y * colors.len().div_ceil(4) as f32;
             for (i, &color) in colors.iter().enumerate() {
                 let x = i % 4;
                 let y = i / 4;
+                let pos = Vec2::new(x as f32, y as f32);
 
-                let item_rect = Rect {
-                    min: Pos2::new(rect.min.x + (x     as f32) * color_block_w, rect.min.y + (y     as f32) * color_block_h),
-                    max: Pos2::new(rect.min.x + ((x+1) as f32) * color_block_w, rect.min.y + ((y+1) as f32) * color_block_h),
-                };
+                let item_rect = Rect::from_min_size(rect.min + color_block_size * pos, color_block_size);
                 painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
             }
         }
         painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE), egui::StrokeKind::Outside);
 
         if response.clicked() && let Some(pos) = response.interact_pointer_pos() {
-            let x = ((pos.x - response.rect.min.x) / color_block_w).floor().clamp(0.0, 3.0) as usize;
-            let y = ((pos.y - response.rect.min.y) / color_block_h).floor().max(0.0) as usize;
+            let x = ((pos.x - response.rect.min.x) / color_block_size.x).floor().clamp(0.0, 3.0) as usize;
+            let y = ((pos.y - response.rect.min.y) / color_block_size.y).floor().max(0.0) as usize;
             let color_index = y*4 + x;
             if let Some(colors) = settings.colorsets.get_colorset_colors(self.colorset) &&
                 colors.get(color_index).is_some() {

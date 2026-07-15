@@ -37,10 +37,7 @@ impl FontViewWidget {
                 let min_size = Vec2::new(ui.available_width().max(width + 2.0 * Self::BORDER),
                                          height + 2.0 * Self::BORDER + Self::SCROLLBAR_HEIGHT);
                 let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
-                let canvas_rect = Rect {
-                    min: response.rect.min.ceil(),
-                    max: Pos2::new(response.rect.max.x.ceil(), response.rect.min.y.ceil() + height),
-                };
+                let canvas_rect = Rect::from_min_size(response.rect.min, Vec2::new(response.rect.width(), height));
 
                 ui.shrink_clip_rect(canvas_rect);
                 painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);

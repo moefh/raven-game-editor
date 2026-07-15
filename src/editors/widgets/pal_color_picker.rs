@@ -64,14 +64,10 @@ impl PalColorPickerWidget {
     }
 
     fn draw_palette(&self, painter: &egui::Painter, rect: Rect, dims: (i32, i32), palette: &[u8], draw_selection: bool) {
-        let item_w = rect.width() / (dims.0 as f32);
-        let item_h = rect.height() / (dims.1 as f32);
+        let item_size = Vec2::new(rect.width() / (dims.0 as f32), rect.height() / (dims.1 as f32));
         for y in 0..dims.1 {
             for x in 0..dims.0 {
-                let item_rect = Rect {
-                    min: Pos2::new(rect.min.x + (x     as f32) * item_w, rect.min.y + (y     as f32) * item_h),
-                    max: Pos2::new(rect.min.x + ((x+1) as f32) * item_w, rect.min.y + ((y+1) as f32) * item_h),
-                };
+                let item_rect = Rect::from_min_size(rect.min + item_size * Vec2::new(x as f32, y as f32), item_size);
                 let color_index = (y*dims.0+x) as usize;
                 let color = if color_index < palette.len() { palette[color_index] } else { 0 };
                 painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
@@ -111,10 +107,7 @@ impl PalColorPickerWidget {
         };
         let pal_item_size = Vec2::splat(width / pal_colors_x as f32);
         let pal_start = Pos2::new(left, edit_pal_rect.max.y + border);
-        let pal_rect = Rect {
-            min: pal_start,
-            max: pal_start + Vec2::new(pal_colors_x as f32 * pal_item_size.x, pal_colors_y as f32 * pal_item_size.y),
-        };
+        let pal_rect = Rect::from_min_size(pal_start, pal_item_size * Vec2::new(pal_colors_x as f32, pal_colors_y as f32));
         let pal_dims = (pal_colors_x, pal_colors_y);
 
         let bg_rect = full_rect.with_max_y(pal_rect.max.y + border);
