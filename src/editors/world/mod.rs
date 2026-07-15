@@ -30,6 +30,7 @@ use super::{
     AssetEditorBase,
 };
 use super::widgets::{
+    WorldEditorTool,
     WorldEditorWidget,
     WorldRegionEditorWidget,
     RoomGridViewWidget,
@@ -303,7 +304,6 @@ impl Editor {
                         self.world_editor.lock_regions = ! self.world_editor.lock_regions;
                     }
             });
-            ui.add_space(0.0);
         });
 
         egui::CentralPanel::default().show(ui, |ui| {
@@ -435,8 +435,31 @@ impl Editor {
         let actions = {
             egui::Panel::top(format!("editor_panel_{}_region_toolbar", self.asset_id)).show(ui, |ui| {
                 ui.add_space(2.0);
+
                 if let Some(region) = world.regions.get_mut(region_index) {
                     ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                        ui.label("Tool:");
+                        ui.add_space(1.0);
+                        if ui.add(egui::Button::image(IMAGES.pen)
+                            .selected(self.region_editor.get_tool() == WorldEditorTool::Block)
+                            .frame_when_inactive(self.region_editor.get_tool() == WorldEditorTool::Block))
+                            .on_hover_text("Blocks").clicked() {
+                                self.region_editor.set_tool(WorldEditorTool::Block);
+                            }
+
+                        if ui.add(egui::Button::image(IMAGES.room)
+                            .selected(self.region_editor.get_tool() == WorldEditorTool::DoorLink)
+                            .frame_when_inactive(self.region_editor.get_tool() == WorldEditorTool::DoorLink))
+                            .on_hover_text("Door links").clicked() {
+                                self.region_editor.set_tool(WorldEditorTool::DoorLink);
+                            }
+
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
                         if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
                             self.shift_region(region, ShiftDirection::Up);
                         }
@@ -451,7 +474,6 @@ impl Editor {
                         }
                     });
                 }
-                ui.add_space(1.0);
             });
 
             let actions = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
@@ -476,7 +498,7 @@ impl Editor {
                 }).inner;
 
             egui::CentralPanel::default().show(ui, |ui| {
-                self.region_editor.show(ui, wc, world, &self.world_grid, region_index);
+                self.region_editor.show(ui, wc, world, &self.world_grid);
             });
 
             actions
@@ -512,6 +534,7 @@ impl Editor {
             self.done_init = true;
             self.init(world);
         }
+        self.region_editor.set_selected_region(self.world_editor.get_selected_region());
 
         self.show_menubar(ui, wc, dialogs, world, assets.rooms);
 
@@ -539,13 +562,27 @@ impl Editor {
         // bottom bar
         egui::Panel::bottom(format!("editor_panel_{}_window_bottom", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
-            if let Some(region_index) = self.world_editor.get_selected_region() &&
-                let Some(region) = world.regions.get_mut(region_index) {
+            ui.horizontal(|ui| {
+                if let Some(region_index) = self.world_editor.get_selected_region() && let Some(region) = world.regions.get_mut(region_index) {
                     ui.label(format!("{}x{} blocks", region.width, region.height));
+                    ui.separator();
+                    if let Some(door_index) = self.region_editor.highlight_door_index && let Some(door) = self.world_grid.doors.get(door_index) {
+                        if let Some(dest_door) = door.dest_door_index && let Some(dest_region) = door.dest_region_index {
+                            if dest_region == region_index && dest_door == door_index {
+                                ui.label("Door with self as destination");
+                            } else if dest_region == region_index && dest_door != door_index {
+                                ui.label("Door to room in this region");
+                            } else {
+                                ui.label("Door to room in another region");
+                            }
+                        } else {
+                            ui.label("Door with invalid destination");
+                        }
+                    }
                 } else {
                     ui.label("No region selected");
                 }
-            ui.add_space(1.0);
+            });
         });
 
         // tabs

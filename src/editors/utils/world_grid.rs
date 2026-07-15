@@ -15,10 +15,6 @@ use crate::data_asset::{
 pub const DOOR_WIDTH: i16 = Tileset::TILE_SIZE as i16;
 pub const DOOR_HEIGHT: i16 = 4 * Tileset::TILE_SIZE as i16;
 
-fn get_dest_door(map: &HashMap<DataAssetId, HashMap<u16, (usize, usize)>>, room_id: DataAssetId, trigger_id: u16) -> Option<(usize, usize)> {
-    map.get(&room_id).and_then(|m| m.get(&trigger_id)).copied()
-}
-
 pub fn get_world_size(world: &World) -> (i32, i32) {
     world.regions.iter().fold((0, 0), |size, region| {
         (
@@ -76,6 +72,7 @@ pub struct Position {
 pub struct Door {
     pub pos: Option<Position>,
     pub room_id: Option<DataAssetId>,
+    pub trigger_index: Option<usize>,
     pub dest_region_index: Option<usize>,
     pub dest_door_index: Option<usize>,
 }
@@ -85,6 +82,7 @@ impl Door {
         Door {
             pos: None,
             room_id: None,
+            trigger_index: None,
             dest_region_index: None,
             dest_door_index: None,
         }
@@ -257,36 +255,35 @@ impl WorldGridStore {
             num_world_doors += num_region_doors;
         }
         self.world_grid.update_door_indices(0, num_world_doors);
+        self.doors.resize_with(num_world_doors, Door::new);
 
         // build map of: room_id<DataAssetId> -> trigger_id<u16> -> (region_index<usize>, door_index<usize>)
-        let mut room_trigger_door_map = HashMap::new();
+        let mut trigger_to_door = HashMap::new();
         let mut door_index = 0;
         for (region_index, region) in world.regions.iter().enumerate() {
             for room in region.rooms.iter().filter_map(|room_id| { rooms.get(room_id) }) {
-                let mut trigger_door_map = HashMap::new();
                 for trigger in room.triggers.iter() {
                     if matches!(trigger.trigger_type, RoomTriggerType::Door { .. }) &&
                         self.doors.get(door_index).is_some() {
-                            trigger_door_map.insert(trigger.trigger_id, (region_index, door_index));
+                            trigger_to_door.insert((room.asset.id, trigger.trigger_id), (region_index, door_index));
                             door_index += 1;
                         }
                 }
-                room_trigger_door_map.insert(room.asset.id, trigger_door_map);
             }
         }
 
         // update doors
-        self.doors.resize_with(num_world_doors, Door::new);
         let mut door_index = 0;
         for (region_grid, region) in self.region_grids.iter_mut().zip(world.regions.iter()) {
             region_grid.region_x = region.x as f32;
             region_grid.region_y = region.y as f32;
             for room in region.rooms.iter().filter_map(|room_id| rooms.get(room_id)) {
                 let room_info = RoomInfo::calculate(region, room, maps);
-                for trigger in room.triggers.iter() {
+                for (trigger_index, trigger) in room.triggers.iter().enumerate() {
                     if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = trigger.trigger_type &&
                         let Some(door) = self.doors.get_mut(door_index) {
                             door.room_id = Some(room.asset.id);
+                            door.trigger_index = Some(trigger_index);
                             if let Some(room_info) = &room_info {
                                 let room_x = region.x as f32 + room_info.block_x;
                                 let room_y = region.y as f32 + room_info.block_y;
@@ -299,9 +296,9 @@ impl WorldGridStore {
                             } else {
                                 door.pos = None;
                             }
-                            if let Some((region_index, door_index)) = get_dest_door(&room_trigger_door_map, dest_room_id, dest_trigger_id) {
-                                door.dest_region_index = Some(region_index);
-                                door.dest_door_index = Some(door_index);
+                            if let Some((region_index, door_index)) = trigger_to_door.get(&(dest_room_id, dest_trigger_id)) {
+                                door.dest_region_index = Some(*region_index);
+                                door.dest_door_index = Some(*door_index);
                             } else {
                                 door.dest_region_index = None;
                                 door.dest_door_index = None;

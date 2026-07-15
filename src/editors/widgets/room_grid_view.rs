@@ -84,8 +84,8 @@ impl RoomGridViewWidget {
         }
 
         // maps
-        let map_stroke = egui::Stroke::new(2.0, Color32::from_rgb(255, 64, 64));
-        let map_fill = Color32::from_rgba_unmultiplied(255, 64, 64, 92);
+        let map_stroke = egui::Stroke::new(2.0, Color32::from_rgb(0, 128, 255));
+        let map_fill = Color32::from_rgba_unmultiplied(0, 64, 255, 92);
         for room_map in room.maps.iter() {
             if let Some(map) = maps.get(&room_map.map_id) {
                 let map_pos = zoom * TILE_SIZE * Vec2::new(room_map.x as f32, room_map.y as f32);
