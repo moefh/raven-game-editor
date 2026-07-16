@@ -423,10 +423,12 @@ impl Editor {
         if region_width < MAX_WIDTH {
             for y in 0..MAX_HEIGHT {
                 region.blocks[y*MAX_WIDTH + region_width] = None;
+                region.blocks[y*MAX_WIDTH + MAX_WIDTH-1] = None;
             }
         }
         if region_height < MAX_HEIGHT {
             region.blocks[region_height*MAX_WIDTH .. (region_height+1)*MAX_WIDTH].fill(None);
+            region.blocks[(MAX_HEIGHT-1)*MAX_WIDTH .. MAX_HEIGHT*MAX_WIDTH].fill(None);
         }
     }
 
