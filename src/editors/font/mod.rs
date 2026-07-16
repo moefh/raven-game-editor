@@ -81,7 +81,13 @@ impl FontEditor {
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, font.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", font.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            ui.label(format!("{} bytes [size: {}x{}]{}", font.data_size(), font.width, font.height, dirty));
+            ui.add(egui::Label::new(format!(
+                "{} bytes [size: {}x{}]{}",
+                font.data_size(),
+                font.width,
+                font.height,
+                dirty
+            )).truncate());
         });
     }
 

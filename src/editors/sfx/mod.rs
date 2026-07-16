@@ -46,8 +46,13 @@ impl SfxEditor {
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, sfx.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", sfx.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            ui.label(format!("{} bytes [samples: {}, bits/sample: {}]{}",
-                             sfx.data_size(), sfx.samples.len(), sfx.bits_per_sample, dirty));
+            ui.add(egui::Label::new(format!(
+                "{} bytes [samples: {}, bits/sample: {}]{}",
+                sfx.data_size(),
+                sfx.samples.len(),
+                sfx.bits_per_sample,
+                dirty
+            )).truncate());
         });
     }
 

@@ -133,7 +133,7 @@ impl RoomEditor {
         egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let room_size = RoomSize::from_room(room, maps);
-            ui.label(format!(
+            ui.add(egui::Label::new(format!(
                 "{} bytes [{}x{}, {} map{}, {} trigger{}]{}",
                 room.data_size(),
                 room_size.width,
@@ -143,7 +143,7 @@ impl RoomEditor {
                 room.triggers.len(),
                 if room.triggers.len() != 1 { "s" } else { "" },
                 dirty
-            ));
+            )).truncate());
         });
     }
 

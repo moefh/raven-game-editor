@@ -62,9 +62,16 @@ impl PalSpriteEditor {
             ui.horizontal(|ui| {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 let frames_plural = if pal_sprite.num_frames > 1 { "s" } else { "" };
-                ui.label(format!("{} bytes [{}x{}, {} bpp, {} frame{}]{}", pal_sprite.data_size(),
-                                 pal_sprite.width, pal_sprite.height, pal_sprite.depth.bits_per_pixel(),
-                                 pal_sprite.num_frames, frames_plural, dirty));
+                ui.add(egui::Label::new(format!(
+                    "{} bytes [{}x{}, {} bpp, {} frame{}]{}",
+                    pal_sprite.data_size(),
+                    pal_sprite.width,
+                    pal_sprite.height,
+                    pal_sprite.depth.bits_per_pixel(),
+                    pal_sprite.num_frames,
+                    frames_plural,
+                    dirty
+                )).truncate());
 
                 if let Some(sprite) = editor.image_picker.get_selected_image() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {

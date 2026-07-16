@@ -81,7 +81,7 @@ impl SpriteAnimationEditor {
             let num_loops = animation.loops.iter().fold(0, |n, aloop| {
                 n + if aloop.frame_indices.is_empty() { 0 } else { 1 }
             });
-            ui.label(format!("{} bytes [{} loops]{}", animation.data_size(), num_loops, dirty));
+            ui.add(egui::Label::new(format!("{} bytes [{} loops]{}", animation.data_size(), num_loops, dirty)).truncate());
         });
     }
 

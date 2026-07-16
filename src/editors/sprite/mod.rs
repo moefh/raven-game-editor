@@ -71,8 +71,14 @@ impl SpriteEditor {
             ui.horizontal(|ui| {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
-                ui.label(format!("{} bytes [{}x{}, {} frame{}]{}",
-                                 sprite.data_size(), sprite.width, sprite.height, sprite.num_frames, frames_plural, dirty));
+                ui.add(egui::Label::new(format!(
+                    "{} bytes [{}x{}, {} frame{}]{}",
+                    sprite.data_size(),
+                    sprite.width,
+                    sprite.height,
+                    sprite.num_frames,
+                    frames_plural, dirty
+                )).truncate());
 
                 if let Some(sprite) = editor.image_picker.get_selected_image() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {

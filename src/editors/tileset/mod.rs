@@ -80,7 +80,11 @@ impl TilesetEditor {
         egui::Panel::bottom(format!("editor_panel_{}_bottom", tileset.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
-                ui.label(format!("{} bytes [{} tiles]{}", tileset.data_size(), tileset.num_tiles, dirty));
+                ui.add(egui::Label::new(format!(
+                    "{} bytes [{} tiles]{}",
+                    tileset.data_size(),
+                    tileset.num_tiles, dirty
+                )).truncate());
 
                 if let Some(tile) = editor.tile_picker.get_selected_image() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {

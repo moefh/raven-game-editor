@@ -61,7 +61,7 @@ impl MapDataEditor {
         let dirty = if base.is_dirty() { " (modified)" } else { "" };
         egui::Panel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(format!(
+                ui.add(egui::Label::new(format!(
                     "{} bytes [size: {}x{}, parallax: {}x{}]{}",
                     map_data.data_size(),
                     map_data.width,
@@ -69,7 +69,7 @@ impl MapDataEditor {
                     map_data.para_width,
                     map_data.para_height,
                     dirty
-                ));
+                )).truncate());
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         let spacing = ui.spacing().item_spacing;

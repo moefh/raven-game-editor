@@ -104,7 +104,7 @@ impl WorldEditor {
             let world_size = world_grid::get_world_size(world);
 
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            ui.label(format!(
+            ui.add(egui::Label::new(format!(
                 "{} bytes [{}x{} blocks, {} region{}] {}",
                 world.data_size(),
                 world_size.0,
@@ -112,7 +112,7 @@ impl WorldEditor {
                 world.regions.len(),
                 if world.regions.len() != 1 { "s" } else { "" },
                 dirty,
-            ));
+            )).truncate());
         });
     }
 

@@ -63,8 +63,13 @@ impl ModDataEditor {
             let num_samples = mod_data.samples.iter().fold(0, |n, spl| {
                 n + if spl.len != 0 && spl.data.is_some() { 1 } else { 0 }
             });
-            ui.label(format!("{} bytes [samples: {}, song pos: {}]{}",
-                             mod_data.data_size(), num_samples, mod_data.song_positions.len(), dirty));
+            ui.add(egui::Label::new(format!(
+                "{} bytes [samples: {}, song pos: {}]{}",
+                mod_data.data_size(),
+                num_samples,
+                mod_data.song_positions.len(),
+                dirty
+            )).truncate());
         });
     }
 
