@@ -103,7 +103,6 @@ pub struct WorldEditorWidget {
     selected_region_changed: bool,
     selected_region: Option<usize>,
     resize_border: Option<RectBorder>,
-    resizing_region: bool,
     drag_item: DragItem,
     drag_item_origin: Pos2,
     drag_mouse_origin: Pos2,
@@ -121,7 +120,6 @@ impl WorldEditorWidget {
             lock_regions: true,
             lock_door_connections: true,
             resize_border: None,
-            resizing_region: false,
             drag_item: DragItem::None,
             drag_item_origin: Pos2::ZERO,
             drag_mouse_origin: Pos2::ZERO,
@@ -214,9 +212,8 @@ impl WorldEditorWidget {
         Self::get_rect_border(self.get_selected_region_rect(world)?.egui_rect(), pos, zoom)
     }
 
-    fn resize_start(&mut self, border: RectBorder, region_rect: Rect, mouse_pos: Pos2) {
-        self.resizing_region = true;
-        self.drag_mouse_origin = mouse_pos;
+    fn resize_start(&mut self, region_index: usize, border: RectBorder, region_rect: Rect, mouse_pos: Pos2) {
+        self.drag_start(DragItem::Region(region_index), region_rect.min, mouse_pos);
         self.resize_border = Some(border);
         self.drag_item_origin = match border {
             RectBorder::Top | RectBorder::Left | RectBorder::TopLeft => region_rect.min,
@@ -229,8 +226,7 @@ impl WorldEditorWidget {
     fn resize_move(&mut self, mouse_pos: Pos2, world: &mut World, border: RectBorder) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
 
-        if self.resizing_region &&
-            let Some(rect) = self.get_selected_region_rect(world) &&
+        if let Some(rect) = self.get_selected_region_rect(world) &&
             let Some(region_index) = self.selected_region &&
             let Some(region) = world.regions.get_mut(region_index) {
                 let mut rect = rect;
@@ -274,7 +270,6 @@ impl WorldEditorWidget {
 
     fn drag_stop(&mut self) {
         self.drag_item = DragItem::None;
-        self.resizing_region = false;
         self.resize_border = None;
     }
 
@@ -324,9 +319,10 @@ impl WorldEditorWidget {
         // drag region border
         if resp.drag_started() &&
             resp.dragged_by(egui::PointerButton::Primary) &&
+            let Some(region_index) = self.selected_region &&
             let Some(border) = self.get_selected_region_border(world, mouse_pos, self.zoom) &&
             let Some(rect) = self.get_selected_region_rect(world) {
-                self.resize_start(border, rect.egui_rect(), mouse_pos);
+                self.resize_start(region_index, border, rect.egui_rect(), mouse_pos);
                 return;
             }
 
