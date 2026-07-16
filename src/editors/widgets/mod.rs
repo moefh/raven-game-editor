@@ -45,6 +45,12 @@ pub use prop_font_editor::{*};
 pub use font_view::{*};
 pub use tile_grid_editor::{*};
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum WidgetZoom {
+    FitToWindow,
+    Custom(f32),
+}
+
 pub fn paint_marching_ants(painter: &egui::Painter, rect: egui::Rect, settings: &AppSettings) {
     let delay = settings.marching_ants_delay.max(10) as u64;
     let t = ((current_time_as_millis() / delay) & (i32::MAX as u64)) as i32;

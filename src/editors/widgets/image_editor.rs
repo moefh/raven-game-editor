@@ -12,17 +12,12 @@ use crate::app::{
 };
 use crate::data_asset;
 
+use super::WidgetZoom;
 use super::super::{
     AssetIdHolder,
     ImageClipboardData,
 };
 use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ImageEditorZoom {
-    FitToWindow,
-    Custom(f32),
-}
 
 pub enum ImageEditorAction {
     None,
@@ -137,7 +132,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub collision_rect: Option<data_asset::Rect>,
     pub selection_enabled: bool,
     pub hover_pos: Vec2,
-    pub zoom: ImageEditorZoom,
+    pub zoom: WidgetZoom,
     scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
@@ -154,7 +149,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
-            zoom: ImageEditorZoom::FitToWindow,
+            zoom: WidgetZoom::FitToWindow,
             scroll: Vec2::ZERO,
             selected_image: 0,
             display: ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID),
@@ -636,7 +631,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let zoom = zoom.max(1.0);
         let zoomed_image_size = image.get_item_size() * zoom;
         let zoom_delta = zoom / old_zoom;
-        self.zoom = ImageEditorZoom::Custom(zoom);
+        self.zoom = WidgetZoom::Custom(zoom);
 
         self.scroll = zoom_center - (zoom_center - self.scroll) * zoom_delta;
         self.clip_scroll(canvas_size, zoomed_image_size);
@@ -656,8 +651,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let canvas_rect = resp.rect.expand(-2.0);
         let image_size = image.get_item_size();
         let zoom = match self.zoom {
-            ImageEditorZoom::Custom(zoom) => { zoom }
-            ImageEditorZoom::FitToWindow => {
+            WidgetZoom::Custom(zoom) => { zoom }
+            WidgetZoom::FitToWindow => {
                 let size = canvas_rect.expand(-1.0).size();
                 let (zoomx, zoomy) = (size.x / image_size.x, size.y / image_size.y);
                 f32::max(f32::min(zoomx, zoomy), 1.0)
@@ -674,13 +669,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         painter.rect_stroke(image_area_rect.expand(1.0), egui::CornerRadius::ZERO, grid_stroke, egui::StrokeKind::Middle);
         ui.shrink_clip_rect(image_area_rect);
 
+        self.clip_scroll(canvas_rect.size(), zoomed_image_size); // in case we've been resized
         let canvas_to_image = emath::RectTransform::from_to(
             Rect::from_min_size(image_area_rect.min + self.scroll, zoomed_image_size),
             Rect::from_min_size(Pos2::ZERO, image_size),
         );
         let paint_image_rect = Rect::from_min_size(image_area_rect.min + self.scroll, zoomed_image_size);
-
-        self.clip_scroll(canvas_rect.size(), zoomed_image_size); // in case we've been resized
 
         // draw background
         self.draw_background(ui, wc, paint_image_rect, image, zoom);

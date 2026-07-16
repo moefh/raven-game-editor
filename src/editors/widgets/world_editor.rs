@@ -9,6 +9,7 @@ use crate::data_asset::{
 };
 use crate::app::WindowContext;
 
+use super::WidgetZoom;
 use super::super::{
     world_grid,
     RectBorder,
@@ -95,7 +96,7 @@ impl RegionRect {
 }
 
 pub struct WorldEditorWidget {
-    pub zoom: f32,
+    pub zoom: WidgetZoom,
     pub scroll: Vec2,
     pub lock_regions: bool,
     pub lock_door_connections: bool,
@@ -110,9 +111,11 @@ pub struct WorldEditorWidget {
 }
 
 impl WorldEditorWidget {
+    const HIGHLIGHT_DOOR_DISTANCE: f32 = 20.0;
+
     pub fn new() -> Self {
         WorldEditorWidget {
-            zoom: 10.0,
+            zoom: WidgetZoom::FitToWindow,
             scroll: Vec2::ZERO,
             selected_region: None,
             highlight_door_index: None,
@@ -273,25 +276,39 @@ impl WorldEditorWidget {
         self.resize_border = None;
     }
 
-    fn handle_mouse_hover(&mut self, resp: &egui::Response, mouse_pos: Pos2, world: &mut World, grid_store: &world_grid::WorldGridStore) {
+    fn handle_mouse_hover(
+        &mut self,
+        resp: &egui::Response,
+        mouse_pos: Pos2,
+        zoom: f32,
+        world: &mut World,
+        grid_store: &world_grid::WorldGridStore
+    ) {
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
         if keys_pressed.alt {
             resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
         } else if keys_pressed.ctrl {
             resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
-        } else if (! self.lock_regions) && let Some(border) = self.get_selected_region_border(world, mouse_pos, self.zoom) {
+        } else if (! self.lock_regions) && let Some(border) = self.get_selected_region_border(world, mouse_pos, zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
         }
 
         let closest_door = Self::get_closest_door(mouse_pos, grid_store, None);
-        self.highlight_door_index = if let Some((door_index, door_dist)) = closest_door && door_dist < 1.0 {
+        self.highlight_door_index = if let Some((door_index, dist)) = closest_door && dist * zoom < Self::HIGHLIGHT_DOOR_DISTANCE {
             Some(door_index)
         } else {
             None
         };
     }
 
-    fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, world: &mut World, grid_store: &world_grid::WorldGridStore) {
+    fn handle_mouse_down(
+        &mut self,
+        resp: &egui::Response,
+        mouse_pos: Pos2,
+        zoom: f32,
+        world: &mut World,
+        grid_store: &world_grid::WorldGridStore
+    ) {
         if resp.drag_stopped() {
             self.drag_stop();
             return;
@@ -320,7 +337,7 @@ impl WorldEditorWidget {
         if resp.drag_started() &&
             resp.dragged_by(egui::PointerButton::Primary) &&
             let Some(region_index) = self.selected_region &&
-            let Some(border) = self.get_selected_region_border(world, mouse_pos, self.zoom) &&
+            let Some(border) = self.get_selected_region_border(world, mouse_pos, zoom) &&
             let Some(rect) = self.get_selected_region_rect(world) {
                 self.resize_start(region_index, border, rect.egui_rect(), mouse_pos);
                 return;
@@ -369,15 +386,15 @@ impl WorldEditorWidget {
         }
     }
 
-    pub fn set_zoom(&mut self, zoom: f32, center_delta: Vec2) {
+    pub fn set_zoom(&mut self, zoom: f32, old_zoom: f32, center_delta: Vec2) {
         let zoom = zoom.max(2.0);
-        let zoom_delta = zoom / self.zoom;
-        self.zoom = zoom;
+        let zoom_delta = zoom / old_zoom;
+        self.zoom = WidgetZoom::Custom(zoom);
         self.scroll = center_delta - (center_delta - self.scroll) * zoom_delta;
     }
 
     pub fn clip_scroll(&mut self, canvas_size: Vec2, trans_world_size: Vec2) {
-        self.scroll = self.scroll.max(canvas_size - (trans_world_size + 2.0 * BORDER_SIZE)).min(Vec2::ZERO);
+        self.scroll = self.scroll.max(canvas_size - trans_world_size).min(Vec2::ZERO);
     }
 
     fn draw_selection_rect(painter: &egui::Painter, rect: Rect) {
@@ -398,7 +415,7 @@ impl WorldEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
-    fn draw_region_blocks(&self, painter: &egui::Painter, rect: Rect, region: &WorldRegion) {
+    fn draw_region_blocks(&self, painter: &egui::Painter, rect: Rect, zoom: f32, region: &WorldRegion) {
         if region.width == 0 || region.height == 0 { return; }
         let block_size = Vec2::new(
             rect.width() / region.width as f32,
@@ -409,7 +426,7 @@ impl WorldEditorWidget {
             for x in 0..region.width {
                 let block = region.blocks[y as usize * WorldRegion::BLOCK_STRIDE + x as usize];
                 if block.is_some() {
-                    let block_rect = Rect::from_min_size(rect.min + self.zoom * Vec2::new(x as f32, y as f32), block_size);
+                    let block_rect = Rect::from_min_size(rect.min + zoom * Vec2::new(x as f32, y as f32), block_size);
                     painter.rect_filled(block_rect, egui::CornerRadius::ZERO, bg_color);
                 }
             }
@@ -417,10 +434,10 @@ impl WorldEditorWidget {
     }
 
     fn draw_door(
-        &self,
         painter: &egui::Painter,
         door: &world_grid::Door,
         world_pos: Pos2,
+        zoom: f32,
         grid_store: &world_grid::WorldGridStore,
         draw_type: DrawDoorType,
     ) {
@@ -459,14 +476,14 @@ impl WorldEditorWidget {
                 }
             };
             if let Some(color) = draw_color {
-                let door_pos = world_pos + self.zoom * egui::Vec2::new(door_pos.x, door_pos.y);
+                let door_pos = world_pos + zoom * egui::Vec2::new(door_pos.x, door_pos.y);
                 if let Some(dest_door) = door.get_dest_door(&grid_store.doors) {
                     if let Some(dest_region_index) = dest_door.region_index && dest_region_index != region_index {
                         painter.circle_filled(door_pos, 6.0, Color32::from_rgb(0x00, 0xff, 0x00));
                     }
                     if let Some(dest_pos) = dest_door.pos {
-                        let stroke = egui::Stroke { width: 2.0, color };
-                        let dest_pos = world_pos + self.zoom * egui::Vec2::new(dest_pos.x, dest_pos.y);
+                        let stroke = egui::Stroke { width: 3.0, color };
+                        let dest_pos = world_pos + zoom * egui::Vec2::new(dest_pos.x, dest_pos.y);
                         painter.line_segment([door_pos, dest_pos], stroke);
                     }
                 }
@@ -475,44 +492,44 @@ impl WorldEditorWidget {
         }
     }
 
-    fn draw_world_grid(&self, painter: &egui::Painter, pos: Pos2, grid_store: &world_grid::WorldGridStore) {
+    fn draw_world_grid(painter: &egui::Painter, pos: Pos2, zoom: f32, grid_store: &world_grid::WorldGridStore) {
         let grid = &grid_store.world_grid;
         let stroke = egui::Stroke::new(2.0, Color32::WHITE);
         for y in 0..grid.height {
             for x in 0..grid.width {
                 let flags = grid.get_block_borders(x, y);
                 if (flags & world_grid::Grid::BORDER_LEFT) != 0 {
-                    let rx = pos.x + self.zoom * x as f32;
-                    let ry = pos.y + self.zoom * y as f32;
-                    painter.vline(rx, egui::Rangef::new(ry, ry+self.zoom), stroke);
+                    let rx = pos.x + zoom * x as f32;
+                    let ry = pos.y + zoom * y as f32;
+                    painter.vline(rx, egui::Rangef::new(ry, ry+zoom), stroke);
                 }
                 if (flags & world_grid::Grid::BORDER_TOP) != 0 {
-                    let rx = pos.x + self.zoom * x as f32;
-                    let ry = pos.y + self.zoom * y as f32;
-                    painter.hline(egui::Rangef::new(rx, rx+self.zoom), ry, stroke);
+                    let rx = pos.x + zoom * x as f32;
+                    let ry = pos.y + zoom * y as f32;
+                    painter.hline(egui::Rangef::new(rx, rx+zoom), ry, stroke);
                 }
             }
         }
     }
 
-    fn draw_world(&self, painter: &egui::Painter, pos: Pos2, grid_store: &world_grid::WorldGridStore) {
-        self.draw_world_grid(painter, pos, grid_store);
+    fn draw_world(&self, painter: &egui::Painter, pos: Pos2, zoom: f32, grid_store: &world_grid::WorldGridStore) {
+        Self::draw_world_grid(painter, pos, zoom, grid_store);
 
         // room doors
         for door in grid_store.doors.iter() {
-            self.draw_door(painter, door, pos, grid_store, DrawDoorType::InterRegionLink);
+            Self::draw_door(painter, door, pos, zoom, grid_store, DrawDoorType::InterRegionLink);
         }
         for door in grid_store.doors.iter() {
-            self.draw_door(painter, door, pos, grid_store, DrawDoorType::IntraRegionLink);
+            Self::draw_door(painter, door, pos, zoom, grid_store, DrawDoorType::IntraRegionLink);
         }
         for door in grid_store.doors.iter() {
-            self.draw_door(painter, door, pos, grid_store, DrawDoorType::SelfLink);
+            Self::draw_door(painter, door, pos, zoom, grid_store, DrawDoorType::SelfLink);
         }
         for door in grid_store.doors.iter() {
-            self.draw_door(painter, door, pos, grid_store, DrawDoorType::NoLink);
+            Self::draw_door(painter, door, pos, zoom, grid_store, DrawDoorType::NoLink);
         }
         if let Some(door_index) = self.highlight_door_index && let Some(door) = grid_store.doors.get(door_index) {
-            self.draw_door(painter, door, pos, grid_store, DrawDoorType::Highlight);
+            Self::draw_door(painter, door, pos, zoom, grid_store, DrawDoorType::Highlight);
         }
     }
 
@@ -543,25 +560,38 @@ impl WorldEditorWidget {
 
         let world_size = Self::get_world_size(world);
         let world_rect = Rect::from_min_size(Pos2::ZERO, world_size);
-        let canvas_rect = response_rect.expand2(Vec2::splat(-1.0));
+        let canvas_rect = response_rect.expand2(-BORDER_SIZE);
 
-        self.clip_scroll(canvas_rect.size(), world_rect.size() * self.zoom); // in case the window was resized
-        let to_canvas = RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, world_size),
-            Rect::from_min_size(canvas_rect.min + BORDER_SIZE + self.scroll, world_size * self.zoom),
-        );
-        let bg_rect = Rect::from_min_size(
-            response_rect.min,
-            response_rect.size().min(world_size * self.zoom + Vec2::splat(2.0) + 2.0 * BORDER_SIZE)
-        );
-        let stroke = egui::Stroke::new(1.0, Color32::WHITE);
-        painter.rect(bg_rect, egui::CornerRadius::ZERO, Color32::BLACK, stroke, egui::StrokeKind::Inside);
-        painter.shrink_clip_rect(canvas_rect);
-        ui.shrink_clip_rect(canvas_rect);
-
-        if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || world_rect.width() == 0.0 || world_rect.height() == 0.0 {
+        if world_size.x == 0.0 || world_size.y == 0.0 {
             return; // nothing to do!
         }
+
+        let zoom = match self.zoom {
+            WidgetZoom::Custom(zoom) => { zoom }
+            WidgetZoom::FitToWindow => {
+                let size = canvas_rect.size();
+                let (zoomx, zoomy) = (size.x / world_size.x, size.y / world_size.y);
+                f32::max(f32::min(zoomx, zoomy), 1.0)
+            }
+        };
+        let zoomed_world_size = world_size * zoom;
+
+        let world_area_rect = if zoomed_world_size.x >= canvas_rect.width() && zoomed_world_size.y >= canvas_rect.height() {
+            canvas_rect
+        } else {
+            let size = zoomed_world_size.min(canvas_rect.size());
+            Rect::from_min_size(canvas_rect.min + 0.5 * (canvas_rect.size() - size).max(Vec2::ZERO), size)
+        };
+        self.clip_scroll(world_area_rect.size(), zoomed_world_size); // in case the window was resized
+        let to_canvas = RectTransform::from_to(
+            Rect::from_min_size(Pos2::ZERO, world_size),
+            Rect::from_min_size(world_area_rect.min + self.scroll, zoomed_world_size),
+        );
+        let stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        let draw_rect = world_area_rect.expand2(BORDER_SIZE);
+        painter.rect(draw_rect, egui::CornerRadius::ZERO, egui::Color32::BLACK, stroke, egui::StrokeKind::Middle);
+        painter.shrink_clip_rect(draw_rect);
+        ui.shrink_clip_rect(draw_rect);
 
         // draw region outlines
         for region_index in 0..world.regions.len() {
@@ -575,12 +605,12 @@ impl WorldEditorWidget {
         for (region_index, region) in world.regions.iter().enumerate() {
             if let Some(rect) = Self::get_region_rect(region_index, world) {
                 let rect = to_canvas.transform_rect(rect.egui_rect());
-                self.draw_region_blocks(&painter, rect, region);
+                self.draw_region_blocks(&painter, rect, zoom, region);
             }
         }
 
         // room outlines and doors
-        self.draw_world(&painter, to_canvas.transform_pos(Pos2::ZERO), grid_store);
+        self.draw_world(&painter, to_canvas.transform_pos(Pos2::ZERO), zoom, grid_store);
 
         // outline selected region
         if let Some(rect) = self.get_selected_region_rect(world) {
@@ -615,7 +645,7 @@ impl WorldEditorWidget {
         // check hover
         if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
             let mouse_pos = to_canvas.inverse() * hover_pos;
-            self.handle_mouse_hover(&response, mouse_pos, world, grid_store);
+            self.handle_mouse_hover(&response, mouse_pos, zoom, world, grid_store);
         } else if self.highlight_door_index.is_some() {
             self.highlight_door_index = None;
         }
@@ -623,7 +653,7 @@ impl WorldEditorWidget {
         // check pan
         if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
             self.scroll += response.drag_delta();
-            self.clip_scroll(canvas_rect.size(), to_canvas.transform_rect(world_rect).size());
+            self.clip_scroll(world_area_rect.size(), to_canvas.transform_rect(world_rect).size());
         }
 
         // check click
@@ -635,7 +665,7 @@ impl WorldEditorWidget {
                 self.tool_mouse_down = true;
             }
             let click_pos = to_canvas.inverse() * pointer_pos;
-            self.handle_mouse_down(&response, click_pos, world, grid_store);
+            self.handle_mouse_down(&response, click_pos, zoom, world, grid_store);
         }
 
         // check zoom (must be last)
@@ -646,7 +676,7 @@ impl WorldEditorWidget {
                 ui.input(|i| i.zoom_delta())
             };
             if zoom_delta != 1.0 {
-                self.set_zoom(self.zoom * zoom_delta, hover_pos - canvas_rect.min);
+                self.set_zoom(zoom * zoom_delta, zoom, hover_pos - world_area_rect.min);
             }
         }
     }

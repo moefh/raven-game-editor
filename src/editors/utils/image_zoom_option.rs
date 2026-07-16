@@ -1,4 +1,4 @@
-use super::super::widgets::ImageEditorZoom;
+use super::super::widgets::WidgetZoom;
 
 pub const IMAGE_ZOOM_OPTIONS: &[ImageZoomOption] = &[
     ImageZoomOption::FitToWindow("Fit"),
@@ -39,23 +39,23 @@ impl<'a> ImageZoomOption<'a> {
         matches!(&self, ImageZoomOption::Custom(_))
     }
 
-    pub fn image_editor_zoom(&self, cur_editor_zoom: ImageEditorZoom) -> ImageEditorZoom {
+    pub fn image_editor_zoom(&self, cur_editor_zoom: WidgetZoom) -> WidgetZoom {
         match self {
-            ImageZoomOption::FitToWindow(_) => { ImageEditorZoom::FitToWindow }
+            ImageZoomOption::FitToWindow(_) => { WidgetZoom::FitToWindow }
             ImageZoomOption::Custom(_) => { cur_editor_zoom }
-            ImageZoomOption::Value(zoom, _) => { ImageEditorZoom::Custom(*zoom) }
+            ImageZoomOption::Value(zoom, _) => { WidgetZoom::Custom(*zoom) }
         }
     }
 
-    pub fn from_image_editor_zoom(image_zoom: ImageEditorZoom) -> &'a Self {
+    pub fn from_image_editor_zoom(image_zoom: WidgetZoom) -> &'a Self {
         match image_zoom {
-            ImageEditorZoom::FitToWindow => { &IMAGE_ZOOM_OPTIONS[0] }
-            ImageEditorZoom::Custom(1.0) => { &IMAGE_ZOOM_OPTIONS[1] }
-            ImageEditorZoom::Custom(2.0) => { &IMAGE_ZOOM_OPTIONS[2] }
-            ImageEditorZoom::Custom(5.0) => { &IMAGE_ZOOM_OPTIONS[3] }
-            ImageEditorZoom::Custom(10.0) => { &IMAGE_ZOOM_OPTIONS[4] }
-            ImageEditorZoom::Custom(20.0) => { &IMAGE_ZOOM_OPTIONS[5] }
-            ImageEditorZoom::Custom(_) => { &IMAGE_ZOOM_OPTIONS[6] }
+            WidgetZoom::FitToWindow => { &IMAGE_ZOOM_OPTIONS[0] }
+            WidgetZoom::Custom(1.0) => { &IMAGE_ZOOM_OPTIONS[1] }
+            WidgetZoom::Custom(2.0) => { &IMAGE_ZOOM_OPTIONS[2] }
+            WidgetZoom::Custom(5.0) => { &IMAGE_ZOOM_OPTIONS[3] }
+            WidgetZoom::Custom(10.0) => { &IMAGE_ZOOM_OPTIONS[4] }
+            WidgetZoom::Custom(20.0) => { &IMAGE_ZOOM_OPTIONS[5] }
+            WidgetZoom::Custom(_) => { &IMAGE_ZOOM_OPTIONS[6] }
         }
     }
 }

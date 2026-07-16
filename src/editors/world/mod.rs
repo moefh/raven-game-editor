@@ -30,6 +30,7 @@ use super::{
     AssetEditorBase,
 };
 use super::widgets::{
+    WidgetZoom,
     WorldEditorWidget,
     WorldRegionEditorWidget,
     RoomGridViewWidget,
@@ -306,19 +307,34 @@ impl Editor {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
-                if ui.add(egui::Button::image_and_text(IMAGES.lock, "Regions")
-                          .selected(self.world_editor.lock_regions)
-                          .frame_when_inactive(self.world_editor.lock_regions))
-                    .on_hover_text("Lock regions in place").clicked() {
-                        self.world_editor.lock_regions = ! self.world_editor.lock_regions;
-                    }
-                if ui.add(egui::Button::image_and_text(IMAGES.lock, "Doors")
-                          .selected(self.world_editor.lock_door_connections)
-                          .frame_when_inactive(self.world_editor.lock_door_connections))
-                    .on_hover_text("Lock door connections").clicked() {
-                        self.world_editor.lock_door_connections = ! self.world_editor.lock_door_connections;
-                    }
+                if ui.add(
+                    egui::Button::image_and_text(IMAGES.lock, "Regions")
+                        .selected(self.world_editor.lock_regions)
+                        .frame_when_inactive(self.world_editor.lock_regions)
+                ).on_hover_text("Lock regions in place").clicked() {
+                    self.world_editor.lock_regions = ! self.world_editor.lock_regions;
+                }
+                if ui.add(
+                    egui::Button::image_and_text(IMAGES.lock, "Doors")
+                        .selected(self.world_editor.lock_door_connections)
+                        .frame_when_inactive(self.world_editor.lock_door_connections)
+                ).on_hover_text("Lock door connections").clicked() {
+                    self.world_editor.lock_door_connections = ! self.world_editor.lock_door_connections;
+                }
+
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.add(
+                            egui::Button::image(IMAGES.fit_zoom)
+                                .selected(self.world_editor.zoom == WidgetZoom::FitToWindow)
+                                .frame_when_inactive(self.world_editor.zoom == WidgetZoom::FitToWindow)
+                        ).on_hover_text("Fit world to window").clicked() {
+                            self.world_editor.zoom = WidgetZoom::FitToWindow;
+                        }
+                    });
+                });
             });
+
             ui.add_space(0.0);
         });
 
@@ -469,6 +485,18 @@ impl Editor {
                         if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
                             self.shift_region(region, ShiftDirection::Right);
                         }
+
+                        ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                            ui.horizontal(|ui| {
+                                if ui.add(
+                                    egui::Button::image(IMAGES.fit_zoom)
+                                        .selected(self.region_editor.zoom == WidgetZoom::FitToWindow)
+                                        .frame_when_inactive(self.region_editor.zoom == WidgetZoom::FitToWindow)
+                                ).on_hover_text("Fit region to window").clicked() {
+                                    self.region_editor.zoom = WidgetZoom::FitToWindow;
+                                }
+                            });
+                        });
                     });
                 }
 
@@ -616,6 +644,7 @@ impl Editor {
                 self.update_highlight_door_info(world, assets.rooms);
                 ui.label(&self.highlight_door_info);
             });
+            ui.add_space(0.0);
         });
 
         // tabs
