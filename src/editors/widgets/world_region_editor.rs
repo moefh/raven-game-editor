@@ -7,7 +7,6 @@ use egui::{Vec2, Sense, Rect, Pos2, Color32};
 use egui::emath;
 
 use super::super::world_grid;
-use super::WorldEditorTool;
 
 #[derive(Clone, Copy, PartialEq)]
 enum DrawDoorType{
@@ -24,7 +23,6 @@ pub struct WorldRegionEditorWidget {
     pub selected_region: Option<usize>,
     pub selected_room: Option<u8>,
     pub hover_pos: Vec2,
-    pub tool: WorldEditorTool,
     pub highlight_door_index: Option<usize>,
     tool_mouse_down: bool,
 }
@@ -38,20 +36,8 @@ impl WorldRegionEditorWidget {
             selected_room: None,
             selected_region: None,
             hover_pos: Vec2::ZERO,
-            tool: WorldEditorTool::Block,
             tool_mouse_down: false,
             highlight_door_index: None,
-        }
-    }
-
-    pub fn get_tool(&self) -> WorldEditorTool {
-        self.tool
-    }
-
-    pub fn set_tool(&mut self, tool: WorldEditorTool) {
-        self.tool = tool;
-        if tool != WorldEditorTool::DoorLink {
-            self.highlight_door_index = None;
         }
     }
 
@@ -127,17 +113,11 @@ impl WorldRegionEditorWidget {
             return;
         }
 
-        match self.tool {
-            WorldEditorTool::Block => {
-                if self.tool_mouse_down {
-                    if response.dragged_by(egui::PointerButton::Primary) {
-                        self.set_region_block(canvas_to_region * pointer_pos, self.selected_room, region);
-                    } else if response.dragged_by(egui::PointerButton::Secondary) {
-                        self.set_region_block(canvas_to_region * pointer_pos, None, region);
-                    }
-                }
-            }
-            WorldEditorTool::DoorLink => {
+        if self.tool_mouse_down {
+            if response.dragged_by(egui::PointerButton::Primary) {
+                self.set_region_block(canvas_to_region * pointer_pos, self.selected_room, region);
+            } else if response.dragged_by(egui::PointerButton::Secondary) {
+                self.set_region_block(canvas_to_region * pointer_pos, None, region);
             }
         }
     }
@@ -181,13 +161,13 @@ impl WorldRegionEditorWidget {
         &self,
         painter: &egui::Painter,
         door_index: usize,
-        door_type: DrawDoorType,
         region_pos: Pos2,
         grid_store: &world_grid::WorldGridStore,
         grid: &world_grid::Grid,
+        draw_type: DrawDoorType,
     ) {
         if let Some(region_index) = self.selected_region && let Some(door) = grid_store.doors.get(door_index) && let Some(door_pos) = door.pos {
-            let draw_color = match door_type {
+            let draw_color = match draw_type {
                 DrawDoorType::Highlight => {
                     Some(Color32::from_rgb(0xff, 0x00, 0xff))
                 }
@@ -248,19 +228,19 @@ impl WorldRegionEditorWidget {
 
         // room doors
         for &door_index in grid.door_indices.iter() {
-            self.draw_region_door(painter, door_index, DrawDoorType::InterRegionLink, region_pos, grid_store, grid);
+            self.draw_region_door(painter, door_index, region_pos, grid_store, grid, DrawDoorType::InterRegionLink);
         }
         for &door_index in grid.door_indices.iter() {
-            self.draw_region_door(painter, door_index, DrawDoorType::IntraRegionLink, region_pos, grid_store, grid);
+            self.draw_region_door(painter, door_index, region_pos, grid_store, grid, DrawDoorType::IntraRegionLink);
         }
         for &door_index in grid.door_indices.iter() {
-            self.draw_region_door(painter, door_index, DrawDoorType::SelfLink, region_pos, grid_store, grid);
+            self.draw_region_door(painter, door_index, region_pos, grid_store, grid, DrawDoorType::SelfLink);
         }
         for &door_index in grid.door_indices.iter() {
-            self.draw_region_door(painter, door_index, DrawDoorType::NoLink, region_pos, grid_store, grid);
+            self.draw_region_door(painter, door_index, region_pos, grid_store, grid, DrawDoorType::NoLink);
         }
         if let Some(door_index) = self.highlight_door_index {
-            self.draw_region_door(painter, door_index, DrawDoorType::Highlight, region_pos, grid_store, grid);
+            self.draw_region_door(painter, door_index, region_pos, grid_store, grid, DrawDoorType::Highlight);
         }
     }
 
@@ -300,7 +280,7 @@ impl WorldRegionEditorWidget {
         let region_area_rect = if region_size.x >= canvas_rect.width() && region_size.y >= canvas_rect.height() {
             canvas_rect
         } else {
-            Rect::from_min_size(canvas_rect.min, region_size.min(canvas_rect.size()))
+            Rect::from_min_size(canvas_rect.min, canvas_rect.size().min(region_size))
         };
 
         // limit scroll in case we've been resized
@@ -383,25 +363,23 @@ impl WorldRegionEditorWidget {
         }
 
         // check hover
-        if self.tool == WorldEditorTool::DoorLink {
-            if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
-                let mouse_pos = canvas_to_region * hover_pos;
-                let closest_door = grid.door_indices.iter()
-                    .copied()
-                    .map(|index| {
-                        let dist = Self::get_door_pos(index, grid_store, grid).map(|p| (mouse_pos-p).length()).unwrap_or(f32::INFINITY);
-                        (index, dist)
-                    }).min_by(|(_, dist1), (_, dist2)| {
-                        dist1.total_cmp(dist2)
-                    });
-                self.highlight_door_index = if let Some((door_index, door_dist)) = closest_door && door_dist < 1.0 {
-                    Some(door_index)
-                } else {
-                    None
-                };
-            } else if self.highlight_door_index.is_some() {
-                self.highlight_door_index = None;
-            }
+        if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
+            let mouse_pos = canvas_to_region * hover_pos;
+            let closest_door = grid.door_indices.iter()
+                .copied()
+                .map(|index| {
+                    let dist = Self::get_door_pos(index, grid_store, grid).map(|p| (mouse_pos-p).length()).unwrap_or(f32::INFINITY);
+                    (index, dist)
+                }).min_by(|(_, dist1), (_, dist2)| {
+                    dist1.total_cmp(dist2)
+                });
+            self.highlight_door_index = if let Some((door_index, door_dist)) = closest_door && door_dist < 1.0 {
+                Some(door_index)
+            } else {
+                None
+            };
+        } else if self.highlight_door_index.is_some() {
+            self.highlight_door_index = None;
         }
 
         // check zoom

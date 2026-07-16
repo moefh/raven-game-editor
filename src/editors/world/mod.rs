@@ -30,7 +30,6 @@ use super::{
     AssetEditorBase,
 };
 use super::widgets::{
-    WorldEditorTool,
     WorldEditorWidget,
     WorldRegionEditorWidget,
     RoomGridViewWidget,
@@ -45,13 +44,13 @@ enum ShiftDirection {
 }
 
 pub struct WorldEditorAssetLists<'a> {
-    pub rooms: &'a AssetList<Room>,
+    pub rooms: &'a mut AssetList<Room>,
     pub maps: &'a AssetList<MapData>,
     pub tilesets: &'a AssetList<Tileset>,
 }
 
 impl<'a> WorldEditorAssetLists<'a> {
-    pub fn new(rooms: &'a AssetList<Room>, maps: &'a AssetList<MapData>, tilesets: &'a AssetList<Tileset>) -> Self {
+    pub fn new(rooms: &'a mut AssetList<Room>, maps: &'a AssetList<MapData>, tilesets: &'a AssetList<Tileset>) -> Self {
         WorldEditorAssetLists {
             rooms,
             maps,
@@ -121,7 +120,7 @@ impl WorldEditor {
         &mut self,
         wc: &mut WindowContext,
         world: &mut World,
-        assets: &WorldEditorAssetLists,
+        assets: &mut WorldEditorAssetLists,
     ) {
         self.dialogs.show(wc, &mut self.editor, world, assets);
 
@@ -175,6 +174,7 @@ struct Editor {
     world_editor: WorldEditorWidget,
     region_editor: WorldRegionEditorWidget,
     region_rooms_tree: Option<SimpleAssetTree>,
+    highlight_door_info: String,
     done_init: bool,
 }
 
@@ -190,6 +190,7 @@ impl Editor {
             world_editor: WorldEditorWidget::new(),
             region_editor: WorldRegionEditorWidget::new(),
             region_rooms_tree: None,
+            highlight_door_info: String::new(),
             done_init: false,
         }
     }
@@ -293,8 +294,16 @@ impl Editor {
         action
     }
 
-    fn show_world_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, _dialogs: &mut Dialogs, world: &mut World) {
+    fn show_world_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        _dialogs: &mut Dialogs,
+        world: &mut World,
+        rooms: &mut AssetList<Room>
+    ) {
         egui::Panel::top(format!("editor_panel_{}_world_header", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 if ui.add(egui::Button::image_and_text(IMAGES.lock, "Regions")
@@ -303,11 +312,18 @@ impl Editor {
                     .on_hover_text("Lock regions in place").clicked() {
                         self.world_editor.lock_regions = ! self.world_editor.lock_regions;
                     }
+                if ui.add(egui::Button::image_and_text(IMAGES.lock, "Doors")
+                          .selected(self.world_editor.lock_door_connections)
+                          .frame_when_inactive(self.world_editor.lock_door_connections))
+                    .on_hover_text("Lock door connections").clicked() {
+                        self.world_editor.lock_door_connections = ! self.world_editor.lock_door_connections;
+                    }
             });
+            ui.add_space(0.0);
         });
 
         egui::CentralPanel::default().show(ui, |ui| {
-            self.world_editor.show(ui, wc, world, &self.world_grid);
+            self.world_editor.show(ui, wc, world, rooms, &self.world_grid);
         });
     }
 
@@ -439,27 +455,6 @@ impl Editor {
                 if let Some(region) = world.regions.get_mut(region_index) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-
-                        ui.label("Tool:");
-                        ui.add_space(1.0);
-                        if ui.add(egui::Button::image(IMAGES.pen)
-                            .selected(self.region_editor.get_tool() == WorldEditorTool::Block)
-                            .frame_when_inactive(self.region_editor.get_tool() == WorldEditorTool::Block))
-                            .on_hover_text("Blocks").clicked() {
-                                self.region_editor.set_tool(WorldEditorTool::Block);
-                            }
-
-                        if ui.add(egui::Button::image(IMAGES.room)
-                            .selected(self.region_editor.get_tool() == WorldEditorTool::DoorLink)
-                            .frame_when_inactive(self.region_editor.get_tool() == WorldEditorTool::DoorLink))
-                            .on_hover_text("Door links").clicked() {
-                                self.region_editor.set_tool(WorldEditorTool::DoorLink);
-                            }
-
-                        ui.add_space(5.0);
-                        ui.separator();
-                        ui.add_space(5.0);
-
                         if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
                             self.shift_region(region, ShiftDirection::Up);
                         }
@@ -474,6 +469,8 @@ impl Editor {
                         }
                     });
                 }
+
+                ui.add_space(0.0);
             });
 
             let actions = egui::Panel::right(format!("editor_panel_{}_region_rooms_tree", self.asset_id))
@@ -522,14 +519,59 @@ impl Editor {
         }
     }
 
+    fn update_highlight_door_info(&mut self, world: &World, rooms: &AssetList<Room>) {
+        self.highlight_door_info.clear();
+        let (src_door, dest_door, dragging) = match self.selected_tab {
+            EditorTab::World => {
+                if let Some(door_index) = self.world_editor.get_dragged_door_connection_src_index() {
+                    let src_door = self.world_grid.doors.get(door_index);
+                    let dest_door = self.world_editor.highlight_door_index.and_then(|door_index| self.world_grid.doors.get(door_index));
+                    (src_door, dest_door, true)
+                } else if let Some(door) = self.world_editor.highlight_door_index.and_then(|door_index| self.world_grid.doors.get(door_index)) {
+                    (Some(door), door.get_dest_door(&self.world_grid.doors), false)
+                } else {
+                    (None, None, false)
+                }
+            }
+            EditorTab::Region => {
+                if let Some(door) = self.region_editor.highlight_door_index.and_then(|door_index| self.world_grid.doors.get(door_index)) {
+                    (Some(door), door.get_dest_door(&self.world_grid.doors), false)
+                } else {
+                    (None, None, false)
+                }
+            }
+        };
+        if let Some(src_door) = src_door {
+            if dragging {
+                self.highlight_door_info.push_str("Connecting: ");
+            } else {
+                self.highlight_door_info.push_str("Door: ");
+            }
+            src_door.get_info_with_region(&mut self.highlight_door_info, world, rooms);
+            self.highlight_door_info.push_str(" \u{25b6} ");
+            if let Some(dest_door) = dest_door {
+                if dest_door.index == src_door.index {
+                    self.highlight_door_info.push_str(if dragging { "..." } else { "[SELF]" });
+                } else if dest_door.is_in_region(src_door.region_index) {
+                    dest_door.get_info(&mut self.highlight_door_info, rooms);
+                } else {
+                    dest_door.get_info_with_region(&mut self.highlight_door_info, world, rooms);
+                }
+            } else {
+                self.highlight_door_info.push_str(if dragging { "..." } else { "[INVALID DESTINATION]" });
+            }
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         world: &mut World,
-        assets: &WorldEditorAssetLists,
+        assets: &mut WorldEditorAssetLists,
     ) {
+        self.world_grid.update(world, assets.rooms, assets.maps);
         if ! self.done_init {
             self.done_init = true;
             self.init(world);
@@ -565,28 +607,16 @@ impl Editor {
             ui.horizontal(|ui| {
                 if let Some(region_index) = self.world_editor.get_selected_region() && let Some(region) = world.regions.get_mut(region_index) {
                     ui.label(format!("{}x{} blocks", region.width, region.height));
-                    ui.separator();
-                    if let Some(door_index) = self.region_editor.highlight_door_index && let Some(door) = self.world_grid.doors.get(door_index) {
-                        if let Some(dest_door) = door.dest_door_index && let Some(dest_region) = door.dest_region_index {
-                            if dest_region == region_index && dest_door == door_index {
-                                ui.label("Door with self as destination");
-                            } else if dest_region == region_index && dest_door != door_index {
-                                ui.label("Door to room in this region");
-                            } else {
-                                ui.label("Door to room in another region");
-                            }
-                        } else {
-                            ui.label("Door with invalid destination");
-                        }
-                    }
                 } else {
                     ui.label("No region selected");
                 }
+                ui.separator();
+                self.update_highlight_door_info(world, assets.rooms);
+                ui.label(&self.highlight_door_info);
             });
         });
 
         // tabs
-        self.world_grid.update(world, assets.rooms, assets.maps);
         egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.selectable_label(matches!(self.selected_tab, EditorTab::World), "World").clicked() {
@@ -598,7 +628,7 @@ impl Editor {
             });
         });
         match self.selected_tab {
-            EditorTab::World => { self.show_world_tab(ui, wc, dialogs, world); }
+            EditorTab::World => { self.show_world_tab(ui, wc, dialogs, world, assets.rooms); }
             EditorTab::Region => { self.show_region_tab(ui, wc, dialogs, world, assets); }
         }
     }

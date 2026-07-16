@@ -70,6 +70,8 @@ pub struct Position {
 }
 
 pub struct Door {
+    pub index: usize,
+    pub region_index: Option<usize>,
     pub pos: Option<Position>,
     pub room_id: Option<DataAssetId>,
     pub trigger_index: Option<usize>,
@@ -80,6 +82,8 @@ pub struct Door {
 impl Door {
     fn new() -> Self {
         Door {
+            index: 0,
+            region_index: None,
             pos: None,
             room_id: None,
             trigger_index: None,
@@ -87,6 +91,66 @@ impl Door {
             dest_door_index: None,
         }
     }
+
+    pub fn get_info_with_region(&self, info: &mut String, world: &World, rooms: &AssetList<Room>) {
+        if let Some(region) = self.get_region(world) {
+            info.push('<');
+            info.push_str(&region.name);
+            info.push('>');
+        } else {
+            info.push_str("<UNKNOWN REGION>");
+        }
+        self.get_info(info, rooms);
+    }
+
+    pub fn get_info(&self, info: &mut String, rooms: &AssetList<Room>) {
+        if let Some(room) = self.get_room(rooms) {
+            use std::fmt::Write as _;
+            info.push_str(&room.asset.name);
+            info.push('[');
+            if let Some(trigger) = self.get_trigger(rooms) {
+                let _ = write!(info, "{}", trigger.trigger_id);
+            } else {
+                info.push_str("INVALID DOOR");
+            }
+            info.push(']');
+        }
+    }
+
+    pub fn get_room<'a>(&self, rooms: &'a AssetList<Room>) -> Option<&'a Room> {
+        self.room_id.and_then(|room_id| rooms.get(&room_id))
+    }
+
+    pub fn get_trigger<'a>(&self, rooms: &'a AssetList<Room>) -> Option<&'a RoomTrigger> {
+        self.get_room(rooms).and_then(|room| {
+            self.trigger_index.and_then(|trigger_index| room.triggers.get(trigger_index))
+        })
+    }
+
+    pub fn get_room_mut<'a>(&self, rooms: &'a mut AssetList<Room>) -> Option<&'a mut Room> {
+        self.room_id.and_then(|room_id| rooms.get_mut(&room_id))
+    }
+
+    pub fn get_trigger_mut<'a>(&self, rooms: &'a mut AssetList<Room>) -> Option<&'a mut RoomTrigger> {
+        self.get_room_mut(rooms).and_then(|room| {
+            self.trigger_index.and_then(|trigger_index| room.triggers.get_mut(trigger_index))
+        })
+    }
+
+    pub fn get_dest_door<'a>(&self, doors: &'a [Door]) -> Option<&'a Door> {
+        self.dest_door_index.and_then(|index| doors.get(index))
+    }
+
+    pub fn get_region<'a>(&self, world: &'a World) -> Option<&'a WorldRegion> {
+        self.region_index.and_then(|index| world.regions.get(index))
+    }
+
+    pub fn is_in_region(&self, region_index: Option<usize>) -> bool {
+        region_index.map(|region_index| {
+            self.dest_region_index.map(|dest_region_index| dest_region_index == region_index).unwrap_or(false)
+        }).unwrap_or(false)
+    }
+
 }
 
 pub struct RoomInfo {
@@ -255,7 +319,10 @@ impl WorldGridStore {
             num_world_doors += num_region_doors;
         }
         self.world_grid.update_door_indices(0, num_world_doors);
-        self.doors.resize_with(num_world_doors, Door::new);
+        if self.doors.len() != num_world_doors {
+            self.doors.resize_with(num_world_doors, Door::new);
+            self.doors.iter_mut().enumerate().for_each(|(index, door)| { door.index = index; });
+        }
 
         // build map of: room_id<DataAssetId> -> trigger_id<u16> -> (region_index<usize>, door_index<usize>)
         let mut trigger_to_door = HashMap::new();
@@ -274,7 +341,7 @@ impl WorldGridStore {
 
         // update doors
         let mut door_index = 0;
-        for (region_grid, region) in self.region_grids.iter_mut().zip(world.regions.iter()) {
+        for (region_index, (region_grid, region)) in self.region_grids.iter_mut().zip(world.regions.iter()).enumerate() {
             region_grid.region_x = region.x as f32;
             region_grid.region_y = region.y as f32;
             for room in region.rooms.iter().filter_map(|room_id| rooms.get(room_id)) {
@@ -282,6 +349,7 @@ impl WorldGridStore {
                 for (trigger_index, trigger) in room.triggers.iter().enumerate() {
                     if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = trigger.trigger_type &&
                         let Some(door) = self.doors.get_mut(door_index) {
+                            door.region_index = Some(region_index);
                             door.room_id = Some(room.asset.id);
                             door.trigger_index = Some(trigger_index);
                             if let Some(room_info) = &room_info {
@@ -308,5 +376,21 @@ impl WorldGridStore {
                 }
             }
         }
+    }
+
+    pub fn set_door_dest(&self, door_index: usize, dest_door_index: usize, rooms: &mut AssetList<Room>) -> bool {
+        if let Some(door) = self.doors.get(door_index) &&
+            let Some(dest_door) = self.doors.get(dest_door_index) &&
+            let Some(dest_room_id) = dest_door.room_id &&
+            let Some(dest_trigger_id) = dest_door.get_trigger(rooms).map(|trigger| trigger.trigger_id) &&
+            let Some(trigger) = door.get_trigger_mut(rooms) {
+                trigger.trigger_type = RoomTriggerType::Door {
+                    dest_room_id,
+                    dest_trigger_id,
+                };
+                true
+            } else {
+                false
+            }
     }
 }
