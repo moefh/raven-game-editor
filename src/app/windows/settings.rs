@@ -28,7 +28,7 @@ impl SettingsWindow {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext) {
-        let default_rect = self.base.default_rect(wc, 400.0, 200.0);
+        let default_rect = self.base.default_rect(wc, 400.0, 300.0);
         self.base.create_window(wc, "Editor Settings", default_rect)
             .vscroll(true)
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
@@ -90,32 +90,34 @@ impl SettingsWindow {
                 });
 
                 egui::CollapsingHeader::new("Colorsets").default_open(true).show(ui, |ui| {
-                    egui::Grid::new("editor_settings_colorsets")
-                        .num_columns(3)
-                        .spacing([8.0, 8.0])
-                        .show(ui, |ui| {
-                            for index in wc.settings.colorsets.get_custom_colorset_range() {
-                                if let Some((edit, remove)) = match wc.settings.colorsets.get_custom_colorset(index) {
-                                    Some(colorset) => {
-                                        ui.label(&colorset.name);
-                                        let edit = ui.add(egui::Button::new("Edit Colors")).clicked();
-                                        let remove = ui.add(egui::Button::image(IMAGES.trash))
-                                            .on_hover_text("Remove colorset")
-                                            .clicked();
-                                        ui.end_row();
-                                        Some((edit, remove))
-                                    }
-                                    None => { None }
-                                } {
-                                    if remove {
-                                        wc.settings.colorsets.remove_custom_colorset(index);
-                                    }
-                                    if edit {
-                                        wc.open_colorset_dialog(index);
+                    if wc.settings.colorsets.get_num_custom_colorsets() > 0 {
+                        egui::Grid::new("editor_settings_colorsets")
+                            .num_columns(3)
+                            .spacing([8.0, 8.0])
+                            .show(ui, |ui| {
+                                for index in wc.settings.colorsets.get_custom_colorset_range() {
+                                    if let Some((edit, remove)) = match wc.settings.colorsets.get_custom_colorset(index) {
+                                        Some(colorset) => {
+                                            ui.label(&colorset.name);
+                                            let edit = ui.add(egui::Button::new("Edit Colors")).clicked();
+                                            let remove = ui.add(
+                                                egui::Button::image(IMAGES.trash)
+                                            ).on_hover_text("Remove colorset").clicked();
+                                            ui.end_row();
+                                            Some((edit, remove))
+                                        }
+                                        None => { None }
+                                    } {
+                                        if remove {
+                                            wc.settings.colorsets.remove_custom_colorset(index);
+                                        }
+                                        if edit {
+                                            wc.open_colorset_dialog(index);
+                                        }
                                     }
                                 }
-                            }
-                        });
+                            });
+                    }
 
                     if ui.add(egui::Button::new("Add Colorset")).clicked() {
                         wc.settings.colorsets.add_custom_colorset(ColorSet::new("new_colorset".to_owned(), vec![]));

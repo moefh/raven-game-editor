@@ -150,6 +150,10 @@ impl ColorSetCollection {
         index >= first_custom_colorset && index - first_custom_colorset < self.custom.len()
     }
 
+    pub fn get_num_custom_colorsets(&self) -> usize {
+        self.custom.len()
+    }
+
     pub fn get_custom_colorset_range(&self) -> core::range::Range<usize> {
         core::range::Range::from(self.stock.len()..self.stock.len()+self.custom.len())
     }
