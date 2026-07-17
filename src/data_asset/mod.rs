@@ -17,18 +17,42 @@ use std::{fmt, fs, io};
 use std::path::Path;
 use std::collections::HashMap;
 
-pub use reader::tokenizer::{Tokenizer, Token, TokenData};
+pub use reader::tokenizer::{
+    Tokenizer,
+    Token,
+    TokenData,
+};
 pub use room::RoomTriggerTypeIdent;
 
 pub use tileset::Tileset;
 pub use map_data::MapData;
-pub use room::{Room, RoomMap, RoomTrigger, RoomTriggerType, RoomItem};
-pub use world::{World, WorldRegion};
+pub use room::{
+    Room,
+    RoomMap,
+    RoomTrigger,
+    RoomTriggerType,
+};
+pub use world::{
+    World,
+    WorldRegion,
+};
 pub use sprite::Sprite;
-pub use pal_sprite::{PalSprite, PalSpriteDepth};
-pub use sprite_animation::{SpriteAnimation, SpriteAnimationFrame, SpriteAnimationLoop};
+pub use pal_sprite::{
+    PalSprite,
+    PalSpriteDepth,
+};
+pub use sprite_animation::{
+    SpriteAnimation,
+    SpriteAnimationFrame,
+    SpriteAnimationLoop,
+};
 pub use sfx::Sfx;
-pub use mod_data::{MOD_PERIOD_TABLE, ModData, ModSample, ModCell};
+pub use mod_data::{
+    MOD_PERIOD_TABLE,
+    ModData,
+    ModSample,
+    ModCell,
+};
 pub use font::Font;
 pub use prop_font::PropFont;
 pub use header_def::write_header_def;
@@ -46,10 +70,6 @@ impl StringLogger {
         }
     }
 
-    //pub fn clear(&mut self) {
-    //    self.log.clear();
-    //}
-
     pub fn log<S: AsRef<str>>(&mut self, msg: S) {
         self.log.push_str(msg.as_ref());
         self.log.push('\n');
@@ -61,15 +81,8 @@ impl StringLogger {
     pub fn read(&self) -> &str {
         &self.log
     }
-
-    /*
-    pub fn modify(&mut self) -> &mut String {
-        &mut self.log
-    }
-    */
 }
 
-#[allow(unused)]
 #[derive(Clone, Copy, Debug, std::hash::Hash)]
 pub struct Rect {
     pub x: i32,
@@ -339,14 +352,14 @@ impl AssetCollection {
             if room.maps.iter().any(|m| m.map_id == id) {
                 return true;
             }
-            if room.triggers.iter().any(|e| {
-                match e.trigger_type {
+            if room.triggers.iter().any(|t| {
+                match t.trigger_type {
                     RoomTriggerType::Trap {..} |
                     RoomTriggerType::Unknown {..} |
                     RoomTriggerType::PlayerSpawn {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
-                    RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id }
+                    RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }
                 }
             }) {
                 return true;

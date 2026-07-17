@@ -12,7 +12,6 @@ use crate::data_asset::{
     Room,
     RoomTrigger,
     RoomTriggerType,
-    RoomItem,
     MapData,
     Tileset,
     SpriteAnimation,
@@ -213,7 +212,7 @@ impl Editor {
         }
     }
 
-    fn get_new_item_name_id(items: &[impl RoomItem], base: &str) -> String {
+    fn get_new_trigger_name_id(triggers: &[RoomTrigger], base: &str) -> String {
         use std::fmt::Write;
 
         let mut num: usize = 1;
@@ -222,7 +221,7 @@ impl Editor {
             new_name_id.clear();
             new_name_id.push_str(base);
             if write!(new_name_id, "{}", num).is_err() { break; }
-            if ! items.iter().any(|e| e.name_id() == new_name_id) { break; }
+            if ! triggers.iter().any(|tr| tr.name_id == new_name_id) { break; }
             num += 1;
         }
         new_name_id
@@ -239,7 +238,7 @@ impl Editor {
 
     fn add_trigger(&mut self, room: &mut Room) {
         let trigger_id = Self::get_new_trigger_id(&room.triggers);
-        let name_id = Self::get_new_item_name_id(&room.triggers, "trigger");
+        let name_id = Self::get_new_trigger_name_id(&room.triggers, "trigger");
         let pos = if self.room_editor.zoom <= 0.0 { egui::Vec2::ZERO } else { self.room_editor.scroll / -self.room_editor.zoom };
         let new_trigger_index = room.triggers.len();
         room.triggers.push(RoomTrigger {

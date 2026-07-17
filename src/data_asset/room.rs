@@ -69,19 +69,6 @@ impl super::GenericAsset for Room {
     }
 }
 
-#[allow(unused)]
-pub trait RoomItem {
-    fn name_id(&self) -> &str;
-    fn x(&self) -> i16;
-    fn y(&self) -> i16;
-}
-
-impl RoomItem for RoomTrigger {
-    fn name_id(&self) -> &str { &self.name_id }
-    fn x(&self) -> i16 { self.x }
-    fn y(&self) -> i16 { self.y }
-}
-
 pub enum RoomTriggerTypeIdent {
     Unknown,
     PlayerSpawn,
