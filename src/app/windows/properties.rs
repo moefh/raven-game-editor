@@ -1,15 +1,20 @@
-use super::AppWindow;
+use crate::misc::IMAGES;
+
+use super::{
+    AppWindowBase,
+    AppWindowAction,
+};
 use super::super::{
     WindowContext,
     DataAssetStore,
 };
 
 pub struct PropertiesWindow {
-    pub base: super::AppWindow,
+    pub base: AppWindowBase,
 }
 
 impl PropertiesWindow {
-    pub fn new(base: AppWindow) -> Self {
+    pub fn new(base: AppWindowBase) -> Self {
         PropertiesWindow {
             base,
         }
@@ -71,16 +76,14 @@ impl PropertiesWindow {
             });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) {
-        let title = "Project Properties";
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 400.0, 150.0);
-        let resp = self.base.create_window(wc, title, default_rect).resizable(false).show(wc.egui.ctx, |ui| {
-            let action = AppWindow::show_title_bar(ui, title);
+        self.base.show_window(wc, default_rect, [], |ui, wc, base| {
+            let action = base.show_title_bar(ui, Some(IMAGES.properties), "Project Properties");
             egui::CentralPanel::default().show(ui, |ui| {
                 Self::show_properties_grid(ui, wc, store);
             });
             action
-        });
-        self.base.run_window_action(resp);
+        })
     }
 }

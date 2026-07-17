@@ -1,49 +1,54 @@
-use crate::data_asset::{DataAssetId, DataAssetStore};
+use crate::misc::IMAGES;
+use crate::data_asset::{
+    DataAssetId,
+    DataAssetStore,
+};
 
-use super::AppWindow;
+use super::{
+    AppWindowBase,
+    AppWindowAction,
+};
 use super::super::WindowContext;
 
-pub enum StatusWindowsTabs {
-    Windows,
-    Textures,
-}
-
 pub struct StatusWindow {
-    pub base: AppWindow,
-    window: Window,
+    pub base: AppWindowBase,
+    content: StatusWindowContent,
 }
 
 impl StatusWindow {
-    pub fn new(base: AppWindow) -> Self {
+    pub fn new(base: AppWindowBase) -> Self {
         StatusWindow {
             base,
-            window: Window::new(),
+            content: StatusWindowContent::new(),
         }
     }
 
-    pub fn show(&mut self, wc: &WindowContext, store: &DataAssetStore) {
-        let title = "Editor Status";
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.max.x - 300.0, wc.window_space.min.y + 10.0),
             max: wc.window_space.max - egui::Vec2::new(10.0, 40.0),
         };
-        let resp = self.base.create_window(wc, title, default_rect).show(wc.egui.ctx, |ui| {
-            let action = AppWindow::show_title_bar(ui, title);
-            self.window.show(ui, wc, store);
+        self.base.show_window(wc, default_rect, [400.0, 300.0], |ui, wc, base| {
+            let action = base.show_title_bar(ui, Some(IMAGES.info), "Editor Status");
+            self.content.show(ui, wc, store);
             action
-        });
-        self.base.run_window_action(resp);
+        })
     }
 }
 
-struct Window {
-    pub selected_tab: StatusWindowsTabs,
+pub enum StatusWindowTab {
+    Windows,
+    Textures,
 }
 
-impl Window {
+struct StatusWindowContent {
+    pub selected_tab: StatusWindowTab,
+}
+
+impl StatusWindowContent {
     fn new() -> Self {
-        Window {
-            selected_tab: StatusWindowsTabs::Windows,
+        StatusWindowContent {
+            selected_tab: StatusWindowTab::Windows,
         }
     }
 
@@ -125,18 +130,18 @@ impl Window {
         egui::Panel::top("editor_status_window_tabs").show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal_wrapped(|ui| {
-                if ui.selectable_label(matches!(self.selected_tab, StatusWindowsTabs::Windows), "Windows").clicked() {
-                    self.selected_tab = StatusWindowsTabs::Windows;
+                if ui.selectable_label(matches!(self.selected_tab, StatusWindowTab::Windows), "Windows").clicked() {
+                    self.selected_tab = StatusWindowTab::Windows;
                 }
-                if ui.selectable_label(matches!(self.selected_tab, StatusWindowsTabs::Textures), "Textures").clicked() {
-                    self.selected_tab = StatusWindowsTabs::Textures;
+                if ui.selectable_label(matches!(self.selected_tab, StatusWindowTab::Textures), "Textures").clicked() {
+                    self.selected_tab = StatusWindowTab::Textures;
                 }
             });
             ui.add_space(0.0);
         });
         match self.selected_tab {
-            StatusWindowsTabs::Windows => { self.show_windows_tab(ui, wc, store) }
-            StatusWindowsTabs::Textures => { self.show_textures_tab(ui, wc); }
+            StatusWindowTab::Windows => { self.show_windows_tab(ui, wc, store) }
+            StatusWindowTab::Textures => { self.show_textures_tab(ui, wc); }
         };
     }
 }

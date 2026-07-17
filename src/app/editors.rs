@@ -88,7 +88,7 @@ impl AssetEditors {
         for id in store.asset_ids.mods.iter().copied() { self.add_mod(id); }
         for id in store.asset_ids.fonts.iter().copied() { self.add_font(id); }
         for id in store.asset_ids.prop_fonts.iter().copied() { self.add_prop_font(id); }
-        self.clear_dirty(store);
+        self.clear_dirty_flags(store);
     }
 
     pub fn get_editor(&self, id: DataAssetId) -> Option<&AssetEditorBase> {
@@ -240,96 +240,87 @@ impl AssetEditors {
         egui_id
     }
 
-    pub fn update_dirty(&mut self, store: &DataAssetStore) {
+    pub fn update_dirty_flags(&mut self, store: &DataAssetStore) {
         for tileset in store.assets.tilesets.iter() {
-            if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.update_dirty(tileset); }
+            if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.update_dirty_flag(tileset); }
         }
         for map in store.assets.maps.iter() {
-            if let Some(editor) = self.maps.get_mut(&map.asset.id) { editor.base.update_dirty(map); }
+            if let Some(editor) = self.maps.get_mut(&map.asset.id) { editor.base.update_dirty_flag(map); }
         }
         for room in store.assets.rooms.iter() {
-            if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.update_dirty(room); }
+            if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.update_dirty_flag(room); }
         }
         for world in store.assets.worlds.iter() {
-            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.update_dirty(world); }
+            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.update_dirty_flag(world); }
         }
         for sprite in store.assets.sprites.iter() {
-            if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.update_dirty(sprite); }
+            if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.update_dirty_flag(sprite); }
         }
         for pal_sprite in store.assets.pal_sprites.iter() {
-            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.update_dirty(pal_sprite); }
+            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.update_dirty_flag(pal_sprite); }
         }
         for anim in store.assets.animations.iter() {
-            if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.update_dirty(anim); }
+            if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.update_dirty_flag(anim); }
         }
         for sfx in store.assets.sfxs.iter() {
-            if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.update_dirty(sfx); }
+            if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.update_dirty_flag(sfx); }
         }
         for mod_data in store.assets.mods.iter() {
-            if let Some(editor) = self.mods.get_mut(&mod_data.asset.id) { editor.base.update_dirty(mod_data); }
+            if let Some(editor) = self.mods.get_mut(&mod_data.asset.id) { editor.base.update_dirty_flag(mod_data); }
         }
         for font in store.assets.fonts.iter() {
-            if let Some(editor) = self.fonts.get_mut(&font.asset.id) { editor.base.update_dirty(font); }
+            if let Some(editor) = self.fonts.get_mut(&font.asset.id) { editor.base.update_dirty_flag(font); }
         }
         for pfont in store.assets.prop_fonts.iter() {
-            if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.update_dirty(pfont); }
+            if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.update_dirty_flag(pfont); }
         }
     }
 
-    pub fn clear_dirty(&mut self, store: &DataAssetStore) {
+    pub fn clear_dirty_flags(&mut self, store: &DataAssetStore) {
         for tileset in store.assets.tilesets.iter() {
-            if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.clear_dirty(tileset); }
+            if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.clear_dirty_flag(tileset); }
         }
         for map in store.assets.maps.iter() {
-            if let Some(editor) = self.maps.get_mut(&map.asset.id) { editor.base.clear_dirty(map); }
+            if let Some(editor) = self.maps.get_mut(&map.asset.id) { editor.base.clear_dirty_flag(map); }
         }
         for room in store.assets.rooms.iter() {
-            if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.clear_dirty(room); }
+            if let Some(editor) = self.rooms.get_mut(&room.asset.id) { editor.base.clear_dirty_flag(room); }
         }
         for world in store.assets.worlds.iter() {
-            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.clear_dirty(world); }
+            if let Some(editor) = self.worlds.get_mut(&world.asset.id) { editor.base.clear_dirty_flag(world); }
         }
         for sprite in store.assets.sprites.iter() {
-            if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.clear_dirty(sprite); }
+            if let Some(editor) = self.sprites.get_mut(&sprite.asset.id) { editor.base.clear_dirty_flag(sprite); }
         }
         for pal_sprite in store.assets.pal_sprites.iter() {
-            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.clear_dirty(pal_sprite); }
+            if let Some(editor) = self.pal_sprites.get_mut(&pal_sprite.asset.id) { editor.base.clear_dirty_flag(pal_sprite); }
         }
         for anim in store.assets.animations.iter() {
-            if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.clear_dirty(anim); }
+            if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.clear_dirty_flag(anim); }
         }
         for sfx in store.assets.sfxs.iter() {
-            if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.clear_dirty(sfx); }
+            if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.clear_dirty_flag(sfx); }
         }
         for mod_data in store.assets.mods.iter() {
-            if let Some(editor) = self.mods.get_mut(&mod_data.asset.id) { editor.base.clear_dirty(mod_data); }
+            if let Some(editor) = self.mods.get_mut(&mod_data.asset.id) { editor.base.clear_dirty_flag(mod_data); }
         }
         for font in store.assets.fonts.iter() {
-            if let Some(editor) = self.fonts.get_mut(&font.asset.id) { editor.base.clear_dirty(font); }
+            if let Some(editor) = self.fonts.get_mut(&font.asset.id) { editor.base.clear_dirty_flag(font); }
         }
         for pfont in store.assets.prop_fonts.iter() {
-            if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.clear_dirty(pfont); }
+            if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.clear_dirty_flag(pfont); }
         }
     }
 
-    pub fn is_dirty(&mut self) -> bool {
-        if self.tilesets.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.maps.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.rooms.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.sprites.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.pal_sprites.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.animations.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.sfxs.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.mods.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.fonts.values().any(|e| e.base.is_dirty()) { return true; }
-        if self.prop_fonts.values().any(|e| e.base.is_dirty()) { return true; }
-        false
+    pub fn is_dirty(&self) -> bool {
+        self.iter().any(|e| e.is_dirty())
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &AssetEditorBase> {
+    pub fn iter(&self) -> impl Iterator<Item = &AssetEditorBase> {
         self.tilesets.values().map(|e| &e.base)
             .chain(self.maps.values().map(|e| &e.base))
             .chain(self.rooms.values().map(|e| &e.base))
+            .chain(self.worlds.values().map(|e| &e.base))
             .chain(self.sprites.values().map(|e| &e.base))
             .chain(self.pal_sprites.values().map(|e| &e.base))
             .chain(self.animations.values().map(|e| &e.base))
@@ -343,6 +334,7 @@ impl AssetEditors {
         self.tilesets.values_mut().map(|e| &mut e.base)
             .chain(self.maps.values_mut().map(|e| &mut e.base))
             .chain(self.rooms.values_mut().map(|e| &mut e.base))
+            .chain(self.worlds.values_mut().map(|e| &mut e.base))
             .chain(self.sprites.values_mut().map(|e| &mut e.base))
             .chain(self.pal_sprites.values_mut().map(|e| &mut e.base))
             .chain(self.animations.values_mut().map(|e| &mut e.base))
@@ -350,6 +342,10 @@ impl AssetEditors {
             .chain(self.mods.values_mut().map(|e| &mut e.base))
             .chain(self.fonts.values_mut().map(|e| &mut e.base))
             .chain(self.prop_fonts.values_mut().map(|e| &mut e.base))
+    }
+
+    pub fn get_open_ids(&mut self) -> impl Iterator<Item = egui::Id> {
+        self.iter().filter_map(|e| { if e.open { Some(e.egui_id) } else { None }})
     }
 
     pub fn refresh_room_names(&mut self, rooms: &AssetList<Room>) {

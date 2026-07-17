@@ -1,9 +1,10 @@
 use super::{
-    AppWindow,
+    AppWindowBase,
     AppWindowAction,
 };
 use super::super::WindowContext;
 
+use crate::misc::IMAGES;
 use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
@@ -11,12 +12,12 @@ use crate::data_asset::{
 use crate::checker::CheckResult;
 
 pub struct CheckWindow {
-    pub base: AppWindow,
+    pub base: AppWindowBase,
     pub result: Option<CheckResult>,
 }
 
 impl CheckWindow {
-    pub fn new(base: AppWindow) -> Self {
+    pub fn new(base: AppWindowBase) -> Self {
         CheckWindow {
             base,
             result: None,
@@ -29,24 +30,6 @@ impl CheckWindow {
 
     pub fn run_check(&mut self, store: &DataAssetStore) {
         self.result = Some(CheckResult::check_project(store));
-    }
-
-    fn title_bg_color(&self, wc: &WindowContext, has_problems: bool) -> egui::Color32 {
-        if has_problems && wc.egui.ctx.global_style().visuals.dark_mode {
-            if wc.is_window_on_top(self.base.id) {
-                egui::Color32::from_rgb(128, 16, 16)
-            } else {
-                egui::Color32::from_rgb(64, 0, 0)
-            }
-        } else if has_problems {
-            if wc.is_window_on_top(self.base.id) {
-                egui::Color32::from_rgb(255, 192, 192)
-            } else {
-                egui::Color32::from_rgb(255, 224, 224)
-            }
-        } else {
-            self.base.title_bg_color(wc)
-        }
     }
 
     fn show_result(ui: &mut egui::Ui, _wc: &WindowContext, result: &CheckResult, store: &DataAssetStore) -> Option<DataAssetId> {
@@ -108,39 +91,30 @@ impl CheckWindow {
         open_asset_id
     }
 
-    pub fn show(&mut self, wc: &WindowContext, store: &DataAssetStore) -> Option<DataAssetId> {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.min.x + 5.0, wc.window_space.max.y - 150.0),
             max: wc.window_space.max - egui::Vec2::splat(5.0),
         };
-        let min_size = egui::Vec2::new(300.0, default_rect.height());
-        let frame = AppWindow::build_window_frame(wc).fill(
-            self.title_bg_color(wc, self.result.as_ref().map(|r| r.num_assets_with_problems() != 0).unwrap_or(false))
-        );
-        let (action, open_asset_id) = self.base.create_window(wc, "Project Check", default_rect)
-            .frame(frame)
-            .min_size(min_size)
-            .show(wc.egui.ctx, |ui| {
-                if let Some(result) = &self.result {
-                    let title = if result.num_assets_with_problems() != 0 {
-                        "\u{26a0} Project Check"
-                    } else {
-                        "\u{2714} Project Check"
-                    };
-                    let action = AppWindow::show_title_bar(ui, title);
-                    let open_asset_id = Self::show_result(ui, wc, result, store);
-                    (action, open_asset_id)
+        self.base.show_window(wc, default_rect, [300.0, default_rect.height()], |ui, wc, base| {
+            if let Some(result) = &self.result {
+                let title_action = if result.num_assets_with_problems() != 0 {
+                    base.show_title_bar(ui, Some(IMAGES.error), "Project Check")
                 } else {
-                    let action = AppWindow::show_title_bar(ui, "Project Check");
-                    egui::CentralPanel::default().show(ui, |ui| {
-                        ui.label("(Press F5 to check)");
-                    });
-                    (action, None)
+                    base.show_title_bar(ui, Some(IMAGES.ok), "Project Check")
+                };
+                if let Some(open_asset_id) = Self::show_result(ui, wc, result, store) {
+                    AppWindowAction::ActivateAssetEditor(open_asset_id)
+                } else {
+                    title_action
                 }
-            }).map(|r| r.inner)??;
-        if matches!(action, AppWindowAction::Close) {
-            self.base.open = false;
-        }
-        open_asset_id
+            } else {
+                let title_action = base.show_title_bar(ui, None, "Project Check");
+                egui::CentralPanel::default().show(ui, |ui| {
+                    ui.label("(Press F5 to check)");
+                });
+                title_action
+            }
+        })
     }
 }

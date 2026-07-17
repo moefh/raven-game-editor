@@ -133,6 +133,8 @@ image_table! {
     screen: "../../assets/ScreenIcon.png",
     lock: "../../assets/LockIcon.png",
     log: "../../assets/LogIcon.png",
+    error: "../../assets/ErrorImage.png",
+    ok: "../../assets/OkImage.png",
     fit_zoom: "../../assets/FitZoom.png",
 
     // assets

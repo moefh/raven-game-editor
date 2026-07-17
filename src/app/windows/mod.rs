@@ -18,19 +18,39 @@ pub use log_window::LogWindow;
 pub use properties::PropertiesWindow;
 pub use check::CheckWindow;
 
-pub enum AppWindowAction {
-    Close,
-    None,
+pub enum AppWindowResize {
+    FixedSize,
+    MinSize(egui::Vec2),
 }
 
-pub struct AppWindow {
+impl From<[f32; 2]> for AppWindowResize {
+    fn from(val: [f32; 2]) -> Self { AppWindowResize::MinSize(val.into()) }
+}
+
+impl From<[f32; 0]> for AppWindowResize {
+    fn from(_val: [f32; 0]) -> AppWindowResize { AppWindowResize::FixedSize }
+}
+
+pub enum AppWindowAction {
+    None,
+    CloseWindow(egui::Id),
+    ActivateAssetEditor(DataAssetId),
+}
+
+impl AppWindowAction {
+    pub fn is_some(&self) -> bool {
+        ! matches!(self, AppWindowAction::None)
+    }
+}
+
+pub struct AppWindowBase {
     pub id: egui::Id,
     pub open: bool,
 }
 
-impl AppWindow {
+impl AppWindowBase {
     pub fn new(id_str: &str) -> Self {
-        AppWindow {
+        AppWindowBase {
             id: egui::Id::new(id_str),
             open: false,
         }
@@ -48,16 +68,19 @@ impl AppWindow {
         }
     }
 
-    pub fn show_title_bar(ui: &mut egui::Ui, title: &str) -> AppWindowAction {
+    pub fn show_title_bar(&self, ui: &mut egui::Ui, image: Option<egui::ImageSource>, title: &str) -> AppWindowAction {
         let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
         let action = frame.show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add_space(3.0);
+                if let Some(image) = image {
+                    ui.add(egui::Image::new(image).max_size(egui::Vec2::splat(16.0)).shrink_to_fit());
+                }
                 ui.add(egui::Label::new(title).selectable(false));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
                     if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
-                        AppWindowAction::Close
+                        AppWindowAction::CloseWindow(self.id)
                     } else {
                         AppWindowAction::None
                     }
@@ -76,34 +99,43 @@ impl AppWindow {
         action
     }
 
-    pub fn build_window_frame(wc: &WindowContext) -> egui::Frame {
+    pub fn build_window_frame(&self, wc: &WindowContext) -> egui::Frame {
         egui::Frame::window(&wc.egui.ctx.global_style())
             .outer_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 })
             .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 0 })
+            .fill(self.title_bg_color(wc))
     }
 
-    pub fn create_window<'a>(&'a mut self, wc: &WindowContext, title: &str, default_rect: egui::Rect) -> egui::Window<'a> {
-        let frame = Self::build_window_frame(wc).fill(self.title_bg_color(wc));
-        egui::Window::new(title)
+    pub fn show_window(
+        &mut self,
+        wc: &mut WindowContext,
+        default_rect: egui::Rect,
+        resize: impl Into<AppWindowResize>,
+        show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext, &mut AppWindowBase) -> AppWindowAction
+    ) -> AppWindowAction {
+        let mut open = self.open;
+        let window = egui::Window::new("")
             .id(self.id)
-            .open(&mut self.open)
+            .frame(self.build_window_frame(wc))
+            .open(&mut open)
             .title_bar(false)
-            .frame(frame)
             .enabled(! wc.sys_dialogs.has_open_dialog())
             .default_rect(default_rect)
             .max_size(wc.window_space.size())
-            .constrain_to(wc.window_space)
-    }
-
-    pub fn run_window_action(&mut self, resp: Option<egui::InnerResponse<Option<AppWindowAction>>>) {
-        if let Some(Some(action)) = resp.map(|r| r.inner) && matches!(action, AppWindowAction::Close) {
-            self.open = false;
-        }
+            .constrain_to(wc.window_space);
+        let window = match resize.into() {
+            AppWindowResize::FixedSize => { window.resizable(false) }
+            AppWindowResize::MinSize(min_size) => { window.min_size(min_size) }
+        };
+        let action = window.show(wc.egui.ctx, |ui| {
+            show_fn(ui, wc, self)
+        }).map(|r| r.inner).unwrap_or(Some(AppWindowAction::None)).unwrap_or(AppWindowAction::None);
+        self.open = open;
+        action
     }
 }
 
-pub struct AppWindows {
-    pub window_ids: Vec<egui::Id>,
+pub struct AppWindowsCollection {
     pub settings: SettingsWindow,
     pub status: StatusWindow,
     pub properties: PropertiesWindow,
@@ -111,70 +143,115 @@ pub struct AppWindows {
     pub check: CheckWindow,
 }
 
+impl AppWindowsCollection {
+    fn new() -> Self {
+        AppWindowsCollection {
+            settings: SettingsWindow::new(AppWindowBase::new("app_settings")),
+            status: StatusWindow::new(AppWindowBase::new("project_status")),
+            properties: PropertiesWindow::new(AppWindowBase::new("project_properties")),
+            log_window: LogWindow::new(AppWindowBase::new("project_log_window")),
+            check: CheckWindow::new(AppWindowBase::new("check_window")),
+        }
+    }
+
+    fn get_ids(&mut self, window_ids: &mut Vec<egui::Id>) {
+        window_ids.push(self.settings.base.id);
+        window_ids.push(self.properties.base.id);
+        window_ids.push(self.status.base.id);
+        window_ids.push(self.log_window.base.id);
+        window_ids.push(self.check.base.id);
+    }
+
+    fn get_base_window(&self, window_id: egui::Id) -> Option<&AppWindowBase> {
+        if window_id == self.settings.base.id { return Some(&self.settings.base) }
+        if window_id == self.properties.base.id { return Some(&self.properties.base) }
+        if window_id == self.status.base.id { return Some(&self.status.base) }
+        if window_id == self.log_window.base.id { return Some(&self.log_window.base) }
+        if window_id == self.check.base.id { return Some(&self.check.base) }
+        None
+    }
+
+    fn get_base_window_mut(&mut self, window_id: egui::Id) -> Option<&mut AppWindowBase> {
+        if window_id == self.settings.base.id { return Some(&mut self.settings.base) }
+        if window_id == self.properties.base.id { return Some(&mut self.properties.base) }
+        if window_id == self.status.base.id { return Some(&mut self.status.base) }
+        if window_id == self.log_window.base.id { return Some(&mut self.log_window.base) }
+        if window_id == self.check.base.id { return Some(&mut self.check.base) }
+        None
+    }
+
+    fn add_window_action(actions: &mut Vec<AppWindowAction>, action: AppWindowAction) {
+        if action.is_some() {
+            actions.push(action)
+        }
+    }
+
+    fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {
+        let mut actions = Vec::new();
+        Self::add_window_action(&mut actions, self.settings.show(wc));
+        Self::add_window_action(&mut actions, self.properties.show(wc, store));
+        Self::add_window_action(&mut actions, self.status.show(wc, store));
+        Self::add_window_action(&mut actions, self.log_window.show(wc));
+        Self::add_window_action(&mut actions, self.check.show(wc, store));
+        actions
+    }
+}
+
+pub struct AppWindows {
+    pub window_ids: Vec<egui::Id>,
+    pub collection: AppWindowsCollection,
+    pub some_closed_last_frame: bool,
+}
+
 impl AppWindows {
     pub fn new() -> Self {
         AppWindows {
             window_ids: Vec::new(),
-            settings: SettingsWindow::new(AppWindow::new("app_settings")),
-            status: StatusWindow::new(AppWindow::new("project_status")),
-            properties: PropertiesWindow::new(AppWindow::new("project_properties")),
-            log_window: LogWindow::new(AppWindow::new("project_log_window")),
-            check: CheckWindow::new(AppWindow::new("check_window")),
+            collection: AppWindowsCollection::new(),
+            some_closed_last_frame: false,
         }
     }
 
     pub fn get_ids(&mut self) -> &[egui::Id] {
         if self.window_ids.is_empty() {
-            self.window_ids.push(self.settings.base.id);
-            self.window_ids.push(self.properties.base.id);
-            self.window_ids.push(self.status.base.id);
-            self.window_ids.push(self.log_window.base.id);
-            self.window_ids.push(self.check.base.id);
+            self.collection.get_ids(&mut self.window_ids);
         }
         &self.window_ids
     }
 
+    pub fn get_open_ids(&mut self) -> impl Iterator<Item = egui::Id> {
+        self.get_ids();
+        self.window_ids.iter().copied().filter(|id| {
+            self.collection.get_base_window(*id).map(|w| w.open).unwrap_or(false)
+        })
+    }
+
+    pub fn close(&mut self, window_id: egui::Id) -> bool {
+        if let Some(base) = self.collection.get_base_window_mut(window_id) {
+            self.some_closed_last_frame = true;
+            base.open = false;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn clear_project(&mut self) {
-        self.check.clear();
+        self.collection.check.clear();
     }
 
-    pub fn show_properties(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) {
-        self.properties.show(wc, store);
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {
+        self.some_closed_last_frame = false;
+        self.collection.show(wc, store)
     }
 
-    pub fn show_settings(&mut self, wc: &mut WindowContext) {
-        self.settings.show(wc);
-    }
+    pub fn open_log_window(&mut self) { self.collection.log_window.base.open = true; }
+    pub fn open_properties(&mut self) { self.collection.properties.base.open = true; }
+    pub fn open_settings(&mut self) { self.collection.settings.base.open = true; }
+    pub fn open_status(&mut self) { self.collection.status.base.open = true; }
+    pub fn open_check(&mut self) { self.collection.check.base.open = true; }
 
-    pub fn show_status(&mut self, wc: &WindowContext, store: &DataAssetStore) {
-        self.status.show(wc, store);
-    }
-
-    pub fn show_log_window(&mut self, wc: &WindowContext) {
-        self.log_window.show(wc);
-    }
-
-    pub fn show_check(&mut self, wc: &WindowContext, store: &DataAssetStore) -> Option<DataAssetId> {
-        self.check.show(wc, store)
-    }
-
-    pub fn open_log_window(&mut self) {
-        self.log_window.base.open = true;
-    }
-
-    pub fn open_properties(&mut self) {
-        self.properties.base.open = true;
-    }
-
-    pub fn open_settings(&mut self) {
-        self.settings.base.open = true;
-    }
-
-    pub fn open_status(&mut self) {
-        self.status.base.open = true;
-    }
-
-    pub fn open_check(&mut self) {
-        self.check.base.open = true;
+    pub fn run_check(&mut self, store: &DataAssetStore) {
+        self.collection.check.run_check(store);
     }
 }

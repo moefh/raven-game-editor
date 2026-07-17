@@ -100,12 +100,12 @@ impl AssetEditorBase {
         self.cur_hash != self.saved_hash
     }
 
-    pub fn clear_dirty(&mut self, asset: &impl std::hash::Hash) {
+    pub fn clear_dirty_flag(&mut self, asset: &impl std::hash::Hash) {
         self.cur_hash = calc_hash(asset);
         self.saved_hash = self.cur_hash;
     }
 
-    pub fn update_dirty(&mut self, asset: &impl std::hash::Hash) {
+    pub fn update_dirty_flag(&mut self, asset: &impl std::hash::Hash) {
         self.cur_hash = calc_hash(asset);
     }
 

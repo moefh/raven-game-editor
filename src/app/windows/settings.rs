@@ -1,15 +1,18 @@
-use super::AppWindow;
+use super::{
+    AppWindowBase,
+    AppWindowAction,
+};
 use super::super::WindowContext;
 
 use crate::image::ColorSet;
 use crate::misc::IMAGES;
 
 pub struct SettingsWindow {
-    pub base: AppWindow,
+    pub base: AppWindowBase,
 }
 
 impl SettingsWindow {
-    pub fn new(base: AppWindow) -> Self {
+    pub fn new(base: AppWindowBase) -> Self {
         SettingsWindow {
             base,
         }
@@ -116,6 +119,8 @@ impl SettingsWindow {
                             }
                         }
                     });
+
+                ui.add_space(5.0);
             }
 
             if ui.add(egui::Button::new("Add Colorset")).clicked() {
@@ -147,27 +152,34 @@ impl SettingsWindow {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext) {
-        let title = "Editor Settings";
+    pub fn show(&mut self, wc: &mut WindowContext) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 400.0, 300.0);
-        let resp = self.base.create_window(wc, title, default_rect)
-            .min_size([300.0, 200.0])
-            .show(wc.egui.ctx, |ui| {
-                let action = AppWindow::show_title_bar(ui, title);
-                egui::CentralPanel::default().show(ui, |ui| {
-                    if ui.button("Save Settings").clicked() {
-                        wc.settings.save(wc.logger);
-                    }
-                    ui.add_space(5.0);
-                    egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
-                        Self::show_main_settings(ui, wc);
-                        Self::show_editor_color_settings(ui, wc);
-                        Self::show_colorset_settings(ui, wc);
-                        Self::show_marching_ants_settings(ui, wc);
+        self.base.show_window(wc, default_rect, [400.0, 200.0], |ui, wc, base| {
+            let action = base.show_title_bar(ui, Some(IMAGES.properties), "Editor Settings");
+            egui::Panel::bottom("editor_settings_bottom").show(ui, |ui| {
+                ui.add_space(10.0);
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_space(10.0);
+                        if ui.button("Save Settings").clicked() {
+                            wc.settings.save(wc.logger);
+                        }
                     });
                 });
-                action
+                ui.add_space(5.0);
             });
-        self.base.run_window_action(resp);
+            egui::CentralPanel::default().show(ui, |ui| {
+                egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+                    Self::show_main_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_editor_color_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_colorset_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_marching_ants_settings(ui, wc);
+                });
+            });
+            action
+        })
     }
 }

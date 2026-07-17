@@ -1,12 +1,17 @@
-use super::AppWindow;
+use crate::misc::IMAGES;
+
+use super::{
+    AppWindowBase,
+    AppWindowAction,
+};
 use super::super::WindowContext;
 
 pub struct LogWindow {
-    pub base: AppWindow,
+    pub base: AppWindowBase,
 }
 
 impl LogWindow {
-    pub fn new(base: AppWindow) -> Self {
+    pub fn new(base: AppWindowBase) -> Self {
         LogWindow {
             base,
         }
@@ -16,11 +21,10 @@ impl LogWindow {
         self.base.open = ! self.base.open;
     }
 
-    pub fn show(&mut self, wc: &WindowContext) {
-        let title = "Log";
+    pub fn show(&mut self, wc: &mut WindowContext) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 700.0, 300.0);
-        let resp = self.base.create_window(wc, title, default_rect).min_size([300.0, 200.0]).show(wc.egui.ctx, |ui| {
-            let action = AppWindow::show_title_bar(ui, title);
+        self.base.show_window(wc, default_rect, [300.0, 200.0], |ui, wc, base| {
+            let action = base.show_title_bar(ui, Some(IMAGES.log), "Log");
             egui::CentralPanel::default().show(ui, |ui| {
                 egui::ScrollArea::both().auto_shrink(false).stick_to_bottom(true).show(ui, |ui| {
                     ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
@@ -29,7 +33,6 @@ impl LogWindow {
                 });
             });
             action
-        });
-        self.base.run_window_action(resp);
+        })
     }
 }

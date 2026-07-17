@@ -32,11 +32,31 @@ use crate::sound::SoundPlayer;
 pub use menu::{*};
 pub use editors::AssetEditors;
 pub use editor_action::EditorAction;
-pub use asset_tree::{StoreAssetTree, SimpleAssetTree, AssetTreeItem, AssetTreeContainer, AssetTreeNodeId};
-pub use context::{WindowContext, WindowEguiContext, AppWindowTracker, KeyboardPressed};
-pub use sys_dialogs::{SysDialogs, SysDialogResponse};
-pub use dialogs::{AppDialogs, DialogResult};
-pub use windows::AppWindows;
+pub use asset_tree::{
+    StoreAssetTree,
+    SimpleAssetTree,
+    AssetTreeItem,
+    AssetTreeContainer,
+    AssetTreeNodeId,
+};
+pub use context::{
+    WindowContext,
+    WindowEguiContext,
+    AppWindowTracker,
+    KeyboardPressed,
+};
+pub use sys_dialogs::{
+    SysDialogs,
+    SysDialogResponse,
+};
+pub use dialogs::{
+    AppDialogs,
+    DialogResult,
+};
+pub use windows::{
+    AppWindows,
+    AppWindowAction,
+};
 pub use settings::AppSettings;
 pub use path_library::PathLibrary;
 
@@ -124,6 +144,16 @@ impl RavenEditorApp {
         ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, window_id));
     }
 
+    fn activate_asset_editor(&mut self, ctx: &egui::Context, asset_id: DataAssetId) {
+        if let Some(editor) = self.editors.get_editor_mut(asset_id) {
+            if ! editor.open {
+                editor.open = true;
+            } else {
+                Self::activate_window(ctx, editor.egui_id);
+            }
+        }
+    }
+
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
         if self.settings.start_maximized {
             ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(true));
@@ -152,6 +182,15 @@ impl RavenEditorApp {
             "system" => ctx.set_theme(egui::ThemePreference::System),
             _ => {}
         }
+    }
+
+    pub fn run_project_check(&mut self, ctx: &egui::Context) {
+        if self.windows.collection.check.base.open {
+            Self::activate_window(ctx, self.windows.collection.check.base.id);
+        } else {
+            self.windows.open_check();
+        }
+        self.windows.run_check(&self.store);
     }
 
     pub fn export_header(&mut self, path: &std::path::Path) -> bool {
@@ -246,7 +285,7 @@ impl RavenEditorApp {
             Ok(()) => {
                 self.logger.log(format!("DONE: project saved to {}", path.display()));
                 self.recent_projects.add(path);
-                self.editors.clear_dirty(&self.store);
+                self.editors.clear_dirty_flags(&self.store);
                 true
             }
             Err(e) => {
@@ -555,12 +594,7 @@ impl RavenEditorApp {
             }
             let run_check_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F5);
             if ui.input_mut(|i| i.consume_shortcut(&run_check_shortcut)) {
-                self.windows.check.run_check(&self.store);
-                if ! self.windows.check.base.open {
-                    self.windows.open_check();
-                } else {
-                    Self::activate_window(ui, self.windows.check.base.id);
-                }
+                self.run_project_check(ui.ctx());
             }
 
             egui::MenuBar::new().ui(ui, |ui| {
@@ -635,11 +669,6 @@ impl RavenEditorApp {
                             ]
                         );
                     }
-                    ui.separator();
-                    if ui.add(menu_item_no_image(" Run Check (F5)")).clicked() {
-                        self.windows.open_check();
-                        self.windows.check.run_check(&self.store);
-                    }
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.add(menu_item(IMAGES.info, " Status")).clicked() {
@@ -689,10 +718,18 @@ impl RavenEditorApp {
                 ui.separator();
                 ui.add_space(5.0);
 
-                let log_is_open = self.windows.log_window.base.open;
+                let log_is_open = self.windows.collection.log_window.base.open;
                 let log_button = egui::Button::image_and_text(IMAGES.log, "Log").selected(log_is_open).frame_when_inactive(log_is_open);
                 if ui.add(log_button).on_hover_text("Log Window").clicked() {
-                    self.windows.log_window.toggle_open();
+                    self.windows.collection.log_window.toggle_open();
+                }
+
+                ui.add_space(10.0);
+
+                let check_is_open = self.windows.collection.check.base.open;
+                let check_button = egui::Button::image_and_text(IMAGES.ok, "Check").selected(check_is_open).frame_when_inactive(check_is_open);
+                if ui.add(check_button).on_hover_text("Run Project Check (F5)").clicked() {
+                    self.run_project_check(ui.ctx());
                 }
 
                 ui.spacing_mut().item_spacing = spacing;
@@ -799,7 +836,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) {
+    fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) -> Vec<AppWindowAction> {
         let frame = egui::Frame::NONE.fill(ui.visuals().panel_fill);
         let window_space = egui::CentralPanel::default().frame(frame).show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
@@ -825,12 +862,15 @@ impl RavenEditorApp {
 
         self.editors.refresh_room_names(&self.store.assets.rooms);
 
-        // if some editor was closed, focus the editor that's closest to the top (if any)
-        if self.editors.iter().any(|e| e.closed_last_frame) {
-            let open_editor_ids = self.editors.iter().filter_map(|e| {
-                if e.open { Some(e.egui_id) } else { None }
-            }).collect();
-            win_ctx.bring_topmost_to_top(&open_editor_ids);
+        // if some window was closed, focus the window that's closest to the top (if any)
+        if self.editors.iter().any(|e| e.closed_last_frame) || self.windows.some_closed_last_frame {
+            // try editor windows
+            let open_editor_ids = self.editors.get_open_ids().collect();
+            if win_ctx.bring_topmost_to_top(&open_editor_ids).is_none() {
+                // try non-editor windows
+                let open_window_ids = self.windows.get_open_ids().collect();
+                win_ctx.bring_topmost_to_top(&open_window_ids);
+            }
             for e in self.editors.iter_mut() {
                 e.closed_last_frame = false;
             }
@@ -902,18 +942,7 @@ impl RavenEditorApp {
             }
         }
 
-        self.windows.show_settings(&mut win_ctx);
-        self.windows.show_status(&win_ctx, &self.store);
-        self.windows.show_properties(&mut win_ctx, &mut self.store);
-        self.windows.show_log_window(&win_ctx);
-        if let Some(asset_id) = self.windows.show_check(&win_ctx, &self.store) &&
-            let Some(editor) = self.editors.get_editor_mut(asset_id) {
-                if ! editor.open {
-                    editor.open = true;
-                } else {
-                    Self::activate_window(ui, editor.egui_id);
-                }
-            }
+        let window_actions = self.windows.show(&mut win_ctx, &mut self.store);
 
         for editor_action in std::mem::take(&mut win_ctx.editor_actions) {
             editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors);
@@ -921,6 +950,8 @@ impl RavenEditorApp {
 
         self.map_clipboard = win_ctx.map_clipboard.take();
         self.image_clipboard = win_ctx.image_clipboard.take();
+
+        window_actions
     }
 }
 
@@ -989,12 +1020,24 @@ impl eframe::App for RavenEditorApp {
             self.filename_changed = false;
         }
 
-        self.editors.update_dirty(&self.store);
+        self.editors.update_dirty_flags(&self.store);
         self.update_dialogs(ui);
         self.update_menu(ui, window);
         self.update_toolbar(ui, window);
         self.update_footer(ui);
         self.update_asset_tree(ui);
-        self.update_windows(ui, window);
+
+        for window_action in self.update_windows(ui, window).into_iter() {
+            match window_action {
+                AppWindowAction::None => {
+                }
+                AppWindowAction::CloseWindow(window_id) => {
+                    self.windows.close(window_id);
+                }
+                AppWindowAction::ActivateAssetEditor(asset_id) => {
+                    self.activate_asset_editor(ui.ctx(), asset_id);
+                }
+            }
+        }
     }
 }
