@@ -93,7 +93,7 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
                         return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
                                              vga_bits_per_pixel), pos);
                     }
-                    logger.log(format!("-> got vga_bits_per_pixel {:#04x}", vga_bits_per_pixel));
+                    logger.log(format!("-> got vga_bits_per_pixel {}", vga_bits_per_pixel));
                     data.vga_bits_per_pixel = vga_bits_per_pixel as u8;
                     return Ok(());
                 }

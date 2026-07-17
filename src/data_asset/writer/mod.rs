@@ -224,7 +224,6 @@ impl<'a> ProjectDataWriter<'a> {
         for id in self.store.asset_ids.fonts.iter() {
             if let Some(font) = self.store.assets.fonts.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Font, *id)?;
-                self.log(format!("-> writing font data for '{}'", name_id));
                 self.write_font_data(font, name_id);
             }
         }
@@ -291,7 +290,6 @@ impl<'a> ProjectDataWriter<'a> {
         for id in self.store.asset_ids.prop_fonts.iter() {
             if let Some(font) = self.store.assets.prop_fonts.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::PropFont, *id)?;
-                self.log(format!("-> writing prop font data for '{}'", name_id));
                 let char_offsets = self.write_prop_font_data(font, name_id);
                 font_char_offsets.insert(*id, char_offsets);
             }
