@@ -36,6 +36,7 @@ pub enum AssetProblem {
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
     RoomTriggersWithSameId { trigger1_index: usize, trigger2_index: usize, trigger_id: u16 },
+    RoomDoorWithInvalidDestination { trigger_index: usize },
     WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -153,6 +154,13 @@ impl AssetProblem {
                     } else {
                         ui.label("*** ERROR: INVALID ROOM TRIGGER REFERENCE");
                         ui.label(format!("*** trigger1_index={}, trigger2_index={}", trigger1_index, trigger2_index));
+                    }
+            }
+
+            AssetProblem::RoomDoorWithInvalidDestination { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(door) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> door '{}' has invalid destination", door.name_id));
                     }
             }
 

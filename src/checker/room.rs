@@ -3,7 +3,15 @@ use std::collections::{
     BTreeMap,
 };
 
-use crate::data_asset::{DataAssetId, DataAssetStore, AssetList, Room, MapData, Tileset};
+use crate::data_asset::{
+    DataAssetId,
+    DataAssetStore,
+    AssetList,
+    Room,
+    RoomTriggerType,
+    MapData,
+    Tileset,
+};
 
 use super::{
     SCREEN_WIDTH,
@@ -55,7 +63,7 @@ fn check_room_size(room: &Room, maps: &AssetList<MapData>, problems: &mut Vec<As
     }
 }
 
-fn check_room_triggers(room: &Room, problems: &mut Vec<AssetProblem>) {
+fn check_room_trigger_ids(room: &Room, problems: &mut Vec<AssetProblem>) {
     let num_triggers = room.triggers.len();
     if num_triggers < 1 {
         return;
@@ -80,7 +88,26 @@ fn check_room_triggers(room: &Room, problems: &mut Vec<AssetProblem>) {
     }
 }
 
-fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
+fn is_valid_door(room_id: DataAssetId, trigger_id: u16, rooms: &AssetList<Room>) -> bool {
+    if let Some(room) = rooms.get(&room_id) &&
+        let Some(trigger) = room.triggers.iter().find(|tr| tr.trigger_id == trigger_id) &&
+        matches!(trigger.trigger_type, RoomTriggerType::Door {..}) {
+            true
+        } else {
+            false
+        }
+}
+
+fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, problems: &mut Vec<AssetProblem>) {
+    for (trigger_index, trigger) in room.triggers.iter().enumerate() {
+        if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = trigger.trigger_type &&
+            ! is_valid_door(dest_room_id, dest_trigger_id, rooms) {
+                problems.push(AssetProblem::RoomDoorWithInvalidDestination { trigger_index });
+            }
+    }
+}
+
+fn check_room(room: &Room, rooms: &AssetList<Room>, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
 
     if room.maps.is_empty() {
@@ -89,13 +116,14 @@ fn check_room(room: &Room, maps: &AssetList<MapData>) -> Vec<AssetProblem> {
 
     check_room_maps(room, maps, &mut problems);
     check_room_size(room, maps, &mut problems);
-    check_room_triggers(room, &mut problems);
+    check_room_trigger_ids(room, &mut problems);
+    check_room_door_destinations(room, rooms, &mut problems);
 
     problems
 }
 
 pub fn check_rooms(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
     for room in store.assets.rooms.iter() {
-        asset_problems.insert(room.asset.id, check_room(room, &store.assets.maps));
+        asset_problems.insert(room.asset.id, check_room(room, &store.assets.rooms, &store.assets.maps));
     }
 }
