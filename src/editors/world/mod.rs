@@ -242,6 +242,11 @@ impl Editor {
                         let Some(region_index) = self.world_editor.get_selected_region() {
                             dialogs.room_selection_dialog.set_open(wc, world, region_index, rooms);
                         }
+                    ui.separator();
+                    if ui.add_enabled(has_region, menu_item(IMAGES.trash, " Remove region")).clicked() &&
+                        let Some(region_index) = self.world_editor.get_selected_region() {
+                            self.remove_region(world, region_index);
+                        }
                 });
             });
         });
@@ -390,9 +395,12 @@ impl Editor {
     }
 
     fn shift_region(&mut self, region: &mut WorldRegion, direction: ShiftDirection) {
-        if region.width == 0 || region.height == 0 {
-            return;
-        }
+        if region.width == 0 ||
+            region.height == 0 ||
+            region.width > WorldRegion::MAX_WIDTH ||
+            region.height > WorldRegion::MAX_HEIGHT {
+                return;
+            }
 
         const MAX_WIDTH: usize = WorldRegion::MAX_WIDTH as usize;
         const MAX_HEIGHT: usize = WorldRegion::MAX_HEIGHT as usize;
@@ -436,13 +444,13 @@ impl Editor {
         }
 
         // clear unused region
-        if region_width < MAX_WIDTH {
+        if region_width != MAX_WIDTH {
             for y in 0..MAX_HEIGHT {
                 region.blocks[y*MAX_WIDTH + region_width] = None;
                 region.blocks[y*MAX_WIDTH + MAX_WIDTH-1] = None;
             }
         }
-        if region_height < MAX_HEIGHT {
+        if region_height != MAX_HEIGHT {
             region.blocks[region_height*MAX_WIDTH .. (region_height+1)*MAX_WIDTH].fill(None);
             region.blocks[(MAX_HEIGHT-1)*MAX_WIDTH .. MAX_HEIGHT*MAX_WIDTH].fill(None);
         }
