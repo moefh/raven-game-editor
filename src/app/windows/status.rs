@@ -22,22 +22,17 @@ impl StatusWindow {
     }
 
     pub fn show(&mut self, wc: &WindowContext, store: &DataAssetStore) {
+        let title = "Editor Status";
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.max.x - 300.0, wc.window_space.min.y + 10.0),
             max: wc.window_space.max - egui::Vec2::new(10.0, 40.0),
         };
-        let selected = wc.is_window_on_top(self.base.id);
-        let title_bg = match wc.egui.ctx.theme() {
-            egui::Theme::Light => if selected { egui::Color32::from_rgb(0xe0, 0xe0, 0xe0) } else { wc.egui.ctx.global_style().visuals.window_fill },
-            egui::Theme::Dark => if selected { egui::Color32::from_rgb(0, 0x20, 0x40) } else { egui::Color32::from_rgb(0, 0x10, 0x20) },
-        };
-        let frame = egui::Frame::window(&wc.egui.ctx.global_style())
-            .outer_margin(egui::Margin { left: 0, right: 0, top: -2, bottom: -2 })
-            .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 2 })
-            .fill(title_bg);
-        self.base.create_window(wc, "Editor Status", default_rect).frame(frame).show(wc.egui.ctx, |ui| {
+        let resp = self.base.create_window(wc, title, default_rect).show(wc.egui.ctx, |ui| {
+            let action = AppWindow::show_title_bar(ui, title);
             self.window.show(ui, wc, store);
+            action
         });
+        self.base.run_window_action(resp);
     }
 }
 
@@ -139,12 +134,6 @@ impl Window {
             });
             ui.add_space(0.0);
         });
-
-        egui::Panel::bottom("editor_status_window_footer").show(ui, |ui| {
-            ui.add_space(5.0);
-            ui.label("");
-        });
-
         match self.selected_tab {
             StatusWindowsTabs::Windows => { self.show_windows_tab(ui, wc, store) }
             StatusWindowsTabs::Textures => { self.show_textures_tab(ui, wc); }

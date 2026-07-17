@@ -1,17 +1,14 @@
-use super::AppWindow;
+use super::{
+    AppWindow,
+    AppWindowAction,
+};
 use super::super::WindowContext;
 
-use crate::misc::IMAGES;
 use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
 };
 use crate::checker::CheckResult;
-
-enum WindowAction {
-    Close,
-    None,
-}
 
 pub struct CheckWindow {
     pub base: AppWindow,
@@ -48,46 +45,8 @@ impl CheckWindow {
                 egui::Color32::from_rgb(255, 224, 224)
             }
         } else {
-            if wc.is_window_on_top(self.base.id) {
-                wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill
-            } else {
-                wc.egui.ctx.global_style().visuals.faint_bg_color
-            }
+            self.base.title_bg_color(wc)
         }
-    }
-
-    fn show_title(ui: &mut egui::Ui, has_problems: bool) -> WindowAction {
-        let frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
-        let action = frame.show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.add_space(3.0);
-                //TODO: ui.add(egui::Image::new(include_ref_image!(title_image)).max_size(egui::Vec2::splat(16.0)).shrink_to_fit());
-                let label = if has_problems {
-                    egui::Label::new("\u{26a0} Project Check")
-                } else {
-                    egui::Label::new("\u{2714} Project Check")
-                };
-                ui.add(label.selectable(false));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
-                    if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
-                        WindowAction::Close
-                    } else {
-                        WindowAction::None
-                    }
-                }).inner
-            }).inner
-        }).inner;
-
-        let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
-        let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
-        ui.painter().hline(
-            rect.left()..=rect.right(),
-            rect.bottom() + 2.0,
-            ui.style().visuals.window_stroke
-        );
-
-        action
     }
 
     fn show_result(ui: &mut egui::Ui, _wc: &WindowContext, result: &CheckResult, store: &DataAssetStore) -> Option<DataAssetId> {
@@ -155,28 +114,31 @@ impl CheckWindow {
             max: wc.window_space.max - egui::Vec2::splat(5.0),
         };
         let min_size = egui::Vec2::new(300.0, default_rect.height());
-        let frame = egui::Frame::window(&wc.egui.ctx.global_style())
-            .outer_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 })
-            .inner_margin(egui::Margin { left: 0, right: 0, top: 2, bottom: 0 })
-            .fill(self.title_bg_color(wc, self.result.as_ref().map(|r| r.num_assets_with_problems() != 0).unwrap_or(false)));
+        let frame = AppWindow::build_window_frame(wc).fill(
+            self.title_bg_color(wc, self.result.as_ref().map(|r| r.num_assets_with_problems() != 0).unwrap_or(false))
+        );
         let (action, open_asset_id) = self.base.create_window(wc, "Project Check", default_rect)
             .frame(frame)
-            .title_bar(false)
             .min_size(min_size)
             .show(wc.egui.ctx, |ui| {
                 if let Some(result) = &self.result {
-                    let action = Self::show_title(ui, result.num_assets_with_problems() != 0);
+                    let title = if result.num_assets_with_problems() != 0 {
+                        "\u{26a0} Project Check"
+                    } else {
+                        "\u{2714} Project Check"
+                    };
+                    let action = AppWindow::show_title_bar(ui, title);
                     let open_asset_id = Self::show_result(ui, wc, result, store);
                     (action, open_asset_id)
                 } else {
-                    let action = Self::show_title(ui, false);
+                    let action = AppWindow::show_title_bar(ui, "Project Check");
                     egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("(Press F5 to check)");
                     });
                     (action, None)
                 }
             }).map(|r| r.inner)??;
-        if matches!(action, WindowAction::Close) {
+        if matches!(action, AppWindowAction::Close) {
             self.base.open = false;
         }
         open_asset_id
