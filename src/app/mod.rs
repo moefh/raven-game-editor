@@ -133,6 +133,7 @@ impl RavenEditorApp {
             asset_tree: StoreAssetTree::new(),
             recent_projects: recent_projects::RecentProjects::new(),
         };
+        app.window_tracker.reset(&app.editors.egui_id_to_asset_id, app.windows.get_ids());
         app.recent_projects.load(&mut app.logger);
         app.sys_dialogs.load_paths(&mut app.logger);
         app.logger.log(app.sound_player.init_info());
