@@ -165,10 +165,14 @@ impl AssetEditorBase {
         }
     }
 
-    fn show_window<Asset>(&mut self, wc: &mut WindowContext, asset: &mut Asset,
-                          min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>,
-                          show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext, &mut Asset, &mut AssetEditorBase))
-    where Asset: GenericAsset {
+    fn show_window<Asset>(
+        &mut self,
+        wc: &mut WindowContext,
+        asset: &mut Asset,
+        min_size: impl Into<egui::Vec2>,
+        default_size: impl Into<egui::Vec2>,
+        show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext, &mut Asset, &mut AssetEditorBase)
+    ) where Asset: GenericAsset {
         self.title.clear();
         self.title.push_str(&asset.asset().name);
         if self.is_dirty() {
@@ -245,8 +249,14 @@ impl AssetEditorBase {
         }
     }
 
-    fn create_window<'a>(&mut self, wc: &WindowContext, open: &'a mut bool, title: &str,
-                         min_size: impl Into<egui::Vec2>, default_size: impl Into<egui::Vec2>) -> egui::Window<'a> {
+    fn create_window<'a>(
+        &mut self,
+        wc: &WindowContext,
+        open: &'a mut bool,
+        title: &str,
+        min_size: impl Into<egui::Vec2>,
+        default_size: impl Into<egui::Vec2>
+    ) -> egui::Window<'a> {
         let default_pos = wc.window_space.min + egui::Vec2::splat(10.0);
         let default_rect = egui::Rect {
             min: default_pos,
@@ -301,30 +311,44 @@ impl AssetEditorBase {
         }
     }
 
-    pub fn show_dialog_window<T>(wc: &mut WindowContext, id: egui::Id, width: f32, title: &str,
-                                 show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext) -> T) -> egui::ModalResponse<T> {
-        let title_bg = wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill;
-        let frame = egui::Frame::popup(&wc.egui.ctx.global_style()).inner_margin(egui::Margin::ZERO);
+    pub fn show_dialog_window<T>(
+        wc: &mut WindowContext,
+        id: egui::Id,
+        width: f32,
+        title: &str,
+        show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext) -> T
+    ) -> egui::ModalResponse<T> {
+        let frame = egui::Frame::popup(&wc.egui.ctx.global_style())
+            .inner_margin(egui::Margin::ZERO)
+            .fill(wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill);
         egui::Modal::new(id).frame(frame).show(wc.egui.ctx, |ui| {
             wc.sys_dialogs.block_ui(ui);
             ui.set_width(width);
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                 // title bar
-                egui::Frame::NONE.fill(title_bg).show(ui, |ui| {
-                    ui.add_space(8.0);
-                    ui.add(egui::Label::new(egui::RichText::new(title).heading()).selectable(false));
-
-                    let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
-                    let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
-                    ui.painter().hline(
-                        rect.left()..=rect.right(),
-                        rect.bottom(),
-                        ui.style().visuals.window_stroke
-                    );
+                let title_frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
+                title_frame.show(ui, |ui| {
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.add_space(3.0);
+                        ui.add(egui::Label::new(title).selectable(false));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
+                                ui.close();
+                            }
+                        });
+                    });
                 });
+                let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
+                let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
+                ui.painter().hline(
+                    rect.left()..=rect.right(),
+                    rect.bottom() + 2.0,
+                    ui.style().visuals.window_stroke
+                );
 
                 // content
-                egui::Frame::NONE.inner_margin(ui.style().spacing.menu_margin).show(ui, |ui| {
+                egui::Frame::NONE.inner_margin(ui.style().spacing.menu_margin).fill(ui.style().visuals.window_fill).show(ui, |ui| {
                     show_fn(ui, wc)
                 }).inner
             }).inner

@@ -21,6 +21,7 @@ pub struct ColorsetEditorDialog {
 impl ColorsetEditorDialog {
     const MIN_PICKER_WIDTH: f32 = 150.0;
     const MIN_WINDOW_WIDTH: f32 = Self::MIN_PICKER_WIDTH + 12.0;
+    const COLORS_PER_ROW: usize = 4;
 
     pub fn new() -> Self {
         ColorsetEditorDialog {
@@ -46,33 +47,31 @@ impl ColorsetEditorDialog {
             }
         });
 
-        let min_size = Vec2::new(Self::MIN_PICKER_WIDTH, Self::MIN_PICKER_WIDTH * 1.6);
+        let min_size = Vec2::new(Self::MIN_PICKER_WIDTH, Self::MIN_PICKER_WIDTH * 1.2);
         let (response, painter) = ui.allocate_painter(min_size, egui::Sense::click());
-
         let mut rect = response.rect.shrink(3.0);
-        let color_block_size = Vec2::new(rect.width() / 4.0, rect.height() / 8.0);
 
         if let Some(colors) = settings.colorsets.get_colorset_colors(self.colorset) {
-            rect.max.y = rect.min.y + color_block_size.y * colors.len().div_ceil(4) as f32;
+            let (num_x, num_y) = (Self::COLORS_PER_ROW, colors.len().div_ceil(Self::COLORS_PER_ROW));
+            let color_block_size = Vec2::new(rect.width() / (num_x as f32), rect.height() / (num_y as f32));
+            rect.max.y = rect.min.y + color_block_size.y * colors.len().div_ceil(Self::COLORS_PER_ROW) as f32;
             for (i, &color) in colors.iter().enumerate() {
-                let x = i % 4;
-                let y = i / 4;
+                let x = i % Self::COLORS_PER_ROW;
+                let y = i / Self::COLORS_PER_ROW;
                 let pos = Vec2::new(x as f32, y as f32);
-
                 let item_rect = Rect::from_min_size(rect.min + color_block_size * pos, color_block_size);
                 painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(color));
             }
-        }
-        painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE), egui::StrokeKind::Outside);
+            painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE), egui::StrokeKind::Outside);
 
-        if response.clicked() && let Some(pos) = response.interact_pointer_pos() {
-            let x = ((pos.x - response.rect.min.x) / color_block_size.x).floor().clamp(0.0, 3.0) as usize;
-            let y = ((pos.y - response.rect.min.y) / color_block_size.y).floor().max(0.0) as usize;
-            let color_index = y*4 + x;
-            if let Some(colors) = settings.colorsets.get_colorset_colors(self.colorset) &&
-                colors.get(color_index).is_some() {
+            if response.clicked() && let Some(pos) = response.interact_pointer_pos() {
+                let x = ((pos.x - response.rect.min.x) / color_block_size.x).floor().clamp(0.0, 3.0) as usize;
+                let y = ((pos.y - response.rect.min.y) / color_block_size.y).floor().max(0.0) as usize;
+                let color_index = y*Self::COLORS_PER_ROW + x;
+                if colors.get(color_index).is_some() {
                     self.pick_color_index = Some(color_index);
                 }
+            }
         }
 
         if let Some(color_index) = self.pick_color_index {
@@ -94,7 +93,7 @@ impl ColorsetEditorDialog {
 
         if create_dialog_window(sys_dialogs, ui, self.id, Self::MIN_WINDOW_WIDTH, "Colorset", |ui| {
             self.show_colorset_editor(ui, settings);
-            ui.add_space(2.0);
+            ui.add_space(5.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                 if ui.button("Close").clicked() {
                     ui.close();
