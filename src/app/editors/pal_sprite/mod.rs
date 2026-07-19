@@ -6,18 +6,24 @@ mod import;
 mod export;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    menu_item_no_image,
-    WindowContext,
-    SysDialogResponse,
+use crate::image::{
+    ImageCollection,
+    ImagePixels,
+    TextureSlot,
+    ImageRotation,
 };
-use crate::image::{ImageCollection, ImagePixels, TextureSlot, ImageRotation};
-use crate::data_asset::{DataAssetId, PalSprite, GenericAsset};
+use crate::data_asset::{
+    DataAssetId,
+    PalSprite,
+    GenericAsset,
+};
 
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
-use add_frames::{AddFramesDialog, AddFramesAction};
+use add_frames::{
+    AddFramesDialog,
+    AddFramesAction,
+};
 use edit_palette::EditPaletteDialog;
 use import::ImportDialog;
 use export::ExportDialog;
@@ -34,6 +40,14 @@ use super::widgets::{
     ImageEditorAction,
     ImageDrawingTool,
     ImageDisplay,
+};
+use super::super::{
+    WindowContext,
+    SysDialogResponse,
+};
+use super::super::widgets::{
+    menu_item,
+    menu_item_no_image,
 };
 
 pub struct PalSpriteEditor {

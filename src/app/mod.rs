@@ -1,14 +1,13 @@
-mod menu;
-mod asset_tree;
 mod context;
 mod sys_dialogs;
 mod dialogs;
 mod windows;
 mod editors;
-mod editor_action;
 mod settings;
 mod path_library;
 mod recent_projects;
+pub mod checker;
+pub mod widgets;
 
 use crate::include_ref_image;
 use crate::data_asset::{
@@ -22,22 +21,22 @@ use crate::misc::asset_defs::{
     get_asset_type_display_name,
 };
 use crate::misc::IMAGES;
-use crate::editors::{
-    ImageClipboardData,
-    MapClipboardData,
-};
 use crate::image::TextureManager;
 use crate::sound::SoundPlayer;
 
-pub use menu::{*};
-pub use editors::AssetEditors;
-pub use editor_action::EditorAction;
-pub use asset_tree::{
-    StoreAssetTree,
-    SimpleAssetTree,
-    AssetTreeItem,
-    AssetTreeContainer,
-    AssetTreeNodeId,
+use widgets::{
+    menu_item,
+    menu_item_no_image,
+    menu_item_no_image_with_submenu,
+};
+use editors::{
+    ImageClipboardData,
+    MapClipboardData,
+};
+
+pub use editors::{
+    EditorStore,
+    EditorAction,
 };
 pub use context::{
     WindowContext,
@@ -67,7 +66,7 @@ enum ConfirmationDialogAction {
 
 enum TextInputDialogAction {
     RenameAsset(DataAssetType, DataAssetId),
-    RenameAssetFolder(DataAssetType, AssetTreeNodeId),
+    RenameAssetFolder(DataAssetType, widgets::AssetTreeNodeId),
 }
 
 pub enum AssetTreeAction {
@@ -76,8 +75,8 @@ pub enum AssetTreeAction {
     RemoveAsset(DataAssetId),
     DuplicateAsset(DataAssetId),
     OpenEditor(DataAssetId),
-    AddAsset(AssetTreeNodeId),
-    RenameFolder(AssetTreeNodeId),
+    AddAsset(widgets::AssetTreeNodeId),
+    RenameFolder(widgets::AssetTreeNodeId),
 }
 
 pub struct RavenEditorApp {
@@ -89,7 +88,7 @@ pub struct RavenEditorApp {
     sys_dialogs: SysDialogs,
     dialogs: AppDialogs,
     windows: AppWindows,
-    editors: AssetEditors,
+    editors: EditorStore,
     image_clipboard: ImageClipboardData,
     map_clipboard: MapClipboardData,
     tex_manager: TextureManager,
@@ -100,11 +99,10 @@ pub struct RavenEditorApp {
     text_input_dialog_action: Option<TextInputDialogAction>,
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
-    asset_tree: StoreAssetTree,
+    asset_tree: widgets::StoreAssetTree,
 }
 
 impl RavenEditorApp {
-    const DEFAULT_BITS_PER_PIXEL: u8 = 8;
     const OPEN_PROJECT_SYS_DLG_ID: &str = "open_project";
     const SAVE_PROJECT_SYS_DLG_ID: &str = "save_project_as";
     const EXPORT_HEADER_SYS_DLG_ID: &str = "export_header";
@@ -120,17 +118,17 @@ impl RavenEditorApp {
             filename_changed: true,
             sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
-            editors: AssetEditors::new(),
+            editors: EditorStore::new(),
             windows: windows::AppWindows::new(),
             image_clipboard: ImageClipboardData::Empty,
             map_clipboard: MapClipboardData::Empty,
-            tex_manager: TextureManager::new(Self::DEFAULT_BITS_PER_PIXEL),
+            tex_manager: TextureManager::new(),
             sound_player: SoundPlayer::new(),
             confirmation_dialog_action: None,
             text_input_dialog_action: None,
             keyboard_pressed: None,
             window_tracker: AppWindowTracker::new(),
-            asset_tree: StoreAssetTree::new(),
+            asset_tree: widgets::StoreAssetTree::new(),
             recent_projects: recent_projects::RecentProjects::new(),
         };
         app.window_tracker.reset(&app.editors.egui_id_to_asset_id, app.windows.get_ids());
@@ -372,7 +370,7 @@ impl RavenEditorApp {
         self.make_unique_asset_name(asset_type, &name, true)
     }
 
-    fn rename_asset_folder(&mut self, asset_type: DataAssetType, tree_node_id: AssetTreeNodeId, new_name: String) {
+    fn rename_asset_folder(&mut self, asset_type: DataAssetType, tree_node_id: widgets::AssetTreeNodeId, new_name: String) {
         if let Some(old_name) = self.asset_tree.get_node_name(asset_type, tree_node_id) {
             for &asset_id in self.store.asset_ids.ids_of_type(asset_type) {
                 if let Some(asset) = self.store.assets.get_asset_mut(asset_id) && asset.name.starts_with(&old_name) {
@@ -759,7 +757,7 @@ impl RavenEditorApp {
                     let mut folder_action = AssetTreeAction::None;
                     let mut item_action = AssetTreeAction::None;
                     if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
-                        let mut show_folder = |ui: &mut egui::Ui, folder: &AssetTreeContainer| -> egui::Response {
+                        let mut show_folder = |ui: &mut egui::Ui, folder: &widgets::AssetTreeContainer| -> egui::Response {
                             ui.horizontal(|ui| {
                                 let button = if folder.level == 0 {
                                     egui::Button::image_and_text(include_ref_image!(asset_def.image), &folder.name)
@@ -781,7 +779,7 @@ impl RavenEditorApp {
                                 header
                             }).inner
                         };
-                        let mut show_item = |ui: &mut egui::Ui, _folder: &AssetTreeContainer, asset_item: &AssetTreeItem| {
+                        let mut show_item = |ui: &mut egui::Ui, _folder: &widgets::AssetTreeContainer, asset_item: &widgets::AssetTreeItem| {
                             ui.horizontal(|ui| {
                                 ui.add_space(18.0);
                                 let button = ui.button(&asset_item.name);
@@ -889,7 +887,7 @@ impl RavenEditorApp {
         }
         for room in self.store.assets.rooms.iter_mut() {
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) {
-                let assets = crate::editors::RoomEditorAssetLists::new(
+                let assets = editors::RoomEditorAssetLists::new(
                     &self.store.assets.maps,
                     &self.store.assets.tilesets,
                     &self.store.assets.animations,
@@ -900,7 +898,7 @@ impl RavenEditorApp {
         }
         for world in self.store.assets.worlds.iter_mut() {
             if let Some(editor) = self.editors.worlds.get_mut(&world.asset.id) {
-                let mut assets = crate::editors::WorldEditorAssetLists::new(
+                let mut assets = editors::WorldEditorAssetLists::new(
                     &mut self.store.assets.rooms,
                     &self.store.assets.maps,
                     &self.store.assets.tilesets);

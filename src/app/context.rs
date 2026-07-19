@@ -1,16 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::image::TextureManager;
-use crate::app::{
-    AppDialogs,
-    SysDialogs,
-    AppSettings,
-};
 use crate::data_asset::{
     DataAssetId,
     StringLogger,
 };
-use crate::editors::{
+
+use super::{
+    AppDialogs,
+    SysDialogs,
+    AppSettings,
+};
+use super::editors::{
     MapClipboardData,
     ImageClipboardData,
 };

@@ -10,7 +10,7 @@ use crate::data_asset::{
     AssetList,
     Room,
 };
-use crate::editors::{
+use super::{
     AssetEditorBase,
     TilesetEditor,
     MapDataEditor,
@@ -25,7 +25,7 @@ use crate::editors::{
     PropFontEditor,
 };
 
-pub struct AssetEditors {
+pub struct EditorStore {
     pub egui_id_to_asset_id: HashMap<egui::Id, DataAssetId>,
     pub tilesets: HashMap<DataAssetId, TilesetEditor>,
     pub maps: HashMap<DataAssetId, MapDataEditor>,
@@ -41,9 +41,9 @@ pub struct AssetEditors {
     pub room_names: HashMap<DataAssetId, String>,
 }
 
-impl AssetEditors {
+impl EditorStore {
     pub fn new() -> Self {
-        AssetEditors {
+        EditorStore {
             egui_id_to_asset_id: HashMap::new(),
             tilesets: HashMap::new(),
             maps: HashMap::new(),

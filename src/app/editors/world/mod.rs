@@ -3,14 +3,6 @@ mod room_selection;
 mod region_properties;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    menu_item_no_image,
-    WindowContext,
-    SimpleAssetTree,
-    AssetTreeContainer,
-    AssetTreeItem,
-};
 use crate::data_asset::{
     Room,
     World,
@@ -20,6 +12,15 @@ use crate::data_asset::{
     AssetList,
     DataAssetId,
     GenericAsset,
+};
+
+use super::WindowContext;
+use super::super::widgets::{
+    menu_item,
+    menu_item_no_image,
+    SimpleAssetTree,
+    AssetTreeContainer,
+    AssetTreeItem,
 };
 
 use properties::PropertiesDialog;

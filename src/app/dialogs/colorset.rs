@@ -8,7 +8,7 @@ use super::{
 use egui::{Vec2, Rect};
 
 use crate::image::colors::color_to_rgb;
-use crate::editors::ColorPickerPopupWidget;
+use super::super::editors::ColorPickerPopupWidget;
 
 pub struct ColorsetEditorDialog {
     id: egui::Id,

@@ -9,7 +9,8 @@ use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
 };
-use crate::checker::CheckResult;
+
+use super::super::checker::CheckResult;
 
 pub struct CheckWindow {
     pub base: AppWindowBase,

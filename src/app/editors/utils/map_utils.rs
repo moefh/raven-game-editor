@@ -3,11 +3,12 @@ use crate::data_asset::{
     DataAssetStore,
     MapData,
 };
-use crate::app::{
-    WindowContext,
-    AssetEditors,
-};
 use crate::image::ImageCollection;
+
+use super::super::{
+    WindowContext,
+    EditorStore,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum MapLayer {
@@ -376,8 +377,14 @@ impl MapTileFixer for MapData {
     }
 }
 
-pub fn fix_editors_after_tiles_added(wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors,
-                                     tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+pub fn fix_editors_after_tiles_added(
+    wc: &mut WindowContext,
+    store: &mut DataAssetStore,
+    editors: &mut EditorStore,
+    tileset_id: DataAssetId,
+    tile_index: u8,
+    num_tiles: u8
+) {
     if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
         tileset_editor.add_tileset_hole(tile_index, num_tiles);
     }
@@ -395,8 +402,14 @@ pub fn fix_editors_after_tiles_added(wc: &mut WindowContext, store: &mut DataAss
     }
 }
 
-pub fn fix_editors_after_tiles_removed(wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors,
-                                       tileset_id: DataAssetId, tile_index: u8, num_tiles: u8) {
+pub fn fix_editors_after_tiles_removed(
+    wc: &mut WindowContext,
+    store: &mut DataAssetStore,
+    editors: &mut EditorStore,
+    tileset_id: DataAssetId,
+    tile_index: u8,
+    num_tiles: u8
+) {
     if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
         tileset_editor.remove_tileset_hole(tile_index, num_tiles);
     }

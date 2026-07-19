@@ -1,11 +1,6 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    menu_item_no_image,
-    WindowContext,
-};
 use crate::image::{
     colors,
     ImageCollection,
@@ -32,6 +27,11 @@ use super::widgets::{
     SpriteFrameListView,
     ImageDisplay,
     ImageDrawingTool,
+};
+use super::super::WindowContext;
+use super::super::widgets::{
+    menu_item,
+    menu_item_no_image,
 };
 
 enum EditorTabs {

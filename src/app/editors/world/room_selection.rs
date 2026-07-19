@@ -3,12 +3,6 @@ use std::collections::{
     HashSet
 };
 
-use crate::app::{
-    WindowContext,
-    SimpleAssetTree,
-    AssetTreeItem,
-    AssetTreeContainer,
-};
 use crate::data_asset::{
     Room,
     World,
@@ -16,13 +10,20 @@ use crate::data_asset::{
     DataAssetId,
     AssetList,
 };
-use super::super::widgets::RoomViewWidget;
+
+use super::WorldEditorAssetLists;
 use super::super::{
     sorted_assets,
     RoomSize,
     AssetEditorBase,
+    WindowContext,
 };
-use super::WorldEditorAssetLists;
+use super::super::widgets::RoomViewWidget;
+use super::super::super::widgets::{
+    SimpleAssetTree,
+    AssetTreeItem,
+    AssetTreeContainer,
+};
 
 pub struct RoomSelectionDialog {
     pub open: bool,

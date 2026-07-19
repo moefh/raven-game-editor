@@ -1,3 +1,8 @@
+mod utils;
+mod store;
+mod actions;
+mod widgets;
+
 mod tileset;
 mod map_data;
 mod room;
@@ -9,9 +14,9 @@ mod sfx;
 mod mod_data;
 mod font;
 mod prop_font;
-mod widgets;
-mod utils;
 
+pub use store::EditorStore;
+pub use actions::EditorAction;
 pub use utils::{*};
 pub use utils::world_grid;
 
@@ -43,10 +48,9 @@ use crate::data_asset::{
 use crate::image::{
     ImageCollection,
 };
-use crate::app::{
-    WindowContext,
-    AppWindowTracker,
-};
+
+pub use super::WindowContext;
+use super::AppWindowTracker;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum EditorWindowAction {

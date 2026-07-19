@@ -12,6 +12,8 @@ pub struct TextureManager {
 }
 
 impl TextureManager {
+    const DEFAULT_BITS_PER_PIXEL: u8 = 8;
+
     fn gen_color6_to_rgb_maps(opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
         for color in 0..MAX_COLORS {
             let r = (color as u8 >> 1) & 0b11;
@@ -40,35 +42,25 @@ impl TextureManager {
         }
     }
 
-    fn create_color_to_rgb_maps(bits_per_pixel: u8) -> (Vec<egui::Color32>, Vec<egui::Color32>) {
-        let mut opaque = vec![egui::Color32::BLACK; MAX_COLORS];
-        let mut transp = vec![egui::Color32::BLACK; MAX_COLORS];
-        Self::gen_color_to_rgb_maps(bits_per_pixel, &mut opaque, &mut transp);
-        (opaque, transp)
-    }
-
-    fn gen_color_to_rgb_maps(bits_per_pixel: u8, opaque: &mut [egui::Color32], transp: &mut [egui::Color32]) {
-        match bits_per_pixel {
-            8 => Self::gen_color8_to_rgb_maps(opaque, transp),
-            _ => Self::gen_color6_to_rgb_maps(opaque, transp),
-        };
-    }
-
-    pub fn new(bits_per_pixel: u8) -> Self {
-        let (color_to_rgb_opaque, color_to_rgb_transp) = Self::create_color_to_rgb_maps(bits_per_pixel);
-        TextureManager {
+    pub fn new() -> Self {
+        let mut tex_manager = TextureManager {
             textures: HashMap::new(),
-            color_to_rgb_opaque,
-            color_to_rgb_transp,
-            bits_per_pixel,
-        }
+            color_to_rgb_opaque: vec![egui::Color32::BLACK; MAX_COLORS],
+            color_to_rgb_transp: vec![egui::Color32::BLACK; MAX_COLORS],
+            bits_per_pixel: 0,
+        };
+        tex_manager.set_bits_per_pixel(Self::DEFAULT_BITS_PER_PIXEL);
+        tex_manager
     }
 
     pub fn set_bits_per_pixel(&mut self, bits_per_pixel: u8) {
         if self.bits_per_pixel != bits_per_pixel {
-            Self::gen_color_to_rgb_maps(bits_per_pixel, &mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp);
-            self.bits_per_pixel = bits_per_pixel;
             self.clear();
+            match bits_per_pixel {
+                8 => { Self::gen_color8_to_rgb_maps(&mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp); }
+                _ => { Self::gen_color6_to_rgb_maps(&mut self.color_to_rgb_opaque, &mut self.color_to_rgb_transp); }
+            }
+            self.bits_per_pixel = bits_per_pixel;
         }
     }
 

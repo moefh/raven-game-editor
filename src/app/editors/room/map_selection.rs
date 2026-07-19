@@ -1,11 +1,5 @@
 use std::collections::HashSet;
 
-use crate::app::{
-    WindowContext,
-    SimpleAssetTree,
-    AssetTreeItem,
-    AssetTreeContainer,
-};
 use crate::data_asset::{
     Room,
     RoomMap,
@@ -14,10 +8,17 @@ use crate::data_asset::{
     AssetList,
     DataAssetId,
 };
-use super::super::widgets::MapViewWidget;
+
 use super::super::{
     sorted_assets,
     AssetEditorBase,
+    WindowContext,
+};
+use super::super::widgets::MapViewWidget;
+use super::super::super::widgets::{
+    SimpleAssetTree,
+    AssetTreeItem,
+    AssetTreeContainer,
 };
 
 pub struct MapSelectionDialog {

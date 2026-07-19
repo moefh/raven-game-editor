@@ -2,13 +2,12 @@ use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
 };
-use crate::editors::{
+
+use super::{
     fix_editors_after_tiles_added,
     fix_editors_after_tiles_removed,
-};
-use super::{
     WindowContext,
-    AssetEditors,
+    EditorStore,
 };
 
 pub enum EditorAction {
@@ -17,7 +16,7 @@ pub enum EditorAction {
 }
 
 impl EditorAction {
-    pub fn run(self, wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut AssetEditors) {
+    pub fn run(self, wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut EditorStore) {
         match self {
             EditorAction::FixMapsAfterTilesAdded { tileset_id, tile_index, num_tiles } => {
                 fix_editors_after_tiles_added(wc, store, editors, tileset_id, tile_index, num_tiles);
