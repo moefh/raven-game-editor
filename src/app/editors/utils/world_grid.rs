@@ -38,11 +38,12 @@ fn get_world_block(x: i32, y: i32, world: &World) -> Option<u32> {
         let by = y - region.y as i32;
         let rw = region.width as i32;
         let rh = region.height as i32;
-        if bx >= 0 && by >= 0 && bx < rw && by < rh {
-            return region.blocks[(by * WorldRegion::BLOCK_STRIDE as i32 + bx) as usize].map(|block| {
+        if bx >= 0 && by >= 0 && bx < rw && by < rh &&
+            let Some(block) = region.blocks[(by * WorldRegion::BLOCK_STRIDE as i32 + bx) as usize].map(|block| {
                 block as u32 | ((region_index as u32) << 8)
-            });
-        }
+            }) {
+                return Some(block);
+            }
     }
     None
 }

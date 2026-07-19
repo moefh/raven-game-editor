@@ -365,6 +365,8 @@ impl Editor {
         } else {
             return [header_action, item_action];
         };
+        //let selected_region_room = self.region_editor.get_selected_room().and_then(|room_index| region.rooms.get(room_index as usize));
+
         let tree = self.region_rooms_tree.get_or_insert_with(|| {
             SimpleAssetTree::new(format!("editor_{}_region_rooms_tree", self.asset_id), "Rooms")
         });
@@ -387,6 +389,10 @@ impl Editor {
                 if resp.clicked() || resp.secondary_clicked() {
                     item_action = RoomTreeAction::SelectRoom(room_index);
                 }
+                if self.region_editor.get_selected_room() == Some((room_index & 0xff) as u8) &&
+                    self.region_editor.has_selected_room_changed() {
+                        resp.scroll_to_me(None);
+                    }
             } else {
                 ui.label(&asset_item.name);
             }
@@ -534,6 +540,7 @@ impl Editor {
                 }).inner;
 
             egui::CentralPanel::default().show(ui, |ui| {
+                self.region_editor.clear_selected_room_changed();
                 self.region_editor.show(ui, wc, world, &self.world_grid);
             });
 
@@ -542,7 +549,9 @@ impl Editor {
         for action in actions {
             match action {
                 RoomTreeAction::None => {}
-                RoomTreeAction::SelectRoom(index) => { self.region_editor.set_selected_room(Some((index & 0xff) as u8)); }
+                RoomTreeAction::SelectRoom(index) => {
+                    self.region_editor.set_selected_room(Some((index & 0xff) as u8));
+                }
                 RoomTreeAction::SelectRegionRooms => {
                     if let Some(region_index) = self.world_editor.get_selected_region() {
                         dialogs.room_selection_dialog.set_open(wc, world, region_index, assets.rooms);

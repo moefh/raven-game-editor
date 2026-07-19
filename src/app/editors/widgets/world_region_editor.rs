@@ -28,6 +28,7 @@ pub struct WorldRegionEditorWidget {
     pub hover_pos: Vec2,
     pub highlight_door_index: Option<usize>,
     tool_mouse_down: bool,
+    selected_room_changed: bool,
 }
 
 impl WorldRegionEditorWidget {
@@ -42,6 +43,7 @@ impl WorldRegionEditorWidget {
             hover_pos: Vec2::ZERO,
             tool_mouse_down: false,
             highlight_door_index: None,
+            selected_room_changed: false,
         }
     }
 
@@ -59,7 +61,6 @@ impl WorldRegionEditorWidget {
     pub fn set_selected_region(&mut self, selected_region: Option<usize>) {
         if self.selected_region != selected_region {
             self.selected_region = selected_region;
-            self.selected_room = None;
             self.highlight_door_index = None;
         }
     }
@@ -70,6 +71,17 @@ impl WorldRegionEditorWidget {
 
     pub fn set_selected_room(&mut self, room: Option<u8>) {
         self.selected_room = room;
+        if room.is_some() {
+            self.selected_room_changed = true;
+        }
+    }
+
+    pub fn has_selected_room_changed(&self) -> bool {
+        self.selected_room_changed
+    }
+
+    pub fn clear_selected_room_changed(&mut self) {
+        self.selected_room_changed = false;
     }
 
     fn set_region_block(&self, pos: Pos2, room: Option<u8>, region: &mut WorldRegion) {
@@ -125,13 +137,8 @@ impl WorldRegionEditorWidget {
     }
 
     pub fn ensure_room_selection_is_valid(&mut self, region: &WorldRegion) {
-        let num_rooms = region.rooms.len();
-        if let Some(room_index) = self.get_selected_room() && room_index as usize >= num_rooms {
-            if num_rooms > 0 {
-                self.set_selected_room(Some(((num_rooms - 1) & 0xff) as u8));
-            } else {
-                self.set_selected_room(None);
-            }
+        if let Some(room_index) = self.get_selected_room() && region.rooms.get(room_index as usize).is_none() {
+            self.set_selected_room(None);
         }
     }
 
