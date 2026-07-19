@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{DataAssetType, DataAssetId, DataAssetStore, DataAsset, GenericAsset};
+use crate::data_asset::{
+    DataAssetType,
+    DataAssetId,
+    DataAssetStore,
+    DataAsset,
+    GenericAsset,
+};
 use crate::misc::asset_defs::ASSET_DEFS;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -132,8 +138,11 @@ impl AssetTreeContainer {
                         child
                     }
                     None => {
-                        let child = AssetTreeContainer::new(id_generator.generate_id(),
-                                                            name_parts[0].to_owned(), self.level + 1);
+                        let child = AssetTreeContainer::new(
+                            id_generator.generate_id(),
+                            name_parts[0].to_owned(),
+                            self.level + 1
+                        );
                         self.containers.push_mut(child)
                     }
                 };
@@ -173,12 +182,20 @@ impl AssetTreeContainer {
         }
     }
 
-    pub fn show(&self, id_prefix: &str, ui: &mut egui::Ui, open: bool,
-                show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
-                show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)) {
+    pub fn show(
+        &self,
+        id_prefix: &str,
+        ui: &mut egui::Ui,
+        open: bool,
+        show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
+        show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)
+    ) {
         let tree_node_id = ui.make_persistent_id(format!("{}_{}", id_prefix, self.node_id.id));
         let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, open);
         let mut toggle_node_open = false;
+        if self.level == 0 {
+            ui.add_space(4.0);
+        }
         let mut header_resp = node.show_header(ui, |ui| {
             toggle_node_open = show_folder(ui, self).clicked();
         });
@@ -213,8 +230,11 @@ impl SimpleAssetTree {
         }
     }
 
-    pub fn from_assets<'a, T>(id_prefix: impl Into<String>, name: impl Into<String>,
-                              assets: impl Iterator<Item = &'a T>) -> Self
+    pub fn from_assets<'a, T>(
+        id_prefix: impl Into<String>,
+        name: impl Into<String>,
+        assets: impl Iterator<Item = &'a T>
+    ) -> Self
     where T: GenericAsset + 'a
     {
         let mut tree = Self::new(id_prefix, name);
@@ -238,9 +258,13 @@ impl SimpleAssetTree {
         self.root.sort();
     }
 
-    pub fn show(&self, ui: &mut egui::Ui, open: bool,
-                show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
-                show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)) {
+    pub fn show(
+        &self,
+        ui: &mut egui::Ui,
+        open: bool,
+        show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
+        show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)
+    ) {
         self.root.show(&self.id_prefix, ui, open, show_folder, show_item);
     }
 

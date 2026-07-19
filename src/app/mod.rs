@@ -751,6 +751,7 @@ impl RavenEditorApp {
     fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
         self.asset_tree.update(&self.store);
         egui::Panel::left("asset_tree").resizable(false).exact_size(Self::ASSET_TREE_PANEL_WIDTH).show(ui, |ui| {
+            ui.add_space(2.0);
             self.sys_dialogs.block_ui(ui);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for asset_def in ASSET_DEFS {
