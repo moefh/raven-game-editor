@@ -14,7 +14,7 @@ pub enum ColorPickerResponse {
     CreateColorset,
 }
 
-const CLOSE_PICKER_ON_CLICK: bool = false;
+const CLOSE_PICKER_ON_CLICK: bool = true;
 const MIN_PICKER_WIDTH: f32 = 96.0;
 
 const GRAY_PAL6: [u8; 4] = [
