@@ -593,9 +593,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     fn draw_background(&self, ui: &mut egui::Ui, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset, zoom: f32) {
         let painter = ui.painter_at(bg_rect);
         painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
-        if zoom < 3.0 { return; }
 
-        let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
+        let comp = wc.settings.image_grid_color.to_srgba_unmultiplied();
+        let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(comp[0], comp[1], comp[2], 96));
         let width = image.width();
         let height = image.height();
         let (x_min, y_min) = if width > height {
@@ -697,7 +697,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
 
         // draw grid and border
-        let display_grid = self.display.has_bits(ImageDisplay::GRID) && zoom >= 3.0;
+        let display_grid = self.display.has_bits(ImageDisplay::GRID) && zoom >= 5.0;
         if display_grid {
             let stroke = egui::Stroke::new(1.0, wc.settings.image_grid_color);
             for y in 0..image.height()+1 {
