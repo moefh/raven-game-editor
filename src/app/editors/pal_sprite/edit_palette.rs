@@ -1,8 +1,18 @@
 use crate::app::WindowContext;
-use crate::image::colors::{color_to_rgb, color_to_rgb_contrast};
+use crate::image::colors::{
+    color_to_rgb,
+    color_to_rgb_contrast,
+    color_to_6bit_rgb,
+    color_6bit_rgb_to_color,
+};
 use crate::data_asset::{PalSprite, PalSpriteDepth};
-use super::super::AssetEditorBase;
 
+use super::super::{
+    AssetEditorBase,
+    ColorPickerPopupWidget,
+};
+
+const CLOSE_PICKER_ON_CLICK: bool = true;
 const MIN_PALETTE_WIDTH: f32 = 300.0;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -128,35 +138,35 @@ impl PalettePreset {
 pub struct EditPaletteDialog {
     pub image_changed: bool,
     pub open: bool,
+    dlg_id: egui::Id,
     depth: PalSpriteDepth,
     set_pal_options: SetPaletteOptions,
     palette: Vec<u8>,
-    edit_color_index: usize,
+    edit_color_index: Option<usize>,
+    popup: ColorPickerPopupWidget,
 }
 
 impl EditPaletteDialog {
     pub fn new() -> Self {
         EditPaletteDialog {
+            dlg_id: egui::Id::new("dlg_pal_sprite_pal_edit"),
             image_changed: false,
             open: false,
             depth: PalSpriteDepth::Bpp1,
             set_pal_options: SetPaletteOptions::ChangePaletteColors,
             palette: vec![0; 16],
-            edit_color_index: 0,
+            edit_color_index: None,
+            popup: ColorPickerPopupWidget::new(egui::Id::new("dlg_pal_sprite_pal_edit_popup"), CLOSE_PICKER_ON_CLICK),
         }
-    }
-
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_pal_sprite_pal_edit")
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, pal_sprite: &PalSprite) {
         self.depth = pal_sprite.depth;
         self.set_pal_options = SetPaletteOptions::ChangePaletteColors;
         self.palette[..].copy_from_slice(&pal_sprite.palette);
-        self.edit_color_index = 0;
+        self.edit_color_index = if wc.vga_bits_per_pixel == 8 { None } else { Some(0) };
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite) {
@@ -187,7 +197,7 @@ impl EditPaletteDialog {
                 };
                 let color_index = (y*pal_colors_x+x) as usize;
                 painter.rect_filled(item_rect, egui::CornerRadius::ZERO, color_to_rgb(self.palette[color_index]));
-                if color_index == self.edit_color_index {
+                if Some(color_index) == self.edit_color_index {
                     let stroke = egui::Stroke::new(1.0, color_to_rgb_contrast(self.palette[color_index]));
                     painter.rect_stroke(item_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
                 }
@@ -198,7 +208,7 @@ impl EditPaletteDialog {
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
         if ! self.open { return false; }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), MIN_PALETTE_WIDTH + 100.0, "Edit Palette", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, MIN_PALETTE_WIDTH + 100.0, "Edit Palette", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let button = ui.add(egui::Button::new("Load Preset..."));
@@ -225,20 +235,31 @@ impl EditPaletteDialog {
                         let color_pos = pos - response.rect.min;
                         let x = (color_pos.x * n_colors_x as f32 / response.rect.width()).floor() as i32;
                         let y = (color_pos.y * n_colors_y as f32 / response.rect.height()).floor() as i32;
-                        self.edit_color_index = (y * n_colors_x + x).clamp(0, self.depth.num_colors() as i32 - 1) as usize;
+                        self.edit_color_index = Some((y * n_colors_x + x).clamp(0, self.depth.num_colors() as i32 - 1) as usize);
                     }
+                    if wc.vga_bits_per_pixel == 8 &&
+                        let Some(edit_color_index) = self.edit_color_index &&
+                        let Some(color) = self.palette.get(edit_color_index) {
+                            let mut edit_color = *color;
+                            self.popup.show(&response, wc.settings, &mut edit_color);
+                            if let Some(color) = self.palette.get_mut(edit_color_index) {
+                                *color = edit_color;
+                            }
+                            if self.popup.close {
+                                self.edit_color_index = None;
+                            }
+                        }
                 });
 
-                let edit_color = self.palette[self.edit_color_index];
-                let mut r = edit_color & 7;
-                let mut g = (edit_color >> 3) & 7;
-                let mut b = (edit_color >> 6) & 3;
-                ui.horizontal(|ui| {
-                    ui.add(egui::DragValue::new(&mut r).prefix("R ").speed(0.07).range(0..=7));
-                    ui.add(egui::DragValue::new(&mut g).prefix("G ").speed(0.07).range(0..=7));
-                    ui.add(egui::DragValue::new(&mut b).prefix("B ").speed(0.07).range(0..=3));
-                });
-                self.palette[self.edit_color_index] = r | (g << 3) | (b << 6);
+                if wc.vga_bits_per_pixel == 6 && let Some(edit_color_index) = self.edit_color_index {
+                    let mut rgb = color_to_6bit_rgb(self.palette[edit_color_index]);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::DragValue::new(&mut rgb[0]).prefix("R ").speed(0.07).range(0..=3));
+                        ui.add(egui::DragValue::new(&mut rgb[1]).prefix("G ").speed(0.07).range(0..=3));
+                        ui.add(egui::DragValue::new(&mut rgb[2]).prefix("B ").speed(0.07).range(0..=3));
+                    });
+                    self.palette[edit_color_index] = color_6bit_rgb_to_color(rgb[0], rgb[1], rgb[2]);
+                }
 
                 ui.add_space(24.0);
 
@@ -284,7 +305,7 @@ impl EditPaletteDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

@@ -7,6 +7,7 @@ use crate::app::WindowContext;
 use crate::image::colors::{
     color_to_rgb,
     color_to_rgb_contrast,
+    color_6bit_rgb_to_color,
 };
 
 pub enum ColorPickerResponse {
@@ -41,7 +42,7 @@ static ALL_PAL6: sync::LazyLock<Vec<u8>> = sync::LazyLock::new(|| {
                 let x = n % 8;
                 let y = (((n / 8) & 6) >> 1) | (((n / 8) & 1) << 2);
                 let index = (y * 8 + x) as usize;
-                colors[index] = ((b<<6) | (g<<4) | (g >> 1) | (r << 1) | (r >> 1)) as u8
+                colors[index] = color_6bit_rgb_to_color(r, g, b);
             }
         }
     }

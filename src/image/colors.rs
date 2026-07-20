@@ -26,3 +26,14 @@ pub fn color_to_rgb_contrast(color: u8) -> egui::Color32 {
         egui::Color32::BLACK
     }
 }
+
+pub fn color_to_6bit_rgb(color: u8) -> [u8; 3] {
+    let r = (color >> 1) & 0b11;
+    let g = (color >> 4) & 0b11;
+    let b = (color >> 6) & 0b11;
+    [r, g, b]
+}
+
+pub fn color_6bit_rgb_to_color(r: u8, g: u8, b: u8) -> u8 {
+    (r << 1) | (r >> 1) | (g << 4) | (g >> 1) | (b << 6)
+}
