@@ -251,15 +251,19 @@ impl EditPaletteDialog {
                         }
                 });
 
-                if wc.vga_bits_per_pixel == 6 && let Some(edit_color_index) = self.edit_color_index {
-                    let mut rgb = color_to_6bit_rgb(self.palette[edit_color_index]);
-                    ui.horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut rgb[0]).prefix("R ").speed(0.07).range(0..=3));
-                        ui.add(egui::DragValue::new(&mut rgb[1]).prefix("G ").speed(0.07).range(0..=3));
-                        ui.add(egui::DragValue::new(&mut rgb[2]).prefix("B ").speed(0.07).range(0..=3));
-                    });
-                    self.palette[edit_color_index] = color_6bit_rgb_to_color(rgb[0], rgb[1], rgb[2]);
-                }
+                if wc.vga_bits_per_pixel == 6 &&
+                    let Some(edit_color_index) = self.edit_color_index &&
+                    let Some(color) = self.palette.get(edit_color_index) {
+                        let mut rgb = color_to_6bit_rgb(*color);
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::new(&mut rgb[0]).prefix("R ").speed(0.07).range(0..=3));
+                            ui.add(egui::DragValue::new(&mut rgb[1]).prefix("G ").speed(0.07).range(0..=3));
+                            ui.add(egui::DragValue::new(&mut rgb[2]).prefix("B ").speed(0.07).range(0..=3));
+                        });
+                        if let Some(color) = self.palette.get_mut(edit_color_index) {
+                            *color = color_6bit_rgb_to_color(rgb[0], rgb[1], rgb[2]);
+                        }
+                    }
 
                 ui.add_space(24.0);
 
@@ -269,7 +273,7 @@ impl EditPaletteDialog {
                     .show(ui, |ui| {
                         ui.label("Color depth:");
                         egui::ComboBox::from_id_salt(format!("editor_{}_pal_edit_depth_combo", pal_sprite.asset.id))
-                            .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), pal_sprite.depth.num_colors()))
+                            .selected_text(format!("{} bpp ({} colors)", self.depth.bits_per_pixel(), self.depth.num_colors()))
                             .width(50.0)
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp1, "1 bpp (2 colors)");
@@ -283,12 +287,16 @@ impl EditPaletteDialog {
                             .selected_text(self.set_pal_options.text())
                             .width(50.0)
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.set_pal_options,
-                                                    SetPaletteOptions::ChangePaletteColors,
-                                                    SetPaletteOptions::ChangePaletteColors.text());
-                                ui.selectable_value(&mut self.set_pal_options,
-                                                    SetPaletteOptions::AdaptImageColors,
-                                                    SetPaletteOptions::AdaptImageColors.text());
+                                ui.selectable_value(
+                                    &mut self.set_pal_options,
+                                    SetPaletteOptions::ChangePaletteColors,
+                                    SetPaletteOptions::ChangePaletteColors.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.set_pal_options,
+                                    SetPaletteOptions::AdaptImageColors,
+                                    SetPaletteOptions::AdaptImageColors.text()
+                                );
                             });
                         ui.end_row();
                     });
