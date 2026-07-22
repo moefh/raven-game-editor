@@ -74,7 +74,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("trap"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
-            (String::from("trap_id"), ValueDef::U16),
+            (String::from("trap_type"), ValueDef::U16),
         ])),
     ])
 });
