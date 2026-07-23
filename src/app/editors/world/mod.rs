@@ -14,7 +14,19 @@ use crate::data_asset::{
     GenericAsset,
 };
 
-use super::WindowContext;
+use super::{
+    world_grid,
+    AssetEditorBase,
+    WindowContext,
+    DialogResult,
+};
+use super::dialogs::ConfirmationDialog;
+use super::widgets::{
+    WidgetZoom,
+    WorldEditorWidget,
+    WorldRegionEditorWidget,
+    RoomGridViewWidget,
+};
 use super::super::widgets::{
     menu_item,
     menu_item_no_image,
@@ -26,16 +38,6 @@ use super::super::widgets::{
 use properties::PropertiesDialog;
 use room_selection::RoomSelectionDialog;
 use region_properties::RegionPropertiesDialog;
-use super::{
-    world_grid,
-    AssetEditorBase,
-};
-use super::widgets::{
-    WidgetZoom,
-    WorldEditorWidget,
-    WorldRegionEditorWidget,
-    RoomGridViewWidget,
-};
 
 #[derive(Copy, Clone)]
 enum ShiftDirection {
@@ -92,7 +94,7 @@ impl WorldEditor {
         WorldEditor {
             base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
-            dialogs: Dialogs::new(),
+            dialogs: Dialogs::new(id),
         }
     }
 
@@ -137,14 +139,16 @@ struct Dialogs {
     properties_dialog: PropertiesDialog,
     room_selection_dialog: RoomSelectionDialog,
     region_properties_dialog: RegionPropertiesDialog,
+    confirmation_dialog: ConfirmationDialog,
 }
 
 impl Dialogs {
-    pub fn new() -> Self {
+    pub fn new(id: DataAssetId) -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             room_selection_dialog: RoomSelectionDialog::new(),
             region_properties_dialog: RegionPropertiesDialog::new(),
+            confirmation_dialog: ConfirmationDialog::new(id),
         }
     }
 
@@ -177,6 +181,7 @@ struct Editor {
     region_editor: WorldRegionEditorWidget,
     region_rooms_tree: Option<SimpleAssetTree>,
     highlight_door_info: String,
+    remove_region_index: Option<usize>,
     done_init: bool,
 }
 
@@ -193,6 +198,7 @@ impl Editor {
             region_editor: WorldRegionEditorWidget::new(),
             region_rooms_tree: None,
             highlight_door_info: String::new(),
+            remove_region_index: None,
             done_init: false,
         }
     }
@@ -201,6 +207,13 @@ impl Editor {
         let region_index  = world.regions.len();
         world.regions.push(WorldRegion::new("new_region", 0, 0, 16, 8));
         self.select_region(world, region_index);
+    }
+
+    fn request_remove_region(&mut self, wc: &mut WindowContext, dialogs: &mut Dialogs, world: &World, region_index: usize) {
+        if let Some(region) = world.regions.get(region_index) {
+            self.remove_region_index = Some(region_index);
+            dialogs.confirmation_dialog.set_open(wc, "Remove Region", format!("Remove region '{}'?", region.name), "Yes", "No");
+        }
     }
 
     fn remove_region(&mut self, world: &mut World, region_index: usize) {
@@ -249,7 +262,7 @@ impl Editor {
                     }
                     if ui.add_enabled(has_region, menu_item(IMAGES.trash, " Remove region")).clicked() &&
                         let Some(region_index) = self.world_editor.get_selected_region() {
-                            self.remove_region(world, region_index);
+                            self.request_remove_region(wc, dialogs, world, region_index);
                         }
                 });
             });
@@ -622,6 +635,13 @@ impl Editor {
         world: &mut World,
         assets: &mut WorldEditorAssetLists,
     ) {
+        if dialogs.confirmation_dialog.open &&
+            dialogs.confirmation_dialog.show(wc) == DialogResult::Yes &&
+            let Some(remove_region_index) = self.remove_region_index {
+                self.remove_region_index = None;
+                self.remove_region(world, remove_region_index);
+            }
+
         self.world_grid.update(world, assets.rooms, assets.maps);
         if ! self.done_init {
             self.done_init = true;
@@ -642,7 +662,7 @@ impl Editor {
                             RegionTreeAction::None => {}
                             RegionTreeAction::AddRegion => { self.add_region(world); }
                             RegionTreeAction::SelectRegion(index) => { self.select_region(world, index); }
-                            RegionTreeAction::RemoveRegion(index) => { self.remove_region(world, index); }
+                            RegionTreeAction::RemoveRegion(index) => { self.request_remove_region(wc, dialogs, world, index); }
                             RegionTreeAction::EditRegion(index) => { dialogs.region_properties_dialog.set_open(wc, world, index); }
                             RegionTreeAction::SelectRegionRooms(index) => {
                                 dialogs.room_selection_dialog.set_open(wc, world, index, assets.rooms);

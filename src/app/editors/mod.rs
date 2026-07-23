@@ -2,6 +2,7 @@ mod utils;
 mod store;
 mod actions;
 mod widgets;
+pub mod dialogs;
 
 mod tileset;
 mod map_data;
@@ -60,6 +61,7 @@ pub use super::{
     SysDialogResponse,
     AppWindowTracker,
     KeyboardPressed,
+    DialogResult,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
