@@ -244,6 +244,9 @@ impl Editor {
                             dialogs.room_selection_dialog.set_open(wc, world, region_index, rooms);
                         }
                     ui.separator();
+                    if ui.add(menu_item(IMAGES.add, " Add region")).clicked() {
+                        self.add_region(world);
+                    }
                     if ui.add_enabled(has_region, menu_item(IMAGES.trash, " Remove region")).clicked() &&
                         let Some(region_index) = self.world_editor.get_selected_region() {
                             self.remove_region(world, region_index);
