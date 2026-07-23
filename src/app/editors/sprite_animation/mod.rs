@@ -15,11 +15,11 @@ use crate::data_asset::{
     AssetIdList,
 };
 
-use properties::PropertiesDialog;
 use super::{
     IMAGE_ZOOM_OPTIONS,
     ImageZoomOption,
     AssetEditorBase,
+    WindowContext,
 };
 use super::widgets::{
     ColorPickerWidget,
@@ -28,11 +28,12 @@ use super::widgets::{
     ImageDisplay,
     ImageDrawingTool,
 };
-use super::super::WindowContext;
-use super::super::widgets::{
+use super::super::{
     menu_item,
     menu_item_no_image,
 };
+
+use properties::PropertiesDialog;
 
 enum EditorTabs {
     Sprite,

@@ -1,8 +1,16 @@
 use std::sync;
-use egui::{Vec2, Sense, Rect};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+};
 
-use crate::app::AppSettings;
-use crate::image::colors::{color_to_rgb, color_to_rgb_contrast};
+use crate::image::colors::{
+    color_to_rgb,
+    color_to_rgb_contrast,
+};
+
+use super::super::super::AppSettings;
 
 const COLOR_BLOCK_SIZE: f32 = 20.0;
 

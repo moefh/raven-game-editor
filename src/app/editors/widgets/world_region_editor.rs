@@ -1,13 +1,22 @@
-use crate::app::WindowContext;
+use egui::{
+    emath,
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Color32,
+};
+
 use crate::data_asset::{
     World,
     WorldRegion,
 };
-use egui::{Vec2, Sense, Rect, Pos2, Color32};
-use egui::emath;
 
 use super::WidgetZoom;
-use super::super::world_grid;
+use super::super::{
+    world_grid,
+    WindowContext,
+};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(1.0);
 

@@ -1,8 +1,14 @@
-use egui::{Vec2, Pos2, Color32, Rect};
+use egui::{
+    Vec2,
+    Pos2,
+    Color32,
+    Rect,
+};
 
-use crate::app::AppSettings;
 use crate::image::ImageCollection;
 use super::image_editor::ImageDisplay;
+
+use super::super::super::AppSettings;
 
 pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,

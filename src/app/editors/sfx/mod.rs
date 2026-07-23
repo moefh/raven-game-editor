@@ -2,11 +2,7 @@ mod properties;
 mod export;
 
 use std::io::Error;
-use crate::app::{
-    menu_item,
-    WindowContext,
-    SysDialogResponse,
-};
+
 use crate::sound::SoundPlayer;
 use crate::misc::{
     IMAGES,
@@ -18,10 +14,16 @@ use crate::data_asset::{
     GenericAsset,
 };
 
+use super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
+use super::widgets::SfxEditorWidget;
+use super::super::menu_item;
+
 use properties::PropertiesDialog;
 use export::ExportDialog;
-use super::AssetEditorBase;
-use super::widgets::SfxEditorWidget;
 
 pub struct SfxEditor {
     pub base: AssetEditorBase,

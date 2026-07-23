@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::{ImageCollectionIO, ImagePixelsCollection, ImageSlicingMethod};
 use crate::data_asset::Font;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
 
 pub struct ImportDialog {
     pub open: bool,

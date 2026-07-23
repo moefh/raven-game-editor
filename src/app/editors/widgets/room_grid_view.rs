@@ -1,4 +1,8 @@
-use egui::{Vec2, Rect, Color32};
+use egui::{
+    Vec2,
+    Rect,
+    Color32,
+};
 
 use crate::data_asset::{
     AssetList,
@@ -7,10 +11,12 @@ use crate::data_asset::{
     MapData,
     Tileset,
 };
-use crate::app::WindowContext;
 
-use super::super::world_grid;
 use super::TILE_SIZE;
+use super::super::{
+    world_grid,
+    WindowContext,
+};
 
 pub struct Size {
     width: u32,

@@ -16,12 +16,13 @@ mod prop_font_editor;
 mod font_view;
 mod tile_grid_editor;
 
-use crate::data_asset::MapData;
-use crate::app::AppSettings;
-use crate::misc::current_time_as_millis;
-use super::MapLayer;
-
 use egui::{Vec2, Rect, Pos2};
+
+use crate::data_asset::MapData;
+use crate::misc::current_time_as_millis;
+
+use super::MapLayer;
+use super::super::AppSettings;
 
 pub const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
 pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;

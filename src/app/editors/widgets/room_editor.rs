@@ -1,4 +1,11 @@
-use egui::{Vec2, Sense, Rect, Pos2, Image, Color32};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Image,
+    Color32,
+};
 use egui::emath::RectTransform;
 
 use crate::data_asset::{
@@ -11,16 +18,26 @@ use crate::data_asset::{
     Tileset,
     Sprite,
 };
-use crate::app::WindowContext;
-use crate::image::{ImageCollection, TextureSlot};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
 
-use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
+use super::{
+    TILE_SIZE,
+    SCREEN_SIZE,
+    get_map_layer_tile,
+};
 use super::super::{
+    WindowContext,
     MapLayer,
     RoomSize,
     RectBorder,
 };
-use super::super::room::{RoomEditorAssetLists, RoomItemRef};
+use super::super::room::{
+    RoomEditorAssetLists,
+    RoomItemRef,
+};
 
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;

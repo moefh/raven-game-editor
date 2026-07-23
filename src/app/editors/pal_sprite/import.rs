@@ -1,11 +1,20 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollectionIO, ImageSlicingMethod};
-use crate::data_asset::{PalSprite, PalSpriteDepth};
-use super::super::AssetEditorBase;
+use crate::image::{
+    ImageCollectionIO,
+    ImageSlicingMethod,
+};
+use crate::data_asset::{
+    PalSprite,
+    PalSpriteDepth,
+};
 
-use super::super::ImageSlicingMethodOption;
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+    ImageSlicingMethodOption,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ImportPaletteOption {

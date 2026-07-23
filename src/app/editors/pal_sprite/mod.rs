@@ -18,19 +18,12 @@ use crate::data_asset::{
     GenericAsset,
 };
 
-use properties::PropertiesDialog;
-use remove_frames::RemoveFramesDialog;
-use add_frames::{
-    AddFramesDialog,
-    AddFramesAction,
-};
-use edit_palette::EditPaletteDialog;
-use import::ImportDialog;
-use export::ExportDialog;
 use super::{
     IMAGE_ZOOM_OPTIONS,
     ImageZoomOption,
     AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
 };
 use super::widgets::{
     PalColorPickerWidget,
@@ -42,13 +35,19 @@ use super::widgets::{
     ImageDisplay,
 };
 use super::super::{
-    WindowContext,
-    SysDialogResponse,
-};
-use super::super::widgets::{
     menu_item,
     menu_item_no_image,
 };
+
+use properties::PropertiesDialog;
+use remove_frames::RemoveFramesDialog;
+use add_frames::{
+    AddFramesDialog,
+    AddFramesAction,
+};
+use edit_palette::EditPaletteDialog;
+use import::ImportDialog;
+use export::ExportDialog;
 
 pub struct PalSpriteEditor {
     pub base: AssetEditorBase,

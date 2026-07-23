@@ -1,7 +1,10 @@
-use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::{PalSprite, PalSpriteDepth};
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 pub struct PropertiesDialog {
     pub image_changed: bool,

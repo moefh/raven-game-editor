@@ -1,13 +1,31 @@
-use crate::app::WindowContext;
-use crate::image::{ImageCollection, TextureSlot};
-use crate::data_asset::{MapData, Tileset};
-use crate::misc::STATIC_IMAGES;
-use egui::{Vec2, Sense, Rect, Pos2, Color32, Image};
-use egui::emath;
+use egui::{
+    emath,
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Color32,
+    Image,
+};
 
-use crate::app::KeyboardPressed;
-use super::{TILE_SIZE, SCREEN_SIZE, get_map_layer_tile};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
+use crate::data_asset::{
+    MapData,
+    Tileset,
+};
+use crate::misc::STATIC_IMAGES;
+
+use super::{
+    TILE_SIZE,
+    SCREEN_SIZE,
+    get_map_layer_tile,
+};
 use super::super::{
+    WindowContext,
+    KeyboardPressed,
     MapClipboardData,
     MapUndoData,
     MapWholeFragment,

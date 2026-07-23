@@ -1,9 +1,5 @@
 mod properties;
 
-use crate::app::{
-    menu_item,
-    WindowContext,
-};
 use crate::image::{
     ImageCollection,
     TextureSlot,
@@ -21,9 +17,9 @@ use crate::misc::{
     STATIC_IMAGES,
 };
 
-use properties::PropertiesDialog;
 use super::{
     AssetEditorBase,
+    WindowContext,
     MapLayer,
     MapTileFixer,
 };
@@ -33,6 +29,9 @@ use super::widgets::{
     MapTool,
     ImagePickerWidget,
 };
+use super::super::menu_item;
+
+use properties::PropertiesDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 

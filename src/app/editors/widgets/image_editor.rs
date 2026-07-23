@@ -1,3 +1,12 @@
+use egui::{
+    emath,
+    Vec2,
+    Sense,
+    Image,
+    Rect,
+    Pos2,
+};
+
 use crate::image::{
     colors,
     ImageCollection,
@@ -6,18 +15,15 @@ use crate::image::{
     ImageRect,
     ImageRotation,
 };
-use crate::app::{
-    WindowContext,
-    KeyboardPressed,
-};
 use crate::data_asset;
 
 use super::WidgetZoom;
 use super::super::{
     AssetIdHolder,
     ImageClipboardData,
+    WindowContext,
+    KeyboardPressed,
 };
-use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
 
 pub enum ImageEditorAction {
     None,

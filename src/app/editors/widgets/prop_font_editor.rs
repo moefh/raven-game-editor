@@ -1,8 +1,19 @@
-use crate::image::{ImageCollection, TextureSlot};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
 use crate::data_asset::PropFont;
-use crate::app::WindowContext;
 
-use egui::{Vec2, Sense, Image, Rect, Pos2, emath};
+use super::super::WindowContext;
+
+use egui::{
+    emath,
+    Vec2,
+    Sense,
+    Image,
+    Rect,
+    Pos2,
+};
 
 pub struct PropFontEditorWidget {
     pub selected_char: u32,

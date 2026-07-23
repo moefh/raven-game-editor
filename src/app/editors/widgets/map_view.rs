@@ -1,11 +1,28 @@
-use egui::{Vec2, Sense, Rect, Pos2, Image};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Image,
+};
 
-use crate::data_asset::{MapData, Tileset};
-use crate::app::WindowContext;
-use crate::image::{ImageCollection, TextureSlot};
+use crate::data_asset::{
+    MapData,
+    Tileset,
+};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
 
-use super::super::MapLayer;
-use super::{TILE_SIZE, get_map_layer_tile};
+use super::{
+    TILE_SIZE,
+    get_map_layer_tile,
+};
+use super::super::{
+    WindowContext,
+    MapLayer,
+};
 
 pub struct MapViewWidget;
 

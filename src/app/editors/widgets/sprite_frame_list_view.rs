@@ -1,8 +1,14 @@
-use egui::{Vec2, Sense, Image, Rect};
+use egui::{
+    Vec2,
+    Sense,
+    Image,
+    Rect,
+};
 
-use crate::app::WindowContext;
 use crate::data_asset::SpriteAnimationFrame;
 use crate::image::ImageCollection;
+
+use super::super::WindowContext;
 
 pub struct SpriteFrameListView<'a> {
     frame_indices: &'a [SpriteAnimationFrame],

@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
 use crate::image::ImageCollectionIO;
 use crate::data_asset::PalSprite;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
 
 pub struct ExportDialog {
     pub open: bool,

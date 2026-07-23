@@ -1,6 +1,9 @@
-use crate::app::WindowContext;
 use crate::data_asset::World;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 pub struct PropertiesDialog {
     pub open: bool,

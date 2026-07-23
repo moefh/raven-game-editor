@@ -1,10 +1,16 @@
-use egui::{Vec2, Sense, Rect, Pos2};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+};
 
-use crate::app::WindowContext;
 use crate::image::colors::{
     color_to_rgb,
     color_to_rgb_contrast,
 };
+
+use super::super::WindowContext;
 
 const MIN_PICKER_WIDTH: f32 = 112.0;
 

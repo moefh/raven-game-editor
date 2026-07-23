@@ -1,4 +1,3 @@
-use crate::app::WindowContext;
 use crate::data_asset::{
     MapData,
     Tileset,
@@ -9,6 +8,7 @@ use crate::data_asset::{
 use super::super::{
     resize_map_tiles,
     AssetEditorBase,
+    WindowContext,
 };
 
 fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, new_para_h: u32, new_tile: u8) {

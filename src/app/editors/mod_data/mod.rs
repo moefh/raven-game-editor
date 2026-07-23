@@ -3,14 +3,11 @@ mod export_sample;
 mod transpose;
 
 use std::io::Error;
-use egui_extras::{TableBuilder, Column};
-
-use crate::app::{
-    menu_item,
-    menu_item_no_image,
-    WindowContext,
-    SysDialogResponse,
+use egui_extras::{
+    TableBuilder,
+    Column,
 };
+
 use crate::misc::{
     IMAGES,
     mod_utils,
@@ -23,11 +20,20 @@ use crate::data_asset::{
     GenericAsset,
 };
 
+use super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
+use super::widgets::SfxEditorWidget;
+use super::super::{
+    menu_item,
+    menu_item_no_image,
+};
+
 use properties::PropertiesDialog;
 use export_sample::ExportSampleDialog;
 use transpose::TransposeDialog;
-use super::AssetEditorBase;
-use super::widgets::SfxEditorWidget;
 
 const MOD_PATTERN_CELL_NAMES: &[&str] = &[ "note", "spl", "fx" ];
 const MAX_VOLUME: u8 = 64;

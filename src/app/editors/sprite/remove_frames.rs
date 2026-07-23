@@ -1,7 +1,10 @@
-use crate::app::WindowContext;
 use crate::image::ImageCollection;
 use crate::data_asset::Sprite;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 pub struct RemoveFramesDialog {
     pub image_changed: bool,

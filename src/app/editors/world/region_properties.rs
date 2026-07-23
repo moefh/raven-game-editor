@@ -1,9 +1,12 @@
-use crate::app::WindowContext;
 use crate::data_asset::{
     World,
     WorldRegion,
 };
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 pub struct RegionPropertiesDialog {
     pub open: bool,

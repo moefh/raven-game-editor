@@ -1,6 +1,10 @@
-use egui::{Vec2, Pos2, Rect};
+use egui::{
+    Vec2,
+    Pos2,
+    Rect,
+};
 
-use crate::app::WindowContext;
+use super::super::WindowContext;
 
 pub trait FontPainter {
     fn font_height(&self) -> f32;

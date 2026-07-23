@@ -1,9 +1,17 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollectionIO, ImagePixelsCollection, ImageSlicingMethod};
+use crate::image::{
+    ImageCollectionIO,
+    ImagePixelsCollection,
+    ImageSlicingMethod,
+};
 use crate::data_asset::PropFont;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
 
 trait PropFontFromImage {
     fn calc_char_width(image: &ImagePixelsCollection, ch: u32) -> u8;

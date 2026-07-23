@@ -1,10 +1,11 @@
-use crate::app::{
+use crate::image::ImageCollection;
+use crate::data_asset::Tileset;
+
+use super::super::{
+    AssetEditorBase,
     WindowContext,
     EditorAction,
 };
-use crate::image::ImageCollection;
-use crate::data_asset::Tileset;
-use super::super::AssetEditorBase;
 
 pub enum AddTilesAction {
     Insert,

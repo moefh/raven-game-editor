@@ -6,11 +6,6 @@ mod export;
 mod create_colorset;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    WindowContext,
-    SysDialogResponse,
-};
 use crate::image::{
     colors,
     ImageCollection,
@@ -24,18 +19,13 @@ use crate::data_asset::{
     GenericAsset,
 };
 
-use properties::PropertiesDialog;
-use remove_frames::RemoveFramesDialog;
-use add_frames::{AddFramesDialog, AddFramesAction};
-use import::ImportDialog;
-use export::ExportDialog;
-use create_colorset::CreateColorsetDialog;
 use super::{
     IMAGE_ZOOM_OPTIONS,
     ImageZoomOption,
     AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
 };
-
 use super::widgets::{
     ColorPickerWidget,
     ColorPickerResponse,
@@ -44,6 +34,14 @@ use super::widgets::{
     ImageDrawingTool,
     ImageDisplay,
 };
+use super::super::menu_item;
+
+use properties::PropertiesDialog;
+use remove_frames::RemoveFramesDialog;
+use add_frames::{AddFramesDialog, AddFramesAction};
+use import::ImportDialog;
+use export::ExportDialog;
+use create_colorset::CreateColorsetDialog;
 
 pub struct SpriteEditor {
     pub base: AssetEditorBase,

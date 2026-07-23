@@ -1,10 +1,13 @@
-use crate::app::WindowContext;
 use crate::image::{
     ImageCollection,
     ColorSet,
     ColorSetSource,
 };
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SourceOptions {

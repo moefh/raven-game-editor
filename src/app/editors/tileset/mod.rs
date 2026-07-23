@@ -6,11 +6,6 @@ mod export;
 mod create_colorset;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    WindowContext,
-    SysDialogResponse,
-};
 use crate::image::{
     colors,
     ImageCollection,
@@ -23,16 +18,12 @@ use crate::data_asset::{
     Tileset,
 };
 
-use properties::PropertiesDialog;
-use remove_tiles::RemoveTilesDialog;
-use add_tiles::{AddTilesDialog, AddTilesAction};
-use export::ExportDialog;
-use import::ImportDialog;
-use create_colorset::CreateColorsetDialog;
 use super::{
     IMAGE_ZOOM_OPTIONS,
     ImageZoomOption,
     AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
     TileGrid,
     TileGridImage,
     MapTileFixer,
@@ -48,6 +39,14 @@ use super::widgets::{
     ImageDrawingTool,
     ImageDisplay,
 };
+use super::super::menu_item;
+
+use properties::PropertiesDialog;
+use remove_tiles::RemoveTilesDialog;
+use add_tiles::{AddTilesDialog, AddTilesAction};
+use export::ExportDialog;
+use import::ImportDialog;
+use create_colorset::CreateColorsetDialog;
 
 enum EditorTab {
     Tile,

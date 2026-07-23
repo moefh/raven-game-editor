@@ -4,10 +4,6 @@ mod map_selection;
 use std::collections::HashMap;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    WindowContext,
-};
 use crate::data_asset::{
     Room,
     RoomTrigger,
@@ -22,14 +18,17 @@ use crate::data_asset::{
     AssetList,
 };
 
-use properties::PropertiesDialog;
-use map_selection::MapSelectionDialog;
 use super::{
-    RoomSize,
     AssetEditorBase,
+    WindowContext,
+    RoomSize,
     RoomTriggerTypeSel,
 };
 use super::widgets::RoomEditorWidget;
+use super::super::menu_item;
+
+use properties::PropertiesDialog;
+use map_selection::MapSelectionDialog;
 
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {

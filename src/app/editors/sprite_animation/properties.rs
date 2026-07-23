@@ -1,9 +1,15 @@
-use crate::app::WindowContext;
 use crate::data_asset::{
-    SpriteAnimation, Sprite,
-    DataAssetId, AssetList, AssetIdList,
+    Sprite,
+    SpriteAnimation,
+    DataAssetId,
+    AssetList,
+    AssetIdList,
 };
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+};
 
 fn fix_animation_loop_indices(animation: &mut SpriteAnimation, sprite: &Sprite) {
     if sprite.num_frames == 0 { return; }

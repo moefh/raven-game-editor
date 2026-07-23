@@ -1,9 +1,16 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
-use crate::image::{ImageCollectionIO, ImageSlicingMethod};
+use crate::image::{
+    ImageCollectionIO,
+    ImageSlicingMethod,
+};
 use crate::data_asset::Sprite;
-use super::super::AssetEditorBase;
+
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
 
 use super::super::ImageSlicingMethodOption;
 

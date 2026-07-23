@@ -1,4 +1,10 @@
-use egui::{Vec2, Sense, Rect, Pos2, Color32};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Color32,
+};
 use egui::emath::RectTransform;
 
 use crate::data_asset::{
@@ -7,11 +13,11 @@ use crate::data_asset::{
     WorldRegion,
     AssetList,
 };
-use crate::app::WindowContext;
 
 use super::WidgetZoom;
 use super::super::{
     world_grid,
+    WindowContext,
     RectBorder,
 };
 

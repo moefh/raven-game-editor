@@ -2,12 +2,6 @@ mod properties;
 mod import;
 
 use crate::misc::IMAGES;
-use crate::app::{
-    menu_item,
-    menu_item_no_image,
-    WindowContext,
-    SysDialogResponse,
-};
 use crate::image::{
     ImageCollection,
     ImageCollectionIO,
@@ -19,18 +13,25 @@ use crate::data_asset::{
     GenericAsset,
 };
 
-use properties::PropertiesDialog;
-use import::ImportDialog;
 use super::{
     FONT_ZOOM_OPTIONS,
     ImageZoomOption,
-    AssetEditorBase
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
 };
 use super::widgets::{
     ImageEditorWidget,
     FontViewWidget,
     FontPainter,
 };
+use super::super::{
+    menu_item,
+    menu_item_no_image,
+};
+
+use properties::PropertiesDialog;
+use import::ImportDialog;
 
 impl FontPainter for Font {
     fn font_height(&self) -> f32 {

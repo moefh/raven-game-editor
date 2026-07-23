@@ -1,17 +1,25 @@
-use egui::{Vec2, Sense, Rect, Pos2, Image};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+    Image,
+};
 
 use crate::data_asset::{
     MapData,
     Tileset,
 };
-use crate::app::WindowContext;
 use crate::image::{
     ImageCollection,
     TextureSlot,
 };
 
-use super::super::TileGrid;
 use super::TILE_SIZE;
+use super::super::{
+    WindowContext,
+    TileGrid,
+};
 
 pub enum TileGridEditorAction {
     None,

@@ -1,14 +1,19 @@
 use std::sync;
-use egui::{Vec2, Sense, Rect, Pos2};
+use egui::{
+    Vec2,
+    Sense,
+    Rect,
+    Pos2,
+};
 
-use super::ColorPickerPopupWidget;
-
-use crate::app::WindowContext;
 use crate::image::colors::{
     color_to_rgb,
     color_to_rgb_contrast,
     color_6bit_rgb_to_color,
 };
+
+use super::ColorPickerPopupWidget;
+use super::super::WindowContext;
 
 pub enum ColorPickerResponse {
     None,

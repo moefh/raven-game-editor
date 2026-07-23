@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
-use crate::app::{WindowContext, SysDialogResponse};
 use crate::misc::wav_utils;
 use crate::data_asset::ModData;
-use super::super::AssetEditorBase;
+use super::super::{
+    AssetEditorBase,
+    WindowContext,
+    SysDialogResponse,
+};
 
 const ALLOWED_SAMPLE_RATES: &[u32] = &[ 8000, 11025, 22050, 44100 ];
 const ALLOWED_BITS_PER_SAMPLE: &[u16] = &[ 8, 16 ];
