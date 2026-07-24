@@ -1,8 +1,10 @@
+use crate::data_asset::DataAssetId;
 use crate::image::{
     ImageCollection,
     ColorSet,
     ColorSetSource,
 };
+
 use super::super::{
     AssetEditorBase,
     WindowContext,
@@ -37,11 +39,11 @@ pub struct CreateColorsetDialog {
 }
 
 impl CreateColorsetDialog {
-    pub fn new(id_prefix: impl AsRef<str>) -> Self {
+    pub fn new(id: DataAssetId) -> Self {
         CreateColorsetDialog {
-            window_id: egui::Id::new(format!("{}_{}", id_prefix.as_ref(), "create_colorset")),
-            grid_id: egui::Id::new(format!("{}_{}", id_prefix.as_ref(), "create_colorset_grid")),
-            source_combo_id: egui::Id::new(format!("{}_{}", id_prefix.as_ref(), "create_colorset_source_combo")),
+            window_id: egui::Id::new(format!("editor_{}_create_colorset", id)),
+            grid_id: egui::Id::new(format!("editor_{}_create_colorset_grid", id)),
+            source_combo_id: egui::Id::new(format!("editor_{}_create_colorset_source_combo", id)),
             open: false,
             selected_image: 0,
             name: String::new(),

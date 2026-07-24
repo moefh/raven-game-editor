@@ -3,7 +3,6 @@ mod add_frames;
 mod remove_frames;
 mod import;
 mod export;
-mod create_colorset;
 
 use crate::misc::IMAGES;
 use crate::image::{
@@ -26,6 +25,7 @@ use super::{
     WindowContext,
     SysDialogResponse,
 };
+use super::dialogs::CreateColorsetDialog;
 use super::widgets::{
     ColorPickerWidget,
     ColorPickerResponse,
@@ -41,7 +41,6 @@ use remove_frames::RemoveFramesDialog;
 use add_frames::{AddFramesDialog, AddFramesAction};
 use import::ImportDialog;
 use export::ExportDialog;
-use create_colorset::CreateColorsetDialog;
 
 pub struct SpriteEditor {
     pub base: AssetEditorBase,
@@ -54,7 +53,7 @@ impl SpriteEditor {
         SpriteEditor {
             base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
-            dialogs: Dialogs::new(format!("editor_{}", id)),
+            dialogs: Dialogs::new(id),
         }
     }
 
@@ -115,14 +114,14 @@ struct Dialogs {
 }
 
 impl Dialogs {
-    fn new(id_prefix: impl AsRef<str>) -> Self {
+    fn new(id: DataAssetId) -> Self {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
             rm_frames_dialog: RemoveFramesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
-            create_colorset_dialog: CreateColorsetDialog::new(id_prefix),
+            create_colorset_dialog: CreateColorsetDialog::new(id),
         }
     }
 
