@@ -14,8 +14,15 @@ use super::AssetProblem;
 fn check_world(world: &World) -> Vec<AssetProblem> {
     let mut problems = Vec::new();
 
+    if world.regions.is_empty() {
+        problems.push(AssetProblem::WorldWithNoRegions);
+    }
+
     let mut used_rooms = HashMap::new();
     for (region_index, region) in world.regions.iter().enumerate() {
+        if region.rooms.is_empty() {
+            problems.push(AssetProblem::WorldRegionWithNoMaps { region_index });
+        }
         for room_id in region.rooms.iter() {
             if let Some(other_region_index) = used_rooms.get(room_id) {
                 problems.push(AssetProblem::WorldRegionsUsingSameRoom {

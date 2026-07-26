@@ -37,6 +37,8 @@ pub enum AssetProblem {
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
     RoomTriggersWithSameId { trigger1_index: usize, trigger2_index: usize, trigger_id: u16 },
     RoomDoorWithInvalidDestination { trigger_index: usize },
+    WorldWithNoRegions,
+    WorldRegionWithNoMaps { region_index: usize },
     WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -162,6 +164,16 @@ impl AssetProblem {
                     let Some(door) = room.triggers.get(*trigger_index) {
                         ui.label(format!("  -> door '{}' has invalid destination", door.name_id));
                     }
+            }
+
+            AssetProblem::WorldWithNoRegions => {
+                ui.label("  -> world has no regions");
+            }
+
+            AssetProblem::WorldRegionWithNoMaps { region_index } => {
+                if let Some(world) = store.assets.worlds.get(&asset_id) && let Some(region) = world.regions.get(*region_index) {
+                    ui.label(format!("  -> region '{}' has no rooms", region.name));
+                }
             }
 
             AssetProblem::WorldRegionsUsingSameRoom { room_id, region1_index, region2_index } => {
