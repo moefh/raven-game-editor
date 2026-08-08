@@ -202,9 +202,9 @@ struct $<PREFIX>_WORLD_REGION {
     uint8_t y;
     uint8_t width;
     uint8_t height;
-    uint8_t *blocks;
-    uint16_t *room_indices;
-    uint32_t *block_bitmap;
+    const uint32_t *block_bitmap;
+    const uint8_t *blocks;
+    const uint16_t *room_indices;
 };
 
 struct $<PREFIX>_WORLD {
