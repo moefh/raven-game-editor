@@ -855,7 +855,7 @@ impl<'a> ProjectDataWriter<'a> {
                     })?;
                     let loop_offset = info.loop_offsets.get(loop_index).copied().unwrap_or(last_offset);
                     self.write(format!(
-                        "      {{ {:>5}, {:>5}, {}, {} }},",
+                        "      {{ {:>5}, {:>5}, {}, {:>3} }},",
                         loop_offset,
                         aloop.frame_indices.len(),
                         if aloop.dont_loop { 1 } else { 0 },

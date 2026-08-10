@@ -79,8 +79,8 @@ impl super::GenericAsset for SpriteAnimation {
         // collision: x(2) + y(2) + w(2) + h(2)
         let collision = 4usize * 2usize;
 
-        // loop: offset(2) + length(2)
-        let loop_size = 2usize + 2usize;
+        // loop: offset(2) + length(2) + dont_loop(1) + frame_speed(1)
+        let loop_size = 2usize + 2usize + 1usize + 1usize;
 
         // header: frame_indices<ptr>(4) + sprite<ptr>(4) + collision +
         //         use_foot_frames(1) + foot_overlap(1) + pad(2) + 20*loop
