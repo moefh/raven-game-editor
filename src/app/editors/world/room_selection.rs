@@ -154,7 +154,7 @@ impl RoomSelectionDialog {
                             });
                         };
                         egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                            room_tree.show(ui, true, &mut show_folder, &mut show_item);
+                            room_tree.show(ui, &|_| true, &mut show_folder, &mut show_item);
                         });
                     }
                     if let Some(room_id) = add_room { self.sel_room_ids.insert(room_id); }

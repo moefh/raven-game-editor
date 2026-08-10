@@ -127,7 +127,7 @@ impl MapSelectionDialog {
                             });
                         };
                         egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                            map_tree.show(ui, true, &mut show_folder, &mut show_item);
+                            map_tree.show(ui, &|_| true, &mut show_folder, &mut show_item);
                         });
                     }
                     if let Some(map_id) = add_map { self.sel_map_ids.insert(map_id); }

@@ -533,7 +533,7 @@ impl RavenEditorApp {
         self.text_input_dialog_action = Some(action);
     }
 
-    fn update_dialogs(&mut self, ui: &mut egui::Ui) {
+    fn show_dialogs(&mut self, ui: &mut egui::Ui) {
         self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
 
         // confirmation dialog
@@ -579,7 +579,7 @@ impl RavenEditorApp {
         }
     }
 
-    fn update_menu(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
+    fn show_menu_bar(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
         egui::Panel::top("main_menu").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
@@ -682,7 +682,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_toolbar(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
         egui::Panel::top("main_toolbar").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
@@ -738,7 +738,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_footer(&mut self, ui: &mut egui::Ui) {
+    fn show_footer(&mut self, ui: &mut egui::Ui) {
         egui::Panel::bottom("footer").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
             ui.add_space(5.0);
@@ -748,7 +748,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_asset_tree(&mut self, ui: &mut egui::Ui) {
+    fn show_asset_tree(&mut self, ui: &mut egui::Ui) {
         self.asset_tree.update(&self.store);
         egui::Panel::left("asset_tree").resizable(false).exact_size(Self::ASSET_TREE_PANEL_WIDTH).show(ui, |ui| {
             ui.add_space(2.0);
@@ -758,6 +758,7 @@ impl RavenEditorApp {
                     let mut folder_action = AssetTreeAction::None;
                     let mut item_action = AssetTreeAction::None;
                     if let Some(tree) = self.asset_tree.get_tree_of_type(asset_def.asset_type) {
+                        let is_folder_open = |folder: &widgets::AssetTreeContainer| { folder.node_id == tree.node_id };
                         let mut show_folder = |ui: &mut egui::Ui, folder: &widgets::AssetTreeContainer| -> egui::Response {
                             ui.horizontal(|ui| {
                                 let button = if folder.level == 0 {
@@ -801,7 +802,7 @@ impl RavenEditorApp {
                                 });
                             });
                         };
-                        tree.show("project", ui, true, &mut show_folder, &mut show_item);
+                        tree.show("project", ui, &is_folder_open, &mut show_folder, &mut show_item);
                     }
                     for action in &[folder_action, item_action] {
                         match action {
@@ -836,7 +837,7 @@ impl RavenEditorApp {
         });
     }
 
-    fn update_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) -> Vec<AppWindowAction> {
+    fn show_windows(&mut self, ui: &mut egui::Ui, window: &eframe::Frame) -> Vec<AppWindowAction> {
         let frame = egui::Frame::NONE.fill(ui.visuals().panel_fill);
         let window_space = egui::CentralPanel::default().frame(frame).show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
@@ -1021,13 +1022,13 @@ impl eframe::App for RavenEditorApp {
         }
 
         self.editors.update_dirty_flags(&self.store);
-        self.update_dialogs(ui);
-        self.update_menu(ui, window);
-        self.update_toolbar(ui, window);
-        self.update_footer(ui);
-        self.update_asset_tree(ui);
+        self.show_dialogs(ui);
+        self.show_menu_bar(ui, window);
+        self.show_toolbar(ui, window);
+        self.show_footer(ui);
+        self.show_asset_tree(ui);
 
-        for window_action in self.update_windows(ui, window).into_iter() {
+        for window_action in self.show_windows(ui, window).into_iter() {
             match window_action {
                 AppWindowAction::None => {
                 }

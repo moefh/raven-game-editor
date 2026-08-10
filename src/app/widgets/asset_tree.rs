@@ -186,11 +186,12 @@ impl AssetTreeContainer {
         &self,
         id_prefix: &str,
         ui: &mut egui::Ui,
-        open: bool,
+        is_folder_open: &impl Fn(&AssetTreeContainer) -> bool,
         show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
         show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)
     ) {
         let tree_node_id = ui.make_persistent_id(format!("{}_{}", id_prefix, self.node_id.id));
+        let open = is_folder_open(self);
         let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, open);
         let mut toggle_node_open = false;
         if self.level == 0 {
@@ -204,7 +205,7 @@ impl AssetTreeContainer {
         }
         header_resp.body(|ui| {
             for tree in &self.containers {
-                tree.show(id_prefix, ui, self.assets.is_empty(), show_folder, show_item);
+                tree.show(id_prefix, ui, is_folder_open, show_folder, show_item);
             }
             for asset_node in &self.assets {
                 show_item(ui, self, asset_node);
@@ -261,11 +262,11 @@ impl SimpleAssetTree {
     pub fn show(
         &self,
         ui: &mut egui::Ui,
-        open: bool,
+        is_folder_open: &impl Fn(&AssetTreeContainer) -> bool,
         show_folder: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer) -> egui::Response,
         show_item: &mut impl FnMut(&mut egui::Ui, &AssetTreeContainer, &AssetTreeItem)
     ) {
-        self.root.show(&self.id_prefix, ui, open, show_folder, show_item);
+        self.root.show(&self.id_prefix, ui, is_folder_open, show_folder, show_item);
     }
 
     //pub fn get_node_name(&self, node_id: AssetTreeNodeId) -> Option<String> {

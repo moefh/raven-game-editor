@@ -413,7 +413,7 @@ impl Editor {
                 ui.label(&asset_item.name);
             }
         };
-        tree.show(ui, true, &mut show_folder, &mut show_item);
+        tree.show(ui, &|_| true, &mut show_folder, &mut show_item);
         [header_action, item_action]
     }
 
