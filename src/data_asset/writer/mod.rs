@@ -854,10 +854,17 @@ impl<'a> ProjectDataWriter<'a> {
                         Error::other(format!("can't find loop name {} for animation {}", loop_index, id))
                     })?;
                     let loop_offset = info.loop_offsets.get(loop_index).copied().unwrap_or(last_offset);
+                    self.write(format!(
+                        "      {{ {:>5}, {:>5}, {}, {} }},",
+                        loop_offset,
+                        aloop.frame_indices.len(),
+                        if aloop.dont_loop { 1 } else { 0 },
+                        aloop.frame_speed.saturating_sub(1) & 0xff,
+                    ));
                     if ! aloop.frame_indices.is_empty() {
-                        self.write(format!("      {{ {:>5}, {:>5} }}, // {}\n", loop_offset, aloop.frame_indices.len(), loop_name_id));
+                        self.write(format!(" // {}\n", loop_name_id));
                     } else {
-                        self.write(format!("      {{ {:>5}, {:>5} }},\n", loop_offset, aloop.frame_indices.len()));
+                        self.write("\n");
                     }
                     last_offset = loop_offset + aloop.frame_indices.len();
                 }
@@ -1017,6 +1024,7 @@ impl<'a> ProjectDataWriter<'a> {
             })?;
             self.write(format!("  {}_ROOM_{}_TRG_{},\n", self.ident.prefix_upper, name_id_upper, trg_name_id.to_ascii_uppercase()));
         }
+        self.write(format!("  {}_ROOM_{}_NUM_TRIGGERS,\n", self.ident.prefix_upper, name_id_upper));
         self.write("};\n");
         self.write("\n");
 

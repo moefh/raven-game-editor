@@ -8,6 +8,8 @@ pub struct SpriteAnimationFrame {
 pub struct SpriteAnimationLoop {
     pub name_id: String,
     pub frame_indices: Vec<SpriteAnimationFrame>,
+    pub dont_loop: bool,
+    pub frame_speed: u16, // 1-256
 }
 
 #[derive(std::hash::Hash)]
@@ -32,6 +34,8 @@ impl SpriteAnimation {
                 } else {
                     Vec::new()
                 },
+                dont_loop: false,
+                frame_speed: 64,
             });
         }
 

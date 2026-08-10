@@ -35,6 +35,8 @@ pub fn get_asset_def() -> ValueDefStruct
             ValueDefStruct::new(vec![
                 (String::from("offset"), ValueDef::U16),
                 (String::from("length"), ValueDef::U16),
+                (String::from("dont_loop"), ValueDef::U8),
+                (String::from("frame_adv"), ValueDef::U8),
             ])
         )),
     ])
@@ -51,6 +53,8 @@ pub fn build_loops(
     for (loop_index, frame_slice) in frame_slices.values.iter().enumerate() {
         let frame_slice_offset = frame_slice.get_u16("offset")?;
         let frame_slice_len = frame_slice.get_u16("length")?;
+        let frame_adv = frame_slice.get_u8("frame_adv")?;
+        let dont_loop = frame_slice.get_u8("dont_loop")?;
 
         let mut frame_indices = Vec::new();
         for frame_index in 0..frame_slice_len {
@@ -80,6 +84,8 @@ pub fn build_loops(
         loops.push(SpriteAnimationLoop {
             name_id: name,
             frame_indices,
+            dont_loop: dont_loop != 0,
+            frame_speed: frame_adv as u16 + 1,
         });
     }
     Ok(loops)

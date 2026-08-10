@@ -89,7 +89,7 @@ impl SpriteAnimationEditor {
     pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
-        self.base.show_window(wc, animation, [500.0, 400.0], [500.0, 400.0], |ui, wc, animation, base| {
+        self.base.show_window(wc, animation, [500.0, 450.0], [500.0, 450.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
@@ -157,8 +157,14 @@ impl Editor {
         self.selected_loop_frame = 0;
     }
 
-    fn sprite_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, animation: &mut SpriteAnimation,
-                  _sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
+    fn sprite_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        animation: &mut SpriteAnimation,
+        _sprite_ids: &AssetIdList,
+        sprites: &mut AssetList<Sprite>
+    ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
             Some(s) => s,
             None => { return; }
@@ -239,6 +245,42 @@ impl Editor {
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
 
+        // Loop info
+        egui::Panel::top(format!("editor_panel_{}_loop_info_bar", asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
+
+                if let Some(aloop) = animation.loops.get_mut(self.selected_loop) {
+                    ui.label("Frame speed: ");
+                    ui.add(egui::DragValue::new(&mut aloop.frame_speed).speed(1.0).range(1..=256));
+
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    ui.label("Don't loop: ");
+                    ui.checkbox(&mut aloop.dont_loop, "");
+                }
+
+                // show current frame index:
+                if let Some(image_item) = animation.loops.get(self.selected_loop)
+                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
+                    .and_then(|frame| frame.head_index) {
+                        ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("Frame {}", image_item));
+                                ui.add_space(5.0);
+                                ui.separator();
+                            });
+                            ui.add_space(0.0);  // don't remove this, it's necessary
+                        });
+                    }
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+
         // Collision
         egui::Panel::top(format!("editor_panel_{}_collision_bar", asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(2.0);
@@ -273,19 +315,6 @@ impl Editor {
                 ui.add(egui::DragValue::new(&mut animation.clip_rect.w).speed(1.0).range(0..=max_w));
                 ui.label("x");
                 ui.add(egui::DragValue::new(&mut animation.clip_rect.h).speed(1.0).range(0..=max_h));
-
-                if let Some(image_item) = animation.loops.get(self.selected_loop)
-                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
-                    .and_then(|frame| frame.head_index) {
-                        ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(format!("Frame {}", image_item));
-                                ui.add_space(5.0);
-                                ui.separator();
-                            });
-                            ui.add_space(0.0);  // don't remove this, it's necessary
-                        });
-                    }
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });

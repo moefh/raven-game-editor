@@ -99,6 +99,8 @@ struct $<PREFIX>_MAP {
 struct $<PREFIX>_SPRITE_ANIMATION_LOOP {
     uint16_t offset;   // offset into animation frame_indices
     uint16_t length;   // loop data length
+    uint8_t dont_loop;
+    uint8_t frame_adv;
 };
 
 struct $<PREFIX>_SPRITE_ANIMATION_COLLISION {
