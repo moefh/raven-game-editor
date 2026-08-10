@@ -614,11 +614,14 @@ impl MapEditorWidget {
 
             MapClipboardData::MapWholeFragment(frag) => {
                 let whole_frag = map_data.para_width == map_data.width || map_data.para_height == map_data.height;
-                if frag.para_data.is_empty() && (whole_frag || self.tool != MapTool::SelectAllLayers) {
+                self.tool = if frag.para_data.is_empty() && (whole_frag || self.tool != MapTool::SelectAllLayers) {
                     MapTool::SelectFullLayers
                 } else {
                     MapTool::SelectAllLayers
                 };
+                if self.edit_layer == MapLayer::Screen {
+                    self.edit_layer = MapLayer::Foreground;
+                }
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
                 self.selection = MapSelection::WholeFragment(self.get_paste_position(), frag.clone());
