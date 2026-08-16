@@ -565,7 +565,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     fn get_paste_position(&self) -> Pos2 {
-        if let Some(rect) = self.selection.get_rect() {
+        if let Some(rect) = self.selection.get_rect() && ! self.selection.is_empty() {
             rect.min
         } else if self.last_zoom_level > 0.0 {
             Pos2 {
