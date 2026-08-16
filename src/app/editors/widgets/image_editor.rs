@@ -142,6 +142,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub selection_enabled: bool,
     pub hover_pos: Vec2,
     pub zoom: WidgetZoom,
+    last_zoom_level: f32,
     scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
@@ -179,6 +180,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             drop_selection_next_show: false,
             hover_pos: Vec2::ZERO,
             tool_mouse_down: false,
+            last_zoom_level: 0.0,
         }
     }
 
@@ -547,12 +549,26 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    fn get_paste_position(&self) -> Pos2 {
+        if let Some(rect) = self.selection.get_rect() {
+            rect.min
+        } else if self.last_zoom_level > 0.0 {
+            Pos2 {
+                x: (-self.scroll.x / self.last_zoom_level).ceil(),
+                y: (-self.scroll.y / self.last_zoom_level).ceil(),
+            }
+        } else {
+            Pos2::ZERO
+        }
+    }
+
     pub fn paste(&mut self, wc: &mut WindowContext, image: &mut ImageAsset) {
         if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
+            let pos = self.get_paste_position();
             self.tool = ImageDrawingTool::Select;
             self.set_undo_target(image);
             self.drop_selection(image);
-            self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels.clone()));
+            self.selection = ImageSelection::Fragment(pos, ImageFragment::from_pixels(image.get_asset_id(), pixels.clone()));
         }
     }
 
@@ -698,6 +714,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 f32::max(f32::min(zoomx, zoomy), 1.0)
             }
         };
+        self.last_zoom_level = zoom;
         let zoomed_image_size = image_size * zoom;
         let image_area_rect = if zoomed_image_size.x >= canvas_rect.width() && zoomed_image_size.y >= canvas_rect.height() {
             canvas_rect
