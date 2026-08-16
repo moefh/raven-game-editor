@@ -1,4 +1,7 @@
-use std::collections::VecDeque;
+use std::collections::{
+    HashMap,
+    VecDeque,
+};
 
 use egui::{
     emath,
@@ -146,8 +149,8 @@ pub struct ImageEditorWidget<ImageAsset> {
     scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
-    undo_targets: VecDeque<ImageFragment>,
-    redo_targets: VecDeque<ImageFragment>,
+    undo_targets: HashMap<u32, VecDeque<ImageFragment>>,
+    redo_targets: HashMap<u32, VecDeque<ImageFragment>>,
     image_changed: bool,
     drop_selection_next_show: bool,
     drag_mouse_origin: Pos2,
@@ -173,8 +176,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             pick_right_color: None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
-            undo_targets: VecDeque::new(),
-            redo_targets: VecDeque::new(),
+            undo_targets: HashMap::new(),
+            redo_targets: HashMap::new(),
             selection_enabled: true,
             image_changed: false,
             drop_selection_next_show: false,
@@ -217,11 +220,13 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     pub fn set_undo_target(&mut self, image: &ImageAsset) {
         if let Some(undo_target) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
-            self.redo_targets.clear();
-            if self.undo_targets.len() >= Self::MAX_UNDO_TARGETS {
-                self.undo_targets.pop_front();
+            let image_redo_targets = self.redo_targets.entry(self.selected_image).or_default();
+            let image_undo_targets = self.undo_targets.entry(self.selected_image).or_default();
+            image_redo_targets.clear();
+            if image_undo_targets.len() >= Self::MAX_UNDO_TARGETS {
+                image_undo_targets.pop_front();
             }
-            self.undo_targets.push_back(undo_target);
+            image_undo_targets.push_back(undo_target);
         }
     }
 
@@ -249,17 +254,27 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn can_undo(&self) -> bool {
-        ! self.undo_targets.is_empty()
+        if let Some(image_undo_targets) = self.undo_targets.get(&self.selected_image) {
+            ! image_undo_targets.is_empty()
+        } else {
+            false
+        }
     }
 
     pub fn can_redo(&self) -> bool {
-        ! self.redo_targets.is_empty()
+        if let Some(image_redo_targets) = self.redo_targets.get(&self.selected_image) {
+            ! image_redo_targets.is_empty()
+        } else {
+            false
+        }
     }
 
     pub fn undo(&mut self, image: &mut ImageAsset) {
-        if let Some(undo_image) = self.undo_targets.pop_back() &&
+        let image_undo_targets = self.undo_targets.entry(self.selected_image).or_default();
+        let image_redo_targets = self.redo_targets.entry(self.selected_image).or_default();
+        if let Some(undo_image) = image_undo_targets.pop_back() &&
             let Some(redo_image) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
-                self.redo_targets.push_back(redo_image);
+                image_redo_targets.push_back(redo_image);
                 image.paste_fragment(self.selected_image, 0, 0, &undo_image, false);
                 self.image_changed = true;
                 self.selection = ImageSelection::None;
@@ -267,9 +282,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn redo(&mut self, image: &mut ImageAsset) {
-        if let Some(redo_image) = self.redo_targets.pop_back() &&
+        let image_undo_targets = self.undo_targets.entry(self.selected_image).or_default();
+        let image_redo_targets = self.redo_targets.entry(self.selected_image).or_default();
+        if let Some(redo_image) = image_redo_targets.pop_back() &&
             let Some(undo_image) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
-                self.undo_targets.push_back(undo_image);
+                image_undo_targets.push_back(undo_image);
                 image.paste_fragment(self.selected_image, 0, 0, &redo_image, false);
                 self.image_changed = true;
                 self.selection = ImageSelection::None;
@@ -366,10 +383,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.selected_image
     }
 
-    pub fn set_selected_image(&mut self, sel_image: u32, image: &ImageAsset) -> bool {
+    pub fn set_selected_image(&mut self, sel_image: u32, _image: &ImageAsset) -> bool {
         if self.selected_image != sel_image {
             self.selected_image = sel_image;
-            self.set_undo_target(image);
             true
         } else {
             false
@@ -394,8 +410,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset,
-                              resp: &egui::Response, colors: (u8, u8)) {
+    fn handle_selection_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response, colors: (u8, u8)) {
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             self.drag_mouse_origin = mouse_pos;
             self.drag_frag_origin = mouse_pos;
