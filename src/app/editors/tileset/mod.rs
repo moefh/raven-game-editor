@@ -276,6 +276,14 @@ impl Editor {
         }
     }
 
+    fn can_redo(&self) -> bool {
+        match self.selected_tab {
+            EditorTab::Tile => { self.tile_image_editor.can_redo() }
+            EditorTab::GridTiles => { self.grid_image_editor.can_redo() }
+            _ => { false }
+        }
+    }
+
     fn undo(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         match self.selected_tab {
             EditorTab::Tile => {
@@ -284,6 +292,20 @@ impl Editor {
             EditorTab::GridTiles => {
                 let image = self.tile_grid.get_image_mut(tileset);
                 self.grid_image_editor.undo(image);
+                self.handle_grid_image_changed(wc, tileset);
+            }
+            _ => {}
+        }
+    }
+
+    fn redo(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.redo(tileset);
+            }
+            EditorTab::GridTiles => {
+                let image = self.tile_grid.get_image_mut(tileset);
+                self.grid_image_editor.redo(image);
                 self.handle_grid_image_changed(wc, tileset);
             }
             _ => {}
@@ -397,12 +419,16 @@ impl Editor {
                 });
                 ui.menu_button("Edit", |ui| {
                     let can_undo = self.can_undo();
+                    let can_redo = self.can_redo();
                     let has_selection = ! self.selection_is_empty();
                     let can_paste = wc.image_clipboard.is_some();
                     let can_change_tiles = matches!(self.selected_tab, EditorTab::Tile);
 
                     if ui.add_enabled(can_undo, menu_item(IMAGES.undo, " Undo")).clicked() {
                         self.undo(wc, tileset);
+                    }
+                    if ui.add_enabled(can_redo, menu_item(IMAGES.redo, " Redo")).clicked() {
+                        self.redo(wc, tileset);
                     }
 
                     ui.separator();
@@ -673,8 +699,10 @@ impl Editor {
         // keyboard shortcuts
         if wc.is_editor_on_top(self.asset_id) {
             let image = self.tile_grid.get_image_mut(tileset);
-            if ! matches!(self.grid_image_editor.handle_keyboard(ui, wc, image, self.color_picker.state.right_color),
-                          ImageEditorAction::None) {
+            if ! matches!(
+                self.grid_image_editor.handle_keyboard(ui, wc, image, self.color_picker.state.right_color),
+                ImageEditorAction::None
+            ) {
                 self.handle_grid_image_changed(wc, tileset);
             }
         }

@@ -100,6 +100,7 @@ image_table! {
     trash: "../../assets/TrashIcon.png",
     add: "../../assets/AddIcon.png",
     undo: "../../assets/UndoIcon.png",
+    redo: "../../assets/RedoIcon.png",
     cut: "../../assets/CutIcon.png",
     copy: "../../assets/CopyIcon.png",
     paste: "../../assets/PasteIcon.png",

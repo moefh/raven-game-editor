@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use egui::{
     emath,
     Vec2,
@@ -28,6 +30,7 @@ use super::super::{
 pub enum ImageEditorAction {
     None,
     Undo,
+    Redo,
     Cut,
     Copy,
     Paste,
@@ -142,7 +145,8 @@ pub struct ImageEditorWidget<ImageAsset> {
     scroll: Vec2,
     tool: ImageDrawingTool,
     selected_image: u32,
-    undo_target: Option<ImageFragment>,
+    undo_targets: VecDeque<ImageFragment>,
+    redo_targets: VecDeque<ImageFragment>,
     image_changed: bool,
     drop_selection_next_show: bool,
     drag_mouse_origin: Pos2,
@@ -152,6 +156,8 @@ pub struct ImageEditorWidget<ImageAsset> {
 }
 
 impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection + AssetIdHolder {
+    const MAX_UNDO_TARGETS: usize = 32;
+
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
@@ -166,7 +172,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             pick_right_color: None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
-            undo_target: None,
+            undo_targets: VecDeque::new(),
+            redo_targets: VecDeque::new(),
             selection_enabled: true,
             image_changed: false,
             drop_selection_next_show: false,
@@ -207,7 +214,13 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn set_undo_target(&mut self, image: &ImageAsset) {
-        self.undo_target = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image));
+        if let Some(undo_target) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
+            self.redo_targets.clear();
+            if self.undo_targets.len() >= Self::MAX_UNDO_TARGETS {
+                self.undo_targets.pop_front();
+            }
+            self.undo_targets.push_back(undo_target);
+        }
     }
 
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
@@ -234,15 +247,31 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn can_undo(&self) -> bool {
-        self.undo_target.is_some()
+        ! self.undo_targets.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        ! self.redo_targets.is_empty()
     }
 
     pub fn undo(&mut self, image: &mut ImageAsset) {
-        if let Some(frag) = self.undo_target.take() {
-            image.paste_fragment(self.selected_image, 0, 0, &frag, false);
-            self.image_changed = true;
-            self.selection = ImageSelection::None;
-        }
+        if let Some(undo_image) = self.undo_targets.pop_back() &&
+            let Some(redo_image) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
+                self.redo_targets.push_back(redo_image);
+                image.paste_fragment(self.selected_image, 0, 0, &undo_image, false);
+                self.image_changed = true;
+                self.selection = ImageSelection::None;
+            }
+    }
+
+    pub fn redo(&mut self, image: &mut ImageAsset) {
+        if let Some(redo_image) = self.redo_targets.pop_back() &&
+            let Some(undo_image) = image.copy_fragment(image.get_asset_id(), self.selected_image, ImageRect::from_image_item(image)) {
+                self.undo_targets.push_back(undo_image);
+                image.paste_fragment(self.selected_image, 0, 0, &redo_image, false);
+                self.image_changed = true;
+                self.selection = ImageSelection::None;
+            }
     }
 
     pub fn delete_selection(&mut self, image: &mut ImageAsset, fill_color: u8) {
@@ -535,6 +564,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
+        let ctrl_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL|egui::Modifiers::SHIFT, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&ctrl_shift_z)) {
+            self.redo(image);
+            return ImageEditorAction::Redo;
+        }
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(image);

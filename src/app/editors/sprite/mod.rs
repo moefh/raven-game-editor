@@ -213,6 +213,9 @@ impl Editor {
                     if ui.add_enabled(self.image_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
                         self.image_editor.undo(sprite);
                     }
+                    if ui.add_enabled(self.image_editor.can_redo(), menu_item(IMAGES.redo, " Redo")).clicked() {
+                        self.image_editor.redo(sprite);
+                    }
 
                     ui.separator();
 
