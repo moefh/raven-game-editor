@@ -1,6 +1,7 @@
 use crate::data_asset::{
     AssetIdCollection,
     RoomTriggerType,
+    RoomEntityDirection,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -34,12 +35,12 @@ impl RoomTriggerTypeSel {
                 true
             }
             RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
-                *trigger_type = RoomTriggerType::PlayerSpawn { direction: 0 };
+                *trigger_type = RoomTriggerType::PlayerSpawn { direction: RoomEntityDirection::Right };
                 true
             }
             RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
                 if let Some(animation_id) = asset_ids.animations.get_first() {
-                    *trigger_type = RoomTriggerType::EnemySpawn { animation_id };
+                    *trigger_type = RoomTriggerType::EnemySpawn { animation_id, enemy_type: 0, direction: RoomEntityDirection::Right };
                     true
                 } else {
                     false

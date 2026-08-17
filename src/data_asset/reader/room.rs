@@ -20,6 +20,7 @@ use super::super::{
     RoomTrigger,
     RoomTriggerType,
     RoomTriggerTypeIdent,
+    RoomEntityDirection,
 };
 
 pub fn get_asset_def() -> ValueDefStruct {
@@ -69,6 +70,8 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("enemy_spawn"), ValueDefStruct::new(vec![
             (String::from("animation"), ValueDef::AssetRef),
+            (String::from("enemy_type"), ValueDef::U16),
+            (String::from("direction"), ValueDef::U8),
         ])),
 
         (String::from("trap"), ValueDefStruct::new(vec![
@@ -146,14 +149,18 @@ fn conv_trigger_door(data: &ValueStruct, project_data: &ProjectData) -> Result<R
 
 fn conv_trigger_player_spawn(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::PlayerSpawn {
-        direction: data.get_u8("direction")?
+        direction: RoomEntityDirection::from(data.get_u8("direction")?),
     })
 }
 
 fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
     let animation_ref = data.get_asset_ref("animation")?;
+    let enemy_type = data.get_u16("enemy_type")?;
+    let direction = data.get_u8("direction")?;
     Ok(RoomTriggerType::EnemySpawn {
         animation_id: animation_ref.get_asset_id(project_data)?,
+        enemy_type,
+        direction: RoomEntityDirection::from(direction),
     })
 }
 

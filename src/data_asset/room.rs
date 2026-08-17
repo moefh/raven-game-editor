@@ -1,5 +1,30 @@
 use super::DataAssetId;
 
+#[derive(Copy, Clone, PartialEq, std::hash::Hash)]
+pub enum RoomEntityDirection {
+    Right,
+    Left,
+}
+
+impl RoomEntityDirection {
+    pub fn value(self) -> u8 {
+        match self {
+            RoomEntityDirection::Right => { 0 }
+            RoomEntityDirection::Left => { 1 }
+        }
+    }
+}
+
+impl From<u8> for RoomEntityDirection {
+    fn from(value: u8) -> Self {
+        if value == 0 {
+            RoomEntityDirection::Right
+        } else {
+            RoomEntityDirection::Left
+        }
+    }
+}
+
 #[derive(Clone, std::hash::Hash)]
 pub struct RoomMap {
     pub x: u16,
@@ -10,8 +35,8 @@ pub struct RoomMap {
 #[derive(Clone, std::hash::Hash)]
 pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
-    PlayerSpawn { direction: u8 },
-    EnemySpawn { animation_id: DataAssetId },
+    PlayerSpawn { direction: RoomEntityDirection },
+    EnemySpawn { animation_id: DataAssetId, enemy_type: u16, direction: RoomEntityDirection },
     Door { dest_room_id: DataAssetId, dest_trigger_id: u16 },
     Trap { width: u16, height: u16, trap_type: u16 },
 }

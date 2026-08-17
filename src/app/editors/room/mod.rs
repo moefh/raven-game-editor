@@ -8,6 +8,7 @@ use crate::data_asset::{
     Room,
     RoomTrigger,
     RoomTriggerType,
+    RoomEntityDirection,
     MapData,
     Tileset,
     SpriteAnimation,
@@ -442,30 +443,30 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Type:");
+                ui.label("Trap type:");
                 ui.add(egui::DragValue::new(trap_type).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
 
             RoomTriggerType::PlayerSpawn { direction } => {
                 ui.label("Dir:");
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_direction", self.asset_id))
-                    .selected_text(if *direction == 0 { "Right" } else { "Left" })
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_player_spawn_direction", self.asset_id))
+                    .selected_text(if *direction == RoomEntityDirection::Right { "Right" } else { "Left" })
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(direction, 0, "Right");
-                        ui.selectable_value(direction, 1, "Left");
+                        ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
+                        ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
                     });
                 ui.end_row();
             }
 
-            RoomTriggerType::EnemySpawn { animation_id } => {
+            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
                 ui.label("Anim:");
                 let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
                     &anim.asset.name
                 } else {
                     "??"
                 };
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_animation", self.asset_id))
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_animation", self.asset_id))
                     .selected_text(cur_anim_name)
                     .show_ui(ui, |ui| {
                         for anim_id in asset_ids.animations.iter() {
@@ -473,6 +474,19 @@ impl Editor {
                                 ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
                             }
                         }
+                    });
+                ui.end_row();
+
+                ui.label("Enemy type:");
+                ui.add(egui::DragValue::new(enemy_type).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Dir:");
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_direction", self.asset_id))
+                    .selected_text(if *direction == RoomEntityDirection::Right { "Right" } else { "Left" })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
+                        ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
                     });
                 ui.end_row();
             }
@@ -484,7 +498,7 @@ impl Editor {
                 } else {
                     "??"
                 };
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_prop_door", self.asset_id))
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_door_room", self.asset_id))
                     .selected_text(cur_room_name)
                     .show_ui(ui, |ui| {
                         for sel_room_id in asset_ids.rooms.iter() {

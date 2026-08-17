@@ -22,7 +22,6 @@ pub use reader::tokenizer::{
     Token,
     TokenData,
 };
-pub use room::RoomTriggerTypeIdent;
 
 pub use tileset::Tileset;
 pub use map_data::MapData;
@@ -31,6 +30,8 @@ pub use room::{
     RoomMap,
     RoomTrigger,
     RoomTriggerType,
+    RoomTriggerTypeIdent,
+    RoomEntityDirection,
 };
 pub use world::{
     World,
@@ -467,8 +468,8 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const VERSION: u32 = 8;
-    pub const VERSION_DATE: &str = "2026-08-10";
+    pub const VERSION: u32 = 9;
+    pub const VERSION_DATE: &str = "2026-08-17";
 
     pub fn new() -> Self {
         DataAssetStore {

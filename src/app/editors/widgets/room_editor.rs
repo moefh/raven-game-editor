@@ -14,6 +14,7 @@ use crate::data_asset::{
     RoomMap,
     RoomTrigger,
     RoomTriggerType,
+    RoomEntityDirection,
     MapData,
     Tileset,
     Sprite,
@@ -131,12 +132,16 @@ impl TriggerRect {
             RoomTriggerType::Trap { width, height, .. } => {
                 TriggerRect::resizable(trigger.x, trigger.y, width, height)
             }
-            RoomTriggerType::EnemySpawn { animation_id } => {
+            RoomTriggerType::EnemySpawn { animation_id, .. } => {
                 assets.animations.get(&animation_id)
-                    .and_then(|animation| { assets.sprites.get(&animation.sprite_id) })
-                    .map(|sprite| { TriggerRect::rigid(trigger.x, trigger.y,
-                                                           (sprite.width & 0xffff) as u16,
-                                                           (sprite.height & 0xffff) as u16) })
+                    .map(|animation| {
+                        TriggerRect::rigid(
+                            trigger.x,
+                            trigger.y,
+                            animation.clip_rect.w.clamp(4, u16::MAX as i32) as u16,
+                            animation.clip_rect.h.clamp(4, u16::MAX as i32) as u16
+                        )
+                    })
                     .unwrap_or_else(|| TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
             }
             RoomTriggerType::Door {..} => {
@@ -593,11 +598,30 @@ impl RoomEditorWidget {
         }
     }
 
-    fn draw_trigger_sprite(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform,
-                           rect: Rect, sprite: &Sprite, frame: u32) {
+    fn draw_trigger_sprite(
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        rect: Rect,
+        sprite: &Sprite,
+        frame: u32,
+        direction: RoomEntityDirection
+    ) {
         let draw_rect = to_canvas.transform_rect(rect);
         let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        Image::from_texture((texture.id(), sprite.get_item_size())).uv(sprite.get_item_uv(frame)).paint_at(ui, draw_rect);
+        let frame_uv = sprite.get_item_uv(frame);
+        let uv = match direction {
+            RoomEntityDirection::Right => {
+                frame_uv
+            }
+            RoomEntityDirection::Left => {
+                Rect::from_min_max(
+                    Pos2::new(frame_uv.max.x, frame_uv.min.y),
+                    Pos2::new(frame_uv.min.x, frame_uv.max.y)
+                )
+            }
+        };
+        Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
@@ -664,14 +688,24 @@ impl RoomEditorWidget {
                 RoomTriggerType::Trap {..} => {
                     Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
                 }
-                RoomTriggerType::EnemySpawn { animation_id } => {
+                RoomTriggerType::EnemySpawn { animation_id, direction, .. } => {
                     if let Some(animation) = assets.animations.get(&animation_id) &&
                         let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
                             let sprite_frame = animation.loops.first()
                                 .and_then(|aloop| aloop.frame_indices.first())
                                 .and_then(|frame| frame.head_index)
                                 .unwrap_or(0);
-                            Self::draw_trigger_sprite(ui, wc, &to_canvas, rect, sprite, sprite_frame as u32);
+                            let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
+                                animation.clip_rect.x as f32
+                            } else {
+                                sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
+                            };
+                            let y = trigger.y as f32 - animation.clip_rect.y as f32;
+                            let sprite_rect = Rect::from_min_size(
+                                Pos2::new(x, y),
+                                Vec2::new(sprite.width as f32, sprite.height as f32)
+                            );
+                            Self::draw_trigger_sprite(ui, wc, &to_canvas, sprite_rect, sprite, sprite_frame as u32, direction);
                             Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
                         }
                 }

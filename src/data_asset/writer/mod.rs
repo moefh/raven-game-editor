@@ -958,14 +958,14 @@ impl<'a> ProjectDataWriter<'a> {
                     );
                 }
                 RoomTriggerType::PlayerSpawn { direction } => {
-                    self.write(format!(".player_spawn = {{ {} }}", direction));
+                    self.write(format!(".player_spawn = {{ {} }}", direction.value()));
                 }
-                RoomTriggerType::EnemySpawn { animation_id } => {
+                RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
                     let animation_index = self.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
                     self.write(
                         format!(
-                            ".enemy_spawn = {{ &{}_sprite_animations[{}] }}",
-                            self.ident.prefix_lower, animation_index
+                            ".enemy_spawn = {{ &{}_sprite_animations[{}], {}, {} }}",
+                            self.ident.prefix_lower, animation_index, enemy_type, direction.value()
                         )
                     );
                 }
