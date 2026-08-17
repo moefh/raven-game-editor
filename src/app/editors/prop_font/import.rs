@@ -4,6 +4,7 @@ use crate::image::{
     ImageCollectionIO,
     ImagePixelsCollection,
     ImageSlicingMethod,
+    ImageLoadOptions,
 };
 use crate::data_asset::PropFont;
 
@@ -123,8 +124,14 @@ impl ImportDialog {
     fn confirm(&mut self, wc: &mut WindowContext, pfont: &mut PropFont) -> bool {
         if let Some(filename) = &self.filename {
             let mut image = ImagePixelsCollection::new(1, 1, 1);
-            let slicing = ImageSlicingMethod::by_size(self.width, self.height);
-            match image.load_image_png(filename, &slicing, self.border, self.space_between) {
+            let options = ImageLoadOptions {
+                slicing_method: ImageSlicingMethod::by_size(self.width, self.height),
+                space_between: self.space_between,
+                border: self.border,
+                zoom_x: 1,
+                zoom_y: 1,
+            };
+            match image.load_image_png(filename, &options) {
                 Ok(()) => {
                     if image.num_items == PropFont::NUM_CHARS {
                         pfont.load_from_image(&image);

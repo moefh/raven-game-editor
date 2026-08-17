@@ -17,6 +17,7 @@ pub use image_collection::{
 pub use image_collection_io::{
     ImageCollectionIO,
     ImageSlicingMethod,
+    ImageLoadOptions,
 };
 pub use image_pixels::{
     ImagePixels,

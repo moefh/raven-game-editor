@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::image::{
     ImageCollectionIO,
     ImageSlicingMethod,
+    ImageLoadOptions,
 };
 use crate::data_asset::Sprite;
 
@@ -19,22 +20,26 @@ pub struct ImportDialog {
     pub dlg_window_id: egui::Id,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
-    pub slicing_method: ImageSlicingMethod,
-    pub border: u32,
-    pub space_between: u32,
+    pub load_options: ImageLoadOptions,
     pub import_sprite_sys_dlg_id: String,
 }
 
 impl ImportDialog {
+    const DEFAULT_LOAD_OPTIONS: ImageLoadOptions = ImageLoadOptions {
+        slicing_method: ImageSlicingMethod::by_number(1, 1),
+        border: 0,
+        space_between: 0,
+        zoom_x: 1,
+        zoom_y: 1,
+    };
+
     pub fn new() -> Self {
         ImportDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_sprite_import"),
             filename: None,
             display_filename: None,
-            slicing_method: ImageSlicingMethod::by_number(1, 1),
-            border: 0,
-            space_between: 0,
+            load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_sprite_sys_dlg_id: String::new(),
         }
     }
@@ -42,9 +47,7 @@ impl ImportDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
         self.filename = None;
         self.display_filename = None;
-        self.slicing_method = ImageSlicingMethod::by_number(1, 1);
-        self.border = 0;
-        self.space_between = 0;
+        self.load_options = Self::DEFAULT_LOAD_OPTIONS;
         self.import_sprite_sys_dlg_id.replace_range(.., &format!("editor_{}_import_sprite", sprite.asset.id));
         self.open = true;
         wc.set_dialog_open(self.dlg_window_id, self.open);
@@ -52,7 +55,7 @@ impl ImportDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if let Some(filename) = &self.filename {
-            match sprite.load_image_png(filename, &self.slicing_method, self.border, self.space_between) {
+            match sprite.load_image_png(filename, &self.load_options) {
                 Ok(()) => {
                     true
                 }
@@ -108,8 +111,16 @@ impl ImportDialog {
                         });
                         ui.end_row();
 
+                        ui.label("Zoom X:");
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_x, 0..=32));
+                        ui.end_row();
+
+                        ui.label("Zoom Y:");
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_y, 0..=32));
+                        ui.end_row();
+
                         ui.label("Slice image:");
-                        let mut slicing_option = ImageSlicingMethodOption::from_slicing_method(&self.slicing_method);
+                        let mut slicing_option = ImageSlicingMethodOption::from_slicing_method(&self.load_options.slicing_method);
                         egui::ComboBox::from_id_salt(format!("editor_{}_import_combo_slicing", sprite.asset.id))
                             .selected_text(slicing_option.text())
                             .width(50.0)
@@ -123,22 +134,28 @@ impl ImportDialog {
                             });
                         ui.end_row();
                         match slicing_option {
-                            ImageSlicingMethodOption::BySize if ! matches!(self.slicing_method, ImageSlicingMethod::BySize{..}) => {
-                                self.slicing_method = ImageSlicingMethod::by_size(sprite.width, sprite.height);
+                            ImageSlicingMethodOption::BySize if ! matches!(
+                                self.load_options.slicing_method,
+                                ImageSlicingMethod::BySize{..}
+                            ) => {
+                                self.load_options.slicing_method = ImageSlicingMethod::by_size(sprite.width, sprite.height);
                             }
-                            ImageSlicingMethodOption::ByNumber if ! matches!(self.slicing_method, ImageSlicingMethod::ByNumber{..}) => {
-                                self.slicing_method = ImageSlicingMethod::by_number(1, 1);
+                            ImageSlicingMethodOption::ByNumber if ! matches!(
+                                self.load_options.slicing_method,
+                                ImageSlicingMethod::ByNumber{..}
+                            ) => {
+                                self.load_options.slicing_method = ImageSlicingMethod::by_number(1, 1);
                             }
                             _ => {}
                         }
 
-                        match self.slicing_method {
+                        match self.load_options.slicing_method {
                             ImageSlicingMethod::BySize { width, height } => {
                                 let (mut w, mut h) = (width, height);
                                 ui.label("Width:");  ui.add(egui::Slider::new(&mut w, 1..=256)); ui.end_row();
                                 ui.label("Height:"); ui.add(egui::Slider::new(&mut h, 1..=256)); ui.end_row();
                                 if w != width || h != height {
-                                    self.slicing_method = ImageSlicingMethod::by_size(w, h);
+                                    self.load_options.slicing_method = ImageSlicingMethod::by_size(w, h);
                                 }
                             }
                             ImageSlicingMethod::ByNumber { nx, ny } => {
@@ -146,17 +163,17 @@ impl ImportDialog {
                                 ui.label("Num X:"); ui.add(egui::Slider::new(&mut x, 1..=64)); ui.end_row();
                                 ui.label("Num Y:"); ui.add(egui::Slider::new(&mut y, 1..=64)); ui.end_row();
                                 if x != nx || y != ny {
-                                    self.slicing_method = ImageSlicingMethod::by_number(x, y);
+                                    self.load_options.slicing_method = ImageSlicingMethod::by_number(x, y);
                                 }
                             }
                         }
 
                         ui.label("Border:");
-                        ui.add(egui::Slider::new(&mut self.border, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.border, 0..=32));
                         ui.end_row();
 
                         ui.label("Space between:");
-                        ui.add(egui::Slider::new(&mut self.space_between, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.space_between, 0..=32));
                         ui.end_row();
                     });
             });

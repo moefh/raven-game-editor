@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::image::{
     ImageCollectionIO,
     ImageSlicingMethod,
+    ImageLoadOptions,
 };
 use crate::data_asset::Tileset;
 
@@ -18,19 +19,25 @@ pub struct ImportDialog {
     pub import_tileset_sys_dlg_id: String,
     pub filename: Option<PathBuf>,
     pub display_filename: Option<String>,
-    pub border: u32,
-    pub space_between: u32,
+    pub load_options: ImageLoadOptions,
 }
 
 impl ImportDialog {
+    const DEFAULT_LOAD_OPTIONS: ImageLoadOptions = ImageLoadOptions {
+        slicing_method: ImageSlicingMethod::by_size(Tileset::TILE_SIZE, Tileset::TILE_SIZE),
+        border: 0,
+        space_between: 0,
+        zoom_x: 1,
+        zoom_y: 1,
+    };
+
     pub fn new() -> Self {
         ImportDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_tileset_import"),
             filename: None,
             display_filename: None,
-            border: 0,
-            space_between: 0,
+            load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_tileset_sys_dlg_id: String::new(),
         }
     }
@@ -38,8 +45,7 @@ impl ImportDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset) {
         self.filename = None;
         self.display_filename = None;
-        self.border = 0;
-        self.space_between = 0;
+        self.load_options = Self::DEFAULT_LOAD_OPTIONS;
         self.import_tileset_sys_dlg_id.replace_range(.., &format!("editor_{}_import_tileset", tileset.asset.id));
         self.open = true;
         wc.set_dialog_open(self.dlg_window_id, self.open);
@@ -47,8 +53,7 @@ impl ImportDialog {
 
     fn confirm(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if let Some(filename) = &self.filename {
-            let slicing = ImageSlicingMethod::by_size(Tileset::TILE_SIZE, Tileset::TILE_SIZE);
-            match tileset.load_image_png(filename, &slicing, self.border, self.space_between) {
+            match tileset.load_image_png(filename, &self.load_options) {
                 Ok(()) => {
                     true
                 }
@@ -104,12 +109,20 @@ impl ImportDialog {
                         });
                         ui.end_row();
 
+                        ui.label("Zoom X:");
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_x, 0..=32));
+                        ui.end_row();
+
+                        ui.label("Zoom Y:");
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_y, 0..=32));
+                        ui.end_row();
+
                         ui.label("Border:");
-                        ui.add(egui::Slider::new(&mut self.border, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.border, 0..=32));
                         ui.end_row();
 
                         ui.label("Space between:");
-                        ui.add(egui::Slider::new(&mut self.space_between, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.space_between, 0..=32));
                         ui.end_row();
                     });
             });

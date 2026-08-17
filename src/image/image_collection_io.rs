@@ -1,18 +1,82 @@
 use super::{colors, ImagePixels, ImagePixelsCollection};
 use crate::data_asset::{Tileset, Sprite, PalSprite, Font, PropFont};
 
+pub struct ImageLoadOptions {
+    pub slicing_method: ImageSlicingMethod,
+    pub space_between: u32,
+    pub border: u32,
+    pub zoom_x: u32,
+    pub zoom_y: u32,
+}
+
+#[derive(Clone, Copy)]
 pub enum ImageSlicingMethod {
     BySize { width: u32, height: u32 },
     ByNumber { nx: u32, ny: u32 },
 }
 
 impl ImageSlicingMethod {
-    pub fn by_size(width: u32, height: u32) -> Self {
+    pub const fn by_size(width: u32, height: u32) -> Self {
         ImageSlicingMethod::BySize { width, height }
     }
 
-    pub fn by_number(nx: u32, ny: u32) -> Self {
+    pub const fn by_number(nx: u32, ny: u32) -> Self {
         ImageSlicingMethod::ByNumber { nx, ny }
+    }
+}
+
+struct SrcImageReader {
+    image: ::image::RgbaImage,
+    image_width: u32,
+    image_height: u32,
+    zoom_x: u32,
+    zoom_y: u32,
+    pixel_freq: [usize; 256],
+}
+
+impl SrcImageReader {
+    fn new(zoom_x: u32, zoom_y: u32, image: ::image::RgbaImage) -> Self {
+        let image_width = image.width();
+        let image_height = image.height();
+        SrcImageReader {
+            image,
+            image_width,
+            image_height,
+            zoom_x: zoom_x.max(1),
+            zoom_y: zoom_y.max(1),
+            pixel_freq: [0; 256],
+        }
+    }
+
+    fn width(&self) -> u32 {
+        self.image_width.div_ceil(self.zoom_x)
+    }
+
+    fn height(&self) -> u32 {
+        self.image_height.div_ceil(self.zoom_y)
+    }
+
+    fn get_pixel(&mut self, x: u32, y: u32) -> u8 {
+        if self.zoom_x == 1 && self.zoom_y == 1 {
+            self.get_raw_pixel(x, y)
+        } else {
+            self.pixel_freq[..].fill(0);
+            for iy in y*self.zoom_y .. y*self.zoom_y+self.zoom_y {
+                for ix in x*self.zoom_x .. x*self.zoom_x+self.zoom_x {
+                    if ix < self.image_width && iy < self.image_height {
+                        let pixel = self.get_raw_pixel(ix, iy);
+                        self.pixel_freq[pixel as usize] += 1;
+                    }
+                }
+            }
+            self.pixel_freq.iter().enumerate().max_by_key(|&(_, freq)| freq).map(|(pixel, _)| pixel).unwrap_or(0) as u8
+        }
+    }
+
+    fn get_raw_pixel(&self, x: u32, y: u32) -> u8 {
+        let offset = ((self.image.width() * y + x) * 4) as usize;
+        let data = self.image.as_raw();
+        ImagePixels::rgba_to_pixel(&data[offset..offset+4])
     }
 }
 
@@ -26,27 +90,25 @@ pub trait ImageCollectionIO {
     fn data(&self) -> &Vec<u8>;
     fn data_mut(&mut self) -> &mut Vec<u8>;
 
-    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, slicing: &ImageSlicingMethod, border: u32, space_between: u32)
-                      -> Result<(), Box<dyn std::error::Error>> {
-        let src = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
-        let src_data = src.as_raw();
+    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, options: &ImageLoadOptions) -> Result<(), Box<dyn std::error::Error>> {
+        let mut src = SrcImageReader::new(options.zoom_x, options.zoom_y, ::image::ImageReader::open(path)?.decode()?.to_rgba8());
 
-        let (nx, ny, width, height) = match *slicing {
+        let (nx, ny, width, height) = match options.slicing_method {
             ImageSlicingMethod::BySize { width, height } => {
-                let nx = (src.width() - 2*border + space_between) / (width + space_between);
-                let ny = (src.height() - 2*border + space_between) / (height + space_between);
+                let nx = (src.width() - 2*options.border + options.space_between) / (width + options.space_between);
+                let ny = (src.height() - 2*options.border + options.space_between) / (height + options.space_between);
                 (nx, ny, width, height)
             }
             ImageSlicingMethod::ByNumber { nx, ny } => {
                 let width = if nx <= 1 {
-                    src.width()  - 2*border
+                    src.width()  - 2*options.border
                 } else {
-                    (src.width()  - 2*border - (nx - 1) * space_between) / nx
+                    (src.width()  - 2*options.border - (nx - 1) * options.space_between) / nx
                 };
                 let height = if ny <= 1 {
-                    src.height() - 2*border
+                    src.height() - 2*options.border
                 } else {
-                    (src.height() - 2*border - (ny - 1) * space_between) / ny
+                    (src.height() - 2*options.border - (ny - 1) * options.space_between) / ny
                 };
                 (nx, ny, width, height)
             }
@@ -65,13 +127,14 @@ pub trait ImageCollectionIO {
             for ix in 0..nx {
                 let dst_off = ((iy * nx) + ix) * width * height;
                 for y in 0..height {
-                    let src_y = border + iy * (height + space_between) + y;
+                    let src_y = options.border + iy * (height + options.space_between) + y;
                     if src_y >= src.height() { continue; }
                     for x in 0..width {
-                        let src_x = border + ix * (width + space_between) + x;
+                        let src_x = options.border + ix * (width + options.space_between) + x;
                         if src_x >= src.width() { continue; }
-                        let src_off = (src_y * src.width() + src_x) as usize * 4;
-                        dst_data[(dst_off + y*width + x) as usize] = ImagePixels::rgba_to_pixel(&src_data[src_off..src_off+4]);
+                        //let src_off = (src_y * src.width() + src_x) as usize * 4;
+                        //dst_data[(dst_off + y*width + x) as usize] = ImagePixels::rgba_to_pixel(&src_data[src_off..src_off+4]);
+                        dst_data[(dst_off + y*width + x) as usize] = src.get_pixel(src_x, src_y);
                     }
                 }
             }
