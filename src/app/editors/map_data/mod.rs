@@ -178,6 +178,9 @@ impl Editor {
                     if ui.add_enabled(self.map_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
                         self.map_editor.undo(map_data);
                     }
+                    if ui.add_enabled(self.map_editor.can_redo(), menu_item(IMAGES.redo, " Redo")).clicked() {
+                        self.map_editor.redo(map_data);
+                    }
 
                     ui.separator();
 

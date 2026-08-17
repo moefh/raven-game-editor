@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use egui::{
     emath,
     Vec2,
@@ -184,11 +186,13 @@ pub struct MapEditorWidget {
     drag_frag_origin: Pos2,
     tool_changed: bool,
     edit_layer_changed: bool,
-    undo_target: Option<MapUndoData>,
+    undo_targets: VecDeque<MapUndoData>,
+    redo_targets: VecDeque<MapUndoData>,
     tool_mouse_down: bool,
 }
 
 impl MapEditorWidget {
+    const MAX_UNDO_TARGETS: usize = 32;
     const LIGHT_LAYER_TINT: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 96);
     const HEAVY_LAYER_TINT: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 128);
 
@@ -213,7 +217,8 @@ impl MapEditorWidget {
             drag_frag_origin: Pos2::ZERO,
             tool_changed: false,
             edit_layer_changed: false,
-            undo_target: None,
+            undo_targets: VecDeque::new(),
+            redo_targets: VecDeque::new(),
             tool_mouse_down: false,
         }
     }
@@ -221,16 +226,25 @@ impl MapEditorWidget {
     pub fn get_tile_planes(&mut self) -> Vec<&mut [u8]> {
         let mut ret = Vec::<&mut [u8]>::new();
         self.selection.get_tile_planes(&mut ret);
-        if let Some(undo) = &mut self.undo_target {
+        for undo in self.undo_targets.iter_mut() {
             ret.push(&mut undo.fg_tiles);
             ret.push(&mut undo.bg_tiles);
             ret.push(&mut undo.para_tiles);
+        }
+        for redo in self.redo_targets.iter_mut() {
+            ret.push(&mut redo.fg_tiles);
+            ret.push(&mut redo.bg_tiles);
+            ret.push(&mut redo.para_tiles);
         }
         ret
     }
 
     pub fn set_undo_target(&mut self, map_data: &MapData) {
-        self.undo_target = Some(MapUndoData::from_map(map_data));
+        self.redo_targets.clear();
+        if self.undo_targets.len() >= Self::MAX_UNDO_TARGETS {
+            self.undo_targets.pop_front();
+        }
+        self.undo_targets.push_back(MapUndoData::from_map(map_data));
     }
 
     pub fn set_edit_layer(&mut self, layer: MapLayer) {
@@ -537,12 +551,25 @@ impl MapEditorWidget {
     }
 
     pub fn can_undo(&self) -> bool {
-        self.undo_target.is_some()
+        ! self.undo_targets.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        ! self.redo_targets.is_empty()
     }
 
     pub fn undo(&mut self, map_data: &mut MapData) {
-        if let Some(undo_target) = self.undo_target.take() {
+        if let Some(undo_target) = self.undo_targets.pop_back() {
+            self.redo_targets.push_back(MapUndoData::from_map(map_data));
             undo_target.to_map(map_data);
+            self.selection = MapSelection::None;
+        }
+    }
+
+    pub fn redo(&mut self, map_data: &mut MapData) {
+        if let Some(redo_target) = self.redo_targets.pop_back() {
+            self.undo_targets.push_back(MapUndoData::from_map(map_data));
+            redo_target.to_map(map_data);
             self.selection = MapSelection::None;
         }
     }
@@ -632,6 +659,12 @@ impl MapEditorWidget {
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData) {
+        let ctrl_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL|egui::Modifiers::SHIFT, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&ctrl_shift_z)) {
+            self.redo(map_data);
+            return;
+        }
+
         let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
             self.undo(map_data);
