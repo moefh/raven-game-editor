@@ -2,10 +2,17 @@ use egui::{Sense, Color32, Vec2};
 
 const MIN_SAMPLES_PER_POINT: f32 = 0.125;
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum SfxTool {
+    Select,
+    SetLoop,
+}
+
 pub struct SfxEditorWidget {
     pub samples_per_point: f32,
     pub first_sample: f32,
     pub tool_mouse_down: bool,
+    pub tool: SfxTool,
 }
 
 impl SfxEditorWidget {
@@ -14,6 +21,7 @@ impl SfxEditorWidget {
             samples_per_point: 100.0,
             first_sample: 0.0,
             tool_mouse_down: false,
+            tool: SfxTool::Select,
         }
     }
 
@@ -21,6 +29,10 @@ impl SfxEditorWidget {
         self.samples_per_point = 100.0;
         self.first_sample = 0.0;
         self.tool_mouse_down = false;
+    }
+
+    pub fn set_tool(&mut self, tool: SfxTool) {
+        self.tool = tool;
     }
 
     fn get_marker_pos(&self, sample_index: f32) -> f32 {
@@ -185,10 +197,15 @@ impl SfxEditorWidget {
                     self.tool_mouse_down = true;
                 }
                 let pos = ((pointer_pos.x - canvas_rect.min.x) * self.samples_per_point + self.first_sample).floor();
-                if response.dragged_by(egui::PointerButton::Primary) {
-                    *loop_start = pos.clamp(0.0, samples.len() as f32) as u32;
-                } else if response.dragged_by(egui::PointerButton::Secondary) {
-                    *loop_end = pos.clamp((*loop_start) as f32, samples.len() as f32) as u32;
+                match self.tool {
+                    SfxTool::Select => {}
+                    SfxTool::SetLoop => {
+                        if response.dragged_by(egui::PointerButton::Primary) {
+                            *loop_start = pos.clamp(0.0, samples.len() as f32) as u32;
+                        } else if response.dragged_by(egui::PointerButton::Secondary) {
+                            *loop_end = pos.clamp((*loop_start) as f32, samples.len() as f32) as u32;
+                        }
+                    }
                 }
             }
     }

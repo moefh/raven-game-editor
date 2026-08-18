@@ -137,6 +137,8 @@ image_table! {
     error: "../../assets/ErrorImage.png",
     ok: "../../assets/OkImage.png",
     fit_zoom: "../../assets/FitZoom.png",
+    mouse: "../../assets/MouseIcon.png",
+    start_end: "../../assets/StartEndIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",

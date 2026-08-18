@@ -19,7 +19,10 @@ use super::{
     WindowContext,
     SysDialogResponse,
 };
-use super::widgets::SfxEditorWidget;
+use super::widgets::{
+    SfxTool,
+    SfxEditorWidget,
+};
 use super::super::menu_item;
 
 use properties::PropertiesDialog;
@@ -209,6 +212,25 @@ impl Editor {
                     });
                 } else {
                     ui.label("Sound playback not available :(");
+                }
+            });
+        });
+
+        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui.add(
+                    egui::Button::image(IMAGES.mouse)
+                        .selected(self.sfx_editor.tool == SfxTool::Select)
+                        .frame_when_inactive(self.sfx_editor.tool == SfxTool::Select)
+                ).on_hover_text("Select").clicked() {
+                    self.sfx_editor.set_tool(SfxTool::Select);
+                }
+                if ui.add(
+                    egui::Button::image(IMAGES.start_end)
+                        .selected(self.sfx_editor.tool == SfxTool::SetLoop)
+                        .frame_when_inactive(self.sfx_editor.tool == SfxTool::SetLoop)
+                ).on_hover_text("Set Loop Bounds").clicked() {
+                    self.sfx_editor.set_tool(SfxTool::SetLoop);
                 }
             });
         });

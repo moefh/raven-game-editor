@@ -25,7 +25,10 @@ use super::{
     WindowContext,
     SysDialogResponse,
 };
-use super::widgets::SfxEditorWidget;
+use super::widgets::{
+    SfxTool,
+    SfxEditorWidget,
+};
 use super::super::{
     menu_item,
     menu_item_no_image,
@@ -165,8 +168,14 @@ impl Editor {
         self.sfx_editor.reset();
     }
 
-    fn samples_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                   mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+    fn samples_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        mod_data: &mut ModData,
+        sound_player: &mut SoundPlayer
+    ) {
         egui::Panel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_size(160.0).show(ui, |ui| {
             let mut sample_name = String::new();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
@@ -198,6 +207,26 @@ impl Editor {
                             dialogs.export_sample_dialog.set_open(wc, mod_data, self.selected_sample, 22050, sample.bits_per_sample);
                         }
                     });
+                }
+            });
+        });
+
+        // sample toolbar
+        egui::Panel::top(format!("editor_panel_{}_sample_toolbar", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui.add(
+                    egui::Button::image(IMAGES.mouse)
+                        .selected(self.sfx_editor.tool == SfxTool::Select)
+                        .frame_when_inactive(self.sfx_editor.tool == SfxTool::Select)
+                ).on_hover_text("Select").clicked() {
+                    self.sfx_editor.set_tool(SfxTool::Select);
+                }
+                if ui.add(
+                    egui::Button::image(IMAGES.start_end)
+                        .selected(self.sfx_editor.tool == SfxTool::SetLoop)
+                        .frame_when_inactive(self.sfx_editor.tool == SfxTool::SetLoop)
+                ).on_hover_text("Set Loop Bounds").clicked() {
+                    self.sfx_editor.set_tool(SfxTool::SetLoop);
                 }
             });
         });
