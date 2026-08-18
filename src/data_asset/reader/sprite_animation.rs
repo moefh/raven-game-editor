@@ -62,7 +62,7 @@ pub fn build_loops(
             let check_index = src_offset + if use_foot_frames { 1 } else { 0 };
             if check_index >= all_frame_indices.len() {
                 return error(
-                    format!("invalid animation frame index: {} >= {}", check_index, all_frame_indices.len()),
+                    format!("invalid animation frame index in loop {}: {} >= {}", loop_index, check_index, all_frame_indices.len()),
                     frame_slices.pos
                 );
             }
