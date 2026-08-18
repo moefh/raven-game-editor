@@ -19,6 +19,7 @@ use super::{
     ImageZoomOption,
     AssetEditorBase,
     WindowContext,
+    SpriteFrameFixer,
 };
 use super::widgets::{
     ColorPickerWidget,
@@ -95,6 +96,12 @@ impl SpriteAnimationEditor {
     }
 }
 
+impl SpriteFrameFixer for SpriteAnimationEditor {
+    fn move_frame(&mut self, src_index: u32, dest_index: u32) {
+        self.editor.image_editor.move_frame_undo_history(src_index, dest_index);
+    }
+}
+
 struct Dialogs {
     properties_dialog: Option<PropertiesDialog>,
 }
@@ -106,8 +113,14 @@ impl Dialogs {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation,
-                sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>, editor: &mut Editor) {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        animation: &mut SpriteAnimation,
+        sprite_ids: &AssetIdList,
+        sprites: &mut AssetList<Sprite>,
+        editor: &mut Editor
+    ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
             dlg.show(wc, animation, sprite_ids, sprites);
         }

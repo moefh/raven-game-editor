@@ -24,6 +24,7 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    PalSpriteFrameFixer,
 };
 use super::widgets::{
     PalColorPickerWidget,
@@ -112,6 +113,12 @@ impl PalSpriteEditor {
     }
 }
 
+impl PalSpriteFrameFixer for PalSpriteEditor {
+    fn move_frame(&mut self, src_index: u32, dest_index: u32) {
+        self.editor.image_editor.move_frame_undo_history(src_index, dest_index);
+    }
+}
+
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_frames_dialog: AddFramesDialog,
@@ -133,41 +140,36 @@ impl Dialogs {
         }
     }
 
-    fn ensure_valid_selected_image(editor: &mut Editor, pal_sprite: &PalSprite, set_undo_target: bool) {
+    fn ensure_valid_selected_image(editor: &mut Editor, pal_sprite: &PalSprite) {
         if editor.image_editor.get_selected_image() >= pal_sprite.num_frames {
             let selected_image = pal_sprite.num_frames - 1;
             editor.image_picker.set_selected_image(Some(selected_image));
-            let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, pal_sprite);
-            if no_selection_change && set_undo_target {
-                editor.image_editor.set_undo_target(pal_sprite);
-            }
         }
     }
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, pal_sprite: &mut PalSprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
-            Self::ensure_valid_selected_image(editor, pal_sprite, false);
+            Self::ensure_valid_selected_image(editor, pal_sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
-            editor.image_editor.set_undo_target(pal_sprite);
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
-            Self::ensure_valid_selected_image(editor, pal_sprite, false);
+            Self::ensure_valid_selected_image(editor, pal_sprite);
         }
         if self.edit_pal_dialog.open && self.edit_pal_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
-            editor.image_editor.set_undo_target(pal_sprite);
-            Self::ensure_valid_selected_image(editor, pal_sprite, false);
+            Self::ensure_valid_selected_image(editor, pal_sprite);
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, pal_sprite);
         }
         if self.import_dialog.open && self.import_dialog.show(wc, pal_sprite) {
             Editor::reload_images(wc, pal_sprite);
-            Self::ensure_valid_selected_image(editor, pal_sprite, true);
+            Self::ensure_valid_selected_image(editor, pal_sprite);
+            editor.image_editor.clear_undo_history();
         }
     }
 }

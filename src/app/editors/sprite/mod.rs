@@ -24,6 +24,7 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SpriteFrameFixer,
 };
 use super::dialogs::CreateColorsetDialog;
 use super::widgets::{
@@ -104,6 +105,12 @@ impl SpriteEditor {
     }
 }
 
+impl SpriteFrameFixer for SpriteEditor {
+    fn move_frame(&mut self, src_index: u32, dest_index: u32) {
+        self.editor.image_editor.move_frame_undo_history(src_index, dest_index);
+    }
+}
+
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_frames_dialog: AddFramesDialog,
@@ -125,36 +132,32 @@ impl Dialogs {
         }
     }
 
-    fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite, set_undo_target: bool) {
+    fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite) {
         if editor.image_editor.get_selected_image() >= sprite.num_frames {
             let selected_image = sprite.num_frames - 1;
             editor.image_picker.set_selected_image(Some(selected_image));
-            let no_selection_change = ! editor.image_editor.set_selected_image(selected_image, sprite);
-            if no_selection_change && set_undo_target {
-                editor.image_editor.set_undo_target(sprite);
-            }
         }
     }
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, sprite: &mut Sprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite, false);
+            Self::ensure_valid_selected_image(editor, sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            editor.image_editor.set_undo_target(sprite);
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite, false);
+            Self::ensure_valid_selected_image(editor, sprite);
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, sprite);
         }
         if self.import_dialog.open && self.import_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite, true);
+            Self::ensure_valid_selected_image(editor, sprite);
+            editor.image_editor.clear_undo_history();
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, sprite) {
             editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
@@ -251,12 +254,20 @@ impl Editor {
                     ui.separator();
 
                     if ui.add(menu_item(IMAGES.add, " Insert frames...")).clicked() {
-                        dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Insert, self.image_editor.get_selected_image(),
-                                                           self.color_picker.state.right_color);
+                        dialogs.add_frames_dialog.set_open(
+                            wc,
+                            AddFramesAction::Insert,
+                            self.image_editor.get_selected_image(),
+                            self.color_picker.state.right_color
+                        );
                     }
                     if ui.add(menu_item(IMAGES.add, " Append frames...")).clicked() {
-                        dialogs.add_frames_dialog.set_open(wc, AddFramesAction::Append, self.image_editor.get_selected_image(),
-                                                           self.color_picker.state.right_color);
+                        dialogs.add_frames_dialog.set_open(
+                            wc,
+                            AddFramesAction::Append,
+                            self.image_editor.get_selected_image(),
+                            self.color_picker.state.right_color
+                        );
                     }
                     if ui.add(menu_item(IMAGES.trash, " Remove frames...")).clicked() {
                         dialogs.rm_frames_dialog.set_open(wc, sprite, self.image_editor.get_selected_image());

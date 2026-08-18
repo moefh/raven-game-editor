@@ -46,11 +46,13 @@ impl RemoveTilesDialog {
             let src_end = tileset.num_tiles as usize * tile_size;
             let dst_start = self.sel_tile as usize * tile_size;
             tileset.data.copy_within(src_start..src_end, dst_start);
-            if self.sel_tile <= u8::MAX as u32 && self.num_tiles <= u8::MAX as u32 {
-                wc.add_editor_action(EditorAction::FixMapsAfterTilesRemoved {
+            let num_tiles_after_hole = tileset.num_tiles - self.sel_tile;
+            if num_tiles_after_hole <= u8::MAX as u32 && self.sel_tile <= u8::MAX as u32 && self.num_tiles <= u8::MAX as u32 {
+                wc.add_editor_action(EditorAction::TilesetTilesRemoved {
                     tileset_id: tileset.asset.id,
-                    tile_index: self.sel_tile as u8,
-                    num_tiles: self.num_tiles as u8,
+                    hole_start: self.sel_tile as u8,
+                    hole_size: self.num_tiles as u8,
+                    num_tiles_after_hole: num_tiles_after_hole as u8,
                 });
             }
         }

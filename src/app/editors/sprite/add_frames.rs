@@ -4,6 +4,7 @@ use crate::data_asset::Sprite;
 use super::super::{
     AssetEditorBase,
     WindowContext,
+    EditorAction,
 };
 
 pub enum AddFramesAction {
@@ -45,16 +46,17 @@ impl AddFramesDialog {
         wc.set_dialog_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, sprite: &mut Sprite) {
+    fn confirm(&mut self, sprite: &mut Sprite, wc: &mut WindowContext) {
         let old_num_frames = sprite.num_frames;
         sprite.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, self.sel_color);
         if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < old_num_frames {
+            let num_frames_after_hole = old_num_frames - self.sel_frame;
             let src_top = self.sel_frame * sprite.height;
             let dst_top = (self.sel_frame + self.num_frames) * sprite.height;
             let row_len = sprite.width as usize;
             let mut src_row = vec![0; row_len];
             let mut dst_row = vec![0; row_len];
-            let num_copy_rows = (old_num_frames - self.sel_frame) * sprite.height;
+            let num_copy_rows = num_frames_after_hole * sprite.height;
             for y in (0..num_copy_rows).rev() {
                 let src = ((src_top + y) * sprite.width) as usize;
                 let dst = ((dst_top + y) * sprite.width) as usize;
@@ -63,6 +65,12 @@ impl AddFramesDialog {
                 sprite.data[src..src+row_len].copy_from_slice(&dst_row);
                 sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
+            wc.add_editor_action(EditorAction::SpriteFramesAdded {
+                sprite_id: sprite.asset.id,
+                hole_start: self.sel_frame,
+                hole_size: self.num_frames,
+                num_frames_after_hole,
+            });
         }
         self.image_changed = true;
     }
@@ -72,7 +80,7 @@ impl AddFramesDialog {
             AddFramesAction::Insert => { "Insert Frames" }
             AddFramesAction::Append => { "Append Frames" }
         };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_frames_grid", sprite.asset.id))
                     .num_columns(2)
@@ -89,7 +97,7 @@ impl AddFramesDialog {
                     ui.close();
                 }
                 if ui.button("Ok").clicked() {
-                    self.confirm(sprite);
+                    self.confirm(sprite, wc);
                     ui.close();
                 }
             });

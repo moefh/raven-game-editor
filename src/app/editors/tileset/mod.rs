@@ -116,6 +116,10 @@ impl MapTileFixer for TilesetEditor {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
         self.editor.tile_grid.get_tile_planes_mut()
     }
+
+    fn tile_moved(&mut self, src_index: u8, dst_index: u8) {
+        self.editor.tile_image_editor.move_frame_undo_history(src_index as u32, dst_index as u32);
+    }
 }
 
 struct Dialogs {
@@ -139,30 +143,23 @@ impl Dialogs {
        }
     }
 
-    fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset, set_undo_target: bool) {
+    fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset) {
         if editor.tile_image_editor.get_selected_image() >= tileset.num_tiles {
             let selected_image = tileset.num_tiles - 1;
             editor.tile_picker.set_selected_image(Some(selected_image));
-            let no_selection_change = ! editor.tile_image_editor.set_selected_image(selected_image, tileset);
-            if no_selection_change && set_undo_target {
-                editor.tile_image_editor.set_undo_target(tileset);
-            }
         }
     }
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
-            self.ensure_valid_selected_image(editor, tileset, false);
-            editor.tile_image_editor.set_undo_target(tileset);
+            self.ensure_valid_selected_image(editor, tileset);
             editor.tile_image_editor.set_image_changed();
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
-            editor.tile_image_editor.set_undo_target(tileset);
             editor.tile_image_editor.set_image_changed();
         }
         if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
-            self.ensure_valid_selected_image(editor, tileset, false);
-            editor.tile_image_editor.set_undo_target(tileset);
+            self.ensure_valid_selected_image(editor, tileset);
             editor.tile_image_editor.set_image_changed();
         }
         if self.export_dialog.open {
@@ -170,7 +167,8 @@ impl Dialogs {
             editor.tile_image_editor.set_image_changed();
         }
         if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
-            self.ensure_valid_selected_image(editor, tileset, true);
+            self.ensure_valid_selected_image(editor, tileset);
+            editor.tile_image_editor.clear_undo_history();
             editor.tile_image_editor.set_image_changed();
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, tileset) {
@@ -464,12 +462,20 @@ impl Editor {
                     ui.separator();
 
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Insert tiles...")).clicked() {
-                        dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Insert, self.tile_image_editor.get_selected_image(),
-                            self.color_picker.state.right_color);
+                        dialogs.add_tiles_dialog.set_open(
+                            wc,
+                            AddTilesAction::Insert,
+                            self.tile_image_editor.get_selected_image(),
+                            self.color_picker.state.right_color
+                        );
                     }
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Append tiles...")).clicked() {
-                        dialogs.add_tiles_dialog.set_open(wc, AddTilesAction::Append, self.tile_image_editor.get_selected_image(),
-                            self.color_picker.state.right_color);
+                        dialogs.add_tiles_dialog.set_open(
+                            wc,
+                            AddTilesAction::Append,
+                            self.tile_image_editor.get_selected_image(),
+                            self.color_picker.state.right_color
+                        );
                     }
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
                         dialogs.rm_tiles_dialog.set_open(wc, tileset, self.tile_image_editor.get_selected_image());

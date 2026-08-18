@@ -230,6 +230,20 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    pub fn clear_undo_history(&mut self) {
+        self.undo_targets.clear();
+        self.redo_targets.clear();
+    }
+
+    pub fn move_frame_undo_history(&mut self, src_index: u32, dest_index: u32) {
+        if let Some(undo_target) = self.undo_targets.remove(&src_index) {
+            self.undo_targets.insert(dest_index, undo_target);
+        }
+        if let Some(redo_target) = self.redo_targets.remove(&src_index) {
+            self.redo_targets.insert(dest_index, redo_target);
+        }
+    }
+
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
         if let ImageSelection::Fragment(_, frag) = &mut self.selection &&
             frag.pixels.force_palette(palette, color_to_palette_index_map) {

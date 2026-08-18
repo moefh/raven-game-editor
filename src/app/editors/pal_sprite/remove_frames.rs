@@ -4,6 +4,7 @@ use crate::data_asset::PalSprite;
 use super::super::{
     AssetEditorBase,
     WindowContext,
+    EditorAction,
 };
 
 pub struct RemoveFramesDialog {
@@ -38,7 +39,7 @@ impl RemoveFramesDialog {
         wc.set_dialog_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, pal_sprite: &mut PalSprite) {
+    fn confirm(&mut self, pal_sprite: &mut PalSprite, wc: &mut WindowContext) {
         if self.sel_frame + self.num_frames < pal_sprite.num_frames {
             let src_top = (self.sel_frame + self.num_frames) * pal_sprite.height;
             let dst_top = self.sel_frame * pal_sprite.height;
@@ -56,11 +57,19 @@ impl RemoveFramesDialog {
             }
         }
         pal_sprite.resize(pal_sprite.width, pal_sprite.height, pal_sprite.num_frames - self.num_frames, 0);
+        if self.sel_frame < pal_sprite.num_frames {
+            wc.add_editor_action(EditorAction::PalSpriteFramesRemoved {
+                pal_sprite_id: pal_sprite.asset.id,
+                hole_start: self.sel_frame,
+                hole_size: self.num_frames,
+                num_frames_after_hole: pal_sprite.num_frames - self.sel_frame,
+            });
+        }
         self.image_changed = true;
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Frames", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Frames", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_frames_grid", pal_sprite.asset.id))
                     .num_columns(2)
@@ -77,7 +86,7 @@ impl RemoveFramesDialog {
                     ui.close();
                 }
                 if ui.button("Ok").clicked() {
-                    self.confirm(pal_sprite);
+                    self.confirm(pal_sprite, wc);
                     ui.close();
                 }
             });

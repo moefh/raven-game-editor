@@ -4,6 +4,7 @@ use crate::data_asset::PalSprite;
 use super::super::{
     AssetEditorBase,
     WindowContext,
+    EditorAction,
 };
 
 pub enum AddFramesAction {
@@ -45,10 +46,11 @@ impl AddFramesDialog {
         wc.set_dialog_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, pal_sprite: &mut PalSprite) {
+    fn confirm(&mut self, pal_sprite: &mut PalSprite, wc: &mut WindowContext) {
         let old_num_frames = pal_sprite.num_frames;
         pal_sprite.resize(pal_sprite.width, pal_sprite.height, pal_sprite.num_frames + self.num_frames, self.sel_color);
         if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < old_num_frames {
+            let num_frames_after_hole = old_num_frames - self.sel_frame;
             let src_top = self.sel_frame * pal_sprite.height;
             let dst_top = (self.sel_frame + self.num_frames) * pal_sprite.height;
             let row_len = pal_sprite.width as usize;
@@ -63,6 +65,12 @@ impl AddFramesDialog {
                 pal_sprite.data[src..src+row_len].copy_from_slice(&dst_row);
                 pal_sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
             }
+            wc.add_editor_action(EditorAction::PalSpriteFramesAdded {
+                pal_sprite_id: pal_sprite.asset.id,
+                hole_start: self.sel_frame,
+                hole_size: self.num_frames,
+                num_frames_after_hole,
+            });
         }
         self.image_changed = true;
     }
@@ -72,7 +80,7 @@ impl AddFramesDialog {
             AddFramesAction::Insert => { "Insert Frames" }
             AddFramesAction::Append => { "Append Frames" }
         };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_frames_grid", pal_sprite.asset.id))
                     .num_columns(2)
@@ -89,7 +97,7 @@ impl AddFramesDialog {
                     ui.close();
                 }
                 if ui.button("Ok").clicked() {
-                    self.confirm(pal_sprite);
+                    self.confirm(pal_sprite, wc);
                     ui.close();
                 }
             });
