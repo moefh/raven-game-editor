@@ -3,7 +3,6 @@ mod properties;
 use crate::misc::IMAGES;
 use crate::image::{
     colors,
-    ImageCollection,
 };
 use crate::data_asset::{
     SpriteAnimation,
@@ -330,13 +329,12 @@ impl Editor {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
                 let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, self.selected_loop_frame);
-                let scroll = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
+                let (scroll, frame_size) = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
                 let num_frames = aloop.frame_indices.len();
                 if num_frames != 0 &&
                     let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
                     scroll.inner_rect.contains(pointer_pos) {
                         let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                        let frame_size = sprite.get_item_size();
                         self.selected_loop_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
                     }
             }
@@ -422,14 +420,13 @@ impl Editor {
             ui.add_space(5.0);
             ui.label("Sprite frames (drag to the lists below):");
             let view = SpriteFrameListView::new(&self.sprite_frames, 0, self.selected_sprite_frame);
-            let scroll = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
+            let (scroll, frame_size) = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
             let num_frames = self.sprite_frames.len();
             if num_frames != 0 &&
                 let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
                 scroll.inner_rect.contains(pointer_pos) &&
                 scroll.inner.drag_started() {
                     let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                    let frame_size = sprite.get_item_size();
                     self.selected_sprite_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
                     scroll.inner.dnd_set_drag_payload(FrameDragPayload::new(self.selected_sprite_frame));
                 }

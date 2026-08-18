@@ -25,6 +25,15 @@ impl<'a> SpriteFrameListView<'a> {
         }
     }
 
+    fn get_image_size(size: Vec2) -> Vec2 {
+        let zoom = if size.x > size.y {
+            64.0 / size.x
+        } else {
+            64.0 / size.y
+        };
+        zoom * size
+    }
+
     fn get_frame_rect(index: usize, y_offset: f32, image_size: Vec2, canvas_rect: Rect) -> Rect {
         Rect::from_min_size(canvas_rect.min + Vec2::new(index as f32 * image_size.x, y_offset), image_size)
     }
@@ -35,14 +44,15 @@ impl<'a> SpriteFrameListView<'a> {
         wc: &mut WindowContext,
         image: &impl ImageCollection,
         transparent_display: bool,
-    ) -> egui::scroll_area::ScrollAreaOutput<egui::Response> {
+    ) -> (egui::scroll_area::ScrollAreaOutput<egui::Response>, Vec2) {
         let slot = image.texture_slot(transparent_display, false);
         let texture = image.load_texture(wc.tex_man, wc.egui.ctx, slot, false);
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
-        egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
+        let mut frame_size = Vec2::ZERO;
+        let scroll_output = egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
             let use_foot_frames = self.frame_indices.iter().any(|f| f.foot_index.is_some());
             let foot_overlap = if use_foot_frames { self.foot_overlap as f32 } else { 0.0 };
-            let image_size = image.get_item_size();
+            let image_size = Self::get_image_size(image.get_item_size());
             let image_cell_size = Vec2::new(image_size.x, image_size.y * if use_foot_frames { 2.0 } else { 1.0 } - foot_overlap);
             let image_picker_size = Vec2::new(image_cell_size.x * self.frame_indices.len() as f32, image_cell_size.y);
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(ui.available_width(), 0.0));
@@ -80,7 +90,9 @@ impl<'a> SpriteFrameListView<'a> {
                 painter.rect_stroke(sel_in_rect, egui::CornerRadius::ZERO, in_stroke, egui::StrokeKind::Inside);
             }
 
+            frame_size = image_size;
             response
-        })
+        });
+        (scroll_output, frame_size)
     }
 }
