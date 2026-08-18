@@ -781,9 +781,13 @@ impl RavenEditorApp {
                                 header
                             }).inner
                         };
-                        let mut show_item = |ui: &mut egui::Ui, _folder: &widgets::AssetTreeContainer, asset_item: &widgets::AssetTreeItem| {
+                        let mut show_item = |ui: &mut egui::Ui, folder: &widgets::AssetTreeContainer, asset_item: &widgets::AssetTreeItem| {
                             ui.horizontal(|ui| {
-                                ui.add_space(18.0);
+                                if folder.level == 0 {
+                                    ui.add_space(20.0);
+                                } else {
+                                    ui.add_space(12.0);
+                                }
                                 let button = ui.button(&asset_item.name);
                                 if button.clicked() {
                                     item_action = AssetTreeAction::OpenEditor(asset_item.id);
