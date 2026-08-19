@@ -110,11 +110,11 @@ impl ImportDialog {
                         ui.end_row();
 
                         ui.label("Zoom X:");
-                        ui.add(egui::Slider::new(&mut self.load_options.zoom_x, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_x, 1..=256));
                         ui.end_row();
 
                         ui.label("Zoom Y:");
-                        ui.add(egui::Slider::new(&mut self.load_options.zoom_y, 0..=32));
+                        ui.add(egui::Slider::new(&mut self.load_options.zoom_y, 1..=256));
                         ui.end_row();
 
                         ui.label("Border:");
