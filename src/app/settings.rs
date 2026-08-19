@@ -1,43 +1,19 @@
 use std::io::{Result, Error};
-use std::path::PathBuf;
 
-use crate::image::{ColorSet, ColorSetCollection};
-use crate::data_asset::StringLogger;
-use crate::data_asset::{Tokenizer, Token, TokenData};
-
-const APP_ID: &str = "raven-game-editor";
-
-pub fn get_settings_dir() -> Option<PathBuf> {
-    use egui::os::OperatingSystem as OS;
-    match OS::from_target_os() {
-        OS::Nix => std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-            .or_else(|| std::env::home_dir().map(|p| p.join(".config")))
-            .map(|p| { p.join(APP_ID) }),
-        OS::Mac => std::env::home_dir().map(|p| {
-            p.join("Library").join("Preferences").join(APP_ID)
-        }),
-        OS::Windows => std::env::var_os("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .map(|p| p.join(APP_ID)),
-        _ => None,
-    }
-}
-
-pub fn write_settings_file(filename: impl AsRef<str>, content: &str) -> Result<()> {
-    let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
-    std::fs::create_dir_all(&dir)?;
-    let filename = dir.join(filename.as_ref());
-    std::fs::write(&filename, content)
-}
-
-pub fn read_settings_file(filename: impl AsRef<str>) -> Result<String> {
-    let dir = get_settings_dir().ok_or(Error::other("can't figure out config directory"))?;
-    std::fs::create_dir_all(&dir)?;
-    let filename = dir.join(filename.as_ref());
-    std::fs::read_to_string(&filename)
-}
+use crate::platform::{
+    read_settings_file,
+    write_settings_file,
+};
+use crate::image::{
+    ColorSet,
+    ColorSetCollection,
+};
+use crate::data_asset::{
+    StringLogger,
+    Tokenizer,
+    Token,
+    TokenData
+};
 
 pub struct AppSettings {
     pub theme: String,
@@ -67,8 +43,8 @@ impl AppSettings {
             image_bg_color: egui::Color32::from_rgb(0xe0, 0xff, 0xff),
             map_bg_color: egui::Color32::from_rgb(0x80, 0x20, 0x80),
             color_picker_bg_color: egui::Color32::from_rgb(0xe0, 0xe0, 0xe0),
-            image_grid_color: egui::Color32::BLACK,
-            map_grid_color: egui::Color32::BLACK,
+            image_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
+            map_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
             marching_ants_delay: 100,
             marching_ants_dash_size: 5,
             marching_ants_thickness: 3,

@@ -2,7 +2,7 @@ use std::io::Result;
 use std::path::{Path, PathBuf};
 use std::collections::HashSet;
 
-use super::settings::{
+use crate::platform::{
     read_settings_file,
     write_settings_file,
 };

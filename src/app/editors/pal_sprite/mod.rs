@@ -217,11 +217,11 @@ impl Editor {
     }
 
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, pal_sprite: &mut PalSprite) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_frame_dlg_id) {
-            let image = match ImagePixels::load_png(&filename) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_frame_dlg_id) {
+            let image = match file.read_data().and_then(|data| ImagePixels::load_png(&data)) {
                 Ok(img) => img,
                 Err(e) => {
-                    wc.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", filename.display(), e));
+                    wc.open_message_box("Error Loading Image", format!("Error loading {}:\n{}", file.filename(), e));
                     return;
                 }
             };

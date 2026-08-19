@@ -59,6 +59,7 @@ use crate::image::{
 pub use super::{
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
     AppWindowTracker,
     KeyboardPressed,
     DialogResult,

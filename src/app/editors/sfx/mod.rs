@@ -18,6 +18,7 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
 };
 use super::widgets::{
     SfxTool,
@@ -113,8 +114,8 @@ impl Editor {
         }
     }
 
-    fn import_wav(&mut self, wc: &mut WindowContext, filename: &std::path::Path, sfx: &mut Sfx) {
-        let result = wav_utils::WavFile::read(filename).and_then(|mut wav_file| {
+    fn import_wav(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, sfx: &mut Sfx) {
+        let result = file.read_data().and_then(|data| wav_utils::WavFile::read(&data)).and_then(|mut wav_file| {
             if wav_file.channels.is_empty() { return Err(Error::other("WAV with no channels!?")); }
             let samples = wav_file.channels.remove(0);
             sfx.len = samples.len() as u32;
@@ -126,15 +127,15 @@ impl Editor {
         });
 
         if let Err(e) = result {
-            wc.logger.log(format!("ERROR reading WAV file from {}:", filename.display()));
+            wc.logger.log(format!("ERROR reading WAV file from {}:", file.filename()));
             wc.logger.log(format!("{}", e));
             wc.open_message_box("Error importing Sfx", "Error importing WAV file.\n\nConsult the log window for more information.");
         }
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
-            self.import_wav(wc, &filename, sfx);
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_wav(wc, file, sfx);
         }
 
         let mut loop_start = sfx.loop_start;

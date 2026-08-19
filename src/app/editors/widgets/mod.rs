@@ -19,7 +19,7 @@ mod tile_grid_editor;
 use egui::{Vec2, Rect, Pos2};
 
 use crate::data_asset::MapData;
-use crate::misc::current_time_as_millis;
+use crate::platform::current_time_as_millis;
 
 use super::MapLayer;
 use super::super::AppSettings;

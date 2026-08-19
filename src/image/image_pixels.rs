@@ -75,8 +75,11 @@ impl ImagePixels {
         data
     }
 
-    pub fn load_png(path: impl AsRef<std::path::Path>) -> Result<ImagePixels, Box<dyn std::error::Error>> {
-        let img = ::image::ImageReader::open(path)?.decode()?.to_rgba8();
+    pub fn load_png(data: &[u8]) -> Result<ImagePixels, std::io::Error> {
+        let img = ::image::ImageReader::new(std::io::Cursor::new(data))
+            .with_guessed_format().map_err(|e| std::io::Error::other(e.to_string()))?
+            .decode().map_err(|e| std::io::Error::other(e.to_string()))?
+            .to_rgba8();
         Ok(ImagePixels {
             width: img.width(),
             height: img.height(),
@@ -84,7 +87,7 @@ impl ImagePixels {
         })
     }
 
-    pub fn save_prop_font_png(path: impl AsRef<std::path::Path>, pfont: &PropFont) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_prop_font_png(pfont: &PropFont) -> Result<Vec<u8>, std::io::Error> {
         let dst_char_width = pfont.char_widths.iter().max().ok_or(std::io::Error::other("invalid prop font char width")).copied()? as u32;
 
         let num_items_x = 16;
@@ -111,8 +114,11 @@ impl ImagePixels {
                 }
             }
         }
-        ::image::save_buffer_with_format(path, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)?;
-        Ok(())
+
+        let mut out = std::io::Cursor::new(Vec::new());
+        ::image::write_buffer_with_format(&mut out, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        Ok(out.into_inner())
     }
 }
 

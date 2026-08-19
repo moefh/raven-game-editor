@@ -1,5 +1,4 @@
 use std::io::{Result, Error};
-use std::path::Path;
 
 use crate::data_asset::{ModData, ModSample, ModCell};
 
@@ -164,10 +163,8 @@ impl ModFile {
         s
     }
 
-    pub fn read<P: AsRef<Path>>(filename: P) -> Result<ModFile> {
-        let data = std::fs::read(filename)?;
-
-        let mut r = super::reader::Reader::new(&data);
+    pub fn read(data: &[u8]) -> Result<ModFile> {
+        let mut r = super::reader::Reader::new(data);
 
         // read ID for num channels and num samples
         r.seek(1080)?;
@@ -271,10 +268,9 @@ impl ModFile {
         })
     }
 
-    pub fn write_mod_data<P: AsRef<Path>>(filename: P, mod_data: &ModData) -> Result<()> {
-        let title = filename.as_ref().file_prefix().map(|f| f.as_encoded_bytes()).unwrap_or_else(|| { &[] });
-        Self::write_mod(filename.as_ref(), &WriteModFile {
-            title,
+    pub fn write_mod_data(name: &str, mod_data: &ModData) -> Result<Vec<u8>> {
+        Self::write_mod(&WriteModFile {
+            title: name.as_bytes(),
             sample_names: &[],
             samples: &mod_data.samples,
             pattern: &mod_data.pattern,
@@ -283,8 +279,8 @@ impl ModFile {
         })
     }
 
-    pub fn write_mod_file<P: AsRef<Path>>(filename: P, mod_file: &ModFile) -> Result<()> {
-        Self::write_mod(filename.as_ref(), &WriteModFile {
+    pub fn write_mod_file(mod_file: &ModFile) -> Result<Vec<u8>> {
+        Self::write_mod(&WriteModFile {
             title: &mod_file.title,
             sample_names: &mod_file.sample_names,
             samples: &mod_file.samples,
@@ -294,7 +290,7 @@ impl ModFile {
         })
     }
 
-    fn write_mod(filename: &Path, mod_file: &WriteModFile) -> Result<()> {
+    fn write_mod(mod_file: &WriteModFile) -> Result<Vec<u8>> {
         let mut w = super::writer::Writer::new();
 
         // title and sample info
@@ -358,6 +354,6 @@ impl ModFile {
             }
         }
 
-        std::fs::write(filename, &w.data)
+        Ok(w.take_data())
     }
 }

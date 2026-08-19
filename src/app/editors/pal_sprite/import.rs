@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::image::{
     ImageCollectionIO,
     ImageSlicingMethod,
@@ -14,6 +12,7 @@ use super::super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
     ImageSlicingMethodOption,
 };
 
@@ -35,8 +34,6 @@ impl ImportPaletteOption {
 pub struct ImportDialog {
     pub open: bool,
     dlg_window_id: egui::Id,
-    filename: Option<PathBuf>,
-    display_filename: Option<String>,
     load_options: ImageLoadOptions,
     import_palette: ImportPaletteOption,
     palette_depth: PalSpriteDepth,
@@ -56,8 +53,6 @@ impl ImportDialog {
         ImportDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_pal_sprite_import"),
-            filename: None,
-            display_filename: None,
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_palette: ImportPaletteOption::GenerateNew,
             palette_depth: PalSpriteDepth::Bpp4,
@@ -66,13 +61,16 @@ impl ImportDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, pal_sprite: &PalSprite) {
-        self.filename = None;
-        self.display_filename = None;
         self.load_options =  Self::DEFAULT_LOAD_OPTIONS;
         self.import_palette = ImportPaletteOption::GenerateNew;
         self.palette_depth = PalSpriteDepth::Bpp4;
         self.import_sys_dlg_id.replace_range(.., &format!("editor_{}_import_pal_sprite", pal_sprite.asset.id));
         self.open = true;
+        wc.set_dialog_open(self.dlg_window_id, self.open);
+    }
+
+    fn close(&mut self, wc: &mut WindowContext) {
+        self.open = false;
         wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
@@ -107,33 +105,28 @@ impl ImportDialog {
         pal_sprite.force_palette();
     }
 
-    fn confirm(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
-        if let Some(filename) = &self.filename {
-            match pal_sprite.load_image_png(filename, &self.load_options) {
-                Ok(()) => {
-                    match self.import_palette {
-                        ImportPaletteOption::KeepCurrent => {
-                            pal_sprite.force_palette();
-                        }
-                        ImportPaletteOption::GenerateNew => {
-                            Self::generate_palette(pal_sprite, self.palette_depth);
-                        }
+    fn confirm(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
+        match file.read_data().and_then(|data| pal_sprite.load_image_png(&data, &self.load_options)) {
+            Ok(()) => {
+                match self.import_palette {
+                    ImportPaletteOption::KeepCurrent => {
+                        pal_sprite.force_palette();
                     }
-                    true
+                    ImportPaletteOption::GenerateNew => {
+                        Self::generate_palette(pal_sprite, self.palette_depth);
+                    }
                 }
-                Err(e) => {
-                    wc.logger.log(format!("ERROR reading file from {}:", filename.display()));
-                    wc.logger.log(format!("{}", e));
-                    wc.open_message_box(
-                        "Error importing sprite",
-                        "Error importing sprite file.\n\nConsult the log window for more information."
-                    );
-                    false
-                }
+                true
             }
-        } else {
-            wc.open_message_box("Filename Needed", "You need to select a filename to import.");
-            false
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box(
+                    "Error importing sprite",
+                    "Error importing sprite file.\n\nConsult the log window for more information."
+                );
+                false
+            }
         }
     }
 
@@ -147,52 +140,34 @@ impl ImportDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
         if ! self.open { return false; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
-            self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
-            self.filename = Some(filename);
-        }
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) &&
+            self.confirm(file, wc, pal_sprite) {
+                self.close(wc);
+                return true;
+            }
 
-        let mut confirmed = false;
         if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 450.0, "Import Paletted Sprite", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_import_grid", pal_sprite.asset.id))
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
-                        ui.label("File name:");
-                        ui.horizontal(|ui| {
-                            if let Some(display_filename) = &self.display_filename {
-                                ui.add(egui::Label::new(display_filename).truncate());
-                            } else {
-                                ui.label("");
-                            }
-                            if ui.button("...").clicked() {
-                                wc.sys_dialogs.open_file(
-                                    Some(wc.egui.window),
-                                    self.import_sys_dlg_id.clone(),
-                                    "pal_sprite",
-                                    "Import Paletted Sprite",
-                                    &[
-                                        ("PNG files (*.png)", &["png"]),
-                                        ("All files (*.*)", &["*"]),
-                                    ]
-                                );
-                            }
-                        });
-                        ui.end_row();
-
                         ui.label("Slice image:");
                         let mut slicing_option = ImageSlicingMethodOption::from_slicing_method(&self.load_options.slicing_method);
                         egui::ComboBox::from_id_salt(format!("editor_{}_import_combo_slicing", pal_sprite.asset.id))
                             .selected_text(slicing_option.text())
                             .width(50.0)
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut slicing_option,
-                                                    ImageSlicingMethodOption::BySize,
-                                                    ImageSlicingMethodOption::BySize.text());
-                                ui.selectable_value(&mut slicing_option,
-                                                    ImageSlicingMethodOption::ByNumber,
-                                                    ImageSlicingMethodOption::ByNumber.text());
+                                ui.selectable_value(
+                                    &mut slicing_option,
+                                    ImageSlicingMethodOption::BySize,
+                                    ImageSlicingMethodOption::BySize.text()
+                                );
+                                ui.selectable_value(
+                                    &mut slicing_option,
+                                    ImageSlicingMethodOption::ByNumber,
+                                    ImageSlicingMethodOption::ByNumber.text()
+                                );
                             });
                         ui.end_row();
                         match slicing_option {
@@ -244,12 +219,16 @@ impl ImportDialog {
                                 .selected_text(self.import_palette.text())
                                 .width(50.0)
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut self.import_palette,
-                                                        ImportPaletteOption::GenerateNew,
-                                                        ImportPaletteOption::GenerateNew.text());
-                                    ui.selectable_value(&mut self.import_palette,
-                                                        ImportPaletteOption::KeepCurrent,
-                                                        ImportPaletteOption::KeepCurrent.text());
+                                    ui.selectable_value(
+                                        &mut self.import_palette,
+                                        ImportPaletteOption::GenerateNew,
+                                        ImportPaletteOption::GenerateNew.text()
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.import_palette,
+                                        ImportPaletteOption::KeepCurrent,
+                                        ImportPaletteOption::KeepCurrent.text()
+                                    );
                                 });
                             ui.scope_builder(Self::visibility_ui_builder(self.import_palette == ImportPaletteOption::GenerateNew), |ui| {
                                 egui::ComboBox::from_id_salt(format!("editor_{}_import_depth_combo", pal_sprite.asset.id))
@@ -268,18 +247,25 @@ impl ImportDialog {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui.button("Cancel").clicked() {
-                    ui.close();
+                if ui.button("Open File").clicked() {
+                    wc.sys_dialogs.open_file(
+                        Some(wc.egui.window),
+                        self.import_sys_dlg_id.clone(),
+                        "pal_sprite",
+                        "Import Paletted Sprite",
+                        &[
+                            ("PNG files (*.png)", &["png"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
                 }
-                if ui.button("Ok").clicked() && self.confirm(wc, pal_sprite) {
-                    confirmed = true;
+                if ui.button("Cancel").clicked() {
                     ui.close();
                 }
             });
         }).should_close() {
-            self.open = false;
-            wc.set_dialog_open(self.dlg_window_id, self.open);
+            self.close(wc);
         }
-        confirmed
+        false
     }
 }

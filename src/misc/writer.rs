@@ -10,6 +10,10 @@ impl Writer {
         }
     }
 
+    pub fn take_data(self) -> Vec<u8> {
+        self.data
+    }
+
     pub fn write_u8(&mut self, v: u8) {
         self.data.push(v);
     }

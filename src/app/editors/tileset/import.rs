@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::image::{
     ImageCollectionIO,
     ImageSlicingMethod,
@@ -11,14 +9,13 @@ use super::super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
 };
 
 pub struct ImportDialog {
     pub open: bool,
     pub dlg_window_id: egui::Id,
     pub import_tileset_sys_dlg_id: String,
-    pub filename: Option<PathBuf>,
-    pub display_filename: Option<String>,
     pub load_options: ImageLoadOptions,
 }
 
@@ -35,80 +32,51 @@ impl ImportDialog {
         ImportDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_tileset_import"),
-            filename: None,
-            display_filename: None,
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_tileset_sys_dlg_id: String::new(),
         }
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset) {
-        self.filename = None;
-        self.display_filename = None;
         self.load_options = Self::DEFAULT_LOAD_OPTIONS;
         self.import_tileset_sys_dlg_id.replace_range(.., &format!("editor_{}_import_tileset", tileset.asset.id));
         self.open = true;
         wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
-    fn confirm(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if let Some(filename) = &self.filename {
-            match tileset.load_image_png(filename, &self.load_options) {
-                Ok(()) => {
-                    true
-                }
-                Err(e) => {
-                    wc.logger.log(format!("ERROR reading file from {}:", filename.display()));
-                    wc.logger.log(format!("{}", e));
-                    wc.open_message_box(
-                        "Error importing tileset",
-                        "Error importing tileset file.\n\nConsult the log window for more information."
-                    );
-                    false
-                }
-            }
-        } else {
-            wc.open_message_box("Filename Needed", "You need to select a filename to import.");
+    fn close(&mut self, wc: &mut WindowContext) {
+        self.open = false;
+        wc.set_dialog_open(self.dlg_window_id, self.open);
+    }
+
+    fn confirm(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
+        if let Err(e) = file.read_data().and_then(|data| tileset.load_image_png(&data, &self.load_options)) {
+            wc.logger.log(format!("ERROR reading file from {}:", file.filename()));
+            wc.logger.log(format!("{}", e));
+            wc.open_message_box(
+                "Error importing tileset",
+                "Error importing tileset file.\n\nConsult the log window for more information."
+            );
             false
+        } else {
+            true
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if ! self.open { return false; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_tileset_sys_dlg_id) {
-            self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
-            self.filename = Some(filename);
-        }
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_tileset_sys_dlg_id) &&
+            self.confirm(file, wc, tileset) {
+                self.close(wc);
+                return true;
+            }
 
-        let mut confirmed = false;
         if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Import Tileset", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_import_grid", tileset.asset.id))
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
-                        ui.label("File name:");
-                        ui.horizontal(|ui| {
-                            if let Some(display_filename) = &self.display_filename {
-                                ui.add(egui::Label::new(display_filename).truncate());
-                            } else {
-                                ui.label("");
-                            }
-                            if ui.button("...").clicked() {
-                                wc.sys_dialogs.open_file(
-                                    Some(wc.egui.window),
-                                    self.import_tileset_sys_dlg_id.clone(),
-                                    "tileset",
-                                    "Import Tileset",
-                                    &[
-                                        ("PNG files (*.png)", &["png"]),
-                                        ("All files (*.*)", &["*"]),
-                                    ]
-                                );
-                            }
-                        });
-                        ui.end_row();
-
                         ui.label("Zoom X:");
                         ui.add(egui::Slider::new(&mut self.load_options.zoom_x, 1..=256));
                         ui.end_row();
@@ -128,18 +96,25 @@ impl ImportDialog {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui.button("Cancel").clicked() {
-                    ui.close();
+                if ui.button("Open File").clicked() {
+                    wc.sys_dialogs.open_file(
+                        Some(wc.egui.window),
+                        self.import_tileset_sys_dlg_id.clone(),
+                        "tileset",
+                        "Import Tileset",
+                        &[
+                            ("PNG files (*.png)", &["png"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
                 }
-                if ui.button("Ok").clicked() && self.confirm(wc, tileset) {
-                    confirmed = true;
+                if ui.button("Cancel").clicked() {
                     ui.close();
                 }
             });
         }).should_close() {
-            self.open = false;
-            wc.set_dialog_open(self.dlg_window_id, self.open);
+            self.close(wc);
         }
-        confirmed
+        false
     }
 }

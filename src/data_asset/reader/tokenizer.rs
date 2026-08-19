@@ -130,6 +130,7 @@ impl Token {
         }
     }
 
+    #[allow(unused)]
     pub fn take_ident(self) -> Option<String> {
         match self.data {
             TokenData::Ident(s) => Some(s),

@@ -1,0 +1,7 @@
+[build]
+dist = "dist"
+public_url = "/raven-game-editor"
+filehash = false
+
+[serve]
+port = 9090

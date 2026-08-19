@@ -2,8 +2,51 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use super::PathLibrary;
+use super::path_library::PathLibrary;
 use crate::data_asset::StringLogger;
+
+pub struct SysDialogOpenFile {
+    path: PathBuf,
+    filename: String,
+}
+
+impl SysDialogOpenFile {
+    pub fn create(path: &Path) -> Option<Self> {
+        Some(Self::new(path.to_owned()))
+    }
+
+    fn new(path: PathBuf) -> Self {
+        let filename = String::from(path.to_string_lossy());
+        SysDialogOpenFile {
+            path,
+            filename,
+        }
+    }
+
+    pub fn filename(&self) -> &str {
+        &self.filename
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        Some(&self.path)
+    }
+
+    pub fn read_data(&self) -> Result<Vec<u8>, std::io::Error> {
+        std::fs::read(&self.path)
+    }
+
+    pub fn read_string(&self) -> Result<String, std::io::Error> {
+        std::fs::read_to_string(&self.path)
+    }
+
+    pub fn write_data(&self, data: Vec<u8>) -> Result<(), std::io::Error> {
+        std::fs::write(&self.path, &data)
+    }
+
+    pub fn write_string(&self, string: String) -> Result<(), std::io::Error> {
+        std::fs::write(&self.path, string.into_bytes())
+    }
+}
 
 pub struct PathLibraryEntry {
     path_id: String,
@@ -25,7 +68,7 @@ impl PathLibraryEntry {
 
 pub enum SysDialogResponse {
     Cancel,
-    File(std::path::PathBuf),
+    File(SysDialogOpenFile),
 }
 
 struct SysDialogResponseData {
@@ -58,7 +101,7 @@ impl SysDialogRequest {
                 if let Some(dir) = file.parent() {
                     path_entry.set(dir);
                 }
-                Some(SysDialogResponse::File(file))
+                Some(SysDialogResponse::File(SysDialogOpenFile::new(file)))
             }
             None => Some(SysDialogResponse::Cancel),
         };
@@ -73,7 +116,7 @@ impl SysDialogRequest {
                 if let Some(dir) = file.parent() {
                     path_entry.set(dir);
                 }
-                Some(SysDialogResponse::File(file))
+                Some(SysDialogResponse::File(SysDialogOpenFile::new(file)))
             }
             None => Some(SysDialogResponse::Cancel),
         };
@@ -146,8 +189,14 @@ impl SysDialogs {
         response
     }
 
-    pub fn open_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
-                     path_id: &str, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn open_file(
+        &mut self,
+        window: Option<&eframe::Frame>,
+        request_id: String,
+        path_id: &str,
+        title: &str,
+        filters: &[(&str, &[&str])]
+    ) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
@@ -170,8 +219,14 @@ impl SysDialogs {
         true
     }
 
-    pub fn save_file(&mut self, window: Option<&eframe::Frame>, request_id: String,
-                     path_id: &str, title: &str, filters: &[(&str, &[&str])]) -> bool {
+    pub fn save_file(
+        &mut self,
+        window: Option<&eframe::Frame>,
+        request_id: String,
+        path_id: &str,
+        title: &str,
+        filters: &[(&str, &[&str])]
+    ) -> bool {
         if self.request.is_some() { return false; }
 
         let mut file_dialog = rfd::FileDialog::new().set_title(title);

@@ -3,21 +3,21 @@ use std::result::Result;
 pub mod player;
 
 // use no_sound if it's selected or if no other sound is selected
-#[cfg(any(feature="no_sound", not(any(feature = "cpal_sound", feature="soloud_sound"))))]
+#[cfg(any(target_arch="wasm32", feature="no_sound", not(any(feature = "cpal_sound", feature="soloud_sound"))))]
 mod sound_impl {
     mod no_sound;
     pub use no_sound::SoundPlayerImpl;
 }
 
 // use soloud if it's selected and no_sound is not (we prefer soloud over cpal because cpal is the default)
-#[cfg(all(feature = "soloud_sound", not(feature = "no_sound")))]
+#[cfg(all(feature = "soloud_sound", not(feature = "no_sound"), not(target_arch="wasm32")))]
 mod sound_impl {
     mod soloud_sound;
     pub use soloud_sound::SoundPlayerImpl;
 }
 
 // use cpal if it's selected and no other sound is selected (that's the default)
-#[cfg(all(feature = "cpal_sound", not(feature = "soloud_sound"), not(feature="no_sound")))]
+#[cfg(all(feature = "cpal_sound", not(feature = "soloud_sound"), not(feature="no_sound"), not(target_arch="wasm32")))]
 mod sound_impl {
     mod cpal_sound;
     pub use cpal_sound::SoundPlayerImpl;

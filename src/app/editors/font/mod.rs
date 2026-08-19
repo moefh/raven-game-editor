@@ -305,9 +305,9 @@ impl Editor {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, font: &mut Font) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
-            let Err(e) = font.save_font_png(&filename, 16) {
-                wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", filename.display(), e));
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
+            let Err(e) = font.save_font_png(16).and_then(|data| file.write_data(data)) {
+                wc.open_message_box("Error Exporting", format!("Error exporting font to {}:\n{}", file.filename(), e));
             }
 
         self.show_menubar(ui, wc, dialogs, font);

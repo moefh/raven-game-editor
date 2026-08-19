@@ -1,5 +1,15 @@
-use super::{colors, ImagePixels, ImagePixelsCollection};
-use crate::data_asset::{Tileset, Sprite, PalSprite, Font, PropFont};
+use super::{
+    colors,
+    ImagePixels,
+    ImagePixelsCollection,
+};
+use crate::data_asset::{
+    Tileset,
+    Sprite,
+    PalSprite,
+    Font,
+    PropFont,
+};
 
 pub struct ImageLoadOptions {
     pub slicing_method: ImageSlicingMethod,
@@ -90,8 +100,12 @@ pub trait ImageCollectionIO {
     fn data(&self) -> &Vec<u8>;
     fn data_mut(&mut self) -> &mut Vec<u8>;
 
-    fn load_image_png(&mut self, path: impl AsRef<std::path::Path>, options: &ImageLoadOptions) -> Result<(), Box<dyn std::error::Error>> {
-        let mut src = SrcImageReader::new(options.zoom_x, options.zoom_y, ::image::ImageReader::open(path)?.decode()?.to_rgba8());
+    fn load_image_png(&mut self, data: &[u8], options: &ImageLoadOptions) -> Result<(), std::io::Error> {
+        let image = ::image::ImageReader::new(std::io::Cursor::new(data))
+            .with_guessed_format().map_err(|e| std::io::Error::other(e.to_string()))?
+            .decode().map_err(|e| std::io::Error::other(e.to_string()))?
+            .to_rgba8();
+        let mut src = SrcImageReader::new(options.zoom_x, options.zoom_y, image);
 
         let (nx, ny, width, height) = match options.slicing_method {
             ImageSlicingMethod::BySize { width, height } => {
@@ -145,11 +159,11 @@ pub trait ImageCollectionIO {
         Ok(())
     }
 
-    fn save_image_png(&self, path: impl AsRef<std::path::Path>, num_items_x: u32) -> Result<(), Box<dyn std::error::Error>> {
-        self.save_png(path, num_items_x, ImagePixels::pixel_to_rgba)
+    fn save_image_png(&self, num_items_x: u32) -> Result<Vec<u8>, std::io::Error> {
+        self.save_png(num_items_x, ImagePixels::pixel_to_rgba)
     }
 
-    fn save_font_png(&self, path: impl AsRef<std::path::Path>, num_items_x: u32) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_font_png(&self, num_items_x: u32) -> Result<Vec<u8>, std::io::Error> {
         fn conv_pixel(pixel: u8) -> [u8; 4] {
             if pixel == Font::BG_COLOR {
                 [0, 0xff, 0, 0xff]
@@ -157,11 +171,13 @@ pub trait ImageCollectionIO {
                 [0, 0, 0, 0xff]
             }
         }
-        self.save_png(path, num_items_x, conv_pixel)
+        self.save_png(num_items_x, conv_pixel)
     }
 
-    fn save_png<F: Fn(u8) -> [u8; 4]>(&self, path: impl AsRef<std::path::Path>, num_items_x: u32, conv_pixel: F)
-                                      -> Result<(), Box<dyn std::error::Error>> {
+    fn save_png<F: Fn(u8) -> [u8; 4]>(
+        &self,
+        num_items_x: u32, conv_pixel: F
+    ) -> Result<Vec<u8>, std::io::Error> {
         if num_items_x > self.num_items() {
             Err(std::io::Error::other(format!("invalid horizontal size: {}", num_items_x)))?;
         }
@@ -190,8 +206,11 @@ pub trait ImageCollectionIO {
                 }
             }
         }
-        ::image::save_buffer_with_format(path, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)?;
-        Ok(())
+
+        let mut out = std::io::Cursor::new(Vec::new());
+        ::image::write_buffer_with_format(&mut out, &dst, dst_w, dst_h, ::image::ExtendedColorType::Rgba8, ::image::ImageFormat::Png)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        Ok(out.into_inner())
     }
 }
 

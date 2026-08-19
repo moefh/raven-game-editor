@@ -1,5 +1,4 @@
 use std::io::{Result, Error};
-use std::path::Path;
 
 const WAV_FORMAT_PCM: u16 = 1;
 
@@ -22,10 +21,8 @@ impl WavFile {
         Ok((val * 32767.0).clamp(i16::MIN as f32, i16::MAX as f32) as i16)
     }
 
-    pub fn read(filename: &Path) -> Result<Self> {
-        let data = std::fs::read(filename)?;
-
-        let mut r = super::reader::Reader::new(&data);
+    pub fn read(data: &[u8]) -> Result<Self> {
+        let mut r = super::reader::Reader::new(data);
 
         if r.read_byte_vec(4)? != b"RIFF" { return Err(Error::other("invalid file format")); }
         r.read_u32_le()?;  // file size - 8
@@ -95,7 +92,7 @@ impl WavFile {
         }
     }
 
-    pub fn write(filename: &Path, sample_rate: u32, bits_per_sample: u16, samples: &[i16]) -> Result<()> {
+    pub fn write(sample_rate: u32, bits_per_sample: u16, samples: &[i16]) -> Result<Vec<u8>> {
         if bits_per_sample != 8 && bits_per_sample != 16 {
             return Err(Error::other(format!("unsupported bits per sample value: {}", bits_per_sample)));
         }
@@ -129,6 +126,6 @@ impl WavFile {
             }
         }
 
-        std::fs::write(filename, &w.data)
+        Ok(w.take_data())
     }
 }

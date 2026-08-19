@@ -13,8 +13,7 @@ mod reader;
 mod writer;
 mod header_def;
 
-use std::{fmt, fs, io};
-use std::path::Path;
+use std::{fmt, io};
 use std::collections::HashMap;
 
 pub use reader::tokenizer::{
@@ -483,14 +482,12 @@ impl DataAssetStore {
         }
     }
 
-    pub fn read_file<P: AsRef<Path>>(filename: P, logger: &mut StringLogger) -> Result<Self, io::Error> {
-        fs::read_to_string(filename).and_then(|file_content| {
-            reader::ProjectDataReader::read_from_string(&file_content, logger)
-        })
+    pub fn read_from_string(file_content: &str, logger: &mut StringLogger) -> Result<Self, io::Error> {
+        reader::ProjectDataReader::read_from_string(file_content, logger)
     }
 
-    pub fn write_to_file<P: AsRef<Path>>(&self, filename: P, logger: &mut StringLogger) -> Result<(), io::Error> {
-        writer::ProjectDataWriter::write_to_file(filename, self, logger)
+    pub fn write_to_string(&self, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::ProjectDataWriter::write_to_string(self, logger)
     }
 
     fn gen_id(&mut self) -> DataAssetId {

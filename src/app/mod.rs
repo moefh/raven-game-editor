@@ -4,7 +4,6 @@ mod dialogs;
 mod windows;
 mod editors;
 mod settings;
-mod path_library;
 mod recent_projects;
 pub mod checker;
 pub mod widgets;
@@ -47,6 +46,7 @@ pub use context::{
 pub use sys_dialogs::{
     SysDialogs,
     SysDialogResponse,
+    SysDialogOpenFile,
 };
 pub use dialogs::{
     AppDialogs,
@@ -57,7 +57,6 @@ pub use windows::{
     AppWindowAction,
 };
 pub use settings::AppSettings;
-pub use path_library::PathLibrary;
 
 enum ConfirmationDialogAction {
     NewProject,
@@ -80,10 +79,11 @@ pub enum AssetTreeAction {
 }
 
 pub struct RavenEditorApp {
+    is_wasm: bool,
     reset_egui_context: bool,
     store: DataAssetStore,
-    filename: Option<std::path::PathBuf>,
-    filename_changed: bool,
+    path: Option<std::path::PathBuf>,
+    path_changed: bool,
     logger: StringLogger,
     sys_dialogs: SysDialogs,
     dialogs: AppDialogs,
@@ -108,14 +108,15 @@ impl RavenEditorApp {
     const EXPORT_HEADER_SYS_DLG_ID: &str = "export_header";
     const ASSET_TREE_PANEL_WIDTH: f32 = 200.0;
 
-    pub fn new(cc: &eframe::CreationContext<'_>, logger: StringLogger, settings: AppSettings) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, is_wasm: bool, logger: StringLogger, settings: AppSettings) -> Self {
         let mut app = RavenEditorApp {
+            is_wasm,
             logger,
             settings,
             reset_egui_context: false,
             store: DataAssetStore::new(),
-            filename: None,
-            filename_changed: true,
+            path: None,
+            path_changed: true,
             sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
             editors: EditorStore::new(),
@@ -192,14 +193,14 @@ impl RavenEditorApp {
         self.windows.run_check(&self.store);
     }
 
-    pub fn export_header(&mut self, path: &std::path::Path) -> bool {
-        match crate::data_asset::write_header_def(path, &self.store.project_prefix) {
+    pub fn export_header(&mut self, file: SysDialogOpenFile) -> bool {
+        match crate::data_asset::write_header_def(&self.store.project_prefix).and_then(|content| file.write_string(content)) {
             Ok(()) => {
-                self.logger.log(format!("Exported header to {}", path.display()));
+                self.logger.log(format!("Exported header to {}", file.filename()));
                 true
             }
             Err(e) => {
-                self.logger.log(format!("ERROR writing header content to {}:\n{}", path.display(), e));
+                self.logger.log(format!("ERROR writing header content to {}:\n{}", file.filename(), e));
                 self.open_message_box(
                     "Error Exportint Header",
                     "Error exporting header.\n\nConsult the log window for details."
@@ -210,17 +211,19 @@ impl RavenEditorApp {
         }
     }
 
-    pub fn open(&mut self, path: std::path::PathBuf) {
-        if let Some(dir) = path.parent() {
+    pub fn open(&mut self, file: SysDialogOpenFile) {
+        if let Some(path) = file.path() && let Some(dir) = path.parent() {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
-        self.logger.log(format!("READING FILE {}", path.display()));
-        match DataAssetStore::read_file(&path, &mut self.logger) {
+        self.logger.log(format!("READING FILE {}", file.filename()));
+        match file.read_string().and_then(|content| DataAssetStore::read_from_string(&content, &mut self.logger)) {
             Ok(store) => {
                 self.logger.log("DONE: project read");
                 self.load_project(store);
-                self.recent_projects.add(&path);
-                self.set_filename(Some(path));
+                if let Some(path) = file.path() {
+                    self.recent_projects.add(path);
+                    self.set_path(Some(path.to_owned()));
+                }
             },
             Err(e) => {
                 self.logger.log(format!("ERROR: {}", e));
@@ -277,13 +280,15 @@ impl RavenEditorApp {
         }
     }
 
-    fn write_project(&mut self, path: &std::path::Path) -> bool {
-        self.logger.log(format!("WRITING PROJECT to {}", path.display()));
+    fn write_project(&mut self, file: SysDialogOpenFile) -> bool {
+        self.logger.log(format!("WRITING PROJECT to {}", file.filename()));
         self.prepare_for_saving();
-        match self.store.write_to_file(path, &mut self.logger) {
+        match self.store.write_to_string(&mut self.logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
-                self.logger.log(format!("DONE: project saved to {}", path.display()));
-                self.recent_projects.add(path);
+                self.logger.log(format!("DONE: project saved to {}", file.filename()));
+                if let Some(path) = file.path() {
+                    self.recent_projects.add(path);
+                }
                 self.editors.clear_dirty_flags(&self.store);
                 true
             }
@@ -304,7 +309,7 @@ impl RavenEditorApp {
             Some(window),
             Self::SAVE_PROJECT_SYS_DLG_ID.to_owned(),
             "project",
-            "Save Project As",
+            if self.is_wasm { "Save Project" } else { "Save Project As" },
             &[
                 ("Raven project files (*.h)", &["h"]),
                 ("All files (*.*)", &["*"]),
@@ -313,15 +318,16 @@ impl RavenEditorApp {
     }
 
     pub fn save(&mut self, window: &eframe::Frame) {
-        match &self.filename {
-            Some(p) => { self.write_project(&p.clone()); }
-            None => { self.save_as(window); }
+        if let Some(path) = &self.path && let Some(file) = SysDialogOpenFile::create(path) {
+            self.write_project(file);
+        } else {
+            self.save_as(window);
         }
     }
 
     fn new_project(&mut self) {
         self.load_project(crate::data_asset::DataAssetStore::new());
-        self.set_filename(None);
+        self.set_path(None);
     }
 
     fn load_project(&mut self, store: DataAssetStore) {
@@ -335,9 +341,9 @@ impl RavenEditorApp {
         self.reset_egui_context = true;
     }
 
-    fn set_filename(&mut self, filename: Option<std::path::PathBuf>) {
-        self.filename = filename;
-        self.filename_changed = true;
+    fn set_path(&mut self, path: Option<std::path::PathBuf>) {
+        self.path = path;
+        self.path_changed = true;
     }
 
     fn make_unique_asset_name(&self, asset_type: DataAssetType, name: &str, force_number: bool) -> String {
@@ -591,7 +597,7 @@ impl RavenEditorApp {
             if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
-            let run_check_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F5);
+            let run_check_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::F2);
             if ui.input_mut(|i| i.consume_shortcut(&run_check_shortcut)) {
                 self.run_project_check(ui.ctx());
             }
@@ -618,24 +624,32 @@ impl RavenEditorApp {
                             ]
                         );
                     };
-                    ui.add_enabled_ui(self.recent_projects.num_files() > 0, |ui| {
-                        let mut selected_project = None;
-                        menu_item_no_image_with_submenu(" Open Recent", ui, |ui| {
-                            for (index, path) in self.recent_projects.files().enumerate() {
-                                if ui.button(path.to_string_lossy()).clicked() {
-                                    selected_project = Some(index);
+                    if self.is_wasm {
+                        if ui.add(menu_item(IMAGES.save, " Save As...")).clicked() {
+                            self.save_as(window);
+                        }
+                    } else {
+                        ui.add_enabled_ui(self.recent_projects.num_files() > 0, |ui| {
+                            let mut selected_project = None;
+                            menu_item_no_image_with_submenu(" Open Recent", ui, |ui| {
+                                for (index, path) in self.recent_projects.files().enumerate() {
+                                    if ui.button(path.to_string_lossy()).clicked() {
+                                        selected_project = Some(index);
+                                    }
                                 }
+                            });
+                            if let Some(index) = selected_project &&
+                            let Some(path) = self.recent_projects.file(index) &&
+                            let Some(file) = SysDialogOpenFile::create(path) {
+                                self.open(file);
                             }
                         });
-                        if let Some(index) = selected_project && let Some(filename) = self.recent_projects.file(index) {
-                            self.open(filename.clone());
+                        if ui.add(menu_item(IMAGES.save, " Save")).clicked() {
+                            self.save(window);
                         }
-                    });
-                    if ui.add(menu_item(IMAGES.save, " Save")).clicked() {
-                        self.save(window);
-                    }
-                    if ui.add(menu_item_no_image(" Save As...")).clicked() {
-                        self.save_as(window);
+                        if ui.add(menu_item_no_image(" Save As...")).clicked() {
+                            self.save_as(window);
+                        }
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.properties, " Settings")).clicked() {
@@ -643,7 +657,14 @@ impl RavenEditorApp {
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.chicken, " Quit")).clicked() {
-                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                        if self.is_wasm {
+                            self.open_message_box(
+                                "Nope",
+                                "You can't quit the Web, silly :)"
+                            );
+                        } else {
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
                     }
                 });
                 ui.menu_button("Project", |ui| {
@@ -709,7 +730,8 @@ impl RavenEditorApp {
                         ]
                     );
                 }
-                if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text("Save Project (Ctrl+S)").clicked() {
+                let save_label = if self.is_wasm { "Save Project" } else { "Save Project (Ctrl+S)" };
+                if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text(save_label).clicked() {
                     self.save(window);
                 }
 
@@ -727,7 +749,7 @@ impl RavenEditorApp {
 
                 let check_is_open = self.windows.collection.check.base.open;
                 let check_button = egui::Button::image_and_text(IMAGES.ok, "Check").selected(check_is_open).frame_when_inactive(check_is_open);
-                if ui.add(check_button).on_hover_text("Run Project Check (F5)").clicked() {
+                if ui.add(check_button).on_hover_text("Run Project Check (F2)").clicked() {
                     self.run_project_check(ui.ctx());
                 }
 
@@ -995,15 +1017,17 @@ impl eframe::App for RavenEditorApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::SAVE_PROJECT_SYS_DLG_ID) &&
-            self.write_project(&filename) {
-                self.set_filename(Some(filename));
+        if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::SAVE_PROJECT_SYS_DLG_ID) {
+            let path = file.path().map(|path| path.to_owned());
+            if self.write_project(file) {
+                self.set_path(path);
             }
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::OPEN_PROJECT_SYS_DLG_ID) {
-            self.open(filename);
         }
-        if let Some(SysDialogResponse::File(filename)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
-            self.export_header(&filename);
+        if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::OPEN_PROJECT_SYS_DLG_ID) {
+            self.open(file);
+        }
+        if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
+            self.export_header(file);
         }
 
         if self.reset_egui_context {
@@ -1013,8 +1037,8 @@ impl eframe::App for RavenEditorApp {
             });
             self.reset_egui_context = false;
         }
-        if self.filename_changed {
-            let title = match &self.filename {
+        if self.path_changed {
+            let title = match &self.path {
                 Some(path) => match path.as_path().file_name() {
                     Some(filename) => format!("[{}] - Raven Game Editor", filename.display()).to_string(),
                     None => "[???] - Raven Game Editor".to_owned(),
@@ -1022,7 +1046,7 @@ impl eframe::App for RavenEditorApp {
                 None => "<unnamed> - Raven Game Editor".to_owned()
             };
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
-            self.filename_changed = false;
+            self.path_changed = false;
         }
 
         self.editors.update_dirty_flags(&self.store);

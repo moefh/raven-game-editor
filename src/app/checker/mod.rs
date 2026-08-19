@@ -8,18 +8,20 @@ mod room;
 mod world;
 
 use std::collections::BTreeMap;
-use std::sync::LazyLock;
 
 pub const SCREEN_WIDTH: u32 = 320;
 pub const SCREEN_HEIGHT: u32 = 240;
 
-static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(|| {
-    time::format_description::parse_borrowed::<3>("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap()
-});
+use crate::platform::current_time_as_string;
+use crate::data_asset::{
+    DataAssetStore,
+    DataAssetId,
+};
 
-use crate::data_asset::{DataAssetStore, DataAssetId};
-
-pub use asset_problem::{AssetProblem, MapLayer};
+pub use asset_problem::{
+    AssetProblem,
+    MapLayer,
+};
 
 pub struct MergedSample {
     pub saved_size: usize,
@@ -43,11 +45,7 @@ pub struct CheckResult {
 
 impl CheckResult {
     pub fn check_project(store: &DataAssetStore) -> Self {
-        let timestamp = if let Ok(now) = time::OffsetDateTime::now_local() && let Ok(timestamp) = now.format(&TIMESTAMP_FORMAT) {
-            timestamp
-        } else {
-            "<unknown time>".to_owned()
-        };
+        let timestamp = current_time_as_string();
 
         let mut asset_problems = BTreeMap::new();
         tileset::check_tilesets(&mut asset_problems, store);

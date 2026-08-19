@@ -14,10 +14,3 @@ pub fn calc_hash(h: &impl std::hash::Hash) -> u64 {
     h.hash(&mut hasher);
     hasher.finish()
 }
-
-pub fn current_time_as_millis() -> u64 {
-    use std::time::{SystemTime, Duration, UNIX_EPOCH};
-    let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO);
-    since_the_epoch.as_millis() as u64
-}

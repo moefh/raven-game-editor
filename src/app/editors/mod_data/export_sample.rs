@@ -1,11 +1,10 @@
-use std::path::PathBuf;
-
 use crate::misc::wav_utils;
 use crate::data_asset::ModData;
 use super::super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
 };
 
 const ALLOWED_SAMPLE_RATES: &[u32] = &[ 8000, 11025, 22050, 44100 ];
@@ -15,8 +14,6 @@ pub struct ExportSampleDialog {
     pub open: bool,
     pub dlg_window_id: egui::Id,
     pub sample_index: usize,
-    pub filename: Option<PathBuf>,
-    pub display_filename: Option<String>,
     pub sample_rate: u32,
     pub bits_per_sample: u16,
     pub export_sys_dlg_id: String,
@@ -28,8 +25,6 @@ impl ExportSampleDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_mod_sample_export"),
             sample_index: 0,
-            filename: None,
-            display_filename: None,
             bits_per_sample: 0,
             sample_rate: 0,
             export_sys_dlg_id: String::new(),
@@ -37,9 +32,7 @@ impl ExportSampleDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, mod_data: &ModData, sample_index: usize, sample_rate: u32, bits_per_sample: u16) {
-        self.filename = None;
         self.sample_index = sample_index;
-        self.display_filename = None;
         self.bits_per_sample = bits_per_sample;
         self.sample_rate = sample_rate;
         self.export_sys_dlg_id.replace_range(.., &format!("editor_{}_export_mod_sample", mod_data.asset.id));
@@ -47,29 +40,37 @@ impl ExportSampleDialog {
         wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
-    fn confirm(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) -> bool {
-        if let Some(filename) = &self.filename {
-            if let Some(sample) = mod_data.samples.get(self.sample_index) &&
-                let Some(sample_data) = &sample.data &&
-                let Err(e) = wav_utils::WavFile::write(filename, self.sample_rate, self.bits_per_sample, sample_data) {
-                    wc.logger.log(format!("ERROR writing WAVE file to {}:", filename.display()));
+    fn close(&mut self, wc: &mut WindowContext) {
+        self.open = false;
+        wc.set_dialog_open(self.dlg_window_id, self.open);
+    }
+
+    fn confirm(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext, mod_data: &mut ModData) -> bool {
+        if let Some(sample) = mod_data.samples.get(self.sample_index) && let Some(sample_data) = &sample.data {
+            if let Err(e) = wav_utils::WavFile::write(self.sample_rate, self.bits_per_sample, sample_data)
+                .and_then(|data| file.write_data(data)) {
+                    wc.logger.log(format!("ERROR writing WAVE file to {}:", file.filename()));
                     wc.logger.log(format!("{}", e));
-                    wc.open_message_box("Error Writing Sample",
-                                        "Error exporting WAVE file.\n\nConsult the log window for more information.");
+                    wc.open_message_box(
+                        "Error Writing Sample",
+                        "Error exporting WAVE file.\n\nConsult the log window for more information."
+                    );
+                    false
+                } else {
+                    true
                 }
-            true
         } else {
-            wc.open_message_box("Filename Needed", "You need to select a filename to export.");
             false
         }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) {
         if ! self.open { return; }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) {
-            self.display_filename = Some(filename.as_path().file_name().map(|f| f.display().to_string()).unwrap_or("?".to_owned()));
-            self.filename = Some(filename);
-        }
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
+            self.confirm(file, wc, mod_data) {
+                self.close(wc);
+                return;
+            }
 
         if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Export MOD Sample", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
@@ -77,28 +78,6 @@ impl ExportSampleDialog {
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
-                        ui.label("File name:");
-                        ui.horizontal(|ui| {
-                            if let Some(display_filename) = &self.display_filename {
-                                ui.add(egui::Label::new(display_filename).truncate());
-                            } else {
-                                ui.label("");
-                            }
-                            if ui.button("...").clicked() {
-                                wc.sys_dialogs.save_file(
-                                    Some(wc.egui.window),
-                                    self.export_sys_dlg_id.clone(),
-                                    "mod",
-                                    "Export MOD Sample",
-                                    &[
-                                        ("WAVE files (*.wav)", &["wav"]),
-                                        ("All files (*.*)", &["*"]),
-                                    ]
-                                );
-                            }
-                        });
-                        ui.end_row();
-
                         ui.label("Sample rate:");
                         ui.horizontal(|ui| {
                             egui::ComboBox::from_id_salt(format!("editor_{}_export_mod_sample_rate", mod_data.asset.id))
@@ -127,16 +106,24 @@ impl ExportSampleDialog {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui.button("Cancel").clicked() {
-                    ui.close();
+                if ui.button("Save File").clicked() {
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        self.export_sys_dlg_id.clone(),
+                        "mod",
+                        "Export MOD Sample",
+                        &[
+                            ("WAVE files (*.wav)", &["wav"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
                 }
-                if ui.button("Ok").clicked() && self.confirm(wc, mod_data) {
+                if ui.button("Cancel").clicked() {
                     ui.close();
                 }
             });
         }).should_close() {
-            self.open = false;
-            wc.set_dialog_open(self.dlg_window_id, self.open);
+            self.close(wc);
         }
     }
 }

@@ -25,6 +25,7 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    SysDialogOpenFile,
 };
 use super::widgets::{
     SfxTool,
@@ -477,8 +478,8 @@ impl Editor {
         });
     }
 
-    fn import_mod(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &mut ModData) {
-        match mod_utils::ModFile::read(filename) {
+    fn import_mod(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, mod_data: &mut ModData) {
+        match file.read_data().and_then(|data| mod_utils::ModFile::read(&data)) {
             Ok(mod_file) => {
                 mod_data.samples = mod_file.samples;
                 mod_data.pattern = mod_file.pattern;
@@ -487,23 +488,23 @@ impl Editor {
             }
 
             Err(e) => {
-                wc.logger.log(format!("ERROR reading MOD file from {}:", filename.display()));
+                wc.logger.log(format!("ERROR reading MOD file from {}:", file.filename()));
                 wc.logger.log(format!("{}", e));
                 wc.open_message_box("Error importing MOD", "Error importing MOD file.\n\nConsult the log window for more information.");
             }
         }
     }
 
-    fn export_mod(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &ModData) {
-        if let Err(e) = mod_utils::ModFile::write_mod_data(filename, mod_data) {
-            wc.logger.log(format!("ERROR writing MOD file to {}:", filename.display()));
+    fn export_mod(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, mod_data: &ModData) {
+        if let Err(e) = mod_utils::ModFile::write_mod_data(file.filename(), mod_data).and_then(|data| file.write_data(data)) {
+            wc.logger.log(format!("ERROR writing MOD file to {}:", file.filename()));
             wc.logger.log(format!("{}", e));
             wc.open_message_box("Error exporting MOD", "Error exporting MOD file.\n\nConsult the log window for more information.");
         }
     }
 
-    fn import_sample(&mut self, wc: &mut WindowContext, filename: &std::path::Path, mod_data: &mut ModData) {
-        let result = wav_utils::WavFile::read(filename).and_then(|mut wav_file| {
+    fn import_sample(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, mod_data: &mut ModData) {
+        let result = file.read_data().and_then(|data| wav_utils::WavFile::read(&data)).and_then(|mut wav_file| {
             if wav_file.channels.is_empty() { return Err(Error::other("WAV with no channels!?")); }
             let wav_sample = wav_file.channels.remove(0);
             let sample = mod_data.samples.get_mut(self.selected_sample)
@@ -520,7 +521,7 @@ impl Editor {
         });
 
         if let Err(e) = result {
-            wc.logger.log(format!("ERROR reading WAVE file from {}:", filename.display()));
+            wc.logger.log(format!("ERROR reading WAVE file from {}:", file.filename()));
             wc.logger.log(format!("{}", e));
             wc.open_message_box("Error importing sample", "Error importing WAVE file.\n\nConsult the log window for more information.");
         }
@@ -534,14 +535,14 @@ impl Editor {
         mod_data: &mut ModData,
         sound_player: &mut SoundPlayer
     ) {
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_sample_sys_dlg_id) {
-            self.import_sample(wc, &filename, mod_data);
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sample_sys_dlg_id) {
+            self.import_sample(wc, file, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.import_mod_sys_dlg_id) {
-            self.import_mod(wc, &filename, mod_data);
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_mod_sys_dlg_id) {
+            self.import_mod(wc, file, mod_data);
         }
-        if let Some(SysDialogResponse::File(filename)) = wc.sys_dialogs.get_response_for(&self.export_mod_sys_dlg_id) {
-            self.export_mod(wc, &filename, mod_data);
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.export_mod_sys_dlg_id) {
+            self.export_mod(wc, file, mod_data);
         }
 
         // header:

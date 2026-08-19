@@ -281,7 +281,7 @@ impl regex::Replacer for &VarReplacer {
     }
 }
 
-pub fn write_header_def(filename: impl AsRef<std::path::Path>, prefix: &str) -> std::io::Result<()> {
+pub fn write_header_def(prefix: &str) -> std::io::Result<String> {
     let mut repl = VarReplacer::new();
 
     let mut prefix_lower = String::from(prefix);
@@ -293,5 +293,5 @@ pub fn write_header_def(filename: impl AsRef<std::path::Path>, prefix: &str) -> 
     repl.add_var("PREFIX", prefix_upper);
 
     let header = repl.replace(&HEADER_TEMPLATE[1..]);  // remove initial newline
-    std::fs::write(filename, &header)
+    Ok(header)
 }
