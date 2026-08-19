@@ -235,10 +235,25 @@ impl Editor {
             });
         });
 
+        egui::Panel::bottom(format!("editor_panel_{}_sfx_footer", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if let Some(selection) = self.sfx_editor.selection && selection.start < selection.end {
+                    ui.label(format!("Selection: {} -> {} (len: {})", selection.start, selection.end, selection.end - selection.start));
+                } else {
+                    ui.label("No selection");
+                }
+            });
+        });
+
         // body:
         egui::CentralPanel::default().show(ui, |ui| {
             self.sfx_editor.show(ui, &sfx.samples, &mut loop_start, &mut loop_end, 0.0);
         });
+
+        // handle keyboard
+        if wc.is_editor_on_top(self.asset_id) {
+            self.sfx_editor.handle_keyboard(ui, &mut sfx.samples, &mut loop_start, &mut loop_end);
+        }
 
         sfx.loop_start = loop_start;
         sfx.loop_len = loop_end.saturating_sub(loop_start);

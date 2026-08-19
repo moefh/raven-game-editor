@@ -16,6 +16,7 @@ use crate::misc::{
 use crate::sound::SoundPlayer;
 use crate::data_asset::{
     ModData,
+    ModSample,
     DataAssetId,
     GenericAsset,
 };
@@ -28,6 +29,7 @@ use super::{
 use super::widgets::{
     SfxTool,
     SfxEditorWidget,
+    SfxEditorAction,
 };
 use super::super::{
     menu_item,
@@ -85,7 +87,7 @@ impl ModDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
-        self.base.show_window(wc, mod_data, [610.0, 340.0], [610.0, 350.0], |ui, wc, mod_data, base| {
+        self.base.show_window(wc, mod_data, [610.0, 380.0], [610.0, 400.0], |ui, wc, mod_data, base| {
             Self::show_footer(ui, wc, mod_data, base);
             self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
         });
@@ -166,6 +168,18 @@ impl Editor {
     fn select_sample(&mut self, selected_sample: usize) {
         self.selected_sample = selected_sample;
         self.sfx_editor.reset();
+    }
+
+    fn handle_sfx_action(&mut self, action: SfxEditorAction, sample: &mut ModSample) {
+        match action {
+            SfxEditorAction::Select => {}
+            SfxEditorAction::Delete => {
+                if let Some(data) = &sample.data {
+                    sample.len = data.len().min(u32::MAX as usize) as u32;
+                }
+            }
+            SfxEditorAction::None => {}
+        }
     }
 
     fn samples_tab(
@@ -303,13 +317,37 @@ impl Editor {
             }
         });
 
+        // selection label
+        egui::Panel::bottom(format!("editor_panel_{}_sfx_footer", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if let Some(selection) = self.sfx_editor.selection && selection.start < selection.end {
+                    ui.label(format!("Selection: {} -> {} (len: {})", selection.start, selection.end, selection.end - selection.start));
+                } else {
+                    ui.label("No selection");
+                }
+            });
+        });
+
         // wave display
         egui::CentralPanel::default().show(ui, |ui| {
             if let Some(sample) = mod_data.samples.get_mut(self.selected_sample) {
-                let sample_data = if let Some(data) = &sample.data { &data[..] } else { &[] };
-                let mut loop_end = sample.loop_start + sample.loop_len;
-                self.sfx_editor.show(ui, sample_data, &mut sample.loop_start, &mut loop_end, 0.0);
-                sample.loop_len = loop_end.saturating_sub(sample.loop_start)
+                let sfx_action = if let Some(sample_data) = &mut sample.data {
+                    let mut loop_end = sample.loop_start + sample.loop_len;
+                    self.sfx_editor.show(ui, sample_data, &mut sample.loop_start, &mut loop_end, 0.0);
+                    let sfx_action = if wc.is_editor_on_top(self.asset_id) {
+                        self.sfx_editor.handle_keyboard(ui, sample_data, &mut sample.loop_start, &mut loop_end)
+                    } else {
+                        SfxEditorAction::None
+                    };
+                    sample.loop_len = loop_end.saturating_sub(sample.loop_start);
+                    sfx_action
+                } else {
+                    let mut loop_start = 0;
+                    let mut loop_end = 0;
+                    self.sfx_editor.show(ui, &Vec::new(), &mut loop_start, &mut loop_end, 0.0);
+                    SfxEditorAction::None
+                };
+                self.handle_sfx_action(sfx_action, sample);
             }
         });
     }
