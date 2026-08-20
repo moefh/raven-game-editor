@@ -2,6 +2,7 @@
 dist = "dist"
 public_url = "/raven-game-editor"
 filehash = false
+target = "wasm/index.html"
 
 [serve]
 port = 9090
