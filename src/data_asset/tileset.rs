@@ -9,16 +9,15 @@ pub struct Tileset {
 
 impl Tileset {
     pub const TILE_SIZE: u32 = 16;
-    pub const EMPTY_COLOR: u8 = 0xff;
+    pub const EMPTY_COLOR: u8 = 0;
 
     pub fn new(id: super::DataAssetId, name: String) -> Self {
-        let num_tiles = 10;
         Tileset {
             asset: super::DataAsset::new(super::DataAssetType::Tileset, id, name),
             width: Self::TILE_SIZE,
             height: Self::TILE_SIZE,
-            num_tiles,
-            data: vec![Self::EMPTY_COLOR; (Self::TILE_SIZE*Self::TILE_SIZE*num_tiles) as usize],
+            num_tiles: 1,
+            data: vec![Self::EMPTY_COLOR; (Self::TILE_SIZE * Self::TILE_SIZE) as usize],
         }
     }
 }

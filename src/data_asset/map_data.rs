@@ -17,7 +17,7 @@ impl MapData {
 
     pub fn new(id: super::DataAssetId, name: String, tileset_id: super::DataAssetId) -> Self {
         let width = 24;
-        let height = 24;
+        let height = 18;
         let para_width = 0;
         let para_height = 0;
         MapData {

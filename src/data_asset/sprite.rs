@@ -9,12 +9,12 @@ pub struct Sprite {
 
 impl Sprite {
     pub const MIRROR_FRAMES: bool = true;
-    pub const EMPTY_COLOR: u8 = 0xff;
+    pub const EMPTY_COLOR: u8 = 0;
 
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let width = 32;
         let height = 32;
-        let num_frames = 8;
+        let num_frames = 1;
         Sprite {
             asset: super::DataAsset::new(super::DataAssetType::Sprite, id, name),
             width,
