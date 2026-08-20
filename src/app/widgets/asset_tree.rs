@@ -284,7 +284,7 @@ impl StoreAssetTree {
         let mut id_generator = AssetTreeNodeIdGenerator::new();
         let mut roots = HashMap::new();
         for def in ASSET_DEFS {
-            let tree = AssetTreeContainer::new(id_generator.generate_id(), format!(" {}", def.tree_root_item), 0);
+            let tree = AssetTreeContainer::new(id_generator.generate_id(), def.tree_root_item.to_owned(), 0);
             roots.insert(def.asset_type, tree);
         }
         StoreAssetTree {

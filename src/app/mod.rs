@@ -784,7 +784,7 @@ impl RavenEditorApp {
                         let mut show_folder = |ui: &mut egui::Ui, folder: &widgets::AssetTreeContainer| -> egui::Response {
                             ui.horizontal(|ui| {
                                 let button = if folder.level == 0 {
-                                    egui::Button::image_and_text(include_ref_image!(asset_def.image), &folder.name)
+                                    egui::Button::image_and_text(include_ref_image!(asset_def.image), &folder.name).gap(8.0)
                                 } else {
                                     egui::Button::new(&folder.name)
                                 };
@@ -806,9 +806,7 @@ impl RavenEditorApp {
                         let mut show_item = |ui: &mut egui::Ui, folder: &widgets::AssetTreeContainer, asset_item: &widgets::AssetTreeItem| {
                             ui.horizontal(|ui| {
                                 if folder.level == 0 {
-                                    ui.add_space(20.0);
-                                } else {
-                                    ui.add_space(12.0);
+                                    ui.add_space(6.0);
                                 }
                                 let button = ui.button(&asset_item.name);
                                 if button.clicked() {

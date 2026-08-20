@@ -86,7 +86,7 @@ impl MapDataEditor {
         self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
 
         let min_size = egui::Vec2::new(600.0, 200.0);
-        let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32) * Tileset::TILE_SIZE as f32;
+        let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32 * 1.2) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
         self.base.show_window(wc, map_data, min_size, def_size, |ui, wc, map_data, base| {
