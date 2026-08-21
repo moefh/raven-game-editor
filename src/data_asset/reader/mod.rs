@@ -132,9 +132,9 @@ impl ProjectData {
     }
 
     pub fn extract_asset_name<'a>(&self, array_prefix: &str, value_name: &'a ValueName) -> Result<&'a str> {
-        if value_name.name.starts_with(&self.prefix_lower) &&
-            value_name.name[self.prefix_lower.len() ..].starts_with(array_prefix) {
-                Ok(&value_name.name[self.prefix_lower.len() + array_prefix.len() ..])
+        if let Some(no_prefix) = value_name.name.strip_prefix(&self.prefix_lower) &&
+            let Some(no_array_prefix) = no_prefix.strip_prefix(array_prefix) {
+                Ok(no_array_prefix)
             } else {
                 error(format!("invalid name: '{}'", value_name.name), value_name.pos)
             }
@@ -299,24 +299,8 @@ impl<'a> ProjectDataReader<'a> {
     // === VALUE PARSER
     // =========================================================
 
-    fn strip_upper_prefix(&self, ident: &'a str) -> Option<&'a str> {
-        if ident.starts_with(&self.data.prefix_upper) {
-            Some(&ident[self.data.prefix_upper.len()..])
-        } else {
-            None
-        }
-    }
-
-    fn strip_lower_prefix(&self, ident: &'a str) -> Option<&'a str> {
-        if ident.starts_with(&self.data.prefix_lower) {
-            Some(&ident[self.data.prefix_lower.len()..])
-        } else {
-            None
-        }
-    }
-
     fn get_struct_def(&self, struct_name: &str, table: &'a HashMap<String,ValueDefStruct>) -> Option<&'a ValueDefStruct> {
-        if let Some(name) = self.strip_upper_prefix(struct_name) {
+        if let Some(name) = struct_name.strip_prefix(&self.data.prefix_upper) {
             table.get(name)
         } else {
             None
@@ -557,7 +541,7 @@ impl<'a> ProjectDataReader<'a> {
                 // read struct arrays of known assets
                 self.read_asset_array(struct_def)?;
                 return Ok(());
-            } else if let Some(prefixless_tag) = self.strip_upper_prefix(&struct_tag) {
+            } else if let Some(prefixless_tag) = struct_tag.strip_prefix(&self.data.prefix_upper) {
                 // read custom structs
                 for custom_reader in CUSTOM_GLOBAL_STRUCT_READERS {
                     if custom_reader(self, prefixless_tag)? {
@@ -650,7 +634,7 @@ impl<'a> ProjectDataReader<'a> {
         for (name, (asset_structs, pos)) in self.data.assets.iter() {
             let ids: Vec<DataAssetId> = (0..asset_structs.len()).map(|_| id_generator.gen_id()).collect();
             self.data.asset_ids_by_prefixed_name.insert(name.to_owned(), ids.clone());
-            let unprefixed_name = self.strip_lower_prefix(name).ok_or_else(|| {
+            let unprefixed_name = name.strip_prefix(&self.data.prefix_lower).ok_or_else(|| {
                 err(format!("invalid asset array name: {}", name), *pos)
             })?;
             self.data.asset_ids.insert(unprefixed_name.to_owned(), ids);
@@ -661,7 +645,7 @@ impl<'a> ProjectDataReader<'a> {
         let mut asset_ids = AssetIdCollection::new();
         let image_converter = ImageConverter::new(self.data.vga_bits_per_pixel);
         for (name, (asset_structs, data_pos)) in self.data.assets.iter() {
-            if let Some(name) = self.strip_lower_prefix(name) && let Some(asset_ids_of_type) = self.data.asset_ids.get(name) {
+            if let Some(name) = name.strip_prefix(&self.data.prefix_lower) && let Some(asset_ids_of_type) = self.data.asset_ids.get(name) {
                 for (index, asset_struct) in asset_structs.iter().enumerate() {
                     match name {
                         "tilesets" => {

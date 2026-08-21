@@ -61,7 +61,7 @@ impl ImagePixels {
 
     pub fn rgb_image_to_pixels(image: ::image::RgbImage) -> Vec<u8> {
         let mut data = Vec::with_capacity((image.width() * image.height()) as usize);
-        for pixel in image.as_raw().chunks_exact(3) {
+        for pixel in image.as_raw().as_chunks::<3>().0 {
             data.push(Self::rgb_to_pixel(pixel));
         }
         data
@@ -69,7 +69,7 @@ impl ImagePixels {
 
     pub fn rgba_image_to_pixels(image: ::image::RgbaImage) -> Vec<u8> {
         let mut data = Vec::with_capacity((image.width() * image.height()) as usize);
-        for pixel in image.as_raw().chunks_exact(4) {
+        for pixel in image.as_raw().as_chunks::<4>().0 {
             data.push(Self::rgba_to_pixel(pixel));
         }
         data
