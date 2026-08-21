@@ -47,6 +47,7 @@ impl RectBorder {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct RoomSize {
     pub width: u32,
     pub height: u32,

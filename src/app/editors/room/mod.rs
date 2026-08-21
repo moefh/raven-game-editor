@@ -25,11 +25,16 @@ use super::{
     RoomSize,
     RoomTriggerTypeSel,
 };
-use super::widgets::RoomEditorWidget;
+use super::widgets::{
+    RoomDisplay,
+    RoomEditorWidget,
+};
 use super::super::menu_item;
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
+
+const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {
@@ -552,25 +557,82 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.add_space(2.0);
+                let spacing = ui.spacing().item_spacing;
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.add_space(2.0);
                 if ui.add(egui::Button::image_and_text(IMAGES.lock, "Maps")
                           .selected(self.room_editor.lock_maps)
                           .frame_when_inactive(self.room_editor.lock_maps))
                     .on_hover_text("Lock maps in place").clicked() {
                         self.room_editor.lock_maps = ! self.room_editor.lock_maps;
                     }
-                ui.add_space(2.0);
-                ui.separator();
-                ui.add_space(2.0);
-                if ui.add(egui::Button::image(IMAGES.screen)
-                          .selected(self.room_editor.show_screen)
-                          .frame_when_inactive(self.room_editor.show_screen))
-                    .on_hover_text("Show screen size").clicked() {
-                        self.room_editor.show_screen = ! self.room_editor.show_screen;
-                    }
-                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.screen)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::SCREEN))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::SCREEN)))
+                            .on_hover_text("Show screen size").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::SCREEN);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::GRID))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::GRID)))
+                            .on_hover_text("Show grid").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::GRID);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.log)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::OTHER_TRIGGERS))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::OTHER_TRIGGERS)))
+                            .on_hover_text("Show other triggers").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::OTHER_TRIGGERS);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.animation)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::ENEMY_TRIGGERS))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::ENEMY_TRIGGERS)))
+                            .on_hover_text("Show enemy triggers").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::ENEMY_TRIGGERS);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.layer_bg)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND)))
+                            .on_hover_text("Show background").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::BACKGROUND);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.layer_fg)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::FOREGROUND))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::FOREGROUND)))
+                            .on_hover_text("Show foreground").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::FOREGROUND);
+                            }
+
+                        ui.add_space(1.0);
+                        ui.label("Display:");
+
+                        ui.add_space(2.0);
+                        ui.separator();
+                        ui.add_space(2.0);
+
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.room_editor.zoom) {
+                            &format!("{:3.2}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("room_editor_{}_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.room_editor.zoom, *zoom, format!("{:3.2}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
+                ui.spacing_mut().item_spacing = spacing;
             });
+
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
     }

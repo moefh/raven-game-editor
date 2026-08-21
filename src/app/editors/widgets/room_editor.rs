@@ -9,7 +9,6 @@ use egui::{
 use egui::emath::RectTransform;
 
 use crate::data_asset::{
-    AssetList,
     Room,
     RoomMap,
     RoomTrigger,
@@ -17,7 +16,6 @@ use crate::data_asset::{
     RoomEntityDirection,
     MapData,
     Tileset,
-    Sprite,
 };
 use crate::image::{
     ImageCollection,
@@ -43,9 +41,39 @@ use super::super::room::{
 const BORDER_SIZE: Vec2 = Vec2::splat(5.0);
 const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
 
+#[derive(Clone, Copy)]
+pub struct RoomDisplay {
+    bits: u8,
+}
+
+#[allow(unused)]
+impl RoomDisplay {
+    pub const FOREGROUND: u8     = 1 << 0;
+    pub const BACKGROUND: u8     = 1 << 1;
+    pub const PARALLAX: u8       = 1 << 2;
+    pub const GRID: u8           = 1 << 3;
+    pub const ENEMY_TRIGGERS: u8 = 1 << 4;
+    pub const OTHER_TRIGGERS: u8 = 1 << 5;
+    pub const SCREEN: u8         = 1 << 6;
+
+    pub fn new(bits: u8) -> Self {
+        RoomDisplay {
+            bits,
+        }
+    }
+
+    pub fn toggle(&mut self, bits: u8) {
+        self.bits ^= bits;
+    }
+
+    pub fn has_bits(&self, bits: u8) -> bool {
+        (self.bits & bits) != 0
+    }
+}
+
 struct GridAlign {
-    size: u16,
-    align: bool,
+    pub size: u16,
+    pub align: bool,
 }
 
 impl GridAlign {
@@ -199,7 +227,7 @@ pub struct RoomEditorWidget {
     pub zoom: f32,
     pub scroll: Vec2,
     pub lock_maps: bool,
-    pub show_screen: bool,
+    pub display: RoomDisplay,
     screen_pos: ScreenPos,
     selected_item: RoomItemRef,
     selected_item_changed: bool,
@@ -213,15 +241,20 @@ pub struct RoomEditorWidget {
 }
 
 impl RoomEditorWidget {
+    const DEFAULT_ROOM_DISPLAY: u8 = RoomDisplay::FOREGROUND |
+        RoomDisplay::BACKGROUND |
+        RoomDisplay::ENEMY_TRIGGERS |
+        RoomDisplay::OTHER_TRIGGERS;
+
     pub fn new() -> Self {
         RoomEditorWidget {
             zoom: 0.5,
             scroll: Vec2::ZERO,
+            display: RoomDisplay::new(Self::DEFAULT_ROOM_DISPLAY),
             selected_item: RoomItemRef::None,
             selected_item_changed: false,
             scroll_to_selected_item: false,
             lock_maps: true,
-            show_screen: false,
             screen_pos: ScreenPos { x: 0, y: 0 },
             resize_border: None,
             dragging_item: false,
@@ -252,8 +285,7 @@ impl RoomEditorWidget {
         self.selected_item_changed = false;
     }
 
-    fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
-        let size = RoomSize::from_room(room, maps);
+    fn get_room_size(size: RoomSize) -> Vec2 {
         Vec2 {
             x: size.width as f32 * TILE_SIZE,
             y: size.height as f32 * TILE_SIZE,
@@ -296,7 +328,7 @@ impl RoomEditorWidget {
         }
     }
 
-    fn move_selected_item(&mut self, pos: Pos2, room: &mut Room) -> Option<bool> {
+    fn move_selected_item(&mut self, pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) -> Option<bool> {
         match self.selected_item {
             RoomItemRef::None => { None }
 
@@ -319,8 +351,16 @@ impl RoomEditorWidget {
 
             RoomItemRef::Trigger(trg_index) => {
                 let trigger = room.triggers.get_mut(trg_index)?;
-                trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
-                trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                if self.grid.align && matches!(trigger.trigger_type, RoomTriggerType::EnemySpawn {..}) {
+                    let size = Self::get_trigger_rect(trigger, assets).size();
+                    let height = size.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                    let pos = Vec2::new(pos.x, pos.y + size.y);
+                    trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                    trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16) - height;
+                } else {
+                    trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                    trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                }
                 Some(true)
             }
         }
@@ -405,9 +445,9 @@ impl RoomEditorWidget {
         self.resize_border = None;
     }
 
-    fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room) -> bool {
+    fn drag_move(&mut self, mouse_pos: Pos2, room: &mut Room, assets: &RoomEditorAssetLists) -> bool {
         let new_pos = self.drag_item_origin + (mouse_pos - self.drag_mouse_origin);
-        self.move_selected_item(new_pos, room).unwrap_or(false)
+        self.move_selected_item(new_pos, room, assets).unwrap_or(false)
     }
 
     fn drag_stop(&mut self) {
@@ -446,7 +486,7 @@ impl RoomEditorWidget {
                     return;
                 }
             }
-            if self.drag_move(mouse_pos, room) {
+            if self.drag_move(mouse_pos, room, assets) {
                 return;
             }
             self.drag_stop();
@@ -474,7 +514,7 @@ impl RoomEditorWidget {
         }
 
         // click/drag selected screen
-        if self.show_screen && self.selected_item.is_screen() {
+        if self.display.has_bits(RoomDisplay::SCREEN) && self.selected_item.is_screen() {
             let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 if resp.drag_started() {
@@ -498,7 +538,7 @@ impl RoomEditorWidget {
         }
 
         // click/drag screen
-        if self.show_screen {
+        if self.display.has_bits(RoomDisplay::SCREEN) {
             let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(RoomItemRef::Screen, false);
@@ -576,7 +616,76 @@ impl RoomEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
-    fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, map_pos: Pos2, map_data: &MapData, tileset: &Tileset) {
+    fn draw_trigger_sprite(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        trigger: &RoomTrigger,
+        assets: &RoomEditorAssetLists
+    ) {
+        if ! self.display.has_bits(RoomDisplay::ENEMY_TRIGGERS) {
+            return;
+        }
+
+        if let RoomTriggerType::EnemySpawn { animation_id, direction, .. } = trigger.trigger_type {
+            if let Some(animation) = assets.animations.get(&animation_id) &&
+                let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                    let sprite_frame = animation.loops.first()
+                        .and_then(|aloop| aloop.frame_indices.first())
+                        .and_then(|frame| frame.head_index)
+                        .unwrap_or(0);
+                    let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
+                        animation.clip_rect.x as f32
+                    } else {
+                        sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
+                    };
+                    let y = trigger.y as f32 - animation.clip_rect.y as f32;
+                    let sprite_rect = Rect::from_min_size(
+                        Pos2::new(x, y),
+                        Vec2::new(sprite.width as f32, sprite.height as f32)
+                    );
+                    let draw_rect = to_canvas.transform_rect(sprite_rect);
+                    let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                    let frame_uv = sprite.get_item_uv(sprite_frame as u32);
+                    let uv = match direction {
+                        RoomEntityDirection::Right => {
+                            frame_uv
+                        }
+                        RoomEntityDirection::Left => {
+                            Rect::from_min_max(
+                                Pos2::new(frame_uv.max.x, frame_uv.min.y),
+                                Pos2::new(frame_uv.min.x, frame_uv.max.y)
+                            )
+                        }
+                    };
+                    Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
+                }
+        }
+    }
+
+    fn draw_trigger_outline(&self, painter: &egui::Painter, to_canvas: &RectTransform, trigger: &RoomTrigger, assets: &RoomEditorAssetLists) {
+        let display_bits = match trigger.trigger_type {
+            RoomTriggerType::EnemySpawn { .. } => { RoomDisplay::ENEMY_TRIGGERS }
+            _ => { RoomDisplay::OTHER_TRIGGERS }
+        };
+        if ! self.display.has_bits(display_bits) {
+            return;
+        }
+
+        let rect = Self::get_trigger_rect(trigger, assets);
+        Self::draw_outline_rect(painter, to_canvas.transform_rect(rect));
+    }
+
+    fn draw_map_bg_layer(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        map_pos: Pos2,
+        map_data: &MapData,
+        tileset: &Tileset
+    ) {
         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
@@ -586,7 +695,17 @@ impl RoomEditorWidget {
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
             }
         }
+    }
 
+    fn draw_map_fg_layer(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        map_pos: Pos2,
+        map_data: &MapData,
+        tileset: &Tileset
+    ) {
         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
@@ -598,34 +717,9 @@ impl RoomEditorWidget {
         }
     }
 
-    fn draw_trigger_sprite(
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        rect: Rect,
-        sprite: &Sprite,
-        frame: u32,
-        direction: RoomEntityDirection
-    ) {
-        let draw_rect = to_canvas.transform_rect(rect);
-        let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        let frame_uv = sprite.get_item_uv(frame);
-        let uv = match direction {
-            RoomEntityDirection::Right => {
-                frame_uv
-            }
-            RoomEntityDirection::Left => {
-                Rect::from_min_max(
-                    Pos2::new(frame_uv.max.x, frame_uv.min.y),
-                    Pos2::new(frame_uv.min.x, frame_uv.max.y)
-                )
-            }
-        };
-        Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
-    }
-
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
-        let room_size = Self::get_room_size(room, assets.maps);
+        let room_size_in_tiles = RoomSize::from_room(room, assets.maps);
+        let room_size = Self::get_room_size(room_size_in_tiles);
         let room_rect = Rect::from_min_size(Pos2::ZERO, room_size);
         self.grid.align = ui.ctx().input(|i| i.modifiers.shift);
 
@@ -664,56 +758,59 @@ impl RoomEditorWidget {
         painter.rect_stroke(bg_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         painter.shrink_clip_rect(canvas_rect);
         ui.shrink_clip_rect(canvas_rect);
-        //Self::draw_outline_rect(&painter, canvas_rect);
 
         if canvas_rect.width() == 0.0 || canvas_rect.height() == 0.0 || room_rect.width() == 0.0 || room_rect.height() == 0.0 {
             return; // nothing to do!
         }
 
-        // draw maps
-        for room_map in room.maps.iter() {
-            if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
-                let map_rect = Self::get_map_rect(room_map, map_data);
-                Self::draw_map(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+        // draw map BG layers
+        if self.display.has_bits(RoomDisplay::BACKGROUND) {
+            for room_map in room.maps.iter() {
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                    let map_rect = Self::get_map_rect(room_map, map_data);
+                    self.draw_map_bg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+                }
             }
         }
 
-        // draw triggers
+        // draw trigger sprites
         for trigger in room.triggers.iter() {
-            let rect = Self::get_trigger_rect(trigger, assets);
-            match trigger.trigger_type {
-                RoomTriggerType::Unknown {..} |
-                RoomTriggerType::Door {..} |
-                RoomTriggerType::PlayerSpawn {..} |
-                RoomTriggerType::Trap {..} => {
-                    Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
-                }
-                RoomTriggerType::EnemySpawn { animation_id, direction, .. } => {
-                    if let Some(animation) = assets.animations.get(&animation_id) &&
-                        let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-                            let sprite_frame = animation.loops.first()
-                                .and_then(|aloop| aloop.frame_indices.first())
-                                .and_then(|frame| frame.head_index)
-                                .unwrap_or(0);
-                            let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
-                                animation.clip_rect.x as f32
-                            } else {
-                                sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
-                            };
-                            let y = trigger.y as f32 - animation.clip_rect.y as f32;
-                            let sprite_rect = Rect::from_min_size(
-                                Pos2::new(x, y),
-                                Vec2::new(sprite.width as f32, sprite.height as f32)
-                            );
-                            Self::draw_trigger_sprite(ui, wc, &to_canvas, sprite_rect, sprite, sprite_frame as u32, direction);
-                            Self::draw_outline_rect(&painter, to_canvas.transform_rect(rect));
-                        }
+            self.draw_trigger_sprite(ui, wc, &to_canvas, trigger, assets);
+        }
+
+        // draw map FG layers
+        if self.display.has_bits(RoomDisplay::FOREGROUND) {
+            for room_map in room.maps.iter() {
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                    let map_rect = Self::get_map_rect(room_map, map_data);
+                    self.draw_map_fg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
                 }
             }
+        }
+
+        // draw grid
+        if self.display.has_bits(RoomDisplay::GRID) {
+            let stroke = egui::Stroke::new(1.0, wc.settings.map_grid_color);
+            let zoomed_tile_size = TILE_SIZE * self.zoom;
+            let x_range = egui::emath::Rangef::new(bg_rect.min.x + BORDER_SIZE.x, bg_rect.max.x - BORDER_SIZE.x);
+            let y_range = egui::emath::Rangef::new(bg_rect.min.y + BORDER_SIZE.y, bg_rect.max.y - BORDER_SIZE.y);
+            for y in 0..room_size_in_tiles.height+1 {
+                let cy = canvas_rect.min.y + BORDER_SIZE.y + y as f32 * zoomed_tile_size + self.scroll.y%zoomed_tile_size;
+                painter.hline(x_range, cy, stroke);
+            }
+            for x in 0..room_size_in_tiles.width+1 {
+                let cx = canvas_rect.min.x + BORDER_SIZE.x + x as f32 * zoomed_tile_size + self.scroll.x % zoomed_tile_size;
+                painter.vline(cx, y_range, stroke);
+            }
+        }
+
+        // draw trigger outlines
+        for trigger in room.triggers.iter() {
+            self.draw_trigger_outline(&painter, &to_canvas, trigger, assets);
         }
 
         // draw screen rect
-        if self.show_screen {
+        if self.display.has_bits(RoomDisplay::SCREEN) {
             let rect = self.screen_pos.get_rect();
             if self.selected_item.is_screen() {
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
