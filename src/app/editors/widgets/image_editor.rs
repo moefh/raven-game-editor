@@ -476,6 +476,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     fn handle_collision_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
+        if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's not shown
+
         let make_rect = || { data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32) };
 
         let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
