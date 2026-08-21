@@ -202,6 +202,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self
     }
 
+    pub fn with_tool(mut self, tool: ImageDrawingTool) -> Self {
+        self.tool = tool;
+        self
+    }
+
     pub fn toggle_display(&mut self, bits: u8) {
         self.display.toggle(bits);
         if (bits & ImageDisplay::TRANSPARENT) != 0 {
@@ -474,7 +479,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let make_rect = || { data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32) };
 
         let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
-        let mouse_pos = (mouse_pos.x.floor() as i32, mouse_pos.y.floor() as i32);
+        let mouse_pos = (mouse_pos.x.round() as i32, mouse_pos.y.round() as i32);
         let rect = self.collision_rect.get_or_insert_with(make_rect);
         if resp.dragged_by(egui::PointerButton::Primary) {
             // set top-left

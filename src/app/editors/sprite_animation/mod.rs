@@ -30,7 +30,6 @@ use super::widgets::{
 };
 use super::super::{
     menu_item,
-    menu_item_no_image,
 };
 
 use properties::PropertiesDialog;
@@ -89,7 +88,7 @@ impl SpriteAnimationEditor {
     pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
         self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
 
-        self.base.show_window(wc, animation, [500.0, 450.0], [500.0, 450.0], |ui, wc, animation, base| {
+        self.base.show_window(wc, animation, [550.0, 450.0], [550.0, 450.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
         });
@@ -135,11 +134,12 @@ struct Editor {
     asset_id: DataAssetId,
     selected_tab: EditorTabs,
     selected_loop: usize,
-    selected_loop_frame: usize,
     sprite_frames: Vec<SpriteAnimationFrame>,
-    selected_sprite_frame: usize,
     color_picker: ColorPickerWidget,
     image_editor: ImageEditorWidget<Sprite>,
+    main_frames_list: SpriteFrameListView,
+    loop_frames_list: SpriteFrameListView,
+    all_frames_list: SpriteFrameListView,
 }
 
 impl Editor {
@@ -148,12 +148,14 @@ impl Editor {
             asset_id,
             selected_tab: EditorTabs::Sprite,
             selected_loop: 0,
-            selected_loop_frame: 0,
             sprite_frames: Vec::new(),
-            selected_sprite_frame: 0,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, false),
-            image_editor: ImageEditorWidget::<Sprite>::new().with_image_display(
-                ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID | ImageDisplay::COLLISION)),
+            image_editor: ImageEditorWidget::<Sprite>::new()
+                .with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID | ImageDisplay::COLLISION))
+                .with_tool(ImageDrawingTool::Collision),
+            main_frames_list: SpriteFrameListView::new(true, false),
+            loop_frames_list: SpriteFrameListView::new(false, false),
+            all_frames_list: SpriteFrameListView::new(true, true),
         }
     }
 
@@ -166,7 +168,8 @@ impl Editor {
 
     fn select_loop(&mut self, selected_loop: usize) {
         self.selected_loop = selected_loop;
-        self.selected_loop_frame = 0;
+        self.main_frames_list.selected_frame = 0;
+        self.all_frames_list.selected_frame = 0;
     }
 
     fn sprite_tab(
@@ -194,15 +197,18 @@ impl Editor {
 
                 ui.label("Tool:");
                 ui.add_space(1.0);
-                if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
+                if ui.add(
+                    egui::Button::image(IMAGES.pen)
+                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                ).on_hover_text("Pencil").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Pencil);
                 }
-                if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Collision)
-                          .frame_when_inactive(self.image_editor.get_tool() ==
-                                               ImageDrawingTool::Collision)).on_hover_text("Collision").clicked() {
+                if ui.add(
+                    egui::Button::image(IMAGES.select)
+                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Collision)
+                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Collision)
+                ).on_hover_text("Collision").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Collision);
                 }
 
@@ -278,7 +284,7 @@ impl Editor {
 
                 // show current frame index:
                 if let Some(image_item) = animation.loops.get(self.selected_loop)
-                    .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
+                    .and_then(|aloop| aloop.frame_indices.get(self.main_frames_list.selected_frame))
                     .and_then(|frame| frame.head_index) {
                         ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                             ui.horizontal(|ui| {
@@ -341,22 +347,21 @@ impl Editor {
         egui::Panel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
-                let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, self.selected_loop_frame);
-                let (scroll, frame_size) = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
-                let num_frames = aloop.frame_indices.len();
-                if num_frames != 0 &&
-                    let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
-                    scroll.inner_rect.contains(pointer_pos) {
-                        let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                        self.selected_loop_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
-                    }
+                self.main_frames_list.show(
+                    ui,
+                    wc,
+                    &aloop.frame_indices,
+                    animation.foot_overlap,
+                    sprite,
+                    self.image_editor.display.is_transparent(),
+                );
             }
         });
 
         // body:
         egui::CentralPanel::default().show(ui, |ui| {
             if let Some(image_item) = animation.loops.get(self.selected_loop)
-                .and_then(|aloop| aloop.frame_indices.get(self.selected_loop_frame))
+                .and_then(|aloop| aloop.frame_indices.get(self.main_frames_list.selected_frame))
                 .and_then(|frame| frame.head_index)  {
                     self.image_editor.set_selected_image(image_item as u32, sprite);
                     self.image_editor.set_collision_rect(Some(animation.clip_rect));
@@ -424,24 +429,42 @@ impl Editor {
                         ui.end_row();
                     });
                 ui.add_space(5.0);
-                let view = SpriteFrameListView::new(&aloop.frame_indices, animation.foot_overlap, aloop.frame_indices.len() + 1);
-                view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
+                self.loop_frames_list.show(
+                    ui,
+                    wc,
+                    &aloop.frame_indices,
+                    animation.foot_overlap,
+                    sprite,
+                    self.image_editor.display.is_transparent()
+                );
             }
         });
 
         egui::Panel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show(ui, |ui| {
             ui.add_space(5.0);
-            ui.label("Sprite frames (drag to the lists below):");
-            let view = SpriteFrameListView::new(&self.sprite_frames, 0, self.selected_sprite_frame);
-            let (scroll, frame_size) = view.show(ui, wc, sprite, self.image_editor.display.is_transparent());
-            let num_frames = self.sprite_frames.len();
-            if num_frames != 0 &&
-                let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
+            ui.horizontal(|ui| {
+                ui.label("Sprite frames (drag to the lists below):");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if let Some(hovered_frame) = self.all_frames_list.hovered_frame {
+                        ui.label(format!("Frame {}", hovered_frame));
+                    } else {
+                        ui.label(format!("Frame {}", self.all_frames_list.selected_frame));
+                    }
+                    ui.separator();
+                });
+            });
+            let scroll = self.all_frames_list.show(
+                ui,
+                wc,
+                &self.sprite_frames,
+                animation.foot_overlap,
+                sprite,
+                self.image_editor.display.is_transparent()
+            );
+            if let Some(pointer_pos) = scroll.inner.interact_pointer_pos() &&
                 scroll.inner_rect.contains(pointer_pos) &&
                 scroll.inner.drag_started() {
-                    let pos = pointer_pos - scroll.inner_rect.min + scroll.state.offset;
-                    self.selected_sprite_frame = usize::min((pos.x / frame_size.x).floor() as usize, num_frames - 1);
-                    scroll.inner.dnd_set_drag_payload(FrameDragPayload::new(self.selected_sprite_frame));
+                    scroll.inner.dnd_set_drag_payload(FrameDragPayload::new(self.all_frames_list.selected_frame));
                 }
         });
 
@@ -461,7 +484,7 @@ impl Editor {
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
-                                    if ui.add(menu_item_no_image(" Remove")).clicked() {
+                                    if ui.add(egui::Button::new("Remove")).clicked() {
                                         frame.head_index.take();
                                     }
                                 });
@@ -482,7 +505,7 @@ impl Editor {
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
-                                    if ui.add(menu_item_no_image(" Remove")).clicked() {
+                                    if ui.add(egui::Button::new("Remove")).clicked() {
                                         frame.foot_index.take();
                                     }
                                 });
@@ -497,8 +520,15 @@ impl Editor {
         });
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        animation: &mut SpriteAnimation,
+        sprite_ids: &AssetIdList,
+        sprites: &mut AssetList<Sprite>
+    ) {
         if sprites.get(&animation.sprite_id).is_none() {
             return;  // animation has an invalid sprite id
         }
@@ -522,8 +552,9 @@ impl Editor {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (loop_index, aloop) in animation.loops.iter().enumerate() {
-                    let response = ui.selectable_label(self.selected_loop == loop_index, &aloop.name_id);
-                    if response.clicked() {
+                    let selected = self.selected_loop == loop_index;
+                    let button = egui::Button::selectable(selected, &aloop.name_id).wrap_mode(egui::TextWrapMode::Truncate);
+                    if ui.add(button).clicked() {
                         self.select_loop(loop_index);
                     }
                 }
