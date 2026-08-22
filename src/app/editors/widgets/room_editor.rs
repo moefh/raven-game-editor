@@ -628,40 +628,39 @@ impl RoomEditorWidget {
             return;
         }
 
-        if let RoomTriggerType::EnemySpawn { animation_id, direction, .. } = trigger.trigger_type {
-            if let Some(animation) = assets.animations.get(&animation_id) &&
-                let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-                    let sprite_frame = animation.loops.first()
-                        .and_then(|aloop| aloop.frame_indices.first())
-                        .and_then(|frame| frame.head_index)
-                        .unwrap_or(0);
-                    let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
-                        animation.clip_rect.x as f32
-                    } else {
-                        sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
-                    };
-                    let y = trigger.y as f32 - animation.clip_rect.y as f32;
-                    let sprite_rect = Rect::from_min_size(
-                        Pos2::new(x, y),
-                        Vec2::new(sprite.width as f32, sprite.height as f32)
-                    );
-                    let draw_rect = to_canvas.transform_rect(sprite_rect);
-                    let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                    let frame_uv = sprite.get_item_uv(sprite_frame as u32);
-                    let uv = match direction {
-                        RoomEntityDirection::Right => {
-                            frame_uv
-                        }
-                        RoomEntityDirection::Left => {
-                            Rect::from_min_max(
-                                Pos2::new(frame_uv.max.x, frame_uv.min.y),
-                                Pos2::new(frame_uv.min.x, frame_uv.max.y)
-                            )
-                        }
-                    };
-                    Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
-                }
-        }
+        if let RoomTriggerType::EnemySpawn { animation_id, direction, .. } = trigger.trigger_type &&
+            let Some(animation) = assets.animations.get(&animation_id) &&
+            let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                let sprite_frame = animation.loops.first()
+                    .and_then(|aloop| aloop.frame_indices.first())
+                    .and_then(|frame| frame.head_index)
+                    .unwrap_or(0);
+                let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
+                    animation.clip_rect.x as f32
+                } else {
+                    sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
+                };
+                let y = trigger.y as f32 - animation.clip_rect.y as f32;
+                let sprite_rect = Rect::from_min_size(
+                    Pos2::new(x, y),
+                    Vec2::new(sprite.width as f32, sprite.height as f32)
+                );
+                let draw_rect = to_canvas.transform_rect(sprite_rect);
+                let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                let frame_uv = sprite.get_item_uv(sprite_frame as u32);
+                let uv = match direction {
+                    RoomEntityDirection::Right => {
+                        frame_uv
+                    }
+                    RoomEntityDirection::Left => {
+                        Rect::from_min_max(
+                            Pos2::new(frame_uv.max.x, frame_uv.min.y),
+                            Pos2::new(frame_uv.min.x, frame_uv.max.y)
+                        )
+                    }
+                };
+                Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
+            }
     }
 
     fn draw_trigger_outline(&self, painter: &egui::Painter, to_canvas: &RectTransform, trigger: &RoomTrigger, assets: &RoomEditorAssetLists) {
