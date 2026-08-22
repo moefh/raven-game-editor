@@ -72,9 +72,16 @@ impl MapDataEditor {
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         let spacing = ui.spacing().item_spacing;
-                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(12.0, 0.0);
+
                         ui.add_space(1.0);
+
+                        if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
+                            ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
+                        }
+
                         ui.label(format!("({}, {})", editor.map_editor.hover_pos.x.floor(), editor.map_editor.hover_pos.y.floor()));
+
                         ui.spacing_mut().item_spacing = spacing;
                     });
                 });
@@ -145,6 +152,10 @@ impl Editor {
             custom_grid_color: egui::Color32::RED,
             custom_bg_color: egui::Color32::from_rgb(0, 0xffu8, 0),
         }
+    }
+
+    fn get_selection_rectangle(&self) -> Option<egui::Rect> {
+        self.map_editor.selection.get_rect()
     }
 
     fn tile_to_image_selection(tile: u8) -> Option<u32> {

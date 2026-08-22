@@ -91,9 +91,19 @@ impl PalSpriteEditor {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                         ui.horizontal(|ui| {
                             let spacing = ui.spacing().item_spacing;
-                            ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                            ui.spacing_mut().item_spacing = egui::Vec2::new(12.0, 0.0);
                             ui.add_space(1.0);
-                            ui.label(format!("sprite {}", sprite));
+
+                            ui.label(format!("[sprite {}]", sprite));
+
+                            if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
+                                ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
+                            }
+
+                            if let Some(hover_pos) = editor.get_hover_pos() {
+                                ui.label(format!("({},{})", hover_pos.x, hover_pos.y));
+                            }
+
                             ui.spacing_mut().item_spacing = spacing;
                         });
                     });
@@ -191,6 +201,14 @@ impl Editor {
             image_picker: ImagePickerWidget::new(),
             image_editor: ImageEditorWidget::<PalSprite>::new().with_image_display(ImageDisplay::grid_only()),
         }
+    }
+
+    fn get_selection_rectangle(&self) -> Option<egui::Rect> {
+        self.image_editor.selection.get_rect()
+    }
+
+    fn get_hover_pos(&self) -> Option<egui::Vec2> {
+        Some(self.image_editor.hover_pos)
     }
 
     fn get_pal_color(color_index: u8, pal_sprite: &PalSprite) -> u8 {

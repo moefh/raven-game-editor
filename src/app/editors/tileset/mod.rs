@@ -4,6 +4,8 @@ mod remove_tiles;
 mod import;
 mod export;
 
+use core::fmt::NumBuffer;
+
 use crate::misc::IMAGES;
 use crate::image::{
     colors,
@@ -72,6 +74,14 @@ impl TilesetEditor {
         self.editor.prepare_for_saving(tileset);
     }
 
+    fn get_tile_name(tile: Option<u32>, buf: &mut NumBuffer<u32>) -> &str {
+        if let Some(tile) = tile {
+            tile.format_into(buf)
+        } else {
+            "-"
+        }
+     }
+
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, base: &AssetEditorBase, tileset: &Tileset) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, tileset.asset.id));
@@ -84,17 +94,39 @@ impl TilesetEditor {
                     tileset.num_tiles, dirty
                 )).truncate());
 
-                if let Some(tile) = editor.tile_picker.get_selected_image() {
-                    ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                        ui.horizontal(|ui| {
-                            let spacing = ui.spacing().item_spacing;
-                            ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-                            ui.add_space(1.0);
-                            ui.label(format!("tile {}", tile));
-                            ui.spacing_mut().item_spacing = spacing;
-                        });
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(12.0, 0.0);
+                        ui.add_space(1.0);
+
+                        match editor.selected_tab {
+                            EditorTab::Tile => {
+                                ui.label(format!("[tile {}]", editor.tile_picker.get_selected_image().unwrap_or(0)));
+                            }
+                            EditorTab::Grid => {
+                                let mut left_buf = NumBuffer::new();
+                                let mut right_buf = NumBuffer::new();
+                                ui.label(format!(
+                                    "[tiles {}/{}]",
+                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image(), &mut left_buf),
+                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image_right(), &mut right_buf)
+                                ));
+                            }
+                            EditorTab::GridTiles => {}
+                        }
+
+                        if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
+                            ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
+                        }
+
+                        if let Some(hover_pos) = editor.get_hover_pos() {
+                            ui.label(format!("({},{})", hover_pos.x, hover_pos.y));
+                        }
+
+                        ui.spacing_mut().item_spacing = spacing;
                     });
-                }
+                });
             });
         });
     }
@@ -222,6 +254,34 @@ impl Editor {
     fn handle_grid_image_changed(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
         self.tile_grid.image_to_tileset(tileset);
         ImageEditorWidget::<Tileset>::update_texture(wc, tileset);
+    }
+
+    fn get_hover_pos(&self) -> Option<egui::Vec2> {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                Some(self.tile_image_editor.hover_pos)
+            }
+            EditorTab::Grid => {
+                None
+            }
+            EditorTab::GridTiles => {
+                Some(self.grid_image_editor.hover_pos)
+            }
+        }
+    }
+
+    fn get_selection_rectangle(&self) -> Option<egui::Rect> {
+        match self.selected_tab {
+            EditorTab::Tile => {
+                self.tile_image_editor.selection.get_rect()
+            }
+            EditorTab::GridTiles => {
+                self.grid_image_editor.selection.get_rect()
+            }
+            _ => {
+                None
+            }
+        }
     }
 
     fn vflip(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
