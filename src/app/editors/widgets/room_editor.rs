@@ -265,6 +265,18 @@ impl RoomEditorWidget {
         }
     }
 
+    fn is_item_displayed(&self, item: RoomItemRef, room: &Room) -> bool {
+        if let RoomItemRef::Trigger(index) = item && let Some(trigger) = room.triggers.get(index) {
+            if matches!(trigger.trigger_type, RoomTriggerType::EnemySpawn { .. }) {
+                self.display.has_bits(RoomDisplay::ENEMY_TRIGGERS)
+            } else {
+                self.display.has_bits(RoomDisplay::OTHER_TRIGGERS)
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn get_selected_item(&self) -> RoomItemRef {
         self.selected_item
     }
@@ -528,7 +540,7 @@ impl RoomEditorWidget {
         for index in 0..room.triggers.len() {
             let item = RoomItemRef::Trigger(index);
             let rect = self.get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
-            if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
+            if self.is_item_displayed(item, room) && rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item, false);
                 if resp.drag_started() {
                     self.drag_start(rect.min, mouse_pos);
