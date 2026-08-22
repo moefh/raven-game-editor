@@ -1,7 +1,7 @@
 #!/bin/bash
 
 git checkout pages &&
-    git reset --hard main && \
+    git rebase main && \
     trunk build --release && \
     rm -rf ./docs/ && \
     mkdir -p ./docs/ && \
