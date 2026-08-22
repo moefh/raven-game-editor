@@ -71,15 +71,23 @@ impl SpriteFrameListView {
         let texture = image.load_texture(wc.tex_man, wc.egui.ctx, slot, false);
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         let image_size = Self::get_image_size(image.get_item_size());
+        let scroll_x = ui.cursor().min.x;
         let scroll = egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
             let use_foot_frames = frame_indices.iter().any(|f| f.foot_index.is_some());
             let foot_overlap = if use_foot_frames { foot_overlap as f32 } else { 0.0 };
             let image_cell_size = Vec2::new(image_size.x, image_size.y * if use_foot_frames { 2.0 } else { 1.0 } - foot_overlap);
             let image_picker_size = Vec2::new(image_cell_size.x * frame_indices.len() as f32, image_cell_size.y);
-            let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(ui.available_width(), 0.0));
-            let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
+            let scroll_width = ui.available_width();
+            let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(scroll_width, 0.0));
+            let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
             let space = response.rect;
             let canvas_rect = Rect::from_min_size(space.min, image_picker_size);
+            let clip_rect = Rect::from_min_size(
+                egui::Pos2::new(scroll_x, canvas_rect.min.y),
+                egui::Vec2::new(scroll_width-1.0, canvas_rect.height()),
+            );
+            painter.shrink_clip_rect(clip_rect);
+            ui.shrink_clip_rect(clip_rect);
 
             // draw background
             painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
