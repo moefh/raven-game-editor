@@ -83,7 +83,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 });
 
 pub fn read_custom_global_struct(reader: &mut ProjectDataReader, struct_tag: &str) -> Result<bool> {
-    if struct_tag == "ROOM_SCRIPT" {   // ignore room script table
+    if struct_tag == "ROOM_SCRIPT" {   // read room script table
         reader.expect_punct('*')?;
         reader.expect_any_ident("room script table identifier")?;
         reader.expect_punct('[')?;
@@ -91,10 +91,22 @@ pub fn read_custom_global_struct(reader: &mut ProjectDataReader, struct_tag: &st
         reader.expect_punct('=')?;
         reader.expect_punct('{')?;
         while let Some(t) = reader.read_loop()? {
-            if ! t.is_punct('&') {
-                return error(format!("expected '&', found '{}'", t), t.pos);
+            if let Some(ident) = t.get_ident() {
+                if ident != "NULL" {
+                    return error(format!("expected 'NULL' or '&', found '{}'", ident), t.pos);
+                }
+                // room has no script; do nothing
+                continue;
             }
-            reader.expect_any_ident("room script table")?;
+            if ! t.is_punct('&') {
+                return error(format!("expected 'NULL' or '&', found '{}'", t), t.pos);
+            }
+            let mut ident_token = reader.expect_any_ident("room script table")?;
+            if let Some(ident) = ident_token.drain_ident() &&
+                let Some(no_prefix) = ident.strip_prefix(&reader.data.prefix_lower) &&
+                let Some(no_table_prefix) = no_prefix.strip_prefix("room_script_table_") {
+                    reader.data.room_names_with_scripts.insert(no_table_prefix.to_owned());
+                }
         }
         reader.expect_punct(';')?;
         Ok(true)
@@ -233,10 +245,12 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
             triggers_array.pos
         );
     }
+    let has_script = project_data.room_names_with_scripts.contains(name);
 
     Ok(Room {
         asset: DataAsset::new(DataAssetType::Room, asset_id, DataAsset::identifier_to_name(name)),
         maps,
         triggers,
+        has_script,
     })
 }

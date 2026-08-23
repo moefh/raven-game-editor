@@ -15,7 +15,7 @@ mod font;
 mod prop_font;
 
 use std::io::{Result, Error};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use image_converter::ImageConverter;
@@ -102,6 +102,7 @@ pub struct ProjectData {
     vga_bits_per_pixel: u8,
     vga_sync_bits: u8,
     tiles_per_world_block: u32,
+    room_names_with_scripts: HashSet<String>,
 
     arrays: HashMap<String, Value>,
     structs: HashMap<String, ValueArray<ValueStruct>>,
@@ -121,6 +122,7 @@ impl ProjectData {
             vga_bits_per_pixel: 6,
             vga_sync_bits: 0xc0,
             tiles_per_world_block: 22,
+            room_names_with_scripts: HashSet::new(),
 
             arrays: HashMap::new(),
             structs: HashMap::new(),

@@ -55,6 +55,7 @@ pub struct Room {
     pub asset: super::DataAsset,
     pub maps: Vec<RoomMap>,
     pub triggers: Vec<RoomTrigger>,
+    pub has_script: bool,
 }
 
 impl Room {
@@ -63,6 +64,7 @@ impl Room {
             asset: super::DataAsset::new(super::DataAssetType::Room, id, name),
             maps: Vec::new(),
             triggers: Vec::new(),
+            has_script: false,
         }
     }
 }
@@ -73,6 +75,7 @@ impl super::DuplicableAsset<Room> for Room {
             asset: self.asset.duplicate(dup_id, dup_name),
             maps: self.maps.clone(),
             triggers: self.triggers.clone(),
+            has_script: self.has_script,
         }
     }
 }

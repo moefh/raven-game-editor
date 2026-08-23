@@ -8,6 +8,7 @@ use super::super::{
 pub struct PropertiesDialog {
     pub open: bool,
     pub name: String,
+    pub has_script: bool,
 }
 
 impl PropertiesDialog {
@@ -15,6 +16,7 @@ impl PropertiesDialog {
         PropertiesDialog {
             open: false,
             name: String::new(),
+            has_script: false,
         }
     }
 
@@ -25,13 +27,14 @@ impl PropertiesDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room) {
         self.name.clear();
         self.name.push_str(&room.asset.name);
+        self.has_script = room.has_script;
         self.open = true;
         wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, room: &mut Room) {
-        room.asset.name.clear();
-        room.asset.name.push_str(&self.name);
+        room.asset.name.replace_range(.., &self.name);
+        room.has_script = self.has_script;
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room) {
@@ -43,6 +46,10 @@ impl PropertiesDialog {
                     .show(ui, |ui| {
                         ui.label("Name:");
                         ui.text_edit_singleline(&mut self.name);
+                        ui.end_row();
+
+                        ui.label("Has script:");
+                        ui.checkbox(&mut self.has_script, "");
                         ui.end_row();
                     });
             });

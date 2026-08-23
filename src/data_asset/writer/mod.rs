@@ -1223,17 +1223,30 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("\n");
 
         for id in self.store.asset_ids.rooms.iter() {
-            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-            self.write(format!("extern const struct {}_ROOM_SCRIPT {}_room_script_table_{};\n",
-                               self.ident.prefix_upper, self.ident.prefix_lower, name_id));
+            if self.store.assets.rooms.get(id).is_some_and(|room| room.has_script) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+                self.write(format!(
+                    "extern const struct {}_ROOM_SCRIPT {}_room_script_table_{};\n",
+                    self.ident.prefix_upper,
+                    self.ident.prefix_lower,
+                    name_id
+                ));
+            }
         }
 
         self.write("\n");
-        self.write(format!("const struct {}_ROOM_SCRIPT *{}_room_script_table[] = {{\n",
-                           self.ident.prefix_upper, self.ident.prefix_lower));
-        for id in self.store.asset_ids.rooms.iter() {
-            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-            self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
+        self.write(format!(
+            "const struct {}_ROOM_SCRIPT *{}_room_script_table[] = {{\n",
+            self.ident.prefix_upper,
+            self.ident.prefix_lower
+        ));
+        for room in self.store.assets.rooms.iter() {
+            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, room.asset.id)?;
+            if room.has_script {
+                self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
+            } else {
+                self.write(format!("  NULL, // {}\n", room.asset.name));
+            }
         }
         self.write("};\n");
 
