@@ -593,6 +593,12 @@ impl Editor {
                             .on_hover_text("Show enemy triggers").clicked() {
                                 self.room_editor.display.toggle(RoomDisplay::ENEMY_TRIGGERS);
                             }
+                        if ui.add(egui::Button::image(IMAGES.layer_fx)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::EFFECTS))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::EFFECTS)))
+                            .on_hover_text("Show effects").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::EFFECTS);
+                            }
                         if ui.add(egui::Button::image(IMAGES.layer_bg)
                             .selected(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND))
                             .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND)))

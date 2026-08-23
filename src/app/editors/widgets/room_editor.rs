@@ -20,7 +20,9 @@ use crate::data_asset::{
 use crate::image::{
     ImageCollection,
     TextureSlot,
+    StaticImageData,
 };
+use crate::misc::STATIC_IMAGES;
 
 use super::{
     TILE_SIZE,
@@ -50,11 +52,12 @@ pub struct RoomDisplay {
 impl RoomDisplay {
     pub const FOREGROUND: u8     = 1 << 0;
     pub const BACKGROUND: u8     = 1 << 1;
-    pub const PARALLAX: u8       = 1 << 2;
-    pub const GRID: u8           = 1 << 3;
-    pub const ENEMY_TRIGGERS: u8 = 1 << 4;
-    pub const OTHER_TRIGGERS: u8 = 1 << 5;
-    pub const SCREEN: u8         = 1 << 6;
+    pub const EFFECTS: u8        = 1 << 2;
+    pub const PARALLAX: u8       = 1 << 3;
+    pub const GRID: u8           = 1 << 4;
+    pub const ENEMY_TRIGGERS: u8 = 1 << 5;
+    pub const OTHER_TRIGGERS: u8 = 1 << 6;
+    pub const SCREEN: u8         = 1 << 7;
 
     pub fn new(bits: u8) -> Self {
         RoomDisplay {
@@ -728,6 +731,26 @@ impl RoomEditorWidget {
         }
     }
 
+    fn draw_map_fx_layer(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        map_pos: Pos2,
+        map_data: &MapData,
+        fx_tiles: &StaticImageData
+    ) {
+        let texture = fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        for y in 0..map_data.height {
+            for x in 0..map_data.width {
+                let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
+                if tile == MapData::NO_TILE || tile as u32 >= fx_tiles.num_items() { continue; }
+                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(fx_tiles.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
+            }
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &mut Room, assets: &RoomEditorAssetLists) {
         let room_size_in_tiles = RoomSize::from_room(room, assets.maps);
         let room_size = Self::get_room_size(room_size_in_tiles);
@@ -774,7 +797,7 @@ impl RoomEditorWidget {
             return; // nothing to do!
         }
 
-        // draw map BG layers
+        // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
@@ -789,12 +812,23 @@ impl RoomEditorWidget {
             self.draw_trigger_sprite(ui, wc, &to_canvas, trigger, assets);
         }
 
-        // draw map FG layers
+        // draw map FG layer
         if self.display.has_bits(RoomDisplay::FOREGROUND) {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
                     self.draw_map_fg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+                }
+            }
+        }
+
+        // draw map effects layer
+        if self.display.has_bits(RoomDisplay::EFFECTS) {
+            let fx_tiles = STATIC_IMAGES.fx_tiles();
+            for room_map in room.maps.iter() {
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) {
+                    let map_rect = Self::get_map_rect(room_map, map_data);
+                    self.draw_map_fx_layer(ui, wc, &to_canvas, map_rect.min, map_data, fx_tiles);
                 }
             }
         }
