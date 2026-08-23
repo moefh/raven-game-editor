@@ -1240,12 +1240,14 @@ impl<'a> ProjectDataWriter<'a> {
             self.ident.prefix_upper,
             self.ident.prefix_lower
         ));
-        for room in self.store.assets.rooms.iter() {
-            let name_id = self.ident.get_asset_name_id(DataAssetType::Room, room.asset.id)?;
-            if room.has_script {
-                self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
-            } else {
-                self.write(format!("  NULL, // {}\n", room.asset.name));
+        for id in self.store.asset_ids.rooms.iter() {
+            if let Some(room) = self.store.assets.rooms.get(id) {
+                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, room.asset.id)?;
+                if room.has_script {
+                    self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
+                } else {
+                    self.write(format!("  NULL, // {}\n", room.asset.name));
+                }
             }
         }
         self.write("};\n");
