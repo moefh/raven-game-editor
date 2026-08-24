@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::misc::IMAGES;
 use crate::data_asset::{
+    self,
     Room,
     RoomTrigger,
     RoomTriggerType,
@@ -22,8 +23,11 @@ use crate::data_asset::{
 use super::{
     AssetEditorBase,
     WindowContext,
+    SysDialogResponse,
+    SysDialogOpenFile,
     RoomSize,
     RoomTriggerTypeSel,
+    EditorAction,
 };
 use super::widgets::{
     RoomDisplay,
@@ -55,9 +59,13 @@ pub struct RoomEditorAssetLists<'a> {
 }
 
 impl<'a> RoomEditorAssetLists<'a> {
-    pub fn new(maps: &'a AssetList<MapData>, tilesets: &'a AssetList<Tileset>,
-               animations: &'a AssetList<SpriteAnimation>, sprites: &'a AssetList<Sprite>,
-               room_names: &'a HashMap<DataAssetId, String>) -> Self {
+    pub fn new(
+        maps: &'a AssetList<MapData>,
+        tilesets: &'a AssetList<Tileset>,
+        animations: &'a AssetList<SpriteAnimation>,
+        sprites: &'a AssetList<Sprite>,
+        room_names: &'a HashMap<DataAssetId, String>
+    ) -> Self {
         RoomEditorAssetLists {
             maps,
             tilesets,
@@ -206,6 +214,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     room_editor: RoomEditorWidget,
 }
 
@@ -213,6 +222,7 @@ impl Editor {
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
             room_editor: RoomEditorWidget::new(),
         }
     }
@@ -648,6 +658,25 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "sfx",
+                            "Import Room file",
+                            &[
+                                ("Raven Room files (*.ravroom)", &["ravroom"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportRoom { room_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
                         dialogs.properties_dialog.set_open(wc, room);
                     }
@@ -665,8 +694,36 @@ impl Editor {
         });
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+    fn import_room(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, room: &mut Room, asset_ids: &AssetIdCollection) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_room(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_room) => {
+                std::mem::swap(room, &mut new_room)
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading room file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box("Error importing Room", "Error importing room file.\n\nConsult the log window for more information.");
+            }
+        }
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_room(wc, file, room, asset_ids);
+        }
+
         self.show_header(ui, wc, dialogs, room, asset_ids, assets);
         self.show_toolbar(ui);
 

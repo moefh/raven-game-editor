@@ -5,10 +5,11 @@ use crate::image::{
     TextureSlot,
 };
 use crate::data_asset::{
+    self,
     MapData,
     Tileset,
-    AssetIdList,
     AssetList,
+    AssetIdCollection,
     DataAssetId,
     GenericAsset,
 };
@@ -20,8 +21,11 @@ use crate::misc::{
 use super::{
     AssetEditorBase,
     WindowContext,
+    SysDialogResponse,
+    SysDialogOpenFile,
     MapLayer,
     MapTileFixer,
+    EditorAction,
 };
 use super::widgets::{
     MapEditorWidget,
@@ -89,8 +93,8 @@ impl MapDataEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
-        self.dialogs.show(wc, &mut self.editor, map_data, tileset_ids, tilesets);
+    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>) {
+        self.dialogs.show(wc, &mut self.editor, map_data, asset_ids, tilesets);
 
         let min_size = egui::Vec2::new(600.0, 200.0);
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32 * 1.2) * Tileset::TILE_SIZE as f32;
@@ -98,7 +102,7 @@ impl MapDataEditor {
 
         self.base.show_window(wc, map_data, min_size, def_size, |ui, wc, map_data, base| {
             Self::show_footer(ui, wc, &self.editor, map_data, base);
-            self.editor.show(ui, wc, &mut self.dialogs, map_data, tilesets);
+            self.editor.show(ui, wc, &mut self.dialogs, map_data, asset_ids, tilesets);
         });
     }
 }
@@ -120,10 +124,16 @@ impl Dialogs {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor,
-                map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        editor: &mut Editor,
+        map_data: &mut MapData,
+        asset_ids: &AssetIdCollection,
+        tilesets: &AssetList<Tileset>
+    ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
-            dlg.show(wc, map_data, tileset_ids, tilesets);
+            dlg.show(wc, map_data, &asset_ids.tilesets, tilesets);
             if dlg.resized || dlg.changed_tileset {
                 editor.map_editor.set_undo_target(map_data);
             }
@@ -133,6 +143,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     map_editor: MapEditorWidget,
     image_picker: ImagePickerWidget,
     use_custom_grid_color: bool,
@@ -145,6 +156,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
             use_custom_grid_color: false,
@@ -178,6 +190,25 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Map", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "map",
+                            "Import Map file",
+                            &[
+                                ("Raven Map files (*.ravmap)", &["ravmap"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportMap { map_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
                         let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                             PropertiesDialog::new(map_data.tileset_id)
@@ -434,8 +465,36 @@ impl Editor {
         });
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                map_data: &mut MapData, tilesets: &AssetList<Tileset>) {
+    fn import_map(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, map_data: &mut MapData, asset_ids: &AssetIdCollection) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_map(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_map_data) => {
+                std::mem::swap(map_data, &mut new_map_data)
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading map file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box("Error importing Map", "Error importing map file.\n\nConsult the log window for more information.");
+            }
+        }
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        map_data: &mut MapData,
+        asset_ids: &AssetIdCollection,
+        tilesets: &AssetList<Tileset>,
+    ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_map(wc, file, map_data, asset_ids);
+        }
+
         self.show_menubar(ui, wc, dialogs, map_data);
         self.show_display_toolbar(ui, wc, map_data);
         self.show_edit_toolbar(ui, wc, map_data);

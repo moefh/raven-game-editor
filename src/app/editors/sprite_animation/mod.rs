@@ -5,13 +5,14 @@ use crate::image::{
     colors,
 };
 use crate::data_asset::{
+    self,
     SpriteAnimation,
     SpriteAnimationFrame,
     Sprite,
     DataAssetId,
     GenericAsset,
     AssetList,
-    AssetIdList,
+    AssetIdCollection,
 };
 
 use super::{
@@ -19,7 +20,10 @@ use super::{
     ImageZoomOption,
     AssetEditorBase,
     WindowContext,
+    SysDialogResponse,
+    SysDialogOpenFile,
     SpriteFrameFixer,
+    EditorAction,
 };
 use super::widgets::{
     ColorPickerWidget,
@@ -85,12 +89,18 @@ impl SpriteAnimationEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation, sprite_ids: &AssetIdList, sprites: &mut AssetList<Sprite>) {
-        self.dialogs.show(wc, animation, sprite_ids, sprites, &mut self.editor);
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        animation: &mut SpriteAnimation,
+        asset_ids: &AssetIdCollection,
+        sprites: &mut AssetList<Sprite>
+    ) {
+        self.dialogs.show(wc, animation, asset_ids, sprites, &mut self.editor);
 
         self.base.show_window(wc, animation, [550.0, 450.0], [550.0, 450.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
-            self.editor.show(ui, wc, &mut self.dialogs, animation, sprite_ids, sprites);
+            self.editor.show(ui, wc, &mut self.dialogs, animation, asset_ids, sprites);
         });
     }
 }
@@ -116,12 +126,12 @@ impl Dialogs {
         &mut self,
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
-        sprite_ids: &AssetIdList,
+        asset_ids: &AssetIdCollection,
         sprites: &mut AssetList<Sprite>,
         editor: &mut Editor
     ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
-            dlg.show(wc, animation, sprite_ids, sprites);
+            dlg.show(wc, animation, &asset_ids.sprites, sprites);
         }
 
         if let Some(sprite) = sprites.get(&animation.sprite_id) && sprite.num_frames as usize != editor.sprite_frames.len() {
@@ -132,6 +142,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     selected_tab: EditorTabs,
     selected_loop: usize,
     sprite_frames: Vec<SpriteAnimationFrame>,
@@ -146,6 +157,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_sprite_animation", asset_id),
             selected_tab: EditorTabs::Sprite,
             selected_loop: 0,
             sprite_frames: Vec::new(),
@@ -177,7 +189,7 @@ impl Editor {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
-        _sprite_ids: &AssetIdList,
+        _asset_ids: &AssetIdCollection,
         sprites: &mut AssetList<Sprite>
     ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
@@ -383,7 +395,7 @@ impl Editor {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
-        _sprite_ids: &AssetIdList,
+        _asset_ids: &AssetIdCollection,
         sprites: &mut AssetList<Sprite>
     ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
@@ -520,15 +532,44 @@ impl Editor {
         });
     }
 
+    fn import_sprite_animation(
+        &mut self,
+        wc: &mut WindowContext,
+        file: SysDialogOpenFile,
+        animation: &mut SpriteAnimation,
+        asset_ids: &AssetIdCollection
+    ) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_sprite_animation(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_animation) => {
+                std::mem::swap(animation, &mut new_animation)
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading sprite animation file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box(
+                    "Error importing Sprite Animation",
+                    "Error importing sprite animation file.\n\nConsult the log window for more information."
+                );
+            }
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         animation: &mut SpriteAnimation,
-        sprite_ids: &AssetIdList,
+        asset_ids: &AssetIdCollection,
         sprites: &mut AssetList<Sprite>
     ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_sprite_animation(wc, file, animation, asset_ids);
+        }
         if sprites.get(&animation.sprite_id).is_none() {
             return;  // animation has an invalid sprite id
         }
@@ -537,6 +578,25 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Animation", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "sprite_animation",
+                            "Import Sprite Animation file",
+                            &[
+                                ("Raven Map files (*.ravanim)", &["ravanim"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportSpriteAnimation { animation_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
                         let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                             PropertiesDialog::new(animation.sprite_id)
@@ -574,8 +634,8 @@ impl Editor {
         });
 
         match self.selected_tab {
-            EditorTabs::Sprite => self.sprite_tab(ui, wc, animation, sprite_ids, sprites),
-            EditorTabs::Frames => self.frames_tab(ui, wc, animation, sprite_ids, sprites),
+            EditorTabs::Sprite => self.sprite_tab(ui, wc, animation, asset_ids, sprites),
+            EditorTabs::Frames => self.frames_tab(ui, wc, animation, asset_ids, sprites),
         };
 
         // keyboard:

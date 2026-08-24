@@ -146,3 +146,49 @@ pub fn write_room_item_names(writer: &ProjectDataWriter, room_ids: &[DataAssetId
 
     Ok(())
 }
+
+pub fn write_scripts(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Result<()> {
+    writer.write("// ================================================================\n");
+    writer.write("// === ROOM SCRIPTS\n");
+    writer.write("// ================================================================\n");
+    writer.write("\n");
+
+    writer.write(format!("#if {}_ADD_ROOM_SCRIPTS\n", writer.ident.prefix_upper));
+    writer.write("\n");
+
+    for id in room_ids.iter() {
+        if writer.store.assets.rooms.get(id).is_some_and(|room| room.has_script) {
+            let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+            writer.write(format!(
+                "extern const struct {}_ROOM_SCRIPT {}_room_script_table_{};\n",
+                writer.ident.prefix_upper,
+                writer.ident.prefix_lower,
+                name_id
+            ));
+        }
+    }
+
+    writer.write("\n");
+    writer.write(format!(
+        "const struct {}_ROOM_SCRIPT *{}_room_script_table[] = {{\n",
+        writer.ident.prefix_upper,
+        writer.ident.prefix_lower
+    ));
+    for id in room_ids.iter() {
+        if let Some(room) = writer.store.assets.rooms.get(id) {
+            let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, room.asset.id)?;
+            if room.has_script {
+                writer.write(format!("  &{}_room_script_table_{},\n", writer.ident.prefix_lower, name_id));
+            } else {
+                writer.write(format!("  NULL, // {}\n", room.asset.name));
+            }
+        }
+    }
+    writer.write("};\n");
+
+    writer.write("\n");
+    writer.write(format!("#endif /* {}_ADD_ROOM_SCRIPTS */\n", writer.ident.prefix_upper));
+    writer.write("\n");
+
+    Ok(())
+}

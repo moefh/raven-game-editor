@@ -482,12 +482,20 @@ impl DataAssetStore {
         }
     }
 
-    pub fn read_from_string(file_content: &str, logger: &mut StringLogger) -> Result<Self, io::Error> {
-        reader::ProjectDataReader::read_from_string(file_content, logger)
+    pub fn serialize_project(&self, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_project(self, logger)
     }
 
-    pub fn write_to_string(&self, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::ProjectDataWriter::write_to_string(self, logger)
+    pub fn serialize_map(&self, map_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_map(map_id, self, logger)
+    }
+
+    pub fn serialize_room(&self, room_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_room(room_id, self, logger)
+    }
+
+    pub fn serialize_sprite_animation(&self, animation_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_sprite_animation(animation_id, self, logger)
     }
 
     fn gen_id(&mut self) -> DataAssetId {
@@ -653,4 +661,35 @@ impl DataAssetStore {
         self.assets.prop_fonts.insert(id, PropFont::new(id, name));
         Some(id)
     }
+}
+
+pub fn deserialize_project(data: &str, logger: &mut StringLogger) -> Result<DataAssetStore, io::Error> {
+    reader::deserialize_project(data, logger)
+}
+
+pub fn deserialize_map(
+    data: &str,
+    map_id: DataAssetId,
+    asset_ids: &AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<MapData, io::Error> {
+    reader::deserialize_map(data, map_id, asset_ids, logger)
+}
+
+pub fn deserialize_room(
+    data: &str,
+    room_id: DataAssetId,
+    asset_ids: &AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<Room, io::Error> {
+    reader::deserialize_room(data, room_id, asset_ids, logger)
+}
+
+pub fn deserialize_sprite_animation(
+    data: &str,
+    room_id: DataAssetId,
+    asset_ids: &AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<SpriteAnimation, io::Error> {
+    reader::deserialize_sprite_animation(data, room_id, asset_ids, logger)
 }

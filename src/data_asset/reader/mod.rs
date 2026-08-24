@@ -107,7 +107,7 @@ pub struct ProjectData {
     arrays: HashMap<String, Value>,
     structs: HashMap<String, ValueArray<ValueStruct>>,
     assets: HashMap<String, (Vec<ValueStruct>, TokenPosition)>,
-    enums: HashMap<String,Vec<String>>,
+    enums: HashMap<String, Vec<String>>,
     asset_ids: HashMap<String, Vec<DataAssetId>>,
     asset_ids_by_prefixed_name: HashMap<String, Vec<DataAssetId>>,
 }
@@ -733,10 +733,71 @@ impl<'a> ProjectDataReader<'a> {
             tiles_per_world_block: self.data.tiles_per_world_block,
         })
     }
+}
 
-    pub fn read_from_string(input: &str, logger: &mut StringLogger) -> Result<DataAssetStore> {
-        let mut reader = ProjectDataReader::new(input, logger);
-        reader.read_data()?;
-        reader.create_store()
+pub fn deserialize_project(input: &str, logger: &mut StringLogger) -> Result<DataAssetStore> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+    reader.create_store()
+}
+
+pub fn deserialize_map(
+    input: &str,
+    map_id: DataAssetId,
+    asset_ids: &super::AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<super::MapData> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+
+    reader.data.asset_ids.insert("tilesets".to_owned(), asset_ids.tilesets.store.clone());
+    reader.data.asset_ids_by_prefixed_name.insert(format!("{}tilesets", reader.data.prefix_lower), asset_ids.tilesets.store.clone());
+
+    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+        map_data::create(map_id, asset_struct, &reader.data)
+    } else {
+        Err(Error::other("map data not found in file"))
+    }
+}
+
+pub fn deserialize_room(
+    input: &str,
+    room_id: DataAssetId,
+    asset_ids: &super::AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<super::Room> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+
+    reader.data.asset_ids.insert("maps".to_owned(), asset_ids.maps.store.clone());
+    reader.data.asset_ids_by_prefixed_name.insert(format!("{}maps", reader.data.prefix_lower), asset_ids.maps.store.clone());
+    reader.data.asset_ids.insert("rooms".to_owned(), asset_ids.rooms.store.clone());
+    reader.data.asset_ids_by_prefixed_name.insert(format!("{}rooms", reader.data.prefix_lower), asset_ids.rooms.store.clone());
+    reader.data.asset_ids.insert("sprite_animations".to_owned(), asset_ids.animations.store.clone());
+    reader.data.asset_ids_by_prefixed_name.insert(format!("{}sprite_animations", reader.data.prefix_lower), asset_ids.animations.store.clone());
+
+    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+        room::create(room_id, asset_struct, &reader.data)
+    } else {
+        Err(Error::other("room data not found in file"))
+    }
+}
+
+pub fn deserialize_sprite_animation(
+    input: &str,
+    animation_id: DataAssetId,
+    asset_ids: &super::AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<super::SpriteAnimation> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+
+    reader.data.asset_ids.insert("sprites".to_owned(), asset_ids.sprites.store.clone());
+    reader.data.asset_ids_by_prefixed_name.insert(format!("{}sprites", reader.data.prefix_lower), asset_ids.sprites.store.clone());
+
+    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+        sprite_animation::create(animation_id, asset_struct, &reader.data)
+    } else {
+        Err(Error::other("animation data not found in file"))
     }
 }

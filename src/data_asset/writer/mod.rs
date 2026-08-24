@@ -31,7 +31,7 @@ static HUMAN_TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescript
 static MACHINE_TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
     || time::format_description::parse_borrowed::<3>("[year][month][day]00[hour][minute][second]").unwrap());
 
-pub struct ProjectDataWriter<'a> {
+struct ProjectDataWriter<'a> {
     output: RefCell<String>,
     logger: RefCell<&'a mut StringLogger>,
     store: &'a DataAssetStore,
@@ -183,56 +183,6 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
-    // === SCRIPTS
-    // =========================================================================
-
-    fn write_scripts(&self) -> Result<()> {
-        self.write("// ================================================================\n");
-        self.write("// === ROOM SCRIPTS\n");
-        self.write("// ================================================================\n");
-        self.write("\n");
-
-        self.write(format!("#if {}_ADD_ROOM_SCRIPTS\n", self.ident.prefix_upper));
-        self.write("\n");
-
-        for id in self.store.asset_ids.rooms.iter() {
-            if self.store.assets.rooms.get(id).is_some_and(|room| room.has_script) {
-                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, *id)?;
-                self.write(format!(
-                    "extern const struct {}_ROOM_SCRIPT {}_room_script_table_{};\n",
-                    self.ident.prefix_upper,
-                    self.ident.prefix_lower,
-                    name_id
-                ));
-            }
-        }
-
-        self.write("\n");
-        self.write(format!(
-            "const struct {}_ROOM_SCRIPT *{}_room_script_table[] = {{\n",
-            self.ident.prefix_upper,
-            self.ident.prefix_lower
-        ));
-        for id in self.store.asset_ids.rooms.iter() {
-            if let Some(room) = self.store.assets.rooms.get(id) {
-                let name_id = self.ident.get_asset_name_id(DataAssetType::Room, room.asset.id)?;
-                if room.has_script {
-                    self.write(format!("  &{}_room_script_table_{},\n", self.ident.prefix_lower, name_id));
-                } else {
-                    self.write(format!("  NULL, // {}\n", room.asset.name));
-                }
-            }
-        }
-        self.write("};\n");
-
-        self.write("\n");
-        self.write(format!("#endif /* {}_ADD_ROOM_SCRIPTS */\n", self.ident.prefix_upper));
-        self.write("\n");
-
-        Ok(())
-    }
-
-    // =========================================================================
     // === ASSET IDS
     // =========================================================================
 
@@ -345,7 +295,7 @@ impl<'a> ProjectDataWriter<'a> {
         room::write_rooms(&self, &self.store.asset_ids.rooms.store)?;
         world::write_worlds(&self, &self.store.asset_ids.worlds.store)?;
 
-        self.write_scripts()?;
+        room::write_scripts(&self, &self.store.asset_ids.rooms.store)?;
 
         self.write_data_end()?;
 
@@ -358,8 +308,38 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_footer(merge_sample_saved_size)?;
         Ok(self.output.take())
     }
+}
 
-    pub fn write_to_string(store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-        ProjectDataWriter::new(store, logger).serialize()
-    }
+pub fn serialize_project(store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    ProjectDataWriter::new(store, logger).serialize()
+}
+
+pub fn serialize_map(map_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, logger);
+    writer.gen_unique_asset_names()?;
+    writer.write_header()?;
+    map_data::write_maps(&writer, &[map_id])?;
+    writer.write_data_end()?;
+    Ok(writer.output.take())
+}
+
+pub fn serialize_room(room_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, logger);
+    writer.gen_unique_asset_names()?;
+    writer.write_header()?;
+    room::write_rooms(&writer, &[room_id])?;
+    room::write_scripts(&writer, &[room_id])?;
+    writer.write_data_end()?;
+    room::write_room_item_names(&writer, &[room_id])?;
+    Ok(writer.output.take())
+}
+
+pub fn serialize_sprite_animation(animation_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, logger);
+    writer.gen_unique_asset_names()?;
+    writer.write_header()?;
+    let info = sprite_animation::write_sprite_animations(&writer, &[animation_id])?;
+    writer.write_data_end()?;
+    sprite_animation::write_animation_names(&writer, &[animation_id], info)?;
+    Ok(writer.output.take())
 }

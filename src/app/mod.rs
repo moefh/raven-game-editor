@@ -5,11 +5,13 @@ mod windows;
 mod editors;
 mod settings;
 mod recent_projects;
+mod asset_exporter;
 pub mod checker;
 pub mod widgets;
 
 use crate::include_ref_image;
 use crate::data_asset::{
+    self,
     DataAssetType,
     DataAssetId,
     DataAssetStore,
@@ -57,6 +59,7 @@ pub use windows::{
     AppWindowAction,
 };
 pub use settings::AppSettings;
+pub use asset_exporter::AssetExporter;
 
 enum ConfirmationDialogAction {
     NewProject,
@@ -100,6 +103,7 @@ pub struct RavenEditorApp {
     keyboard_pressed: Option<KeyboardPressed>,
     window_tracker: AppWindowTracker,
     asset_tree: widgets::StoreAssetTree,
+    asset_exporter: AssetExporter,
 }
 
 impl RavenEditorApp {
@@ -131,6 +135,7 @@ impl RavenEditorApp {
             window_tracker: AppWindowTracker::new(),
             asset_tree: widgets::StoreAssetTree::new(),
             recent_projects: recent_projects::RecentProjects::new(),
+            asset_exporter: AssetExporter::new(),
         };
         app.window_tracker.reset(&app.editors.egui_id_to_asset_id, app.windows.get_ids());
         if ! is_wasm {
@@ -218,7 +223,7 @@ impl RavenEditorApp {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
         self.logger.log(format!("READING FILE {}", file.filename()));
-        match file.read_string().and_then(|content| DataAssetStore::read_from_string(&content, &mut self.logger)) {
+        match file.read_string().and_then(|content| data_asset::deserialize_project(&content, &mut self.logger)) {
             Ok(store) => {
                 self.logger.log("DONE: project read");
                 self.load_project(store);
@@ -283,9 +288,9 @@ impl RavenEditorApp {
     }
 
     fn write_project(&mut self, file: SysDialogOpenFile) -> bool {
-        self.logger.log(format!("WRITING PROJECT to {}", file.filename()));
+        self.logger.log("WRITING PROJECT");
         self.prepare_for_saving();
-        match self.store.write_to_string(&mut self.logger).and_then(|content| file.write_string(content)) {
+        match self.store.serialize_project(&mut self.logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 self.logger.log(format!("DONE: project saved to {}", file.filename()));
                 if let Some(path) = file.path() {
@@ -910,7 +915,7 @@ impl RavenEditorApp {
         }
         for map in self.store.assets.maps.iter_mut() {
             if let Some(editor) = self.editors.maps.get_mut(&map.asset.id) {
-                editor.show(&mut win_ctx, map, &self.store.asset_ids.tilesets, &self.store.assets.tilesets);
+                editor.show(&mut win_ctx, map, &self.store.asset_ids, &self.store.assets.tilesets);
             }
         }
         for room in self.store.assets.rooms.iter_mut() {
@@ -945,7 +950,7 @@ impl RavenEditorApp {
         }
         for anim in self.store.assets.animations.iter_mut() {
             if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
-                editor.show(&mut win_ctx, anim, &self.store.asset_ids.sprites, &mut self.store.assets.sprites);
+                editor.show(&mut win_ctx, anim, &self.store.asset_ids, &mut self.store.assets.sprites);
             }
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
@@ -972,7 +977,7 @@ impl RavenEditorApp {
         let window_actions = self.windows.show(&mut win_ctx, &mut self.store);
 
         for editor_action in std::mem::take(&mut win_ctx.editor_actions) {
-            editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors);
+            editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors, &mut self.asset_exporter);
         }
 
         self.map_clipboard = win_ctx.map_clipboard.take();
@@ -1028,6 +1033,13 @@ impl eframe::App for RavenEditorApp {
         }
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
             self.export_header(file);
+        }
+        if self.asset_exporter.check_dialog_response(&mut self.sys_dialogs, &self.store, &mut self.logger) {
+            self.open_message_box(
+                "Error Exportint Asset",
+                "Error exporting asset.\n\nConsult the log window for details."
+            );
+            self.windows.open_log_window();
         }
 
         if self.reset_egui_context {
