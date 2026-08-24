@@ -213,7 +213,7 @@ impl Editor {
                         let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                             PropertiesDialog::new(map_data.tileset_id)
                         });
-                        dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_right()));
+                        dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_r()));
                     }
                 });
                 ui.menu_button("Edit", |ui| {
@@ -508,16 +508,18 @@ impl Editor {
                     MapLayer::Effects => {
                         let tiles = STATIC_IMAGES.fx_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.selection_set = 1;
                         self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
                     }
                     _ => {
                         let bg_color = if self.use_custom_bg_color { self.custom_bg_color } else { wc.settings.map_bg_color };
                         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.selection_set = 0;
                         self.image_picker.show(ui, wc.settings, tileset, texture, bg_color);
                     }
                 }
-                self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image());
-                self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_right());
+                self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_l());
+                self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_r());
             });
 
             // body:
@@ -525,11 +527,11 @@ impl Editor {
                 self.map_editor.show(ui, wc, map_data, tileset);
                 if self.map_editor.left_draw_tile_changed {
                     self.map_editor.left_draw_tile_changed = false;
-                    self.image_picker.set_selected_image(Self::tile_to_image_selection(self.map_editor.left_draw_tile));
+                    self.image_picker.set_selected_image_l(Self::tile_to_image_selection(self.map_editor.left_draw_tile));
                 }
                 if self.map_editor.right_draw_tile_changed {
                     self.map_editor.right_draw_tile_changed = false;
-                    self.image_picker.set_selected_image_right(Self::tile_to_image_selection(self.map_editor.right_draw_tile));
+                    self.image_picker.set_selected_image_r(Self::tile_to_image_selection(self.map_editor.right_draw_tile));
                 }
             });
 

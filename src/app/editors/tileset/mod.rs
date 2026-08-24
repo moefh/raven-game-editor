@@ -102,15 +102,15 @@ impl TilesetEditor {
 
                         match editor.selected_tab {
                             EditorTab::Tile => {
-                                ui.label(format!("[tile {}]", editor.tile_picker.get_selected_image().unwrap_or(0)));
+                                ui.label(format!("[tile {}]", editor.tile_picker.get_selected_image_l().unwrap_or(0)));
                             }
                             EditorTab::Grid => {
                                 let mut left_buf = NumBuffer::new();
                                 let mut right_buf = NumBuffer::new();
                                 ui.label(format!(
                                     "[tiles {}/{}]",
-                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image(), &mut left_buf),
-                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image_right(), &mut right_buf)
+                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image_l(), &mut left_buf),
+                                    Self::get_tile_name(editor.grid_tile_picker.get_selected_image_r(), &mut right_buf)
                                 ));
                             }
                             EditorTab::GridTiles => {}
@@ -178,7 +178,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset) {
         if editor.tile_image_editor.get_selected_image() >= tileset.num_tiles {
             let selected_image = tileset.num_tiles - 1;
-            editor.tile_picker.set_selected_image(Some(selected_image));
+            editor.tile_picker.set_selected_image_l(Some(selected_image));
         }
     }
 
@@ -663,7 +663,7 @@ impl Editor {
             let slot = tileset.texture_slot(self.tile_picker.display.is_transparent(), false);
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
             self.tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
-            if let Some(selected_image) = self.tile_picker.get_selected_image() {
+            if let Some(selected_image) = self.tile_picker.get_selected_image_l() {
                 self.tile_image_editor.set_selected_image(selected_image, tileset);
             }
         });
@@ -696,8 +696,8 @@ impl Editor {
             let slot = tileset.texture_slot(self.grid_tile_picker.display.is_transparent(), false);
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
             self.grid_tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
-            self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image();
-            self.tile_grid_editor.right_selected_tile = self.grid_tile_picker.get_selected_image_right();
+            self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image_l();
+            self.tile_grid_editor.right_selected_tile = self.grid_tile_picker.get_selected_image_r();
         });
 
         // toolbar
@@ -734,10 +734,10 @@ impl Editor {
             match self.tile_grid_editor.show(ui, wc, &mut self.tile_grid, tileset) {
                 TileGridEditorAction::None => {}
                 TileGridEditorAction::PickLeftTile(tile) => {
-                    self.grid_tile_picker.set_selected_image(tile);
+                    self.grid_tile_picker.set_selected_image_l(tile);
                 }
                 TileGridEditorAction::PickRightTile(tile) => {
-                    self.grid_tile_picker.set_selected_image_right(tile);
+                    self.grid_tile_picker.set_selected_image_r(tile);
                 }
                 TileGridEditorAction::SetTile => {
                     self.tile_grid.tileset_to_image(tileset);

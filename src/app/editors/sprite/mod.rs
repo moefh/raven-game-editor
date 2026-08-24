@@ -78,7 +78,7 @@ impl SpriteEditor {
                     frames_plural, dirty
                 )).truncate());
 
-                if let Some(sprite) = editor.image_picker.get_selected_image() {
+                if let Some(sprite) = editor.image_picker.get_selected_image_l() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                         ui.horizontal(|ui| {
                             let spacing = ui.spacing().item_spacing;
@@ -146,7 +146,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite) {
         if editor.image_editor.get_selected_image() >= sprite.num_frames {
             let selected_image = sprite.num_frames - 1;
-            editor.image_picker.set_selected_image(Some(selected_image));
+            editor.image_picker.set_selected_image_l(Some(selected_image));
         }
     }
 
@@ -404,7 +404,7 @@ impl Editor {
             let slot = sprite.texture_slot(self.image_picker.display.is_transparent(), false);
             let texture = sprite.texture(wc.tex_man, wc.egui.ctx, slot);
             self.image_picker.show(ui, wc.settings, sprite, texture, wc.settings.image_bg_color);
-            if let Some(selected_image) = self.image_picker.get_selected_image() {
+            if let Some(selected_image) = self.image_picker.get_selected_image_l() {
                 self.image_editor.set_selected_image(selected_image, sprite);
             }
         });

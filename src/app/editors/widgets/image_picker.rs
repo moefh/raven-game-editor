@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use egui::{
     Vec2,
     Pos2,
@@ -12,13 +14,14 @@ use super::super::super::AppSettings;
 
 pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,
-    pub allow_second_selection: bool,
+    pub allow_r_selection: bool,
+    pub selection_set: usize,
     pub zoom: f32,
     pub display: ImageDisplay,
-    selected_image: Option<u32>,
-    selected_image_right: Option<u32>,
-    selected_image_changed: bool,
-    selected_image_right_changed: bool,
+    selected_image_l: HashMap<usize, Option<u32>>,
+    selected_image_r: HashMap<usize, Option<u32>>,
+    selected_image_l_changed: bool,
+    selected_image_r_changed: bool,
 }
 
 impl ImagePickerWidget {
@@ -27,38 +30,39 @@ impl ImagePickerWidget {
     pub fn new() -> Self {
         ImagePickerWidget {
             allow_empty_selection: false,
-            allow_second_selection: false,
+            allow_r_selection: false,
             zoom: 1.0,
-            selected_image: Some(0),
-            selected_image_right: None,
-            selected_image_changed: false,
-            selected_image_right_changed: false,
+            selection_set: 0,
+            selected_image_l: HashMap::from([(0, Some(0)), (1, Some(0))]),
+            selected_image_r: HashMap::new(),
+            selected_image_l_changed: false,
+            selected_image_r_changed: false,
             display: ImageDisplay::new(0),
         }
     }
 
     pub fn use_as_palette(mut self, use_as_palette: bool) -> Self {
-        self.allow_second_selection = use_as_palette;
+        self.allow_r_selection = use_as_palette;
         self.allow_empty_selection = use_as_palette;
         self
     }
 
-    pub fn get_selected_image(&self) -> Option<u32> {
-        self.selected_image
+    pub fn get_selected_image_l(&self) -> Option<u32> {
+        self.selected_image_l.get(&self.selection_set).copied().unwrap_or(None)
     }
 
-    pub fn get_selected_image_right(&self) -> Option<u32> {
-        self.selected_image_right
+    pub fn get_selected_image_r(&self) -> Option<u32> {
+        self.selected_image_r.get(&self.selection_set).copied().unwrap_or(None)
     }
 
-    pub fn set_selected_image(&mut self, selected_image: Option<u32>) {
-        self.selected_image = selected_image;
-        self.selected_image_changed = true;
+    pub fn set_selected_image_l(&mut self, selected_image: Option<u32>) {
+        self.selected_image_l.insert(self.selection_set, selected_image);
+        self.selected_image_l_changed = true;
     }
 
-    pub fn set_selected_image_right(&mut self, selected_image: Option<u32>) {
-        self.selected_image_right = selected_image;
-        self.selected_image_right_changed = true;
+    pub fn set_selected_image_r(&mut self, selected_image: Option<u32>) {
+        self.selected_image_r.insert(self.selection_set, selected_image);
+        self.selected_image_r_changed = true;
     }
 
     fn ui_pos_to_selection(&self, ui_pos: f32) -> Option<u32> {
@@ -109,12 +113,12 @@ impl ImagePickerWidget {
         let image_size = self.zoom * image.get_item_size();
 
         // scroll to selected image if changed
-        if let Some(scroll_to_pos) = if self.selected_image_changed {
-            self.selected_image_changed = false;
-            Some(self.selection_to_ui_pos(self.selected_image))
-        } else if self.selected_image_right_changed {
-            self.selected_image_right_changed = false;
-            Some(self.selection_to_ui_pos(self.selected_image_right))
+        if let Some(scroll_to_pos) = if self.selected_image_l_changed {
+            self.selected_image_l_changed = false;
+            Some(self.selection_to_ui_pos(self.get_selected_image_l()))
+        } else if self.selected_image_r_changed {
+            self.selected_image_r_changed = false;
+            Some(self.selection_to_ui_pos(self.get_selected_image_r()))
         } else {
             None
         } {
@@ -142,12 +146,23 @@ impl ImagePickerWidget {
             egui::Image::from_texture((texture.id(), image_picker_size)).uv(super::FULL_UV).paint_at(ui, images_rect);
 
             // draw selection rectangles
-            if self.allow_second_selection {
-                self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image_right,
-                                              3.0, (Color32::RED, Color32::WHITE));
+            if self.allow_r_selection {
+                self.draw_selection_rectangle(
+                    &painter,
+                    canvas_rect.min,
+                    image_size,
+                    self.get_selected_image_r(),
+                    3.0,
+                    (Color32::RED, Color32::WHITE));
             }
-            self.draw_selection_rectangle(&painter, canvas_rect.min, image_size, self.selected_image,
-                                          0.0, (Color32::BLUE, Color32::WHITE));
+            self.draw_selection_rectangle(
+                &painter,
+                canvas_rect.min,
+                image_size,
+                self.get_selected_image_l(),
+                0.0,
+                (Color32::BLUE, Color32::WHITE)
+            );
 
             response
         });
@@ -158,9 +173,9 @@ impl ImagePickerWidget {
                 let num_items = image.num_items() as i32 + if self.allow_empty_selection { 1 } else { 0 };
                 let selection = self.ui_pos_to_selection(f32::min((pos.y / frame_size.y).floor(), (num_items - 1) as f32));
                 if resp.inner.dragged_by(egui::PointerButton::Primary) {
-                    self.selected_image = selection;
+                    self.selected_image_l.insert(self.selection_set, selection);
                 } else if resp.inner.dragged_by(egui::PointerButton::Secondary) {
-                    self.selected_image_right = selection;
+                    self.selected_image_r.insert(self.selection_set, selection);
                 }
             }
         };
