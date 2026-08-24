@@ -286,6 +286,13 @@ impl Editor {
                         self.map_editor.display.toggle(MapDisplay::EFFECTS);
                     }
 
+                if ui.add(egui::Button::image(IMAGES.layer_anim)
+                          .selected(self.map_editor.display.has_bits(MapDisplay::ANIMATION))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::ANIMATION)))
+                    .on_hover_text("Show animation").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::ANIMATION);
+                    }
+
                 if ui.add_enabled(map_data.para_width != 0 && map_data.para_height != 0,
                                   egui::Button::image(IMAGES.layer_parallax)
                                   .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
@@ -382,45 +389,59 @@ impl Editor {
 
                 Self::add_indenting_label(ui, 70.0, "Edit:");
 
-                if ui.add(egui::Button::image(IMAGES.pencil_fg)
-                          .selected(self.map_editor.edit_layer == MapLayer::Foreground)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Foreground))
-                    .on_hover_text("Edit foreground").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Foreground);
-                        self.map_editor.display.set(MapDisplay::FOREGROUND);
-                    }
+                if ui.add(
+                    egui::Button::image(IMAGES.pencil_fg)
+                        .selected(self.map_editor.edit_layer == MapLayer::Foreground)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Foreground)
+                ).on_hover_text("Edit foreground").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Foreground);
+                    self.map_editor.display.set(MapDisplay::FOREGROUND);
+                }
 
-                if ui.add(egui::Button::image(IMAGES.pencil_bg)
-                          .selected(self.map_editor.edit_layer == MapLayer::Background)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Background))
-                    .on_hover_text("Edit background").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Background);
-                        self.map_editor.display.set(MapDisplay::BACKGROUND);
-                    }
+                if ui.add(
+                    egui::Button::image(IMAGES.pencil_bg)
+                        .selected(self.map_editor.edit_layer == MapLayer::Background)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Background)
+                ).on_hover_text("Edit background").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Background);
+                    self.map_editor.display.set(MapDisplay::BACKGROUND);
+                }
 
-                if ui.add(egui::Button::image(IMAGES.layer_fx)
-                          .selected(self.map_editor.edit_layer == MapLayer::Effects)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Effects))
-                    .on_hover_text("Edit effects").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Effects);
-                        self.map_editor.display.set(MapDisplay::EFFECTS);
-                    }
+                if ui.add(
+                    egui::Button::image(IMAGES.layer_fx)
+                        .selected(self.map_editor.edit_layer == MapLayer::Effects)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Effects)
+                ).on_hover_text("Edit effects").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Effects);
+                    self.map_editor.display.set(MapDisplay::EFFECTS);
+                }
 
-                if ui.add_enabled(map_data.para_width != 0 && map_data.para_height != 0,
-                                  egui::Button::image(IMAGES.layer_parallax)
-                                  .selected(self.map_editor.edit_layer == MapLayer::Parallax)
-                                  .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax))
-                    .on_hover_text("Edit parallax").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Parallax);
-                        self.map_editor.display.set(MapDisplay::PARALLAX);
-                    }
+                if ui.add(
+                    egui::Button::image(IMAGES.layer_anim)
+                        .selected(self.map_editor.edit_layer == MapLayer::Animation)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Animation)
+                ).on_hover_text("Edit animation").clicked() {
+                    self.map_editor.edit_layer = MapLayer::Animation;
+                    self.map_editor.display.set(MapDisplay::ANIMATION);
+                }
 
-                if ui.add(egui::Button::image(IMAGES.screen)
-                          .selected(self.map_editor.edit_layer == MapLayer::Screen)
-                          .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Screen))
-                    .on_hover_text("Move screen size").clicked() {
-                        self.map_editor.set_edit_layer(MapLayer::Screen);
-                    }
+                if ui.add_enabled(
+                    map_data.para_width != 0 && map_data.para_height != 0,
+                    egui::Button::image(IMAGES.layer_parallax)
+                        .selected(self.map_editor.edit_layer == MapLayer::Parallax)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax)
+                ).on_hover_text("Edit parallax").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Parallax);
+                    self.map_editor.display.set(MapDisplay::PARALLAX);
+                }
+
+                if ui.add(
+                    egui::Button::image(IMAGES.screen)
+                        .selected(self.map_editor.edit_layer == MapLayer::Screen)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Screen)
+                ).on_hover_text("Move screen size").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Screen);
+                }
 
                 ui.add_space(5.0);
                 ui.separator();
@@ -430,32 +451,40 @@ impl Editor {
 
                 let tools_enabled = self.map_editor.edit_layer != MapLayer::Screen;
 
-                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.pen)
-                                  .selected(self.map_editor.tool == MapTool::Pencil)
-                                  .frame_when_inactive(self.map_editor.tool == MapTool::Pencil))
-                    .on_hover_text("Place Tiles").clicked() {
-                        self.map_editor.set_tool(MapTool::Pencil);
-                    }
+                if ui.add_enabled(
+                    tools_enabled,
+                    egui::Button::image(IMAGES.pen)
+                        .selected(self.map_editor.tool == MapTool::Pencil)
+                        .frame_when_inactive(self.map_editor.tool == MapTool::Pencil)
+                ).on_hover_text("Place Tiles").clicked() {
+                    self.map_editor.set_tool(MapTool::Pencil);
+                }
 
-                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
-                                  .selected(self.map_editor.tool == MapTool::SelectLayer)
-                                  .frame_when_inactive(self.map_editor.tool == MapTool::SelectLayer))
-                    .on_hover_text("Select current layer").clicked() {
-                        self.map_editor.set_tool(MapTool::SelectLayer);
-                    }
+                if ui.add_enabled(
+                    tools_enabled,
+                    egui::Button::image(IMAGES.select)
+                        .selected(self.map_editor.tool == MapTool::SelectLayer)
+                        .frame_when_inactive(self.map_editor.tool == MapTool::SelectLayer)
+                ).on_hover_text("Select current layer").clicked() {
+                    self.map_editor.set_tool(MapTool::SelectLayer);
+                }
 
-                if ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
-                                  .selected(self.map_editor.tool == MapTool::SelectFullLayers)
-                                  .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers))
-                    .on_hover_text("Select normal layers").clicked() {
-                            self.map_editor.set_tool(MapTool::SelectFullLayers);
+                if ui.add_enabled(
+                    tools_enabled,
+                    egui::Button::image(IMAGES.select)
+                        .selected(self.map_editor.tool == MapTool::SelectFullLayers)
+                        .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers)
+                ).on_hover_text("Select normal layers").clicked() {
+                        self.map_editor.set_tool(MapTool::SelectFullLayers);
                     }
 
                 if map_data.width == map_data.para_width && map_data.height == map_data.para_height &&
-                    ui.add_enabled(tools_enabled, egui::Button::image(IMAGES.select)
-                                   .selected(self.map_editor.tool == MapTool::SelectAllLayers)
-                                   .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers))
-                    .on_hover_text("Select all layers").clicked() {
+                    ui.add_enabled(
+                        tools_enabled,
+                        egui::Button::image(IMAGES.select)
+                            .selected(self.map_editor.tool == MapTool::SelectAllLayers)
+                            .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers)
+                    ).on_hover_text("Select all layers").clicked() {
                         self.map_editor.set_tool(MapTool::SelectAllLayers);
                     }
 
@@ -509,6 +538,12 @@ impl Editor {
                         let tiles = STATIC_IMAGES.fx_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                         self.image_picker.selection_set = 1;
+                        self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
+                    }
+                    MapLayer::Animation => {
+                        let tiles = STATIC_IMAGES.anim_tiles();
+                        let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        self.image_picker.selection_set = 2;
                         self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
                     }
                     _ => {

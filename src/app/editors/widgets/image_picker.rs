@@ -33,7 +33,7 @@ impl ImagePickerWidget {
             allow_r_selection: false,
             zoom: 1.0,
             selection_set: 0,
-            selected_image_l: HashMap::from([(0, Some(0)), (1, Some(0))]),
+            selected_image_l: HashMap::from([(0, Some(0)), (1, Some(0)), (1, Some(0))]),
             selected_image_r: HashMap::new(),
             selected_image_l_changed: false,
             selected_image_r_changed: false,

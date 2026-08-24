@@ -293,7 +293,7 @@ impl WorldEditorWidget {
         let keys_pressed = resp.ctx.input(|i| i.modifiers);
         if keys_pressed.alt {
             resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
-        } else if keys_pressed.ctrl {
+        } else if keys_pressed.command {
             resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
         } else if (! self.lock_regions) && let Some(border) = self.get_selected_region_border(world, mouse_pos, zoom) {
             resp.ctx.set_cursor_icon(border.cursor());
@@ -666,7 +666,7 @@ impl WorldEditorWidget {
         if response.drag_stopped() {
             self.tool_mouse_down = false;
         }
-        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.ctrl) {
+        if let Some(pointer_pos) = response.interact_pointer_pos() && ! (keys_pressed.alt || keys_pressed.command) {
             if response.drag_started() {
                 self.tool_mouse_down = true;
             }
@@ -676,7 +676,7 @@ impl WorldEditorWidget {
 
         // check zoom (must be last)
         if response.contains_pointer() && let Some(hover_pos) = response.hover_pos() {
-            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
+            let zoom_delta = if keys_pressed.command && response.dragged_by(egui::PointerButton::Primary) {
                 (response.drag_delta().y * -0.01).exp()
             } else {
                 ui.input(|i| i.zoom_delta())

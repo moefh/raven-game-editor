@@ -114,10 +114,17 @@ fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u8
     if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
 
     match layer {
-        MapLayer::Foreground => map_data.fg_tiles[(map_data.width * y + x) as usize],
-        MapLayer::Background => map_data.bg_tiles[(map_data.width * y + x) as usize],
-        MapLayer::Effects    => map_data.fx_tiles[(map_data.width * y + x) as usize],
-        MapLayer::Parallax   => map_data.para_tiles[(map_data.para_width * y + x) as usize],
-        _ => MapData::NO_TILE,
+        MapLayer::Foreground => { map_data.fg_tiles[(map_data.width * y + x) as usize] }
+        MapLayer::Background => { map_data.bg_tiles[(map_data.width * y + x) as usize] }
+        MapLayer::Effects    => {
+            let fx = map_data.fx_tiles[(map_data.width * y + x) as usize] & 0x0f;
+            if fx == 0x0f { MapData::NO_TILE } else { fx }
+        }
+        MapLayer::Animation  => {
+            let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
+            if anim == 0x0f { MapData::NO_TILE } else { anim }
+        }
+        MapLayer::Parallax   => {map_data.para_tiles[(map_data.para_width * y + x) as usize] }
+        MapLayer::Screen     => { MapData::NO_TILE }
     }
 }

@@ -15,6 +15,7 @@ pub enum MapLayer {
     Foreground,
     Background,
     Effects,
+    Animation,
     Parallax,
     Screen,
 }

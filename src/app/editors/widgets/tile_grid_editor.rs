@@ -104,7 +104,7 @@ impl TileGridEditorWidget {
             if x >= 0 && y >= 0 && (x as u32) < tile_grid.width && (y as u32) < tile_grid.height {
                 let x = x as u32;
                 let y = y as u32;
-                if keys_pressed.ctrl {
+                if keys_pressed.command {
                     let tile = tile_grid.get_tile(x, y);
                     let tile = if tile == MapData::NO_TILE { None } else { Some(tile as u32) };
                     if response.dragged_by(egui::PointerButton::Primary) {

@@ -112,7 +112,7 @@ impl MapSelection {
             MapSelection::Rect(..) => {}
             MapSelection::LayerFragment(_, frag) => {
                 match frag.layer {
-                    MapLayer::Effects | MapLayer::Screen => {}
+                    MapLayer::Effects | MapLayer::Animation | MapLayer::Screen => {}
                     MapLayer::Foreground | MapLayer::Background | MapLayer::Parallax => {
                         planes.push(&mut frag.data)
                     }
@@ -136,9 +136,10 @@ impl MapDisplay {
     pub const FOREGROUND: u8  = 1 << 0;
     pub const BACKGROUND: u8  = 1 << 1;
     pub const EFFECTS: u8     = 1 << 2;
-    pub const PARALLAX: u8    = 1 << 3;
-    pub const GRID: u8        = 1 << 4;
-    pub const SCREEN: u8      = 1 << 5;
+    pub const ANIMATION: u8   = 1 << 3;
+    pub const PARALLAX: u8    = 1 << 4;
+    pub const GRID: u8        = 1 << 5;
+    pub const SCREEN: u8      = 1 << 6;
 
     pub fn new(bits: u8) -> Self {
         MapDisplay {
@@ -352,8 +353,15 @@ impl MapEditorWidget {
         }
     }
 
-    fn paint_floating_selection_for_layer(&self, ui: &mut egui::Ui, layer: MapLayer, wc: &mut WindowContext,
-                                          image: &impl ImageCollection, slot: TextureSlot, canvas_rect: Rect) {
+    fn paint_floating_selection_for_layer(
+        &self,
+        ui: &mut egui::Ui,
+        layer: MapLayer,
+        wc: &mut WindowContext,
+        image: &impl ImageCollection,
+        slot: TextureSlot,
+        canvas_rect: Rect
+    ) {
         let texture = image.texture(wc.tex_man, wc.egui.ctx, slot);
 
         let compatible_layer = self.edit_layer == layer || self.edit_layer == MapLayer::Screen;
@@ -391,8 +399,14 @@ impl MapEditorWidget {
         }
     }
 
-    fn handle_selection_mouse(&mut self, pointer_pos: Pos2, resp: &egui::Response, map_data: &mut MapData,
-                              canvas_to_map_full: &emath::RectTransform, canvas_to_map_para: &emath::RectTransform) {
+    fn handle_selection_mouse(
+        &mut self,
+        pointer_pos: Pos2,
+        resp: &egui::Response,
+        map_data: &mut MapData,
+        canvas_to_map_full: &emath::RectTransform,
+        canvas_to_map_para: &emath::RectTransform
+    ) {
         let (mouse_pos, map_size) = match self.edit_layer {
             MapLayer::Parallax => (canvas_to_map_para * pointer_pos, canvas_to_map_para.to().size()),
             _ => (canvas_to_map_full * pointer_pos, canvas_to_map_full.to().size()),
@@ -450,7 +464,14 @@ impl MapEditorWidget {
         match layer {
             MapLayer::Foreground => { map_data.fg_tiles[(map_data.width * y + x) as usize] = tile; }
             MapLayer::Background => { map_data.bg_tiles[(map_data.width * y + x) as usize] = tile; }
-            MapLayer::Effects => { map_data.fx_tiles[(map_data.width * y + x) as usize] = tile; }
+            MapLayer::Effects => {
+                map_data.fx_tiles[(map_data.width * y + x) as usize] &= 0xf0;
+                map_data.fx_tiles[(map_data.width * y + x) as usize] |= tile & 0x0f;
+            }
+            MapLayer::Animation => {
+                map_data.fx_tiles[(map_data.width * y + x) as usize] &= 0x0f;
+                map_data.fx_tiles[(map_data.width * y + x) as usize] |= (tile & 0x0f) << 4;
+            }
             _ => {}
         }
     }
@@ -463,7 +484,14 @@ impl MapEditorWidget {
         match layer {
             MapLayer::Foreground => { Some(map_data.fg_tiles[(map_data.width * y + x) as usize]) }
             MapLayer::Background => { Some(map_data.bg_tiles[(map_data.width * y + x) as usize]) }
-            MapLayer::Effects => { Some(map_data.fx_tiles[(map_data.width * y + x) as usize]) }
+            MapLayer::Effects => {
+                let fx = map_data.fx_tiles[(map_data.width * y + x) as usize] & 0x0f;
+                if fx != 0x0f { Some(fx) } else { Some(0xff) }
+            }
+            MapLayer::Animation => {
+                let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
+                if anim != 0x0f { Some(anim) } else { Some(0xff) }
+            }
             _ => { None }
         }
     }
@@ -487,8 +515,14 @@ impl MapEditorWidget {
         }
     }
 
-    fn handle_mouse(&mut self, pointer_pos: Pos2, response: &egui::Response, map_data: &mut MapData,
-                    canvas_to_map_full: &emath::RectTransform, canvas_to_map_para: &emath::RectTransform) {
+    fn handle_mouse(
+        &mut self,
+        pointer_pos: Pos2,
+        response: &egui::Response,
+        map_data: &mut MapData,
+        canvas_to_map_full: &emath::RectTransform,
+        canvas_to_map_para: &emath::RectTransform
+    ) {
         if matches!(self.edit_layer, MapLayer::Screen) {
             if ! response.dragged_by(egui::PointerButton::Primary) { return; }
             let mouse_pos = canvas_to_map_full * pointer_pos * TILE_SIZE;
@@ -509,15 +543,15 @@ impl MapEditorWidget {
 
         match self.tool {
             MapTool::Pencil => {
-                if keys_pressed.ctrl {
+                if keys_pressed.command {
                     let pick_tile = match self.edit_layer {
-                        MapLayer::Foreground | MapLayer::Background | MapLayer::Effects => {
+                        MapLayer::Foreground | MapLayer::Background | MapLayer::Effects | MapLayer::Animation => {
                             self.get_full_layer_tile(self.edit_layer, canvas_to_map_full * pointer_pos, map_data)
                         }
                         MapLayer::Parallax => {
                             self.get_para_layer_tile(canvas_to_map_para * pointer_pos, map_data)
                         }
-                        _ => {
+                        MapLayer::Screen => {
                             None
                         }
                     };
@@ -526,7 +560,7 @@ impl MapEditorWidget {
                     }
                 } else if let Some(tile) = self.get_selected_tile_for_click(response) {
                     match self.edit_layer {
-                        MapLayer::Foreground | MapLayer::Background | MapLayer::Effects => {
+                        MapLayer::Foreground | MapLayer::Background | MapLayer::Effects | MapLayer::Animation => {
                             if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_full_layer_tile(self.edit_layer, canvas_to_map_full * pointer_pos, tile, map_data);
                         }
@@ -534,7 +568,7 @@ impl MapEditorWidget {
                             if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_para_layer_tile(canvas_to_map_para * pointer_pos, tile, map_data);
                         }
-                        _ => {}
+                        MapLayer::Screen => {}
                     }
                 }
             }
@@ -833,7 +867,7 @@ impl MapEditorWidget {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Effects, x, y);
                     if tile == MapData::NO_TILE { continue; }
-                    let (uv, texture) = if tile as u32 >= tileset.num_tiles {
+                    let (uv, texture) = if tile as u32 >= fx_tiles.num_items {
                         (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     } else {
                         (fx_tiles.get_item_uv(tile as u32), fx_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
@@ -844,6 +878,26 @@ impl MapEditorWidget {
             }
 
             self.paint_floating_selection_for_layer(ui, MapLayer::Effects, wc, fx_tiles, TextureSlot::Transparent, canvas_rect);
+        }
+
+        // animations
+        if self.display.has_bits(MapDisplay::ANIMATION) {
+            let anim_tiles = STATIC_IMAGES.anim_tiles();
+            for y in 0..map_data.height {
+                for x in 0..map_data.width {
+                    let tile = get_map_layer_tile(map_data, MapLayer::Animation, x, y);
+                    if tile == MapData::NO_TILE { continue; }
+                    let (uv, texture) = if tile as u32 >= anim_tiles.num_items {
+                        (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    } else {
+                        (anim_tiles.get_item_uv(tile as u32), anim_tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+                    };
+                    let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv).paint_at(ui, tile_rect);
+                }
+            }
+
+            self.paint_floating_selection_for_layer(ui, MapLayer::Animation, wc, anim_tiles, TextureSlot::Transparent, canvas_rect);
         }
 
         // grid and border
@@ -880,7 +934,7 @@ impl MapEditorWidget {
         if response.contains_pointer() && response.hovered() {
             if keys_pressed.alt {
                 response.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
-            } else if keys_pressed.ctrl {
+            } else if keys_pressed.command {
                 response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
             } else if matches!(self.edit_layer, MapLayer::Screen) {
                 response.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);

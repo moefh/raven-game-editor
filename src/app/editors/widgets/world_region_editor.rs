@@ -121,7 +121,7 @@ impl WorldRegionEditorWidget {
     ) {
         let keys_pressed = response.ctx.input(|i| i.modifiers);
 
-        if keys_pressed.ctrl {
+        if keys_pressed.command {
             if response.dragged_by(egui::PointerButton::Primary) {
                 let pick_room = self.get_region_block(pointer_pos, region);
                 if pick_room.is_some() {
@@ -374,7 +374,7 @@ impl WorldRegionEditorWidget {
         if response.contains_pointer() && response.hovered() {
             if keys_pressed.alt {
                 response.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
-            } else if keys_pressed.ctrl {
+            } else if keys_pressed.command {
                 response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
             }
         }

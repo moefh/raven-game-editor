@@ -521,7 +521,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let x = mouse_pos.x.floor() as i32;
         let y = mouse_pos.y.floor() as i32;
 
-        let ctrl_held = resp.ctx.input(|i| i.modifiers.ctrl);
+        let ctrl_held = resp.ctx.input(|i| i.modifiers.command);
 
         match self.tool {
             ImageDrawingTool::Pencil => {
@@ -817,7 +817,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         if resp.contains_pointer() && resp.hovered() {
             if keys_pressed.alt {
                 resp.ctx.set_cursor_icon(egui::CursorIcon::AllScroll);
-            } else if keys_pressed.ctrl {
+            } else if keys_pressed.command {
                 resp.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
             } else if self.tool == ImageDrawingTool::Select {
                 resp.ctx.set_cursor_icon(egui::CursorIcon::Crosshair)

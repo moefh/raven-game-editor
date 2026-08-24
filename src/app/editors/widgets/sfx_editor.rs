@@ -281,14 +281,14 @@ impl SfxEditorWidget {
                 } else {
                     response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
                 }
-            } else if keys_pressed.ctrl {
+            } else if keys_pressed.command {
                 response.ctx.set_cursor_icon(egui::CursorIcon::ZoomIn);
             }
         }
 
         // check zoom
         if response.contains_pointer() && let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
-            let zoom_delta = if keys_pressed.ctrl && response.dragged_by(egui::PointerButton::Primary) {
+            let zoom_delta = if keys_pressed.command && response.dragged_by(egui::PointerButton::Primary) {
                 (response.drag_delta().y * -0.01).exp()
             } else {
                 ui.input(|i| i.zoom_delta())
@@ -311,7 +311,7 @@ impl SfxEditorWidget {
         }
         if (self.tool_mouse_down || response.drag_started()) &&
             let Some(pointer_pos) = response.interact_pointer_pos() &&
-            ! (keys_pressed.alt || keys_pressed.ctrl) {
+            ! (keys_pressed.alt || keys_pressed.command) {
                 if response.drag_started() {
                     self.tool_mouse_down = true;
                 }
