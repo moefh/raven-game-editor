@@ -80,11 +80,11 @@ impl MapDataEditor {
 
                         ui.add_space(1.0);
 
+                        ui.label(format!("({}, {})", editor.map_editor.hover_pos.x.floor(), editor.map_editor.hover_pos.y.floor()));
+
                         if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
                             ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
                         }
-
-                        ui.label(format!("({}, {})", editor.map_editor.hover_pos.x.floor(), editor.map_editor.hover_pos.y.floor()));
 
                         ui.spacing_mut().item_spacing = spacing;
                     });

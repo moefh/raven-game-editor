@@ -87,14 +87,14 @@ impl SpriteEditor {
                             ui.add_space(1.0);
                             ui.label(format!("[sprite {}]", sprite));
 
-                            if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
-                                ui.add_space(12.0);
-                                ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
-                            }
-
                             if let Some(hover_pos) = editor.get_hover_pos() {
                                 ui.add_space(12.0);
                                 ui.label(format!("({},{})", hover_pos.x, hover_pos.y));
+                            }
+
+                            if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
+                                ui.add_space(12.0);
+                                ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
                             }
 
                             ui.spacing_mut().item_spacing = spacing;

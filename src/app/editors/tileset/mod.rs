@@ -121,12 +121,12 @@ impl TilesetEditor {
                             EditorTab::GridTiles => {}
                         }
 
-                        if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
-                            ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
-                        }
-
                         if let Some(hover_pos) = editor.get_hover_pos() {
                             ui.label(format!("({},{})", hover_pos.x, hover_pos.y));
+                        }
+
+                        if let Some(sel_rect) = editor.get_selection_rectangle() && sel_rect.is_positive() {
+                            ui.label(format!("[sel {}x{}]", sel_rect.width(), sel_rect.height()));
                         }
 
                         ui.spacing_mut().item_spacing = spacing;
