@@ -5,16 +5,12 @@ use super::super::{
     AssetEditorBase,
     WindowContext,
     EditorAction,
+    AddTileLocation,
 };
-
-pub enum AddTilesAction {
-    Insert,
-    Append,
-}
 
 pub struct AddTilesDialog {
     pub open: bool,
-    pub action: AddTilesAction,
+    pub add_tile_location: AddTileLocation,
     pub num_tiles: u32,
     pub sel_tile: u32,
     pub clear_color: u8,
@@ -26,7 +22,7 @@ impl AddTilesDialog {
         AddTilesDialog {
             confirmed: false,
             open: false,
-            action: AddTilesAction::Insert,
+            add_tile_location: AddTileLocation::AfterSelected,
             num_tiles: 0,
             sel_tile: 0,
             clear_color: 0,
@@ -37,8 +33,8 @@ impl AddTilesDialog {
         egui::Id::new("dlg_tileset_add_tiles")
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddTilesAction, sel_tile: u32, clear_color: u8) {
-        self.action = action;
+    pub fn set_open(&mut self, wc: &mut WindowContext, sel_tile: u32, clear_color: u8) {
+        self.add_tile_location = AddTileLocation::AfterSelected;
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.clear_color = clear_color;
@@ -48,33 +44,32 @@ impl AddTilesDialog {
 
     fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
         let old_num_tiles = tileset.num_tiles;
+        let insertion_point = match self.add_tile_location {
+            AddTileLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
+            AddTileLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
+            AddTileLocation::AtEnd => { tileset.num_tiles }
+        };
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.clear_color);
-        if matches!(self.action, AddTilesAction::Insert) && self.sel_tile < old_num_tiles {
-            let tile_size = (tileset.height * tileset.width) as usize;
-            let src_start = self.sel_tile as usize * tile_size;
-            let src_end = (tileset.num_tiles - self.num_tiles) as usize * tile_size;
-            let dst_start = (self.sel_tile + self.num_tiles) as usize * tile_size;
-            tileset.data.copy_within(src_start..src_end, dst_start);
-            tileset.data[src_start..dst_start].fill(self.clear_color);
-            let num_tiles_after_hole = old_num_tiles - self.sel_tile;
-            if num_tiles_after_hole <= u8::MAX as u32 && self.sel_tile <= u8::MAX as u32 && self.num_tiles <= u8::MAX as u32 {
-                wc.add_editor_action(EditorAction::TilesetTilesAdded {
-                    tileset_id: tileset.asset.id,
-                    hole_start: self.sel_tile as u8,
-                    hole_size: self.num_tiles as u8,
-                    num_tiles_after_hole: num_tiles_after_hole as u8,
-                });
-            }
+        let tile_size = (tileset.height * tileset.width) as usize;
+        let src_start = insertion_point as usize * tile_size;
+        let src_end = (tileset.num_tiles - self.num_tiles) as usize * tile_size;
+        let dst_start = (insertion_point + self.num_tiles) as usize * tile_size;
+        tileset.data.copy_within(src_start..src_end, dst_start);
+        tileset.data[src_start..dst_start].fill(self.clear_color);
+        let num_tiles_after_hole = old_num_tiles - insertion_point;
+        if num_tiles_after_hole <= u8::MAX as u32 && insertion_point <= u8::MAX as u32 && self.num_tiles <= u8::MAX as u32 {
+            wc.add_editor_action(EditorAction::TilesetTilesAdded {
+                tileset_id: tileset.asset.id,
+                hole_start: insertion_point as u8,
+                hole_size: self.num_tiles as u8,
+                num_tiles_after_hole: num_tiles_after_hole as u8,
+            });
         }
         self.confirmed = true;
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        let title = match self.action {
-            AddTilesAction::Insert => { "Insert Tiles" }
-            AddTilesAction::Append => { "Append Tiles" }
-        };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Add Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
                     .num_columns(2)
@@ -87,6 +82,28 @@ impl AddTilesDialog {
                         } else {
                             ui.add(egui::Slider::new(&mut self.num_tiles, 1..=max));
                         }
+                        ui.end_row();
+
+                        ui.label("Insert at:");
+                        egui::ComboBox::from_id_salt(format!("editor_panel_{}_insert_tile_at_combo", tileset.asset.id))
+                            .selected_text(self.add_tile_location.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.add_tile_location,
+                                    AddTileLocation::BeforeSelected,
+                                    AddTileLocation::BeforeSelected.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_tile_location,
+                                    AddTileLocation::AfterSelected,
+                                    AddTileLocation::AfterSelected.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_tile_location,
+                                    AddTileLocation::AtEnd,
+                                    AddTileLocation::AtEnd.text()
+                                );
+                            });
                         ui.end_row();
                     });
             });

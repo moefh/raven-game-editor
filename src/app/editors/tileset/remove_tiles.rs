@@ -11,7 +11,6 @@ pub struct RemoveTilesDialog {
     pub confirmed: bool,
     pub open: bool,
     pub num_tiles: u32,
-    pub max_tiles: u32,
     pub sel_tile: u32,
 }
 
@@ -21,7 +20,6 @@ impl RemoveTilesDialog {
             confirmed: false,
             open: false,
             num_tiles: 0,
-            max_tiles: 0,
             sel_tile: 0,
         }
     }
@@ -32,14 +30,17 @@ impl RemoveTilesDialog {
 
     pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset, sel_tile: u32) {
         if tileset.num_tiles <= 1 || tileset.num_tiles <= sel_tile { return; }
-        self.max_tiles = (tileset.num_tiles - sel_tile).min(tileset.num_tiles - 1);
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.open = true;
         wc.set_dialog_open(Self::id(), self.open);
     }
 
-    fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
+    fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) -> bool {
+        if self.num_tiles == 0 {
+            wc.open_message_box("No Tiles!", "Please select a non-zero number to remove");
+            return false;
+        }
         if self.sel_tile + self.num_tiles < tileset.num_tiles {
             let tile_size = (tileset.height * tileset.width) as usize;
             let src_start = (self.sel_tile + self.num_tiles) as usize * tile_size;
@@ -57,18 +58,23 @@ impl RemoveTilesDialog {
             }
         }
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles - self.num_tiles, 0);
-        self.confirmed = true;
+        true
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
+                let max_tiles_to_remove = (tileset.num_tiles - self.sel_tile).min(tileset.num_tiles.saturating_sub(1));
                 egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         ui.label("Num tiles:");
-                        ui.add(egui::Slider::new(&mut self.num_tiles, 1..=16.min(self.max_tiles)));
+                        if max_tiles_to_remove == 1 {
+                            ui.label("(no tiles!)");
+                        } else {
+                            ui.add(egui::Slider::new(&mut self.num_tiles, 1..=max_tiles_to_remove));
+                        }
                         ui.end_row();
                     });
             });
@@ -77,8 +83,8 @@ impl RemoveTilesDialog {
                 if ui.button("Cancel").clicked() {
                     ui.close();
                 }
-                if ui.button("Ok").clicked() {
-                    self.confirm(tileset, wc);
+                if ui.button("Ok").clicked() && self.confirm(tileset, wc) {
+                    self.confirmed = true;
                     ui.close();
                 }
             });

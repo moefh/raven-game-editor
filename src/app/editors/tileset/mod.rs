@@ -1,5 +1,6 @@
 mod properties;
 mod add_tiles;
+mod add_imported_tiles;
 mod remove_tiles;
 mod import;
 mod export;
@@ -45,7 +46,8 @@ use super::super::menu_item;
 
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
-use add_tiles::{AddTilesDialog, AddTilesAction};
+use add_tiles::AddTilesDialog;
+use add_imported_tiles::AddImportedTilesDialog;
 use export::ExportDialog;
 use import::ImportDialog;
 
@@ -157,6 +159,7 @@ impl MapTileFixer for TilesetEditor {
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
+    add_imported_tiles_dialog: AddImportedTilesDialog,
     rm_tiles_dialog: RemoveTilesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
@@ -168,6 +171,7 @@ impl Dialogs {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_tiles_dialog: AddTilesDialog::new(),
+            add_imported_tiles_dialog: AddImportedTilesDialog::new(),
             rm_tiles_dialog: RemoveTilesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
@@ -188,6 +192,9 @@ impl Dialogs {
             editor.tile_image_editor.set_image_changed();
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
+            editor.tile_image_editor.set_image_changed();
+        }
+        if self.add_imported_tiles_dialog.open && self.add_imported_tiles_dialog.show(wc, tileset) {
             editor.tile_image_editor.set_image_changed();
         }
         if self.rm_tiles_dialog.open && self.rm_tiles_dialog.show(wc, tileset) {
@@ -521,23 +528,22 @@ impl Editor {
 
                     ui.separator();
 
-                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Insert tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Add imported tiles...")).clicked() {
+                        dialogs.add_imported_tiles_dialog.set_open(
+                            wc,
+                            self.tile_image_editor.get_selected_image(),
+                            self.color_picker.state.right_color,
+                            tileset
+                        );
+                    }
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Add tiles...")).clicked() {
                         dialogs.add_tiles_dialog.set_open(
                             wc,
-                            AddTilesAction::Insert,
                             self.tile_image_editor.get_selected_image(),
                             self.color_picker.state.right_color
                         );
                     }
-                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Append tiles...")).clicked() {
-                        dialogs.add_tiles_dialog.set_open(
-                            wc,
-                            AddTilesAction::Append,
-                            self.tile_image_editor.get_selected_image(),
-                            self.color_picker.state.right_color
-                        );
-                    }
-                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles && tileset.num_tiles > 1, menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
                         dialogs.rm_tiles_dialog.set_open(wc, tileset, self.tile_image_editor.get_selected_image());
                     }
                 });
