@@ -548,19 +548,28 @@ impl Editor {
                     MapLayer::Effects => {
                         let tiles = STATIC_IMAGES.fx_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.selection_set = 1;
+                        if self.image_picker.selection_set != 1 {
+                            self.image_picker.selection_set = 1;
+                            self.image_picker.force_selection_into_visibility();
+                        }
                         self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
                     }
                     MapLayer::Animation => {
                         let tiles = STATIC_IMAGES.anim_tiles();
                         let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.selection_set = 2;
+                        if self.image_picker.selection_set != 2 {
+                            self.image_picker.selection_set = 2;
+                            self.image_picker.force_selection_into_visibility();
+                        }
                         self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
                     }
                     _ => {
                         let bg_color = if self.use_custom_bg_color { self.custom_bg_color } else { wc.settings.map_bg_color };
                         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                        self.image_picker.selection_set = 0;
+                        if self.image_picker.selection_set != 0 {
+                            self.image_picker.selection_set = 0;
+                            self.image_picker.force_selection_into_visibility();
+                        }
                         self.image_picker.show(ui, wc.settings, tileset, texture, bg_color);
                     }
                 }

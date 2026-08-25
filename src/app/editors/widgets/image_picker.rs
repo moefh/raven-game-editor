@@ -65,6 +65,10 @@ impl ImagePickerWidget {
         self.selected_image_r_changed = true;
     }
 
+    pub fn force_selection_into_visibility(&mut self) {
+        self.selected_image_l_changed = true;
+    }
+
     fn ui_pos_to_selection(&self, ui_pos: f32) -> Option<u32> {
         if self.allow_empty_selection {
             if ui_pos == 0.0 { None } else { Some((ui_pos - 1.0).floor() as u32) }
@@ -153,7 +157,8 @@ impl ImagePickerWidget {
                     image_size,
                     self.get_selected_image_r(),
                     3.0,
-                    (Color32::RED, Color32::WHITE));
+                    (Color32::RED, Color32::WHITE)
+                );
             }
             self.draw_selection_rectangle(
                 &painter,
@@ -178,6 +183,6 @@ impl ImagePickerWidget {
                     self.selected_image_r.insert(self.selection_set, selection);
                 }
             }
-        };
+        }
     }
 }

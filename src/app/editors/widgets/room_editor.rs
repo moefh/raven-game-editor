@@ -694,6 +694,7 @@ impl RoomEditorWidget {
         Self::draw_outline_rect(painter, to_canvas.transform_rect(rect));
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_map_bg_layer(
         &self,
         ui: &mut egui::Ui,
@@ -730,6 +731,7 @@ impl RoomEditorWidget {
         has_animated_tiles
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_map_fg_layer(
         &self,
         ui: &mut egui::Ui,
