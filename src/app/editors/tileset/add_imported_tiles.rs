@@ -107,7 +107,7 @@ impl AddImportedTilesDialog {
                     let tile_len = (tileset.height * tileset.width) as usize;
                     let dst_start = self.create_empty_tiles(wc, num_tiles, tileset);
                     let dst_len = num_tiles as usize * tile_len;
-                    tileset.data[dst_start..dst_len].copy_from_slice(&tiles.data[..dst_len]);
+                    tileset.data[dst_start..dst_start+dst_len].copy_from_slice(&tiles.data[..dst_len]);
                 }
                 true
             }
@@ -131,7 +131,7 @@ impl AddImportedTilesDialog {
                 return true;
             }
 
-        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Import Tileset", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_window_id, 350.0, "Add Imported Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_import_grid", tileset.asset.id))
                     .num_columns(2)

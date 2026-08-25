@@ -129,6 +129,23 @@ impl SettingsWindow {
         });
     }
 
+    fn show_map_animation_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
+        egui::CollapsingHeader::new("Map Animation").default_open(true).show(ui, |ui| {
+            egui::Grid::new("editor_settings_map_animation")
+                .num_columns(2)
+                .spacing([8.0, 8.0])
+                .show(ui, |ui| {
+                    ui.label("Delay:");
+                    ui.add(egui::Slider::new(&mut wc.settings.map_animation_delay, 50..=1000));
+                    ui.end_row();
+
+                    ui.label("ms/frame:");
+                    ui.add(egui::Slider::new(&mut wc.settings.map_animation_ms_per_frame, 16..=2000));
+                    ui.end_row();
+                })
+        });
+    }
+
     fn show_marching_ants_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Marching Ants").default_open(true).show(ui, |ui| {
             egui::Grid::new("editor_settings_marching_ants")
@@ -173,6 +190,8 @@ impl SettingsWindow {
                     Self::show_main_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_editor_color_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_map_animation_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_colorset_settings(ui, wc);
                     ui.add_space(5.0);

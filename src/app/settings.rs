@@ -24,6 +24,8 @@ pub struct AppSettings {
     pub color_picker_bg_color: egui::Color32,
     pub image_grid_color: egui::Color32,
     pub map_grid_color: egui::Color32,
+    pub map_animation_ms_per_frame: u32,
+    pub map_animation_delay: u32,
     pub marching_ants_delay: u32,
     pub marching_ants_dash_size: u32,
     pub marching_ants_thickness: u32,
@@ -45,6 +47,8 @@ impl AppSettings {
             color_picker_bg_color: egui::Color32::from_rgb(0xe0, 0xe0, 0xe0),
             image_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
             map_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
+            map_animation_ms_per_frame: 200,
+            map_animation_delay: 50,
             marching_ants_delay: 100,
             marching_ants_dash_size: 5,
             marching_ants_thickness: 3,
@@ -94,12 +98,18 @@ impl AppSettings {
         config.push_str(&format!("color_picker_bg_color = {};\n", Self::save_color(self.color_picker_bg_color)));
         config.push_str(&format!("image_grid_color = {};\n", Self::save_color(self.image_grid_color)));
         config.push_str(&format!("map_grid_color = {};\n", Self::save_color(self.map_grid_color)));
+
+        config.push_str(&format!("map_animation_delay = {};\n", self.map_animation_delay));
+        config.push_str(&format!("map_animation_ms_per_frame = {};\n", self.map_animation_ms_per_frame));
+
         config.push_str(&format!("marching_ants_delay = {};\n", self.marching_ants_delay));
         config.push_str(&format!("marching_ants_thickness = {};\n", self.marching_ants_thickness));
         config.push_str(&format!("marching_ants_dash_size = {};\n", self.marching_ants_dash_size));
-        config.push_str(&format!("marching_ants_colors = [ {}, {} ];\n",
-                                 Self::save_color(self.marching_ants_color1),
-                                 Self::save_color(self.marching_ants_color2)));
+        config.push_str(&format!(
+            "marching_ants_colors = [ {}, {} ];\n",
+            Self::save_color(self.marching_ants_color1),
+            Self::save_color(self.marching_ants_color2)
+        ));
 
         // colorsets
         config.push_str("colorsets = [\n");
@@ -254,6 +264,8 @@ impl<'a> AppSettingsReader<'a> {
                     "color_picker_bg_color" => { settings.color_picker_bg_color = self.read_color_config()?; }
                     "image_grid_color" => { settings.image_grid_color = self.read_color_config()?; }
                     "map_grid_color" => { settings.map_grid_color = self.read_color_config()?; }
+                    "map_animation_delay" => { settings.map_animation_delay = self.read_number_config()?; }
+                    "map_animation_ms_per_frame" => { settings.map_animation_ms_per_frame = self.read_number_config()?; }
                     "marching_ants_delay" => { settings.marching_ants_delay = self.read_number_config()?; }
                     "marching_ants_thickness" => { settings.marching_ants_thickness = self.read_number_config()?; }
                     "marching_ants_dash_size" => { settings.marching_ants_dash_size = self.read_number_config()?; }

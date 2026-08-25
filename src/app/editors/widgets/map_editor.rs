@@ -27,7 +27,7 @@ use super::{
     get_map_layer_tile,
 };
 use super::super::{
-    get_anim_tile_info,
+    get_animated_tile,
     WindowContext,
     KeyboardPressed,
     MapClipboardData,
@@ -789,7 +789,7 @@ impl MapEditorWidget {
         let bg_color = self.custom_bg_color.unwrap_or(wc.settings.map_bg_color);
         painter.rect_filled(map_area_rect, egui::CornerRadius::ZERO, bg_color);
         let mut has_animated_tiles = false;
-        let animation_step = ((current_time_as_millis()/200) % 12) as u32;
+        let animation_step = ((current_time_as_millis() / wc.settings.map_animation_ms_per_frame as u64) % 12) as u32;
 
         // parallax
         if self.display.has_bits(MapDisplay::PARALLAX) && map_data.para_width != 0 && map_data.para_height != 0 {
@@ -821,16 +821,17 @@ impl MapEditorWidget {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
                     if tile == MapData::NO_TILE { continue; }
-                    let tile = if self.display.has_bits(MapDisplay::ANIMATE_TILES) &&
-                        let Some((loop_size, loop_step)) = get_anim_tile_info(
-                            get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                            MapLayer::Background
-                        ) {
-                            has_animated_tiles = true;
-                            tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
-                        } else {
-                            tile
-                        };
+                    let tile = if self.display.has_bits(MapDisplay::ANIMATE_TILES) && let Some(tile) = get_animated_tile(
+                        tile,
+                        MapLayer::Background,
+                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                        animation_step
+                    ) {
+                        has_animated_tiles = true;
+                        tile
+                    } else {
+                        tile
+                    };
                     let (uv, texture) = if tile as u32 >= tileset.num_tiles {
                         (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     } else {
@@ -856,17 +857,17 @@ impl MapEditorWidget {
                 for x in 0..map_data.width {
                     let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
                     if tile == MapData::NO_TILE { continue; }
-                    if tile == MapData::NO_TILE { continue; }
-                    let tile = if self.display.has_bits(MapDisplay::ANIMATE_TILES) &&
-                        let Some((loop_size, loop_step)) = get_anim_tile_info(
-                            get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                            MapLayer::Foreground
-                        ) {
-                            has_animated_tiles = true;
-                            tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
-                        } else {
-                            tile
-                        };
+                    let tile = if self.display.has_bits(MapDisplay::ANIMATE_TILES) && let Some(tile) = get_animated_tile(
+                        tile,
+                        MapLayer::Foreground,
+                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                        animation_step
+                    ) {
+                        has_animated_tiles = true;
+                        tile
+                    } else {
+                        tile
+                    };
                     let (uv, texture) = if tile as u32 >= tileset.num_tiles {
                         (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     } else {

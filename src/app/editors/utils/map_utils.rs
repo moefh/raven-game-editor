@@ -31,8 +31,12 @@ pub struct MapRect {
 impl MapRect {
     pub fn from_rect(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
         let (map_width, map_height) = match layer {
-            MapLayer::Parallax => (map_data.para_width, map_data.para_height),
-            _ => (map_data.width, map_data.height),
+            MapLayer::Parallax => {
+                (map_data.para_width, map_data.para_height)
+            }
+            _ => {
+                (map_data.width, map_data.height)
+            }
         };
         let rect = rect.intersect(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::new(map_width as f32, map_height as f32)));
         Some(MapRect {
@@ -465,19 +469,17 @@ pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32,
     }
 }
 
-pub fn get_anim_tile_info(anim_tile: u8, layer: MapLayer) -> Option<(u32, u32)> {
+pub fn get_animated_tile(map_tile: u8, layer: MapLayer, anim_tile: u8, animation_step: u32) -> Option<u8> {
     match layer {
         MapLayer::Background => {
             match anim_tile {
-                // 2
-                1 => { Some((2, 0)) }
-                2 => { Some((2, 1)) }
+                // loop len: 2
+                1 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
+                2 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }      // out of phase
 
-                // 4
-                3 => { Some((4, 0)) }
-                4 => { Some((4, 1)) }
-                5 => { Some((4, 2)) }
-                6 => { Some((4, 3)) }
+                // loop len: 4
+                3 => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
+                4 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
 
                 _ => { None }
             }
@@ -485,15 +487,13 @@ pub fn get_anim_tile_info(anim_tile: u8, layer: MapLayer) -> Option<(u32, u32)> 
 
         MapLayer::Foreground => {
             match anim_tile {
-                // 2
-                7 => { Some((2, 0)) }
-                8 => { Some((2, 1)) }
+                // loop len: 2
+                7 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
+                8 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }       // out of phase
 
-                // 4
-                9 => { Some((4, 0)) }
-                10 => { Some((4, 1)) }
-                11 => { Some((4, 2)) }
-                12 => { Some((4, 3)) }
+                // loop len: 4
+                9  => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
+                10 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
 
                 _ => { None }
             }

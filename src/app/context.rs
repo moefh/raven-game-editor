@@ -193,7 +193,7 @@ impl<'a> WindowContext<'a> {
     }
 
     pub fn request_map_animation_repaint(&self) {
-        self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(50));
+        self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.map_animation_delay as u64));
     }
 
     pub fn is_editor_on_top(&self, id: DataAssetId) -> bool {

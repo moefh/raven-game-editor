@@ -42,7 +42,10 @@ use super::widgets::{
     ImageDrawingTool,
     ImageDisplay,
 };
-use super::super::menu_item;
+use super::super::{
+    menu_item,
+    menu_item_no_image,
+};
 
 use properties::PropertiesDialog;
 use remove_tiles::RemoveTilesDialog;
@@ -526,9 +529,7 @@ impl Editor {
                         );
                     }
 
-                    ui.separator();
-
-                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Add imported tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item_no_image(" Add imported tiles...")).clicked() {
                         dialogs.add_imported_tiles_dialog.set_open(
                             wc,
                             self.tile_image_editor.get_selected_image(),
@@ -536,6 +537,9 @@ impl Editor {
                             tileset
                         );
                     }
+
+                    ui.separator();
+
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Add tiles...")).clicked() {
                         dialogs.add_tiles_dialog.set_open(
                             wc,

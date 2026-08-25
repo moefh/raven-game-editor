@@ -31,7 +31,7 @@ use super::{
     get_map_layer_tile,
 };
 use super::super::{
-    get_anim_tile_info,
+    get_animated_tile,
     WindowContext,
     MapLayer,
     RoomSize,
@@ -711,12 +711,14 @@ impl RoomEditorWidget {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
                 if tile == MapData::NO_TILE { continue; }
                 let tile = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
-                    let Some((loop_size, loop_step)) = get_anim_tile_info(
+                    let Some(tile) = get_animated_tile(
+                        tile,
+                        MapLayer::Background,
                         get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                        MapLayer::Background
+                        animation_step
                     ) {
                         has_animated_tiles = true;
-                        tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
+                        tile
                     } else {
                         tile
                     };
@@ -745,12 +747,14 @@ impl RoomEditorWidget {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
                 if tile == MapData::NO_TILE { continue; }
                 let tile = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
-                    let Some((loop_size, loop_step)) = get_anim_tile_info(
+                    let Some(tile) = get_animated_tile(
+                        tile,
+                        MapLayer::Background,
                         get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                        MapLayer::Foreground
+                        animation_step
                     ) {
                         has_animated_tiles = true;
-                        tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
+                        tile
                     } else {
                         tile
                     };
@@ -829,7 +833,7 @@ impl RoomEditorWidget {
         }
 
         let mut has_animated_tiles = false;
-        let animation_step = ((current_time_as_millis()/200) % 12) as u32;
+        let animation_step = ((current_time_as_millis() / wc.settings.map_animation_ms_per_frame as u64) % 12) as u32;
 
         // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {
