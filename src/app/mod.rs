@@ -10,6 +10,7 @@ pub mod checker;
 pub mod widgets;
 
 use crate::include_ref_image;
+use crate::platform;
 use crate::data_asset::{
     self,
     DataAssetType,
@@ -43,7 +44,6 @@ pub use context::{
     WindowContext,
     WindowEguiContext,
     AppWindowTracker,
-    KeyboardPressed,
 };
 pub use sys_dialogs::{
     SysDialogs,
@@ -60,6 +60,7 @@ pub use windows::{
 };
 pub use settings::AppSettings;
 pub use asset_exporter::AssetExporter;
+pub use crate::platform::KeyboardPressed;
 
 enum ConfirmationDialogAction {
     NewProject,
@@ -992,27 +993,11 @@ impl eframe::App for RavenEditorApp {
         // This is a hack.  Egui eats copy/cut/paste keyboard
         // shortcuts (cmd+c/cmd+x/cmd+v) and transforms them into
         // events (Copy/Cut/Paste), so we check for these and store
-        // the info away to be used in the WindowContext. Annoyingly,
-        // cmd+v doesn't generate a Paste event if the clipboard is
-        // empty, so we check for a cmd+v key RELEASE instead, which
-        // is less than optimal because if cmd is released before v,
-        // we won't catch it.
-
+        // the info away to be used in the WindowContext.
         for event in &raw_input.events {
-            match event {
-                egui::Event::Copy => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CommandC);
-                }
-                egui::Event::Cut => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CommandX);
-                }
-                // we have to handle the key release event (pressed: false) because egui doesn't
-                // send a paste event when CMD+V is pressed when there's nothing in the clipboard
-                egui::Event::Key { key: egui::Key::V, pressed: false, modifiers: egui::Modifiers { command: true, .. }, .. } => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CommandV);
-                }
-                _ => { /* println!("{:?}", event); */ }
-            };
+            if let Some(key_pressed) = platform::get_event_key(event) {
+                self.keyboard_pressed = Some(key_pressed);
+            }
         }
     }
 

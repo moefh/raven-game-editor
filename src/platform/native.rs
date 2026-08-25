@@ -2,6 +2,8 @@ use std::io::{Result, Error};
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
+use super::KeyboardPressed;
+
 const APP_ID: &str = "raven-game-editor";
 
 static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(|| {
@@ -52,5 +54,29 @@ pub fn current_time_as_string() -> String {
         timestamp
     } else {
         "<unknown time>".to_owned()
+    }
+}
+
+pub fn get_event_key(event: &egui::Event) -> Option<KeyboardPressed> {
+    match event {
+        egui::Event::Copy => {
+            Some(KeyboardPressed::CommandC)
+        }
+
+        egui::Event::Cut => {
+            Some(KeyboardPressed::CommandX)
+        }
+
+        // we have to handle the key release event (pressed: false)
+        // because egui doesn't send a paste event when CMD+V is
+        // pressed when there's nothing in the clipboard
+        egui::Event::Key { key: egui::Key::V, pressed: false, modifiers: egui::Modifiers { command: true, .. }, .. } => {
+            Some(KeyboardPressed::CommandV)
+        }
+
+        _ => {
+            //println!("{:?}", event);
+            None
+        }
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::platform::KeyboardPressed;
 use crate::image::TextureManager;
 use crate::data_asset::{
     DataAssetId,
@@ -15,12 +16,6 @@ use super::editors::{
     MapClipboardData,
     ImageClipboardData,
 };
-
-pub enum KeyboardPressed {
-    CommandC,
-    CommandV,
-    CommandX,
-}
 
 /**
 The `AppWindowTracker` is used to decide whether a window should

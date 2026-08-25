@@ -1,3 +1,9 @@
+pub enum KeyboardPressed {
+    CommandC,
+    CommandV,
+    CommandX,
+}
+
 cfg_select! {
     target_arch = "wasm32" => {
         mod wasm;

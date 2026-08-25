@@ -318,6 +318,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn drop_selection(&mut self, image: &mut ImageAsset) {
+        if self.selection.is_floating() {
+            self.set_undo_target(image);
+        }
         if let ImageSelection::Fragment(pos, frag) = &self.selection {
             let transparent = self.display.is_transparent();
             image.paste_fragment(self.selected_image, pos.x as i32, pos.y as i32, frag, transparent);
@@ -335,6 +338,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             frag.v_flip(0);
             frag.changed = true;
         } else {
+            self.set_undo_target(image);
             image.v_flip(self.selected_image);
             self.image_changed = true;
         }
@@ -349,6 +353,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             frag.h_flip(0);
             frag.changed = true;
         } else {
+            self.set_undo_target(image);
             image.h_flip(self.selected_image);
             self.image_changed = true;
         }
@@ -378,9 +383,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 }
             }
 
-            _ => if let Some(rot_frag) = image.rotate(image.get_asset_id(), self.selected_image, rotation) {
-                image.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
-                self.image_changed = true;
+            _ => {
+                self.set_undo_target(image);
+                if let Some(rot_frag) = image.rotate(image.get_asset_id(), self.selected_image, rotation) {
+                    image.paste_fragment(self.selected_image, 0, 0, &rot_frag, false);
+                    self.image_changed = true;
+                }
             }
         }
     }
@@ -549,7 +557,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             }
 
             ImageDrawingTool::Select => {
-                self.handle_selection_mouse(mouse_pos, image, resp, colors);
+                if cmd_held {
+                    self.pick_color(x, y, image, resp);
+                } else {
+                    self.handle_selection_mouse(mouse_pos, image, resp, colors);
+                }
             }
 
             ImageDrawingTool::Collision => {
@@ -578,7 +590,6 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn cut(&mut self, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) {
-        self.set_undo_target(image);
         self.lift_selection(image, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
             wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
@@ -602,7 +613,6 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
             let pos = self.get_paste_position();
             self.tool = ImageDrawingTool::Select;
-            self.set_undo_target(image);
             self.drop_selection(image);
             self.selection = ImageSelection::Fragment(pos, ImageFragment::from_pixels(image.get_asset_id(), pixels.clone()));
         }
@@ -610,7 +620,6 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     pub fn paste_pixels(&mut self, image: &mut ImageAsset, pixels: ImagePixels) {
         self.tool = ImageDrawingTool::Select;
-        self.set_undo_target(image);
         self.drop_selection(image);
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels));
     }
