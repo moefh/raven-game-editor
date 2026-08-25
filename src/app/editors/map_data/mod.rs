@@ -96,7 +96,7 @@ impl MapDataEditor {
     pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>) {
         self.dialogs.show(wc, &mut self.editor, map_data, asset_ids, tilesets);
 
-        let min_size = egui::Vec2::new(600.0, 200.0);
+        let min_size = egui::Vec2::new(670.0, 200.0);
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32 * 1.2) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
@@ -306,6 +306,17 @@ impl Editor {
                           .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::SCREEN)))
                     .on_hover_text("Show screen size").clicked() {
                         self.map_editor.display.toggle(MapDisplay::SCREEN);
+                    }
+
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
+
+                if ui.add(egui::Button::image(IMAGES.run_animation)
+                          .selected(self.map_editor.display.has_bits(MapDisplay::ANIMATE_TILES))
+                          .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::ANIMATE_TILES)))
+                    .on_hover_text("Animate tiles").clicked() {
+                        self.map_editor.display.toggle(MapDisplay::ANIMATE_TILES);
                     }
 
                 ui.add_space(5.0);

@@ -60,7 +60,8 @@ impl MapViewWidget {
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                if tile == MapData::NO_TILE { continue; }
+                if tile as u32 >= tileset.num_tiles { continue; }
                 let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
             }

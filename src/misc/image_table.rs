@@ -136,6 +136,7 @@ image_table! {
     layer_fx: "../../assets/EffectsIcon.png",
     layer_anim: "../../assets/AnimationLayerIcon.png",
     layer_parallax: "../../assets/ParallaxIcon.png",
+    run_animation: "../../assets/RunAnimationIcon.png",
     screen: "../../assets/ScreenIcon.png",
     lock: "../../assets/LockIcon.png",
     log: "../../assets/LogIcon.png",

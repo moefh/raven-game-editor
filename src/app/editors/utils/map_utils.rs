@@ -464,3 +464,41 @@ pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32,
         tiles.resize(new_w * new_h, new_tile);
     }
 }
+
+pub fn get_anim_tile_info(anim_tile: u8, layer: MapLayer) -> Option<(u32, u32)> {
+    match layer {
+        MapLayer::Background => {
+            match anim_tile {
+                // 2
+                1 => { Some((2, 0)) }
+                2 => { Some((2, 1)) }
+
+                // 4
+                3 => { Some((4, 0)) }
+                4 => { Some((4, 1)) }
+                5 => { Some((4, 2)) }
+                6 => { Some((4, 3)) }
+
+                _ => { None }
+            }
+        }
+
+        MapLayer::Foreground => {
+            match anim_tile {
+                // 2
+                7 => { Some((2, 0)) }
+                8 => { Some((2, 1)) }
+
+                // 4
+                9 => { Some((4, 0)) }
+                10 => { Some((4, 1)) }
+                11 => { Some((4, 2)) }
+                12 => { Some((4, 3)) }
+
+                _ => { None }
+            }
+        }
+
+        _ => { None }
+    }
+}

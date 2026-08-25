@@ -8,6 +8,7 @@ use egui::{
 };
 use egui::emath::RectTransform;
 
+use crate::platform::current_time_as_millis;
 use crate::data_asset::{
     Room,
     RoomMap,
@@ -30,6 +31,7 @@ use super::{
     get_map_layer_tile,
 };
 use super::super::{
+    get_anim_tile_info,
     WindowContext,
     MapLayer,
     RoomSize,
@@ -45,31 +47,32 @@ const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
 
 #[derive(Clone, Copy)]
 pub struct RoomDisplay {
-    bits: u8,
+    bits: u32,
 }
 
 #[allow(unused)]
 impl RoomDisplay {
-    pub const FOREGROUND: u8     = 1 << 0;
-    pub const BACKGROUND: u8     = 1 << 1;
-    pub const EFFECTS: u8        = 1 << 2;
-    pub const PARALLAX: u8       = 1 << 3;
-    pub const GRID: u8           = 1 << 4;
-    pub const ENEMY_TRIGGERS: u8 = 1 << 5;
-    pub const OTHER_TRIGGERS: u8 = 1 << 6;
-    pub const SCREEN: u8         = 1 << 7;
+    pub const FOREGROUND: u32     = 1 << 0;
+    pub const BACKGROUND: u32     = 1 << 1;
+    pub const EFFECTS: u32        = 1 << 2;
+    pub const PARALLAX: u32       = 1 << 3;
+    pub const GRID: u32           = 1 << 4;
+    pub const ENEMY_TRIGGERS: u32 = 1 << 5;
+    pub const OTHER_TRIGGERS: u32 = 1 << 6;
+    pub const SCREEN: u32         = 1 << 7;
+    pub const ANIMATE_TILES: u32  = 1 << 8;
 
-    pub fn new(bits: u8) -> Self {
+    pub fn new(bits: u32) -> Self {
         RoomDisplay {
             bits,
         }
     }
 
-    pub fn toggle(&mut self, bits: u8) {
+    pub fn toggle(&mut self, bits: u32) {
         self.bits ^= bits;
     }
 
-    pub fn has_bits(&self, bits: u8) -> bool {
+    pub fn has_bits(&self, bits: u32) -> bool {
         (self.bits & bits) != 0
     }
 }
@@ -244,7 +247,7 @@ pub struct RoomEditorWidget {
 }
 
 impl RoomEditorWidget {
-    const DEFAULT_ROOM_DISPLAY: u8 = RoomDisplay::FOREGROUND |
+    const DEFAULT_ROOM_DISPLAY: u32 = RoomDisplay::FOREGROUND |
         RoomDisplay::BACKGROUND |
         RoomDisplay::ENEMY_TRIGGERS |
         RoomDisplay::OTHER_TRIGGERS;
@@ -698,17 +701,31 @@ impl RoomEditorWidget {
         to_canvas: &RectTransform,
         map_pos: Pos2,
         map_data: &MapData,
-        tileset: &Tileset
-    ) {
+        tileset: &Tileset,
+        animation_step: u32,
+    ) -> bool {
+        let mut has_animated_tiles = false;
         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_items() { continue; }
+                if tile == MapData::NO_TILE { continue; }
+                let tile = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
+                    let Some((loop_size, loop_step)) = get_anim_tile_info(
+                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                        MapLayer::Background
+                    ) {
+                        has_animated_tiles = true;
+                        tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
+                    } else {
+                        tile
+                    };
+                if tile as u32 >= tileset.num_tiles { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
             }
         }
+        has_animated_tiles
     }
 
     fn draw_map_fg_layer(
@@ -718,17 +735,31 @@ impl RoomEditorWidget {
         to_canvas: &RectTransform,
         map_pos: Pos2,
         map_data: &MapData,
-        tileset: &Tileset
-    ) {
+        tileset: &Tileset,
+        animation_step: u32,
+    ) -> bool {
+        let mut has_animated_tiles = false;
         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_items() { continue; }
+                if tile == MapData::NO_TILE { continue; }
+                let tile = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
+                    let Some((loop_size, loop_step)) = get_anim_tile_info(
+                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                        MapLayer::Foreground
+                    ) {
+                        has_animated_tiles = true;
+                        tile.saturating_add(((loop_step + animation_step) % loop_size) as u8)
+                    } else {
+                        tile
+                    };
+                if tile as u32 >= tileset.num_tiles { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
             }
         }
+        has_animated_tiles
     }
 
     fn draw_map_fx_layer(
@@ -797,12 +828,17 @@ impl RoomEditorWidget {
             return; // nothing to do!
         }
 
+        let mut has_animated_tiles = false;
+        let animation_step = ((current_time_as_millis()/200) % 12) as u32;
+
         // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    self.draw_map_bg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+                    if self.draw_map_bg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset, animation_step) {
+                        has_animated_tiles = true;
+                    }
                 }
             }
         }
@@ -817,7 +853,9 @@ impl RoomEditorWidget {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    self.draw_map_fg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
+                    if self.draw_map_fg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset, animation_step) {
+                        has_animated_tiles = true;
+                    }
                 }
             }
         }
@@ -878,6 +916,10 @@ impl RoomEditorWidget {
                 let rect = Self::get_trigger_rect(trigger, assets);
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
+
+        if has_animated_tiles {
+            wc.request_map_animation_repaint();
+        }
 
         // ====================================================
         // == handle input

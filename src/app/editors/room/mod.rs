@@ -579,6 +579,15 @@ impl Editor {
                     }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.run_animation)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::ANIMATE_TILES))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::ANIMATE_TILES)))
+                            .on_hover_text("Animate tiles").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::ANIMATE_TILES);
+                            }
+
+                        ui.separator();
+
                         if ui.add(egui::Button::image(IMAGES.screen)
                             .selected(self.room_editor.display.has_bits(RoomDisplay::SCREEN))
                             .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::SCREEN)))
