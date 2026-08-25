@@ -17,9 +17,9 @@ use super::editors::{
 };
 
 pub enum KeyboardPressed {
-    CtrlC,
-    CtrlV,
-    CtrlX,
+    CommandC,
+    CommandV,
+    CommandX,
 }
 
 /**

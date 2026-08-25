@@ -112,7 +112,7 @@ impl CheckWindow {
             } else {
                 let title_action = base.show_title_bar(ui, None, "Project Check");
                 egui::CentralPanel::default().show(ui, |ui| {
-                    ui.label("(Press F5 to check)");
+                    ui.label("(Press F2 to check)");
                 });
                 title_action
             }

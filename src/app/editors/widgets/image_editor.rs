@@ -521,11 +521,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let x = mouse_pos.x.floor() as i32;
         let y = mouse_pos.y.floor() as i32;
 
-        let ctrl_held = resp.ctx.input(|i| i.modifiers.command);
+        let cmd_held = resp.ctx.input(|i| i.modifiers.command);
 
         match self.tool {
             ImageDrawingTool::Pencil => {
-                if ctrl_held {
+                if cmd_held {
                     self.pick_color(x, y, image, resp);
                 } else {
                     if resp.drag_started() { self.set_undo_target(image); }
@@ -537,7 +537,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             }
 
             ImageDrawingTool::Fill => {
-                if ctrl_held {
+                if cmd_held {
                     self.pick_color(x, y, image, resp);
                 } else {
                     if resp.drag_started() { self.set_undo_target(image); }
@@ -616,20 +616,20 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
-        let ctrl_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL|egui::Modifiers::SHIFT, egui::Key::Z);
-        if ui.input_mut(|i| i.consume_shortcut(&ctrl_shift_z)) {
+        let cmd_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND|egui::Modifiers::SHIFT, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&cmd_shift_z)) {
             self.redo(image);
             return ImageEditorAction::Redo;
         }
-        let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
-        if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
+        let cmd_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&cmd_z)) {
             self.undo(image);
             return ImageEditorAction::Undo;
         }
 
         if self.selection_enabled {
-            let ctrl_a = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::A);
-            if ui.input_mut(|i| i.consume_shortcut(&ctrl_a)) {
+            let cmd_a = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::A);
+            if ui.input_mut(|i| i.consume_shortcut(&cmd_a)) {
                 if self.tool != ImageDrawingTool::Select {
                     self.set_tool_without_dropping_selection(ImageDrawingTool::Select);
                 }
@@ -659,15 +659,15 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
 
         match wc.keyboard_pressed.take() {
-            Some(KeyboardPressed::CtrlV) if self.selection_enabled => {
+            Some(KeyboardPressed::CommandV) if self.selection_enabled => {
                 self.paste(wc, image);
                 return ImageEditorAction::Paste;
             }
-            Some(KeyboardPressed::CtrlC) if self.selection_enabled => {
+            Some(KeyboardPressed::CommandC) if self.selection_enabled => {
                 self.copy(wc, image);
                 return ImageEditorAction::Copy;
             }
-            Some(KeyboardPressed::CtrlX) if self.selection_enabled => {
+            Some(KeyboardPressed::CommandX) if self.selection_enabled => {
                 self.cut(wc, image, fill_color);
                 return ImageEditorAction::Cut;
             }

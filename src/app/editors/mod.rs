@@ -256,10 +256,10 @@ impl AssetEditorBase {
                 self.window_rect = resp.response.rect;
             }
 
-            // consume CTRL+UP to maximize/unmaximize
+            // consume CMD+UP to maximize/unmaximize
             if wc.is_editor_on_top(self.id) {
-                let ctrl_up = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::ArrowUp);
-                if resp.response.ctx.input_mut(|i| i.consume_shortcut(&ctrl_up)) {
+                let cmd_up = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::ArrowUp);
+                if resp.response.ctx.input_mut(|i| i.consume_shortcut(&cmd_up)) {
                     self.toggle_maximized();
                 }
             }

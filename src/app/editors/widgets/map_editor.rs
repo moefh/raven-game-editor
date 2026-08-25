@@ -696,14 +696,14 @@ impl MapEditorWidget {
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &mut MapData) {
-        let ctrl_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL|egui::Modifiers::SHIFT, egui::Key::Z);
-        if ui.input_mut(|i| i.consume_shortcut(&ctrl_shift_z)) {
+        let cmd_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND|egui::Modifiers::SHIFT, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&cmd_shift_z)) {
             self.redo(map_data);
             return;
         }
 
-        let ctrl_z = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Z);
-        if ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) {
+        let cmd_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Z);
+        if ui.input_mut(|i| i.consume_shortcut(&cmd_z)) {
             self.undo(map_data);
             return;
         }
@@ -714,9 +714,9 @@ impl MapEditorWidget {
         }
 
         match wc.keyboard_pressed.take() {
-            Some(KeyboardPressed::CtrlC) => { self.copy(wc, map_data); }
-            Some(KeyboardPressed::CtrlX) => { self.cut(wc, map_data); }
-            Some(KeyboardPressed::CtrlV) => { self.paste(wc, map_data); }
+            Some(KeyboardPressed::CommandC) => { self.copy(wc, map_data); }
+            Some(KeyboardPressed::CommandX) => { self.cut(wc, map_data); }
+            Some(KeyboardPressed::CommandV) => { self.paste(wc, map_data); }
             None => {}
         }
     }

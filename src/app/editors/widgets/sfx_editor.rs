@@ -125,9 +125,14 @@ impl SfxEditorWidget {
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, samples: &mut Vec<i16>, loop_start: &mut u32, loop_end: &mut u32) -> SfxEditorAction {
         if self.selection_enabled {
-            let ctrl_a = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::A);
-            if ui.input_mut(|i| i.consume_shortcut(&ctrl_a)) {
-                self.selection = Some(SfxSelection::new(0, samples.len() as u32));
+            let cmd_a = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::A);
+            if ui.input_mut(|i| i.consume_shortcut(&cmd_a)) {
+                let samples_len = samples.len() as u32;
+                if self.selection.is_some_and(|sel| sel.start == 0 && sel.end == samples_len) {
+                    self.selection = None;
+                } else {
+                    self.selection = Some(SfxSelection::new(0, samples_len));
+                }
                 return SfxEditorAction::Select;
             }
         }

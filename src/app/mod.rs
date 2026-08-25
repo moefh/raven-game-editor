@@ -596,11 +596,11 @@ impl RavenEditorApp {
         egui::Panel::top("main_menu").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
 
-            let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S);
+            let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::S);
             if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
                 self.save(window);
             }
-            let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Q);
+            let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Q);
             if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
@@ -990,26 +990,26 @@ impl RavenEditorApp {
 impl eframe::App for RavenEditorApp {
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         // This is a hack.  Egui eats copy/cut/paste keyboard
-        // shortcuts (ctrl+c/ctrl+x/ctrl+v) and transforms them into
+        // shortcuts (cmd+c/cmd+x/cmd+v) and transforms them into
         // events (Copy/Cut/Paste), so we check for these and store
         // the info away to be used in the WindowContext. Annoyingly,
-        // ctrl+v doesn't generate a Paste event if the clipboard is
-        // empty, so we check for a ctrl+v key RELEASE instead, which
-        // is less than optimal because if ctrl is released before v,
+        // cmd+v doesn't generate a Paste event if the clipboard is
+        // empty, so we check for a cmd+v key RELEASE instead, which
+        // is less than optimal because if cmd is released before v,
         // we won't catch it.
 
         for event in &raw_input.events {
             match event {
                 egui::Event::Copy => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CtrlC);
+                    self.keyboard_pressed = Some(KeyboardPressed::CommandC);
                 }
                 egui::Event::Cut => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CtrlX);
+                    self.keyboard_pressed = Some(KeyboardPressed::CommandX);
                 }
                 // we have to handle the key release event (pressed: false) because egui doesn't
-                // send a paste event when Ctrl+V is pressed when there's nothing in the clipboard
-                egui::Event::Key { key: egui::Key::V, pressed: false, modifiers: egui::Modifiers { ctrl: true, .. }, .. } => {
-                    self.keyboard_pressed = Some(KeyboardPressed::CtrlV);
+                // send a paste event when CMD+V is pressed when there's nothing in the clipboard
+                egui::Event::Key { key: egui::Key::V, pressed: false, modifiers: egui::Modifiers { command: true, .. }, .. } => {
+                    self.keyboard_pressed = Some(KeyboardPressed::CommandV);
                 }
                 _ => { /* println!("{:?}", event); */ }
             };
