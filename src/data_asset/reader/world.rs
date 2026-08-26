@@ -74,7 +74,7 @@ fn conv_region(region: &ValueStruct, name: String, project_data: &ProjectData) -
 
     let mut rooms = Vec::new();
     for room_index in room_indices_array.get_u16_array(project_data)? {
-        match project_data.asset_ids.get("rooms").and_then(|room_ids| room_ids.get(*room_index as usize)) {
+        match project_data.asset_ids.get(&DataAssetType::Room).and_then(|room_ids| room_ids.get(*room_index as usize)) {
             Some(id) => { rooms.push(*id) }
             None => {
                 return error(format!("invalid world region room index: {}", room_index), room_indices_array.pos);

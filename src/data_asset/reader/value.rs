@@ -4,11 +4,15 @@ use std::collections::HashMap;
 use super::{
     err,
     error,
+    ASSET_TYPES_BY_ARRAY_NAME,
     TokenPosition,
     ProjectData,
     ProjectDataReader,
 };
-use super::super::DataAssetId;
+use super::super::{
+    DataAssetId,
+    DataAssetType,
+};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -248,9 +252,10 @@ impl ValueName {
     }
 
     fn array_exists(&self, data: &ProjectData) -> bool {
-        data.arrays.contains_key(&self.name) ||
-            data.structs.contains_key(&self.name) ||
-            data.assets.contains_key(&self.name)
+        if let Some(asset_type) = ASSET_TYPES_BY_ARRAY_NAME.get(&self.name) && data.assets.contains_key(asset_type) {
+            return true;
+        }
+        data.data_arrays.contains_key(&self.name) || data.struct_arrays.contains_key(&self.name)
     }
 
     fn error_not_found<T>(&self, data: &ProjectData) -> Result<T> {
@@ -262,49 +267,49 @@ impl ValueName {
     }
 
     pub fn get_struct_array<'a>(&self, data: &'a ProjectData) -> Result<&'a ValueArray<ValueStruct>> {
-        match data.structs.get(&self.name) {
+        match data.struct_arrays.get(&self.name) {
             Some(v) => { Ok(v) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_u8_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u8>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::U8Array(a))  => { Ok(&a.values) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_u16_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u16>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::U16Array(a))  => { Ok(&a.values) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_u32_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u32>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::U32Array(a))  => { Ok(&a.values) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_i8_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<i8>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::I8Array(a))  => { Ok(&a.values) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_i16_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<i16>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::I16Array(a))  => { Ok(&a.values) }
             _ => { self.error_not_found(data) }
         }
     }
 
     pub fn get_i8_or_i16_array<'a>(&self, data: &'a ProjectData) -> Result<ValueArrayDataI8orI16<'a>> {
-        match data.arrays.get(&self.name) {
+        match data.data_arrays.get(&self.name) {
             Some(Value::I8Array(v)) => {
                 Ok(ValueArrayDataI8orI16::I8Converted(v.values.iter().map(|s| { (*s as i16) << 8 }).collect()))
             }
@@ -320,24 +325,24 @@ impl ValueName {
 
 #[derive(Debug)]
 pub struct ValueAssetRef {
-    pub name: String,
+    pub asset_type: DataAssetType,
     pub index: usize,
     pub pos: TokenPosition,
 }
 
 impl ValueAssetRef {
-    pub fn new(name: String, index: usize, pos: TokenPosition) -> Self {
+    pub fn new(asset_type: DataAssetType, index: usize, pos: TokenPosition) -> Self {
         ValueAssetRef {
-            name,
+            asset_type,
             index,
             pos,
         }
     }
 
     pub fn get_asset_id(&self, data: &ProjectData) -> Result<DataAssetId> {
-        match data.asset_ids_by_prefixed_name.get(&self.name).and_then(|v| v.get(self.index)) {
+        match data.asset_ids.get(&self.asset_type).and_then(|v| v.get(self.index)) {
             Some(id) => { Ok(*id) }
-            None => { error(format!("invalid asset reference: '{}[{}]'", self.name, self.index), self.pos) }
+            None => { error(format!("invalid asset reference: {:?}[{}]", self.asset_type, self.index), self.pos) }
         }
     }
 }

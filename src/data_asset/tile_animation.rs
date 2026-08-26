@@ -13,16 +13,18 @@ pub struct TileAnimation {
     pub asset: super::DataAsset,
     pub parent_tileset_id: super::DataAssetId,
     pub anim_tileset_id: super::DataAssetId,
-    pub loops: [TileAnimationLoop; 256],
+    pub loops: [TileAnimationLoop; TileAnimation::NUM_LOOPS],
 }
 
 impl TileAnimation {
+    pub const NUM_LOOPS: usize = 256;
+
     pub fn new(id: super::DataAssetId, name: String, parent_tileset_id: super::DataAssetId, anim_tileset_id: super::DataAssetId) -> Self {
         TileAnimation {
             asset: super::DataAsset::new(super::DataAssetType::TileAnimation, id, name),
             parent_tileset_id,
             anim_tileset_id,
-            loops: [TileAnimationLoop::EMPTY; 256],
+            loops: [TileAnimationLoop::EMPTY; Self::NUM_LOOPS],
         }
     }
 }
@@ -48,6 +50,6 @@ impl super::GenericAsset for TileAnimation {
         // header: parent_tileset<ptr>(4) + anim_tileset<ptr>(4)
         let header =  4usize + 4usize;
 
-        header + 256 * loop_size
+        header + Self::NUM_LOOPS * loop_size
     }
 }

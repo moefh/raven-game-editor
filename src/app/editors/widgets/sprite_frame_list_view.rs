@@ -15,6 +15,7 @@ pub struct SpriteFrameListView {
     pub track_drag_and_drop: bool,
     pub selected_frame: usize,
     pub hovered_frame: Option<usize>,
+    scroll_selection_into_view: bool,
     dragging: bool,
 }
 
@@ -26,6 +27,7 @@ impl SpriteFrameListView {
             selected_frame: 0,
             hovered_frame: None,
             dragging: false,
+            scroll_selection_into_view: false,
         }
     }
 
@@ -58,6 +60,10 @@ impl SpriteFrameListView {
         None
     }
 
+    pub fn scroll_to_selection(&mut self) {
+        self.scroll_selection_into_view = true;
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -72,13 +78,21 @@ impl SpriteFrameListView {
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         let image_size = Self::get_image_size(image.get_item_size());
         let scroll_x = ui.cursor().min.x;
-        let scroll = egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source).show(ui, |ui| {
+
+        let mut scroll_area = egui::ScrollArea::horizontal().auto_shrink([false, false]).scroll_source(source);
+        if self.scroll_selection_into_view {
+            self.scroll_selection_into_view = false;
+            let offset_x = image_size.x * self.selected_frame as f32;
+            scroll_area = scroll_area.scroll_offset(Vec2::new(offset_x, 0.0));
+        }
+
+        let scroll = scroll_area.show(ui, |ui| {
             let use_foot_frames = frame_indices.iter().any(|f| f.foot_index.is_some());
             let foot_overlap = if use_foot_frames { foot_overlap as f32 } else { 0.0 };
             let image_cell_size = Vec2::new(image_size.x, image_size.y * if use_foot_frames { 2.0 } else { 1.0 } - foot_overlap);
             let image_picker_size = Vec2::new(image_cell_size.x * frame_indices.len() as f32, image_cell_size.y);
             let scroll_width = ui.available_width();
-            let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 10.0)).max(Vec2::new(scroll_width, 0.0));
+            let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(0.0, 12.0)).max(Vec2::new(scroll_width, 0.0));
             let (response, mut painter) = ui.allocate_painter(min_size, Sense::drag());
             let space = response.rect;
             let canvas_rect = Rect::from_min_size(space.min, image_picker_size);
@@ -91,8 +105,8 @@ impl SpriteFrameListView {
 
             // draw background
             painter.rect_filled(canvas_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
-            let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
-            painter.rect_stroke(canvas_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
+            //let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+            //painter.rect_stroke(fill_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
 
             // draw items
             for (index, frame) in frame_indices.iter().enumerate() {

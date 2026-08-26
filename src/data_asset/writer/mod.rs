@@ -1,6 +1,7 @@
 mod ident_store;
 mod map_data;
 mod sprite_animation;
+mod tile_animation;
 mod room;
 mod font;
 mod prop_font;
@@ -218,6 +219,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_asset_ids_for(&self.store.asset_ids.animations, DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
         self.write_asset_ids_for(&self.store.asset_ids.rooms, DataAssetType::Room, "ROOM")?;
         self.write_asset_ids_for(&self.store.asset_ids.worlds, DataAssetType::World, "WORLD")?;
+        self.write_asset_ids_for(&self.store.asset_ids.tile_anims, DataAssetType::TileAnimation, "TILE_ANIMATION")?;
 
         Ok(())
     }
@@ -272,6 +274,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.ident.add_assets(DataAssetType::Sprite, self.store);
         self.ident.add_assets(DataAssetType::PalSprite, self.store);
         self.ident.add_assets(DataAssetType::SpriteAnimation, self.store);
+        self.ident.add_assets(DataAssetType::TileAnimation, self.store);
         self.ident.add_assets(DataAssetType::Sfx, self.store);
         self.ident.add_assets(DataAssetType::ModData, self.store);
         self.ident.add_assets(DataAssetType::Font, self.store);
@@ -292,6 +295,7 @@ impl<'a> ProjectDataWriter<'a> {
         sprite::write_sprites(&self, &self.store.asset_ids.sprites.store)?;
         map_data::write_maps(&self, &self.store.asset_ids.maps.store)?;
         let anim_info = sprite_animation::write_sprite_animations(&self, &self.store.asset_ids.animations.store)?;
+        tile_animation::write_tile_animations(&self, &self.store.asset_ids.tile_anims.store)?;
         room::write_rooms(&self, &self.store.asset_ids.rooms.store)?;
         world::write_worlds(&self, &self.store.asset_ids.worlds.store)?;
 

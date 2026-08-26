@@ -146,6 +146,7 @@ impl Editor {
     ) {
         self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
 
+        // menu bar
         egui::Panel::top(self.header_panel_id).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tile Animation", |ui| {
@@ -159,6 +160,7 @@ impl Editor {
             });
         });
 
+        // parent tiles
         egui::Panel::left(self.parent_tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(tileset) = tilesets.get(&tanim.parent_tileset_id) {
@@ -168,12 +170,15 @@ impl Editor {
                 let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
                 self.parent_tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
                 if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                    let Some(tloop) = tanim.loops.get(selected_tile as usize) {
+                    let Some(tloop) = tanim.loops.get(selected_tile as usize) &&
+                    self.anim_tile_view.selected_frame != tloop.start as usize {
                         self.anim_tile_view.selected_frame = tloop.start as usize;
+                        self.anim_tile_view.scroll_to_selection();
                     }
             }
         });
 
+        // selected loop
         if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
             let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) &&
             let Some(anim_tileset) = tilesets.get_mut(&tanim.anim_tileset_id) {

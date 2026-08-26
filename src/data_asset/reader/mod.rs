@@ -9,6 +9,7 @@ mod world;
 mod sprite;
 mod pal_sprite;
 mod sprite_animation;
+mod tile_animation;
 mod sfx;
 mod mod_data;
 mod font;
@@ -31,6 +32,7 @@ pub use tokenizer::{
 use super::{
     StringLogger,
     DataAssetId,
+    DataAssetType,
     DataAssetStore,
     DataAssetIdGenerator,
     AssetCollection,
@@ -57,8 +59,26 @@ static ARRAY_DEFS: LazyLock<HashMap<String,ValueDef>> = LazyLock::new(|| {
     ])
 });
 
+// asset types by name
+static ASSET_TYPES_BY_ARRAY_NAME: LazyLock<HashMap<String, DataAssetType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("sfxs"), DataAssetType::Sfx),
+        (String::from("maps"), DataAssetType::MapData),
+        (String::from("rooms"), DataAssetType::Room),
+        (String::from("fonts"), DataAssetType::Font),
+        (String::from("worlds"), DataAssetType::World),
+        (String::from("tilesets"), DataAssetType::Tileset),
+        (String::from("sprites"), DataAssetType::Sprite),
+        (String::from("mods"), DataAssetType::ModData),
+        (String::from("prop_fonts"), DataAssetType::PropFont),
+        (String::from("pal_sprites"), DataAssetType::PalSprite),
+        (String::from("sprite_animations"), DataAssetType::SpriteAnimation),
+        (String::from("tile_animations"), DataAssetType::TileAnimation),
+    ])
+});
+
 // asset structs
-static ASSET_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
+static ASSET_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::new(|| {
     HashMap::from([
         (String::from("SFX"), sfx::get_asset_def()),
         (String::from("MAP"), map_data::get_asset_def()),
@@ -70,6 +90,7 @@ static ASSET_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::n
         (String::from("PROP_FONT"), prop_font::get_asset_def()),
         (String::from("PAL_SPRITE"), pal_sprite::get_asset_def()),
         (String::from("SPRITE_ANIMATION"), sprite_animation::get_asset_def()),
+        (String::from("TILE_ANIMATION"), tile_animation::get_asset_def()),
     ])
 });
 
@@ -94,6 +115,23 @@ const CUSTOM_GLOBAL_STRUCT_READERS: &[fn(&mut ProjectDataReader, &str) -> Result
     room::read_custom_global_struct,
 ];
 
+fn get_asset_type_upper_name(asset_type: DataAssetType) -> &'static str {
+    match asset_type {
+        DataAssetType::Sfx => { "SFX" }
+        DataAssetType::MapData => { "MAP" }
+        DataAssetType::Room => { "ROOM" }
+        DataAssetType::Font => { "FONT" }
+        DataAssetType::World => { "WORLD" }
+        DataAssetType::Tileset => { "TILESET" }
+        DataAssetType::Sprite => { "SPRITE" }
+        DataAssetType::ModData => { "MOD" }
+        DataAssetType::PropFont => { "PROP_FONT" }
+        DataAssetType::PalSprite => { "PAL_SPRITE" }
+        DataAssetType::SpriteAnimation => { "SPRITE_ANIMATION" }
+        DataAssetType::TileAnimation => { "TILE_ANIMATION" }
+    }
+}
+
 pub struct ProjectData {
     prefix: String,
     got_prefix: bool,
@@ -104,12 +142,11 @@ pub struct ProjectData {
     tiles_per_world_block: u32,
     room_names_with_scripts: HashSet<String>,
 
-    arrays: HashMap<String, Value>,
-    structs: HashMap<String, ValueArray<ValueStruct>>,
-    assets: HashMap<String, (Vec<ValueStruct>, TokenPosition)>,
     enums: HashMap<String, Vec<String>>,
-    asset_ids: HashMap<String, Vec<DataAssetId>>,
-    asset_ids_by_prefixed_name: HashMap<String, Vec<DataAssetId>>,
+    data_arrays: HashMap<String, Value>,
+    struct_arrays: HashMap<String, ValueArray<ValueStruct>>,
+    assets: HashMap<DataAssetType, Vec<ValueStruct>>,
+    asset_ids: HashMap<DataAssetType, Vec<DataAssetId>>,
 }
 
 impl ProjectData {
@@ -124,12 +161,11 @@ impl ProjectData {
             tiles_per_world_block: 22,
             room_names_with_scripts: HashSet::new(),
 
-            arrays: HashMap::new(),
-            structs: HashMap::new(),
+            data_arrays: HashMap::new(),
+            struct_arrays: HashMap::new(),
             assets: HashMap::new(),
             enums: HashMap::new(),
             asset_ids: HashMap::new(),
-            asset_ids_by_prefixed_name: HashMap::new(),
         }
     }
 
@@ -156,6 +192,38 @@ impl ProjectData {
             pos += part.len();
         }
         true
+    }
+
+    // look for enum with tag
+    //    <prefix><asset_type>_IDS
+    // and get the nth item's <X> part if it's in the form
+    //    <prefix><asset_type>_ID_<X>
+    pub fn get_asset_name_id(
+        &self,
+        asset_id: DataAssetId,
+        asset_type: DataAssetType,
+    ) -> Option<String> {
+        let index = self
+            .asset_ids
+            .get(&asset_type)
+            .and_then(|ids| ids.iter().position(|&id| id == asset_id))?;
+
+        let upper_type_name = get_asset_type_upper_name(asset_type);
+        let enum_tag_parts = &[ &self.prefix_upper, upper_type_name, "_IDS" ];
+        let enum_item_prefix = &[ &self.prefix_upper, upper_type_name, "_ID_" ];
+        let enum_item_prefix_len = enum_item_prefix.iter().fold(0, |len, p| len + p.len());
+        for (name, enum_items) in self.enums.iter() {
+            if Self::check_name_match(name, enum_tag_parts) {
+                return if let Some(item_name) = enum_items.get(index) &&
+                    item_name.len() > enum_item_prefix_len &&
+                    Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
+                        Some(String::from(&item_name[enum_item_prefix_len..]).to_lowercase())
+                    } else {
+                        None
+                    };
+            }
+        }
+        None
     }
 
     // look for enum with tag
@@ -258,6 +326,15 @@ impl<'a> ProjectDataReader<'a> {
             return Ok(t)
         }
         error(format!("expected '{}', found '{}'", ch, t), t.pos)?
+    }
+
+    fn get_asset_type_for_array_name(&self, asset_array_name: &str, pos: TokenPosition) -> Result<DataAssetType> {
+        asset_array_name
+            .strip_prefix(&self.data.prefix_lower)
+            .and_then(|unprefixed_name| ASSET_TYPES_BY_ARRAY_NAME.get(unprefixed_name).copied())
+            .ok_or_else(|| {
+                err(format!("can't find asset type for '{}'", asset_array_name), pos)
+            })
     }
 
     // ========================================================
@@ -427,12 +504,13 @@ impl<'a> ProjectDataReader<'a> {
 
             ValueDef::AssetRef => {
                 self.expect_punct('&')?;
-                let mut ident_token = self.expect_any_ident("array name")?;
+                let mut ident_token = self.expect_any_ident("asset array name")?;
                 self.expect_punct('[')?;
                 let index = self.read_number(u32::MAX as u64)? as usize;
                 self.expect_punct(']')?;
                 if let Some(name) = ident_token.drain_ident() {
-                    Ok(Value::AssetRef(ValueAssetRef::new(name, index, ident_token.pos)))
+                    let asset_type = self.get_asset_type_for_array_name(&name, ident_token.pos)?;
+                    Ok(Value::AssetRef(ValueAssetRef::new(asset_type, index, ident_token.pos)))
                 } else {
                     error(format!("unexpected '{}'", ident_token), ident_token.pos)
                 }
@@ -456,7 +534,7 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct('=')?;
             if let Some(value_type) = ARRAY_DEFS.get(type_name) {
                 let value = self.read_value(value_type)?;
-                self.data.arrays.insert(name, value);
+                self.data.data_arrays.insert(name, value);
             } else {
                 return error(format!("unsupported array type: {}", type_name), name_token.pos);
             }
@@ -482,7 +560,7 @@ impl<'a> ProjectDataReader<'a> {
                     values.push(self.read_struct(struct_def)?);
                 }
                 self.expect_punct(';')?;
-                self.data.structs.insert(name, ValueArray::new(values, name_token.pos));
+                self.data.struct_arrays.insert(name, ValueArray::new(values, name_token.pos));
                 Ok(())
             } else {
                 error(format!("unknown struct tag: {}", struct_tag), struct_tag_token.pos)
@@ -527,7 +605,8 @@ impl<'a> ProjectDataReader<'a> {
                 self.unread(t)?;
                 values.push(self.read_struct(struct_def)?);
             }
-            self.data.assets.insert(name, (values, name_token.pos));
+            let asset_type = self.get_asset_type_for_array_name(&name, name_token.pos)?;
+            self.data.assets.insert(asset_type, values);
             self.expect_punct(';')?;
             Ok(())
         } else {
@@ -605,7 +684,7 @@ impl<'a> ProjectDataReader<'a> {
                     continue;
                 } else if ident == "static" {
                     // asset data (image pixels, mod patterns, etc):
-                    // read to (`data.arrays`, `data.structs`)
+                    // read to (`data.data_arrays`, `data.struct_arrays`)
                     self.read_static_data()?;
                     continue;
                 } else if ident == "const" {
@@ -633,91 +712,90 @@ impl<'a> ProjectDataReader<'a> {
     fn create_store(mut self) -> Result<DataAssetStore> {
         // generate asset ids
         let mut id_generator = DataAssetIdGenerator::new();
-        for (name, (asset_structs, pos)) in self.data.assets.iter() {
+        for (asset_type, asset_structs) in self.data.assets.iter() {
             let ids: Vec<DataAssetId> = (0..asset_structs.len()).map(|_| id_generator.gen_id()).collect();
-            self.data.asset_ids_by_prefixed_name.insert(name.to_owned(), ids.clone());
-            let unprefixed_name = name.strip_prefix(&self.data.prefix_lower).ok_or_else(|| {
-                err(format!("invalid asset array name: {}", name), *pos)
-            })?;
-            self.data.asset_ids.insert(unprefixed_name.to_owned(), ids);
+            self.data.asset_ids.insert(*asset_type, ids);
         }
 
         // create assets
         let mut assets = AssetCollection::new();
         let mut asset_ids = AssetIdCollection::new();
         let image_converter = ImageConverter::new(self.data.vga_bits_per_pixel);
-        for (name, (asset_structs, data_pos)) in self.data.assets.iter() {
-            if let Some(name) = name.strip_prefix(&self.data.prefix_lower) && let Some(asset_ids_of_type) = self.data.asset_ids.get(name) {
+        for (asset_type, asset_structs) in self.data.assets.iter() {
+            if let Some(asset_ids_of_type) = self.data.asset_ids.get(asset_type) {
                 for (index, asset_struct) in asset_structs.iter().enumerate() {
-                    match name {
-                        "tilesets" => {
+                    match asset_type {
+                        DataAssetType::Tileset => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.tilesets.push(id);
                                 assets.tilesets.insert(id, tileset::create(id, asset_struct, &self.data, &image_converter)?);
                             }
                         }
-                        "maps" => {
+                        DataAssetType::MapData => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.maps.push(id);
                                 assets.maps.insert(id, map_data::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "rooms" => {
+                        DataAssetType::Room => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.rooms.push(id);
                                 assets.rooms.insert(id, room::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "worlds" => {
+                        DataAssetType::World => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.worlds.push(id);
                                 assets.worlds.insert(id, world::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "sprites" => {
+                        DataAssetType::Sprite => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.sprites.push(id);
                                 assets.sprites.insert(id, sprite::create(id, asset_struct, &self.data, &image_converter)?);
                             }
                         }
-                        "pal_sprites" => {
+                        DataAssetType::PalSprite => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.pal_sprites.push(id);
                                 assets.pal_sprites.insert(id, pal_sprite::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "sprite_animations" => {
+                        DataAssetType::SpriteAnimation => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.animations.push(id);
                                 assets.animations.insert(id, sprite_animation::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "sfxs" => {
+                        DataAssetType::TileAnimation => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.tile_anims.push(id);
+                                assets.tile_anims.insert(id, tile_animation::create(id, asset_struct, &self.data)?);
+                            }
+                        }
+                        DataAssetType::Sfx => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.sfxs.push(id);
                                 assets.sfxs.insert(id, sfx::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "mods" => {
+                        DataAssetType::ModData => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.mods.push(id);
                                 assets.mods.insert(id, mod_data::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "fonts" => {
+                        DataAssetType::Font => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.fonts.push(id);
                                 assets.fonts.insert(id, font::create(id, asset_struct, &self.data)?);
                             }
                         }
-                        "prop_fonts" => {
+                        DataAssetType::PropFont => {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.prop_fonts.push(id);
                                 assets.prop_fonts.insert(id, prop_font::create(id, asset_struct, &self.data)?);
                             }
-                        }
-                        _ => {
-                            return error(format!("unknown asset array: {}", name), *data_pos);
                         }
                     }
                 }
@@ -750,10 +828,9 @@ pub fn deserialize_map(
     let mut reader = ProjectDataReader::new(input, logger);
     reader.read_data()?;
 
-    reader.data.asset_ids.insert("tilesets".to_owned(), asset_ids.tilesets.store.clone());
-    reader.data.asset_ids_by_prefixed_name.insert(format!("{}tilesets", reader.data.prefix_lower), asset_ids.tilesets.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::Tileset, asset_ids.tilesets.store.clone());
 
-    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+    if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
         map_data::create(map_id, asset_struct, &reader.data)
     } else {
         Err(Error::other("map data not found in file"))
@@ -769,14 +846,11 @@ pub fn deserialize_room(
     let mut reader = ProjectDataReader::new(input, logger);
     reader.read_data()?;
 
-    reader.data.asset_ids.insert("maps".to_owned(), asset_ids.maps.store.clone());
-    reader.data.asset_ids_by_prefixed_name.insert(format!("{}maps", reader.data.prefix_lower), asset_ids.maps.store.clone());
-    reader.data.asset_ids.insert("rooms".to_owned(), asset_ids.rooms.store.clone());
-    reader.data.asset_ids_by_prefixed_name.insert(format!("{}rooms", reader.data.prefix_lower), asset_ids.rooms.store.clone());
-    reader.data.asset_ids.insert("sprite_animations".to_owned(), asset_ids.animations.store.clone());
-    reader.data.asset_ids_by_prefixed_name.insert(format!("{}sprite_animations", reader.data.prefix_lower), asset_ids.animations.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::MapData, asset_ids.maps.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::Room, asset_ids.rooms.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::SpriteAnimation, asset_ids.animations.store.clone());
 
-    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+    if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
         room::create(room_id, asset_struct, &reader.data)
     } else {
         Err(Error::other("room data not found in file"))
@@ -792,10 +866,9 @@ pub fn deserialize_sprite_animation(
     let mut reader = ProjectDataReader::new(input, logger);
     reader.read_data()?;
 
-    reader.data.asset_ids.insert("sprites".to_owned(), asset_ids.sprites.store.clone());
-    reader.data.asset_ids_by_prefixed_name.insert(format!("{}sprites", reader.data.prefix_lower), asset_ids.sprites.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::Sprite, asset_ids.sprites.store.clone());
 
-    if let Some((_, (asset_structs, _))) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+    if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
         sprite_animation::create(animation_id, asset_struct, &reader.data)
     } else {
         Err(Error::other("animation data not found in file"))

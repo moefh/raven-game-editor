@@ -49,6 +49,7 @@ pub use sprite_animation::{
 };
 pub use tile_animation::{
     TileAnimation,
+    TileAnimationLoop,
 };
 pub use sfx::Sfx;
 pub use mod_data::{
