@@ -19,6 +19,7 @@ use super::{
     SpriteEditor,
     PalSpriteEditor,
     SpriteAnimationEditor,
+    TileAnimationEditor,
     SfxEditor,
     ModDataEditor,
     FontEditor,
@@ -34,6 +35,7 @@ pub struct EditorStore {
     pub sprites: HashMap<DataAssetId, SpriteEditor>,
     pub pal_sprites: HashMap<DataAssetId, PalSpriteEditor>,
     pub animations: HashMap<DataAssetId, SpriteAnimationEditor>,
+    pub tile_anims: HashMap<DataAssetId, TileAnimationEditor>,
     pub sfxs: HashMap<DataAssetId, SfxEditor>,
     pub mods: HashMap<DataAssetId, ModDataEditor>,
     pub fonts: HashMap<DataAssetId, FontEditor>,
@@ -52,6 +54,7 @@ impl EditorStore {
             sprites: HashMap::new(),
             pal_sprites: HashMap::new(),
             animations: HashMap::new(),
+            tile_anims: HashMap::new(),
             sfxs: HashMap::new(),
             mods: HashMap::new(),
             fonts: HashMap::new(),
@@ -69,6 +72,7 @@ impl EditorStore {
         self.sprites.clear();
         self.pal_sprites.clear();
         self.animations.clear();
+        self.tile_anims.clear();
         self.sfxs.clear();
         self.mods.clear();
         self.fonts.clear();
@@ -84,6 +88,7 @@ impl EditorStore {
         for id in store.asset_ids.sprites.iter().copied() { self.add_sprite(id); }
         for id in store.asset_ids.pal_sprites.iter().copied() { self.add_pal_sprite(id); }
         for id in store.asset_ids.animations.iter().copied() { self.add_animation(id); }
+        for id in store.asset_ids.tile_anims.iter().copied() { self.add_tile_anim(id); }
         for id in store.asset_ids.sfxs.iter().copied() { self.add_sfx(id); }
         for id in store.asset_ids.mods.iter().copied() { self.add_mod(id); }
         for id in store.asset_ids.fonts.iter().copied() { self.add_font(id); }
@@ -99,6 +104,7 @@ impl EditorStore {
         if let Some(editor) = self.sprites.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.pal_sprites.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.animations.get(&id) { return Some(&editor.base); }
+        if let Some(editor) = self.tile_anims.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.sfxs.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.mods.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.fonts.get(&id) { return Some(&editor.base); }
@@ -114,6 +120,7 @@ impl EditorStore {
         if let Some(editor) = self.sprites.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.pal_sprites.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.animations.get_mut(&id) { return Some(&mut editor.base); }
+        if let Some(editor) = self.tile_anims.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.sfxs.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.mods.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.fonts.get_mut(&id) { return Some(&mut editor.base); }
@@ -129,6 +136,7 @@ impl EditorStore {
         if let Some(editor) = self.sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.pal_sprites.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.animations.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
+        if let Some(editor) = self.tile_anims.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.sfxs.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.mods.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
@@ -145,6 +153,7 @@ impl EditorStore {
             DataAssetType::Sprite => self.add_sprite(id),
             DataAssetType::PalSprite => self.add_pal_sprite(id),
             DataAssetType::SpriteAnimation => self.add_animation(id),
+            DataAssetType::TileAnimation => self.add_tile_anim(id),
             DataAssetType::Sfx => self.add_sfx(id),
             DataAssetType::ModData => self.add_mod(id),
             DataAssetType::Font => self.add_font(id),
@@ -208,6 +217,14 @@ impl EditorStore {
         egui_id
     }
 
+    pub fn add_tile_anim(&mut self, id: DataAssetId) -> egui::Id {
+        let editor = TileAnimationEditor::new(id, false);
+        let egui_id = editor.base.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
+        self.tile_anims.insert(id, editor);
+        egui_id
+    }
+
     pub fn add_sfx(&mut self, id: DataAssetId) -> egui::Id {
         let editor = SfxEditor::new(id, false);
         let egui_id = editor.base.egui_id;
@@ -262,6 +279,9 @@ impl EditorStore {
         for anim in store.assets.animations.iter() {
             if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.update_dirty_flag(anim); }
         }
+        for anim in store.assets.tile_anims.iter() {
+            if let Some(editor) = self.tile_anims.get_mut(&anim.asset.id) { editor.base.update_dirty_flag(anim); }
+        }
         for sfx in store.assets.sfxs.iter() {
             if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.update_dirty_flag(sfx); }
         }
@@ -298,6 +318,9 @@ impl EditorStore {
         for anim in store.assets.animations.iter() {
             if let Some(editor) = self.animations.get_mut(&anim.asset.id) { editor.base.clear_dirty_flag(anim); }
         }
+        for anim in store.assets.tile_anims.iter() {
+            if let Some(editor) = self.tile_anims.get_mut(&anim.asset.id) { editor.base.clear_dirty_flag(anim); }
+        }
         for sfx in store.assets.sfxs.iter() {
             if let Some(editor) = self.sfxs.get_mut(&sfx.asset.id) { editor.base.clear_dirty_flag(sfx); }
         }
@@ -324,6 +347,7 @@ impl EditorStore {
             .chain(self.sprites.values().map(|e| &e.base))
             .chain(self.pal_sprites.values().map(|e| &e.base))
             .chain(self.animations.values().map(|e| &e.base))
+            .chain(self.tile_anims.values().map(|e| &e.base))
             .chain(self.sfxs.values().map(|e| &e.base))
             .chain(self.mods.values().map(|e| &e.base))
             .chain(self.fonts.values().map(|e| &e.base))
@@ -338,6 +362,7 @@ impl EditorStore {
             .chain(self.sprites.values_mut().map(|e| &mut e.base))
             .chain(self.pal_sprites.values_mut().map(|e| &mut e.base))
             .chain(self.animations.values_mut().map(|e| &mut e.base))
+            .chain(self.tile_anims.values_mut().map(|e| &mut e.base))
             .chain(self.sfxs.values_mut().map(|e| &mut e.base))
             .chain(self.mods.values_mut().map(|e| &mut e.base))
             .chain(self.fonts.values_mut().map(|e| &mut e.base))

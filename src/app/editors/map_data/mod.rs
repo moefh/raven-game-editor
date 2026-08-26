@@ -312,7 +312,7 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.add(egui::Button::image(IMAGES.run_animation)
+                if ui.add(egui::Button::image(IMAGES.tile_anim)
                           .selected(self.map_editor.display.has_bits(MapDisplay::ANIMATE_TILES))
                           .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::ANIMATE_TILES)))
                     .on_hover_text("Animate tiles").clicked() {

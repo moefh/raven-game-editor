@@ -26,6 +26,17 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.tileset,
     },
     AssetDef {
+        asset_type: DataAssetType::TileAnimation,
+        default_name_prefix: "tile_anim",
+        type_name: "Tile Animation",
+        add_menu_item: " Add Tile Animation",
+        duplicate_menu_item: " Duplicate Tile Animation",
+        remove_menu_item: " Delete Tile Animation",
+        rename_menu_item: " Rename Tile Animation",
+        tree_root_item: "Tile Animations",
+        image: IMAGE_REFS.tile_anim,
+    },
+    AssetDef {
         asset_type: DataAssetType::MapData,
         default_name_prefix: "map",
         type_name: "Map",

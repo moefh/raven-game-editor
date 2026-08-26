@@ -4,6 +4,7 @@ mod room;
 mod world;
 mod sprite;
 mod sprite_animation;
+mod tile_animation;
 mod pal_sprite;
 mod sfx;
 mod mod_data;
@@ -45,6 +46,9 @@ pub use sprite_animation::{
     SpriteAnimation,
     SpriteAnimationFrame,
     SpriteAnimationLoop,
+};
+pub use tile_animation::{
+    TileAnimation,
 };
 pub use sfx::Sfx;
 pub use mod_data::{
@@ -117,6 +121,7 @@ pub enum DataAssetType {
     Sprite,
     PalSprite,
     SpriteAnimation,
+    TileAnimation,
     Sfx,
     ModData,
     Font,
@@ -133,6 +138,7 @@ impl DataAssetType {
             DataAssetType::Sprite => "sprite",
             DataAssetType::PalSprite => "pal_sprite",
             DataAssetType::SpriteAnimation => "animation",
+            DataAssetType::TileAnimation => "tile_animation",
             DataAssetType::Sfx => "sfx",
             DataAssetType::ModData => "mod",
             DataAssetType::Font => "font",
@@ -284,6 +290,7 @@ pub struct AssetCollection {
     pub sprites: AssetList<Sprite>,
     pub pal_sprites: AssetList<PalSprite>,
     pub animations: AssetList<SpriteAnimation>,
+    pub tile_anims: AssetList<TileAnimation>,
     pub sfxs: AssetList<Sfx>,
     pub mods: AssetList<ModData>,
     pub fonts: AssetList<Font>,
@@ -300,6 +307,7 @@ impl AssetCollection {
             sprites: AssetList::new(),
             pal_sprites: AssetList::new(),
             animations: AssetList::new(),
+            tile_anims: AssetList::new(),
             sfxs: AssetList::new(),
             mods: AssetList::new(),
             fonts: AssetList::new(),
@@ -315,6 +323,7 @@ impl AssetCollection {
         if let Some(v) = self.sprites.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.pal_sprites.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.animations.get(&asset_id) { return Some(&v.asset); }
+        if let Some(v) = self.tile_anims.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.sfxs.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.mods.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.fonts.get(&asset_id) { return Some(&v.asset); }
@@ -330,6 +339,7 @@ impl AssetCollection {
         if let Some(v) = self.sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.pal_sprites.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.animations.get_mut(&asset_id) { return Some(&mut v.asset); }
+        if let Some(v) = self.tile_anims.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.sfxs.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.mods.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
@@ -345,6 +355,11 @@ impl AssetCollection {
         }
         for anim in self.animations.iter() {
             if anim.sprite_id == id {
+                return true;
+            }
+        }
+        for anim in self.tile_anims.iter() {
+            if anim.parent_tileset_id == id || anim.anim_tileset_id == id {
                 return true;
             }
         }
@@ -383,6 +398,7 @@ impl AssetCollection {
         let sum = self.sprites.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.pal_sprites.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.animations.iter().fold(sum, |sum, a| sum + a.data_size());
+        let sum = self.tile_anims.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.sfxs.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.mods.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.fonts.iter().fold(sum, |sum, a| sum + a.data_size());
@@ -398,6 +414,7 @@ pub struct AssetIdCollection {
     pub sprites: AssetIdList,
     pub pal_sprites: AssetIdList,
     pub animations: AssetIdList,
+    pub tile_anims: AssetIdList,
     pub sfxs: AssetIdList,
     pub mods: AssetIdList,
     pub fonts: AssetIdList,
@@ -414,6 +431,7 @@ impl AssetIdCollection {
             sprites: AssetIdList::new(),
             pal_sprites: AssetIdList::new(),
             animations: AssetIdList::new(),
+            tile_anims: AssetIdList::new(),
             sfxs: AssetIdList::new(),
             mods: AssetIdList::new(),
             fonts: AssetIdList::new(),
@@ -430,6 +448,7 @@ impl AssetIdCollection {
             DataAssetType::Sprite => self.sprites.iter(),
             DataAssetType::PalSprite => self.pal_sprites.iter(),
             DataAssetType::SpriteAnimation => self.animations.iter(),
+            DataAssetType::TileAnimation => self.tile_anims.iter(),
             DataAssetType::Sfx => self.sfxs.iter(),
             DataAssetType::ModData => self.mods.iter(),
             DataAssetType::Font => self.fonts.iter(),
@@ -510,6 +529,7 @@ impl DataAssetStore {
             self.assets.sprites.store.len() +
             self.assets.pal_sprites.store.len() +
             self.assets.animations.store.len() +
+            self.assets.tile_anims.store.len() +
             self.assets.sfxs.store.len() +
             self.assets.mods.store.len() +
             self.assets.fonts.store.len() +
@@ -524,6 +544,7 @@ impl DataAssetStore {
         if let Some(v) = self.assets.sprites.remove(&id) { self.asset_ids.sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.pal_sprites.remove(&id) { self.asset_ids.pal_sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.animations.remove(&id) { self.asset_ids.animations.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.tile_anims.remove(&id) { self.asset_ids.tile_anims.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sfxs.remove(&id) { self.asset_ids.sfxs.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.mods.remove(&id) { self.asset_ids.mods.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.fonts.remove(&id) { self.asset_ids.fonts.remove_id(id); return Some(v.asset); }
@@ -558,6 +579,10 @@ impl DataAssetStore {
         }
         if let Some(dup_id) = self.assets.animations.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.animations.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.tile_anims.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.tile_anims.push(dup_id);
             return Some(dup_id);
         }
         if let Some(dup_id) = self.assets.sfxs.duplicate_asset(&id, dup_name, &mut self.id_generator) {
@@ -631,6 +656,16 @@ impl DataAssetStore {
         let id = self.gen_id();
         self.asset_ids.animations.push(id);
         self.assets.animations.insert(id, SpriteAnimation::new(id, name, sprite_id));
+        Some(id)
+    }
+
+    pub fn add_tile_anim(&mut self, name: String, parent_tileset_id: DataAssetId, anim_tileset_id: DataAssetId) -> Option<DataAssetId> {
+        if ! self.assets.tilesets.contains(&parent_tileset_id) || ! self.assets.tilesets.contains(&anim_tileset_id) {
+            return None;
+        }
+        let id = self.gen_id();
+        self.asset_ids.tile_anims.push(id);
+        self.assets.tile_anims.insert(id, TileAnimation::new(id, name, parent_tileset_id, anim_tileset_id));
         Some(id)
     }
 

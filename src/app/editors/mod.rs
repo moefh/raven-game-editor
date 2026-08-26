@@ -11,6 +11,7 @@ mod world;
 mod sprite;
 mod pal_sprite;
 mod sprite_animation;
+mod tile_animation;
 mod sfx;
 mod mod_data;
 mod font;
@@ -34,6 +35,7 @@ pub use world::{
 pub use sprite::SpriteEditor;
 pub use pal_sprite::PalSpriteEditor;
 pub use sprite_animation::SpriteAnimationEditor;
+pub use tile_animation::TileAnimationEditor;
 pub use sfx::SfxEditor;
 pub use mod_data::ModDataEditor;
 pub use font::FontEditor;

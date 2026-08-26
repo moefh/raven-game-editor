@@ -274,6 +274,11 @@ impl RavenEditorApp {
                 editor.prepare_for_saving(anim, &mut self.store.assets.sprites);
             }
         }
+        for tanim in self.store.assets.tile_anims.iter_mut() {
+            if let Some(editor) = self.editors.tile_anims.get_mut(&tanim.asset.id) {
+                editor.prepare_for_saving(tanim);
+            }
+        }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) { editor.prepare_for_saving(sfx); }
         }
@@ -456,6 +461,16 @@ impl RavenEditorApp {
                     })
                 } else {
                     self.open_message_box("No Sprite Available", "You must create a sprite first!");
+                    None
+                }
+            }
+            DataAssetType::TileAnimation => {
+                if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
+                    self.store.add_tile_anim(self.new_asset_name(asset_type, name_prefix), tileset_id, tileset_id).map(|id| {
+                        (id, self.editors.add_tile_anim(id))
+                    })
+                } else {
+                    self.open_message_box("No Tileset Available", "You must create a tileset first!");
                     None
                 }
             }
@@ -952,6 +967,11 @@ impl RavenEditorApp {
         for anim in self.store.assets.animations.iter_mut() {
             if let Some(editor) = self.editors.animations.get_mut(&anim.asset.id) {
                 editor.show(&mut win_ctx, anim, &self.store.asset_ids, &mut self.store.assets.sprites);
+            }
+        }
+        for tanim in self.store.assets.tile_anims.iter_mut() {
+            if let Some(editor) = self.editors.tile_anims.get_mut(&tanim.asset.id) {
+                editor.show(&mut win_ctx, tanim, &self.store.asset_ids, &mut self.store.assets.tilesets);
             }
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
