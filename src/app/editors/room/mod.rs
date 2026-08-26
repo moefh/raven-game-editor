@@ -6,18 +6,19 @@ use std::collections::HashMap;
 use crate::misc::IMAGES;
 use crate::data_asset::{
     self,
+    DataAssetId,
+    AssetIdCollection,
+    GenericAsset,
+    AssetList,
     Room,
     RoomTrigger,
     RoomTriggerType,
     RoomEntityDirection,
     MapData,
     Tileset,
+    TileAnimation,
     SpriteAnimation,
     Sprite,
-    DataAssetId,
-    AssetIdCollection,
-    GenericAsset,
-    AssetList,
 };
 
 use super::{
@@ -53,6 +54,7 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
 pub struct RoomEditorAssetLists<'a> {
     pub maps: &'a AssetList<MapData>,
     pub tilesets: &'a AssetList<Tileset>,
+    pub tile_anims: &'a AssetList<TileAnimation>,
     pub animations: &'a AssetList<SpriteAnimation>,
     pub sprites: &'a AssetList<Sprite>,
     pub room_names: &'a HashMap<DataAssetId, String>,
@@ -62,6 +64,7 @@ impl<'a> RoomEditorAssetLists<'a> {
     pub fn new(
         maps: &'a AssetList<MapData>,
         tilesets: &'a AssetList<Tileset>,
+        tile_anims: &'a AssetList<TileAnimation>,
         animations: &'a AssetList<SpriteAnimation>,
         sprites: &'a AssetList<Sprite>,
         room_names: &'a HashMap<DataAssetId, String>
@@ -69,6 +72,7 @@ impl<'a> RoomEditorAssetLists<'a> {
         RoomEditorAssetLists {
             maps,
             tilesets,
+            tile_anims,
             animations,
             sprites,
             room_names,

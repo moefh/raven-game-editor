@@ -57,6 +57,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     Ok(MapData {
         asset: DataAsset::new(DataAssetType::MapData, asset_id, DataAsset::identifier_to_name(name)),
         tileset_id: tileset_ref.get_asset_id(project_data)?,
+        tile_anim_id: None,
         width,
         height,
         para_width,

@@ -1,9 +1,10 @@
 use crate::data_asset::{
+    DataAssetId,
+    AssetIdCollection,
+    AssetList,
     MapData,
     Tileset,
-    DataAssetId,
-    AssetIdList,
-    AssetList,
+    TileAnimation,
 };
 use super::super::{
     resize_map_tiles,
@@ -25,8 +26,10 @@ fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, n
 
 pub struct PropertiesDialog {
     pub open: bool,
+    pub dlg_id: egui::Id,
     pub name: String,
     pub tileset_id: DataAssetId,
+    pub tile_anim_id: Option<DataAssetId>,
     pub width: u32,
     pub height: u32,
     pub para_width: u32,
@@ -40,8 +43,10 @@ impl PropertiesDialog {
     pub fn new(tileset_id: DataAssetId) -> Self {
         PropertiesDialog {
             open: false,
+            dlg_id: egui::Id::new("dlg_map_properties"),
             name: String::new(),
             tileset_id,
+            tile_anim_id: None,
             width: 0,
             height: 0,
             para_width: 0,
@@ -52,14 +57,15 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_map_properties")
-    }
-
-    pub fn set_open(&mut self, wc: &mut WindowContext, map_data: &MapData, new_tile: u8) {
-        self.name.clear();
-        self.name.push_str(&map_data.asset.name);
+    pub fn set_open(
+        &mut self,
+        wc: &mut WindowContext,
+        map_data: &MapData,
+        new_tile: u8,
+    ) {
+        self.name.replace_range(.., &map_data.asset.name);
         self.tileset_id = map_data.tileset_id;
+        self.tile_anim_id = map_data.tile_anim_id;
         self.width = map_data.width;
         self.height = map_data.height;
         self.para_width = map_data.para_width;
@@ -68,7 +74,7 @@ impl PropertiesDialog {
         self.resized = false;
         self.changed_tileset = false;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
@@ -83,6 +89,7 @@ impl PropertiesDialog {
 
         self.changed_tileset = map_data.tileset_id != self.tileset_id;
         map_data.tileset_id = self.tileset_id;
+        map_data.tile_anim_id = self.tile_anim_id;
 
         let width = self.width;
         let height = self.height;
@@ -97,10 +104,17 @@ impl PropertiesDialog {
         true
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, map_data: &mut MapData, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        map_data: &mut MapData,
+        asset_ids: &AssetIdCollection,
+        tilesets: &AssetList<Tileset>,
+        tile_anims: &AssetList<TileAnimation>
+    ) {
         if ! self.open { return; }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Map Properties", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, "Map Properties", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", map_data.asset.id))
                     .num_columns(2)
@@ -119,9 +133,27 @@ impl PropertiesDialog {
                         egui::ComboBox::from_id_salt(format!("map_editor_tileset_combo_{}", map_data.asset.id))
                             .selected_text(cur_tileset_name)
                             .show_ui(ui, |ui| {
-                                for tileset_id in tileset_ids.iter() {
+                                for tileset_id in asset_ids.tilesets.iter() {
                                     if let Some(tileset) = tilesets.get(tileset_id) {
                                         ui.selectable_value(&mut self.tileset_id, tileset.asset.id, &tileset.asset.name);
+                                    }
+                                }
+                            });
+                        ui.end_row();
+
+                        ui.label("Tile Anim:");
+                        let cur_tanim_name = if let Some(cur_tanim) = self.tile_anim_id.and_then(|tanim_id| tile_anims.get(&tanim_id)) {
+                            &cur_tanim.asset.name
+                        } else {
+                            "(no animation)"
+                        };
+                        egui::ComboBox::from_id_salt(format!("map_editor_tile_anim_combo_{}", map_data.asset.id))
+                            .selected_text(cur_tanim_name)
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.tile_anim_id, None, "(no animation)");
+                                for tile_anim_id in asset_ids.tile_anims.iter() {
+                                    if let Some(tanim) = tile_anims.get(tile_anim_id) {
+                                        ui.selectable_value(&mut self.tile_anim_id, Some(tanim.asset.id), &tanim.asset.name);
                                     }
                                 }
                             });
@@ -155,7 +187,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
     }
 }

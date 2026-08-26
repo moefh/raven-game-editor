@@ -948,7 +948,11 @@ impl RavenEditorApp {
         }
         for map in self.store.assets.maps.iter_mut() {
             if let Some(editor) = self.editors.maps.get_mut(&map.asset.id) {
-                editor.show(&mut win_ctx, map, &self.store.asset_ids, &self.store.assets.tilesets);
+                let assets = editors::MapDataEditorAssetLists::new(
+                    &self.store.assets.tilesets,
+                    &self.store.assets.tile_anims
+                );
+                editor.show(&mut win_ctx, map, &self.store.asset_ids, &assets);
             }
         }
         for room in self.store.assets.rooms.iter_mut() {
@@ -956,6 +960,7 @@ impl RavenEditorApp {
                 let assets = editors::RoomEditorAssetLists::new(
                     &self.store.assets.maps,
                     &self.store.assets.tilesets,
+                    &self.store.assets.tile_anims,
                     &self.store.assets.animations,
                     &self.store.assets.sprites,
                     &self.editors.room_names);

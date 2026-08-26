@@ -23,7 +23,10 @@ pub use utils::{*};
 pub use utils::world_grid;
 
 pub use tileset::TilesetEditor;
-pub use map_data::MapDataEditor;
+pub use map_data::{
+    MapDataEditor,
+    MapDataEditorAssetLists,
+};
 pub use room::{
     RoomEditor,
     RoomEditorAssetLists,

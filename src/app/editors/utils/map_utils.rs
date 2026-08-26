@@ -2,6 +2,7 @@ use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
     MapData,
+    TileAnimation,
 };
 use crate::image::ImageCollection;
 
@@ -469,36 +470,65 @@ pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32,
     }
 }
 
-pub fn get_animated_tile(map_tile: u8, layer: MapLayer, anim_tile: u8, animation_step: u32) -> Option<u8> {
-    match layer {
-        MapLayer::Background => {
-            match anim_tile {
-                // loop len: 2
-                1 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
-                2 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }      // out of phase
+pub fn get_animated_tile(map_tile: u8, layer: MapLayer, anim_tile: u8, tile_anim: Option<&TileAnimation>, animation_step: u32) -> Option<u8> {
+    if let Some(tile_anim) = tile_anim {
+        let new_tile = tile_anim.loops[map_tile as usize].start;
+        let loop_len = tile_anim.loops[map_tile as usize].len as u32;
+        if loop_len == 0 { return None; }
+        match layer {
+            MapLayer::Background => {
+                match anim_tile {
+                    1 | 3 => { Some(new_tile.saturating_add((animation_step % loop_len) as u8)) }
+                    2 => { Some(new_tile.saturating_add(((1 + animation_step) % loop_len) as u8)) }                 // out of phase
+                    4 => { Some(new_tile.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8)) }  // reverse
 
-                // loop len: 4
-                3 => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
-                4 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
-
-                _ => { None }
+                    _ => { None }
+                }
             }
-        }
 
-        MapLayer::Foreground => {
-            match anim_tile {
-                // loop len: 2
-                7 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
-                8 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }       // out of phase
+            MapLayer::Foreground => {
+                match anim_tile {
+                    7 | 9 => { Some(new_tile.saturating_add((animation_step % loop_len) as u8)) }
+                    8 => { Some(new_tile.saturating_add(((1 + animation_step) % 2) as u8)) }                         // out of phase
+                    10 => { Some(new_tile.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8)) }  // reverse
 
-                // loop len: 4
-                9  => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
-                10 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
-
-                _ => { None }
+                    _ => { None }
+                }
             }
-        }
 
-        _ => { None }
+            _ => { None }
+        }
+    } else {
+        match layer {
+            MapLayer::Background => {
+                match anim_tile {
+                    // loop len: 2
+                    1 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
+                    2 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }      // out of phase
+
+                    // loop len: 4
+                    3 => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
+                    4 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
+
+                    _ => { None }
+                }
+            }
+
+            MapLayer::Foreground => {
+                match anim_tile {
+                    // loop len: 2
+                    7 => { Some(map_tile.saturating_add((animation_step % 2) as u8)) }
+                    8 => { Some(map_tile.saturating_add(((1 + animation_step) % 2) as u8)) }       // out of phase
+
+                    // loop len: 4
+                    9  => { Some(map_tile.saturating_add((animation_step % 4) as u8)) }
+                    10 => { Some(map_tile.saturating_add((3 - (animation_step + 1) % 4) as u8)) }  // reverse
+
+                    _ => { None }
+                }
+            }
+
+            _ => { None }
+        }
     }
 }

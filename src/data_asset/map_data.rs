@@ -2,6 +2,7 @@
 pub struct MapData {
     pub asset: super::DataAsset,
     pub tileset_id: super::DataAssetId,
+    pub tile_anim_id: Option<super::DataAssetId>,
     pub width: u32,
     pub height: u32,
     pub para_width: u32,
@@ -23,6 +24,7 @@ impl MapData {
         MapData {
             asset: super::DataAsset::new(super::DataAssetType::MapData, id, name),
             tileset_id,
+            tile_anim_id: None,
             width,
             height,
             para_width,
@@ -40,6 +42,7 @@ impl super::DuplicableAsset<MapData> for MapData {
         MapData {
             asset: self.asset.duplicate(dup_id, dup_name),
             tileset_id: self.tileset_id,
+            tile_anim_id: self.tile_anim_id,
             width: self.width,
             height: self.height,
             para_width: self.para_width,
@@ -56,8 +59,8 @@ impl super::GenericAsset for MapData {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: u16(2) * (w,h,para_w,para_h) + ptr(4) * (tileset,tile_data)
-        let header = 2usize * 4usize + 4usize * 2usize;
+        // header: u16(2) * (w,h,para_w,para_h) + ptr(4) * (tileset,tile_anim,tile_data)<ptr>
+        let header = 2usize * 4usize + 4usize * 3usize;
 
         // tile_data:
         //   tiles: w * h * [u8(1) * (fg,bg,fx)]

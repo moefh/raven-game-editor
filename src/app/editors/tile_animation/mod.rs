@@ -46,16 +46,23 @@ impl TileAnimationEditor {
     pub fn prepare_for_saving(&mut self, _tanim: &mut TileAnimation) {
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, tanim: &TileAnimation, base: &AssetEditorBase) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, editor: &Editor, tanim: &TileAnimation, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, tanim.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", tanim.asset.id)).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
-            ui.add(egui::Label::new(format!(
-                "{} bytes {}",
-                tanim.data_size(),
-                dirty
-            )).truncate());
+            ui.horizontal(|ui| {
+                ui.add(egui::Label::new(format!(
+                    "{} bytes {}",
+                    tanim.data_size(),
+                    dirty
+                )).truncate());
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("[tile {}]", editor.parent_tile_picker.get_selected_image_l().unwrap_or(0)));
+                    });
+                });
+            });
         });
     }
 
@@ -69,7 +76,7 @@ impl TileAnimationEditor {
         self.dialogs.show(wc, &mut self.editor, tanim, &asset_ids.tilesets, tilesets);
 
         self.base.show_window(wc, tanim, [500.0, 400.0], [500.0, 400.0], |ui, wc, tanim, base| {
-            Self::show_footer(ui, wc, tanim, base);
+            Self::show_footer(ui, wc, &self.editor, tanim, base);
             self.editor.show(ui, wc, &mut self.dialogs, tanim, tilesets);
         });
     }
