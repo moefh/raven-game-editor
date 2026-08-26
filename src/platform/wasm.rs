@@ -1,4 +1,5 @@
 use std::io::{Result, Error};
+use std::sync::{Arc, Mutex};
 
 use super::KeyboardPressed;
 
@@ -30,11 +31,10 @@ pub fn read_settings_file(filename: impl AsRef<str>) -> Result<String> {
 
 pub fn current_time_as_millis() -> u64 {
     web_sys::window()
-        .unwrap()
-        .performance()
-        .unwrap()
-        .now()
-        .round() as u64
+        .and_then(|window| window.performance())
+        .map(|perf| perf.now())
+        .map(|now| now.round().abs())
+        .unwrap_or(0.0) as u64
 }
 
 pub fn current_time_as_string() -> String {
@@ -52,11 +52,7 @@ pub fn get_event_key(event: &egui::Event) -> Option<KeyboardPressed> {
         }
 
         // we handle paste by listening for Command+V because Event::Paste
-        // is only generated when there's anything to paste:
-        //egui::Event::Paste(_) => {
-        //    Some(KeyboardPressed::CommandV)
-        //}
-
+        // is not generated when there's nothing to paste
         egui::Event::Key { key: egui::Key::V, pressed: true, modifiers: egui::Modifiers { command: true, .. }, .. } => {
             Some(KeyboardPressed::CommandV)
         }
@@ -66,4 +62,31 @@ pub fn get_event_key(event: &egui::Event) -> Option<KeyboardPressed> {
             None
         }
     }
+}
+
+pub fn setup_confirmation_on_close(editor_is_dirty: Arc<Mutex<bool>>) {
+    use wasm_bindgen::prelude::*;
+
+    let window = match web_sys::window() {
+        Some(window) => { window }
+        None => {
+            console_log("WARNING: main window not found while setting up close confirmation");
+            return;
+        }
+    };
+    let closure = Closure::wrap(Box::new(move |event: web_sys::BeforeUnloadEvent| {
+        let is_dirty = {
+            *editor_is_dirty.lock().unwrap()
+        };
+        if is_dirty {
+            event.set_return_value("Closing the window will discard the changes since last save.");
+        }
+    }) as Box<dyn FnMut(web_sys::BeforeUnloadEvent)>);
+
+    if let Err(e) = window.add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref()) {
+        console_log(format!("WARNING: failed to add 'beforeunload' listener while setting up close confirmation: {:?}", e));
+        return;
+    }
+
+    closure.forget();
 }

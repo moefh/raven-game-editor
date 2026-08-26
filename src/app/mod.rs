@@ -9,6 +9,8 @@ mod asset_exporter;
 pub mod checker;
 pub mod widgets;
 
+use std::sync::{Arc, Mutex};
+
 use crate::include_ref_image;
 use crate::platform;
 use crate::data_asset::{
@@ -83,7 +85,8 @@ pub enum AssetTreeAction {
 }
 
 pub struct RavenEditorApp {
-    is_wasm: bool,
+    pub is_wasm: bool,
+    pub wasm_editor_is_dirty: Arc<Mutex<bool>>,
     reset_egui_context: bool,
     store: DataAssetStore,
     path: Option<std::path::PathBuf>,
@@ -105,6 +108,7 @@ pub struct RavenEditorApp {
     window_tracker: AppWindowTracker,
     asset_tree: widgets::StoreAssetTree,
     asset_exporter: AssetExporter,
+    user_confirmed_close: bool,
 }
 
 impl RavenEditorApp {
@@ -137,6 +141,8 @@ impl RavenEditorApp {
             asset_tree: widgets::StoreAssetTree::new(),
             recent_projects: recent_projects::RecentProjects::new(),
             asset_exporter: AssetExporter::new(),
+            user_confirmed_close: false,
+            wasm_editor_is_dirty: Arc::new(Mutex::new(false)),
         };
         app.window_tracker.reset(&app.editors.egui_id_to_asset_id, app.windows.get_ids());
         if ! is_wasm {
@@ -497,6 +503,10 @@ impl RavenEditorApp {
         self.dialogs.open_message_box(&mut self.window_tracker, title, text);
     }
 
+    fn open_confirm_exit_dialog(&mut self) {
+        self.dialogs.open_confirm_exit_dialog(&mut self.window_tracker);
+    }
+
     fn open_confirmation_dialog_for(&mut self, action: ConfirmationDialogAction) {
         match action {
             ConfirmationDialogAction::NewProject => {
@@ -564,6 +574,13 @@ impl RavenEditorApp {
 
     fn show_dialogs(&mut self, ui: &mut egui::Ui) {
         self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
+
+        // confirm exit dialog
+        let confirm_exit_dialog_result = self.dialogs.show_confirm_exit_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
+        if confirm_exit_dialog_result == DialogResult::Yes {
+            self.user_confirmed_close = true;
+            ui.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
 
         // confirmation dialog
         let confirmation_dialog_result = self.dialogs.show_confirmation_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
@@ -1047,6 +1064,13 @@ impl eframe::App for RavenEditorApp {
             self.windows.open_log_window();
         }
 
+        if self.is_wasm {
+            // to confirm close when dirty in wasm, we update the shared dirty status used by the "beforeunload" closure:
+            *self.wasm_editor_is_dirty.lock().unwrap() = self.editors.is_dirty();
+        } else if ui.ctx().input(|i| i.viewport().close_requested()) && self.editors.is_dirty() && ! self.user_confirmed_close {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.open_confirm_exit_dialog();
+        }
         if self.reset_egui_context {
             ui.ctx().memory_mut(|mem| {
                 mem.reset_areas();

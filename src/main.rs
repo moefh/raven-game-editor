@@ -118,7 +118,9 @@ fn main() {
                 Box::new(|cc| {
                     let mut logger = StringLogger::new(SEND_LOG_TO_STDOUT);
                     let settings = AppSettings::load(&mut logger);
-                    Ok(Box::new(RavenEditorApp::new(cc, true, logger, settings)))
+                    let app = RavenEditorApp::new(cc, true, logger, settings);
+                    platform::setup_confirmation_on_close(app.wasm_editor_is_dirty.clone());
+                    Ok(Box::new(app))
                 }),
             )
             .await;

@@ -1,12 +1,14 @@
 mod about;
 mod message_box;
 mod confirmation;
+mod confirm_exit;
 mod colorset;
 mod text_input;
 
 use about::{*};
 use message_box::{*};
 use confirmation::{*};
+use confirm_exit::{*};
 use colorset::{*};
 use text_input::{*};
 
@@ -30,6 +32,7 @@ pub struct AppDialogs {
     about: AboutDialog,
     message_box: MessageBoxDialog,
     confirmation: ConfirmationDialog,
+    confirm_exit: ConfirmExitDialog,
     colorset: ColorsetEditorDialog,
     text_input: TextInputDialog,
 }
@@ -40,6 +43,7 @@ impl AppDialogs {
             about: AboutDialog::new(),
             message_box: MessageBoxDialog::new(),
             confirmation: ConfirmationDialog::new(),
+            confirm_exit: ConfirmExitDialog::new(),
             colorset: ColorsetEditorDialog::new(),
             text_input: TextInputDialog::new(),
         }
@@ -58,6 +62,10 @@ impl AppDialogs {
         no: impl AsRef<str>
     ) {
         self.confirmation.set_open(wt, title.as_ref(), text.as_ref(), yes.as_ref(), no.as_ref());
+    }
+
+    pub fn open_confirm_exit_dialog(&mut self, wt: &mut AppWindowTracker) {
+        self.confirm_exit.set_open(wt);
     }
 
     pub fn open_text_input_dialog(
@@ -89,6 +97,10 @@ impl AppDialogs {
 
     pub fn show_confirmation_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> DialogResult {
         self.confirmation.show(ui, wt, sys_dialogs)
+    }
+
+    pub fn show_confirm_exit_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> DialogResult {
+        self.confirm_exit.show(ui, wt, sys_dialogs)
     }
 
     pub fn show_text_input_dialog(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker, sys_dialogs: &SysDialogs) -> DialogResult {

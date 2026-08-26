@@ -27,7 +27,7 @@ log = "0.4.33"
 serde = { version = "1.0.229", features = ["derive"] }
 wasm-bindgen = "0.2.127"
 wasm-bindgen-futures = "0.4.77"
-web-sys = { version = "0.3.104", features = ["Storage", "Window", "Document", "HtmlElement", "Text"] }
+web-sys = { version = "0.3.104", features = ["Storage", "Window", "Document", "HtmlElement", "Text", "BeforeUnloadEvent"] }
 
 [profile.release]
 opt-level = 2
