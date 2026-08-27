@@ -27,6 +27,7 @@ pub enum AssetProblem {
     MapParallaxTooBig { width: u32, height: u32, para_width: u32, para_height: u32 },
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
     MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
+    MapOpaqueTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
     PalSpriteTooBig { num_frames: u32 },
     PalSpriteColorOutOfPalette { frame_num: u32, num_pixels: u64 },
@@ -88,6 +89,15 @@ impl AssetProblem {
             AssetProblem::MapTransparentTile { first_tile_x, first_tile_y, num_tiles } => {
                 ui.label(format!(
                     "  -> map has transparent fg tiles over missing background starting at ({}, {}), total of {} tile(s)",
+                    first_tile_x,
+                    first_tile_y,
+                    num_tiles
+                ));
+            }
+
+            AssetProblem::MapOpaqueTile { first_tile_x, first_tile_y, num_tiles } => {
+                ui.label(format!(
+                    "  -> map has opaque fg tiles over opaque background starting at ({}, {}), total of {} tile(s)",
                     first_tile_x,
                     first_tile_y,
                     num_tiles

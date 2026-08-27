@@ -32,6 +32,7 @@ fn get_para_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
     map_data.para_tiles[(y*map_data.para_width + x) as usize]
 }
 
+/// check for spots not covered by an opaque tile
 fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
     if map_data.para_width > map_data.width || map_data.para_height > map_data.height {
         // invalid size; this will be caught by another checker
@@ -100,6 +101,52 @@ fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems:
             num_tiles: num_bad_tiles,
         });
     }
+}
+
+/// check for spots with double opaque tile cover (i.e., both bg and fg are opaque)
+fn check_map_opaqueness(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
+    // Build a map of all fg tile positions that may overlap a
+    // an opaque spot (i.e., a bg with opaque tile set).
+    let mut fg_overlaps_opaque = vec![false; (map_data.width * map_data.height) as usize];
+    for y in 0..map_data.height {
+        for x in 0..map_data.width {
+            if get_bg_tile(map_data, x, y) != MapData::NO_TILE {
+                fg_overlaps_opaque[(y*map_data.width + x) as usize] = true;
+            }
+        }
+    }
+
+    // For each fg tile position that can overlap an opaque spot, check if it contains an opaque tile.
+    let mut num_bad_tiles = 0;
+    let mut first_bad_tile_x = 0;
+    let mut first_bad_tile_y = 0;
+    for y in 0..map_data.height {
+        for x in 0..map_data.width {
+            if ! fg_overlaps_opaque[(y*map_data.width + x) as usize] { continue; }
+            let fg_tile = get_fg_tile(map_data, x, y);
+            if fg_tile == MapData::NO_TILE || fg_tile as usize >= tileset_transp.len() {
+                // no tile or invalid tile (will be caught by another checker)
+                continue;
+            }
+            if ! tileset_transp[fg_tile as usize] {
+                // check fails: fg is a fully opaque tile that overlaps a background with opaque tile
+                if num_bad_tiles == 0 {
+                    first_bad_tile_x = x;
+                    first_bad_tile_y = y;
+                }
+                num_bad_tiles += 1;
+            }
+        }
+    }
+
+    if num_bad_tiles > 0 {
+        problems.push(AssetProblem::MapOpaqueTile {
+            first_tile_x: first_bad_tile_x,
+            first_tile_y: first_bad_tile_y,
+            num_tiles: num_bad_tiles,
+        });
+    }
+
 }
 
 fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<AssetProblem>) {
@@ -176,6 +223,7 @@ pub fn check_maps(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>,
             check_map_tiles(map_data, tileset, &mut map_problems);
             let tileset_transp = tileset_transp_map.entry(map_data.tileset_id).or_insert_with(|| build_tileset_transparency(tileset));
             check_map_transparency(map_data, tileset_transp, &mut map_problems);
+            check_map_opaqueness(map_data, tileset_transp, &mut map_problems);
         } else {
             map_problems.push(AssetProblem::MapTilesetInvalid { tileset_id: map_data.tileset_id });
         }
