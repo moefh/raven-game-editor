@@ -326,24 +326,26 @@ impl Editor {
                     self.edit_loop_len += 1;
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(20.0);
 
-                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                    ui.horizontal(|ui| {
-                        if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                            let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
-                                let start_changed = loop_start != tloop.start as u32;
-                                let len_changed = self.edit_loop_len != tloop.len as u32;
-                                if ui.add_enabled(
-                                    len_changed || (start_changed && (self.edit_loop_len != 0 || tloop.len != 0)),
-                                    egui::Button::new("Set Loop")
-                                ).clicked() {
-                                    tloop.start = if self.edit_loop_len == 0 { 0 } else { (loop_start & 0xff) as u8 };
-                                    tloop.len = (self.edit_loop_len & 0xff) as u8;
-                                }
-                            }
-                    });
-                });
+                if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+                    let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
+                        let start_changed = loop_start != tloop.start as u32;
+                        let len_changed = self.edit_loop_len != tloop.len as u32;
+                        if ui.add_enabled(
+                            len_changed || (start_changed && (self.edit_loop_len != 0 || tloop.len != 0)),
+                            egui::Button::new("Set Loop")
+                        ).clicked() {
+                            tloop.start = if self.edit_loop_len == 0 { 0 } else { (loop_start & 0xff) as u8 };
+                            tloop.len = (self.edit_loop_len & 0xff) as u8;
+                        }
+                        if ui.add_enabled(
+                            tloop.len != 0,
+                            egui::Button::new("Remove Loop")
+                        ).clicked() {
+                            tloop.len = 0;
+                        }
+                    }
             });
             ui.add_space(5.0);
         });
