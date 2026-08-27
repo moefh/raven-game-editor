@@ -69,6 +69,14 @@ impl ImagePickerWidget {
         self.selected_image_r_changed = true;
     }
 
+    pub fn get_selected_image_l_for_set(&self, selection_set: usize) -> Option<u32> {
+        self.selected_image_l.get(&selection_set).copied().unwrap_or(None)
+    }
+
+    pub fn get_selected_image_r_for_set(&self, selection_set: usize) -> Option<u32> {
+        self.selected_image_r.get(&selection_set).copied().unwrap_or(None)
+    }
+
     pub fn force_selection_into_visibility(&mut self) {
         self.selected_image_l_changed = true;
     }

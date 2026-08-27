@@ -128,26 +128,26 @@ pub fn create_dialog_window<T>(
         ui.set_width(width);
         ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
             // title bar
-                let title_frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
-                title_frame.show(ui, |ui| {
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        ui.add_space(3.0);
-                        ui.add(egui::Label::new(title).selectable(false));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
-                                ui.close();
-                            }
-                        });
+            let title_frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
+            title_frame.show(ui, |ui| {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(3.0);
+                    ui.add(egui::Label::new(title).selectable(false));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
+                            ui.close();
+                        }
                     });
                 });
-                let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
-                let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
-                ui.painter().hline(
-                    rect.left()..=rect.right(),
-                    rect.bottom() + 2.0,
-                    ui.style().visuals.window_stroke
-                );
+            });
+            let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
+            let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
+            ui.painter().hline(
+                rect.left()..=rect.right(),
+                rect.bottom() + 2.0,
+                ui.style().visuals.window_stroke
+            );
 
             // content
             egui::Frame::NONE.inner_margin(ui.style().spacing.menu_margin).fill(ui.style().visuals.window_fill).show(ui, |ui| {

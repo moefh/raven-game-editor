@@ -216,7 +216,7 @@ impl AssetEditorBase {
                         let mut action = EditorWindowAction::None;
 
                         ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
-                        if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
+                        if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
                             action = EditorWindowAction::Close;
                         }
                         let image = match maximized_state {
@@ -355,7 +355,7 @@ impl AssetEditorBase {
                         ui.add_space(3.0);
                         ui.add(egui::Label::new(title).selectable(false));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
+                            if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
                                 ui.close();
                             }
                         });

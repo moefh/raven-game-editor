@@ -84,7 +84,7 @@ impl PropertiesDialog {
     ) {
         if ! self.open { return; }
 
-        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 360.0, "Animation Properties", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 450.0, "Animation Properties", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(&self.prop_grid_id)
                     .num_columns(2)
@@ -94,7 +94,7 @@ impl PropertiesDialog {
                         ui.text_edit_singleline(&mut self.name);
                         ui.end_row();
 
-                        ui.label("Parent tileset:");
+                        ui.label("Map tileset:");
                         Self::show_tileset_combo(ui, &self.parent_combo_id, &mut self.parent_tileset_id, tileset_ids, tilesets);
                         ui.end_row();
 

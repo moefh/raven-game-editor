@@ -187,49 +187,59 @@ impl Editor {
         });
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui) {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
         egui::Panel::top(self.toolbar_panel_id).show(ui, |ui| {
             ui.add_space(2.0);
-            ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(2.0);
-                    let spacing = ui.spacing().item_spacing;
-                    ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+            ui.horizontal(|ui| {
+                if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+                    let Some(tloop) = tanim.loops.get(selected_tile as usize) &&
+                    tloop.len != 0 {
+                        ui.label(format!("Animation: {} frames", tloop.len));
+                    } else {
+                        ui.label("No animation");
+                    }
 
-                    if ui.add(egui::Button::image(IMAGES.grid)
-                        .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
-                        .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
-                        .on_hover_text("Grid").clicked() {
-                            self.image_editor.toggle_display(ImageDisplay::GRID);
-                        }
-                    if ui.add(egui::Button::image(IMAGES.transparency)
-                        .selected(self.image_editor.display.is_transparent())
-                        .frame_when_inactive(self.image_editor.display.is_transparent()))
-                        .on_hover_text("Transparency").clicked() {
-                            self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
-                        }
-                    ui.label("Display:");
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_space(2.0);
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
 
-                    ui.add_space(5.0);
-                    ui.separator();
-                    ui.add_space(5.0);
-
-                    let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
-                    egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
-                        .selected_text(cur_zoom_option.name())
-                        .width(60.0)
-                        .show_ui(ui, |ui| {
-                            for option in IMAGE_ZOOM_OPTIONS {
-                                if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
-                                ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                            .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
+                            .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
+                            .on_hover_text("Grid").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::GRID);
                             }
-                        });
-                    let new_zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
-                    self.image_editor.zoom = new_zoom;
-                    ui.add_space(1.0);
-                    ui.label("Zoom:");
+                        if ui.add(egui::Button::image(IMAGES.transparency)
+                            .selected(self.image_editor.display.is_transparent())
+                            .frame_when_inactive(self.image_editor.display.is_transparent()))
+                            .on_hover_text("Transparency").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                            }
+                        ui.label("Display:");
 
-                    ui.spacing_mut().item_spacing = spacing;
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
+                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
+                        egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_option.name())
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for option in IMAGE_ZOOM_OPTIONS {
+                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                                }
+                            });
+                        let new_zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
+                        self.image_editor.zoom = new_zoom;
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+
+                        ui.spacing_mut().item_spacing = spacing;
+                    });
                 });
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
@@ -270,7 +280,7 @@ impl Editor {
 
         self.show_menu_bar(ui, wc, dialogs, tanim);
         self.show_parent_tile_picker(ui, wc, tanim, tilesets);
-        self.show_toolbar(ui);
+        self.show_toolbar(ui, wc, tanim);
 
         // selected loop
         let loop_start = self.anim_tile_view.selected_frame as u32;

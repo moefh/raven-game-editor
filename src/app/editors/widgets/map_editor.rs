@@ -184,6 +184,10 @@ pub struct MapEditorWidget {
     pub left_draw_tile_changed: bool,
     pub right_draw_tile_changed: bool,
     pub hover_pos: Vec2,
+    pub hover_tile_fg: Option<u8>,
+    pub hover_tile_bg: Option<u8>,
+    pub hover_tile_fx: Option<u8>,
+    pub hover_tile_an: Option<u8>,
     pub custom_grid_color: Option<Color32>,
     pub custom_bg_color: Option<Color32>,
     pub screen_display_pos: Pos2,
@@ -215,6 +219,10 @@ impl MapEditorWidget {
             left_draw_tile_changed: false,
             right_draw_tile_changed: false,
             hover_pos: Vec2::ZERO,
+            hover_tile_fg: None,
+            hover_tile_bg: None,
+            hover_tile_fx: None,
+            hover_tile_an: None,
             custom_grid_color: None,
             custom_bg_color: None,
             screen_display_pos: Pos2::new(TILE_SIZE/zoom, TILE_SIZE/zoom),
@@ -1014,6 +1022,10 @@ impl MapEditorWidget {
                 self.set_zoom(self.zoom * zoom_delta, canvas_rect.size(), hover_pos - canvas_rect.min, map_data);
             }
             self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom / TILE_SIZE).max(Vec2::ZERO);
+            self.hover_tile_fg = self.get_full_layer_tile(MapLayer::Foreground, self.hover_pos.to_pos2(), map_data);
+            self.hover_tile_bg = self.get_full_layer_tile(MapLayer::Background, self.hover_pos.to_pos2(), map_data);
+            self.hover_tile_fx = self.get_full_layer_tile(MapLayer::Effects, self.hover_pos.to_pos2(), map_data);
+            self.hover_tile_an = self.get_full_layer_tile(MapLayer::Animation, self.hover_pos.to_pos2(), map_data);
         }
 
         // check pan
