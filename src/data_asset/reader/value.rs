@@ -324,25 +324,56 @@ impl ValueName {
 }
 
 #[derive(Debug)]
+pub enum ValueAssetRefPointer {
+    Asset { asset_type: DataAssetType, index: usize },
+    Null,
+}
+
+#[derive(Debug)]
 pub struct ValueAssetRef {
-    pub asset_type: DataAssetType,
-    pub index: usize,
+    pub pointer: ValueAssetRefPointer,
     pub pos: TokenPosition,
 }
 
 impl ValueAssetRef {
-    pub fn new(asset_type: DataAssetType, index: usize, pos: TokenPosition) -> Self {
+    pub fn pointer(asset_type: DataAssetType, index: usize, pos: TokenPosition) -> Self {
         ValueAssetRef {
-            asset_type,
-            index,
+            pointer: ValueAssetRefPointer::Asset { asset_type, index },
+            pos,
+        }
+    }
+
+    pub fn null(pos: TokenPosition) -> Self {
+        ValueAssetRef {
+            pointer: ValueAssetRefPointer::Null,
             pos,
         }
     }
 
     pub fn get_asset_id(&self, data: &ProjectData) -> Result<DataAssetId> {
-        match data.asset_ids.get(&self.asset_type).and_then(|v| v.get(self.index)) {
-            Some(id) => { Ok(*id) }
-            None => { error(format!("invalid asset reference: {:?}[{}]", self.asset_type, self.index), self.pos) }
+        if let ValueAssetRefPointer::Asset { asset_type, index } = self.pointer {
+            match data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
+                Some(id) => { Ok(*id) }
+                None => { error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos) }
+            }
+        } else {
+            error("expected asset reference, got NULL", self.pos)
         }
     }
+
+    /*
+    pub fn get_asset_id_or_none(&self, data: &ProjectData) -> Result<Option<DataAssetId>> {
+        match self.pointer {
+            ValueAssetRefPointer::Asset { asset_type, index } => {
+                match data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
+                    Some(id) => { Ok(Some(*id)) }
+                    None => { error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos) }
+                }
+            }
+            ValueAssetRefPointer::Null => {
+                Ok(None)
+            }
+        }
+    }
+    */
 }

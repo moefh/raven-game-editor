@@ -503,16 +503,22 @@ impl<'a> ProjectDataReader<'a> {
             }
 
             ValueDef::AssetRef => {
-                self.expect_punct('&')?;
-                let mut ident_token = self.expect_any_ident("asset array name")?;
-                self.expect_punct('[')?;
-                let index = self.read_number(u32::MAX as u64)? as usize;
-                self.expect_punct(']')?;
-                if let Some(name) = ident_token.drain_ident() {
-                    let asset_type = self.get_asset_type_for_array_name(&name, ident_token.pos)?;
-                    Ok(Value::AssetRef(ValueAssetRef::new(asset_type, index, ident_token.pos)))
+                let token = self.read()?;
+                if token.get_ident().is_some_and(|ident| ident == "NULL") {
+                    Ok(Value::AssetRef(ValueAssetRef::null(token.pos)))
+                } else if token.is_punct('&') {
+                    let mut ident_token = self.expect_any_ident("asset array name")?;
+                    self.expect_punct('[')?;
+                    let index = self.read_number(u32::MAX as u64)? as usize;
+                    self.expect_punct(']')?;
+                    if let Some(name) = ident_token.drain_ident() {
+                        let asset_type = self.get_asset_type_for_array_name(&name, ident_token.pos)?;
+                        Ok(Value::AssetRef(ValueAssetRef::pointer(asset_type, index, ident_token.pos)))
+                    } else {
+                        error(format!("unexpected '{}'", ident_token), ident_token.pos)
+                    }
                 } else {
-                    error(format!("unexpected '{}'", ident_token), ident_token.pos)
+                    error(format!("unexpected '{}'", token), token.pos)
                 }
             }
 
