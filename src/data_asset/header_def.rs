@@ -218,6 +218,21 @@ struct $<PREFIX>_WORLD {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_WORLD */
 
+#ifndef $<PREFIX>_SKIP_STRUCTS_TILE_ANIMATION
+
+struct $<PREFIX>_TILE_ANIMATION_LOOP {
+    uint8_t start;
+    uint8_t len;
+};
+
+struct $<PREFIX>_TILE_ANIMATION {
+    const struct $<PREFIX>_IMAGE *parent_tileset;
+    const struct $<PREFIX>_IMAGE *anim_tileset;
+    const struct $<PREFIX>_TILE_ANIMATION_LOOP loops[256];
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_TILE_ANIMATION */
+
 #ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
 
 struct $<PREFIX>_STATE;
