@@ -44,8 +44,8 @@ impl super::GenericAsset for TileAnimation {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // loop: start(1) + length(2)
-        let loop_size = 2usize + 2usize + 1usize + 1usize;
+        // loop: start(1) + length(1)
+        let loop_size = 1usize + 1usize;
 
         // header: parent_tileset<ptr>(4) + anim_tileset<ptr>(4)
         let header =  4usize + 4usize;
