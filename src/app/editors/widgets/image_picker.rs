@@ -18,6 +18,8 @@ pub struct ImagePickerWidget {
     pub selection_set: usize,
     pub zoom: f32,
     pub display: ImageDisplay,
+    pub image_l_picked: bool,
+    pub image_r_picked: bool,
     selected_image_l: HashMap<usize, Option<u32>>,
     selected_image_r: HashMap<usize, Option<u32>>,
     selected_image_l_changed: bool,
@@ -32,6 +34,8 @@ impl ImagePickerWidget {
             allow_empty_selection: false,
             allow_r_selection: false,
             zoom: 1.0,
+            image_l_picked: false,
+            image_r_picked: true,
             selection_set: 0,
             selected_image_l: HashMap::from([(0, Some(0)), (1, Some(0)), (1, Some(0))]),
             selected_image_r: HashMap::new(),
@@ -171,6 +175,8 @@ impl ImagePickerWidget {
 
             response
         });
+        self.image_l_picked = false;
+        self.image_r_picked = false;
         if let Some(pointer_pos) = resp.inner.interact_pointer_pos() {
             let pos = pointer_pos - resp.inner_rect.min + resp.state.offset;
             if pos.x >= 0.0 && pos.x <= resp.inner_rect.width() {
@@ -179,8 +185,10 @@ impl ImagePickerWidget {
                 let selection = self.ui_pos_to_selection(f32::min((pos.y / frame_size.y).floor(), (num_items - 1) as f32));
                 if resp.inner.dragged_by(egui::PointerButton::Primary) {
                     self.selected_image_l.insert(self.selection_set, selection);
+                    self.image_l_picked = true;
                 } else if resp.inner.dragged_by(egui::PointerButton::Secondary) {
                     self.selected_image_r.insert(self.selection_set, selection);
+                    self.image_r_picked = true;
                 }
             }
         }

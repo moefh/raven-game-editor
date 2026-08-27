@@ -16,6 +16,8 @@ use crate::data_asset::{
 };
 
 use super::{
+    IMAGE_ZOOM_OPTIONS,
+    ImageZoomOption,
     AssetEditorBase,
     WindowContext,
 };
@@ -23,6 +25,7 @@ use super::widgets::{
     ImagePickerWidget,
     ImageEditorWidget,
     SpriteFrameListView,
+    ImageDisplay,
 };
 use super::super::menu_item;
 
@@ -110,6 +113,7 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     header_panel_id: egui::Id,
+    toolbar_panel_id: egui::Id,
     parent_tile_picker_panel_id: egui::Id,
     anim_tile_picker_panel_id: egui::Id,
     anim_loop_len_panel_id: egui::Id,
@@ -117,6 +121,7 @@ struct Editor {
     anim_tile_view: SpriteFrameListView,
     frame_indices: Vec<SpriteAnimationFrame>,
     image_editor: ImageEditorWidget<Tileset>,
+    edit_loop_len: u32,
 }
 
 impl Editor {
@@ -124,13 +129,15 @@ impl Editor {
         Editor {
             asset_id,
             header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
+            toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_toolbar", asset_id)),
             parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
             anim_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_anim_tile_picker", asset_id)),
             anim_loop_len_panel_id: egui::Id::new(format!("editor_panel_{}_anim_loop_len", asset_id)),
             parent_tile_picker: ImagePickerWidget::new(),
             anim_tile_view: SpriteFrameListView::new(true, false),
             frame_indices: Vec::with_capacity(255),
-            image_editor: ImageEditorWidget::new(),
+            image_editor: ImageEditorWidget::new().with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT)),
+            edit_loop_len: 0,
         }
     }
 
@@ -143,17 +150,29 @@ impl Editor {
         }
     }
 
-    pub fn show(
+    fn parent_selected_tile_changed(&mut self, tanim: &TileAnimation, tilesets: &AssetList<Tileset>) {
+        if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+            let Some(tloop) = tanim.loops.get(selected_tile as usize) {
+                self.edit_loop_len = tloop.len as u32;
+                if self.edit_loop_len != 0 {
+                    if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
+                        self.image_editor.set_selected_image(tloop.start as u32, anim_tileset);
+                    }
+                    if self.anim_tile_view.selected_frame != tloop.start as usize {
+                        self.anim_tile_view.selected_frame = tloop.start as usize;
+                        self.anim_tile_view.scroll_to_selection();
+                    }
+                }
+            }
+    }
+
+    fn show_menu_bar(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
-        tanim: &mut TileAnimation,
-        tilesets: &mut AssetList<Tileset>
+        tanim: &mut TileAnimation
     ) {
-        self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
-
-        // menu bar
         egui::Panel::top(self.header_panel_id).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tile Animation", |ui| {
@@ -166,70 +185,156 @@ impl Editor {
                 });
             });
         });
+    }
 
-        // parent tiles
+    fn show_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(self.toolbar_panel_id).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(2.0);
+                    let spacing = ui.spacing().item_spacing;
+                    ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                    if ui.add(egui::Button::image(IMAGES.grid)
+                        .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
+                        .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
+                        .on_hover_text("Grid").clicked() {
+                            self.image_editor.toggle_display(ImageDisplay::GRID);
+                        }
+                    if ui.add(egui::Button::image(IMAGES.transparency)
+                        .selected(self.image_editor.display.is_transparent())
+                        .frame_when_inactive(self.image_editor.display.is_transparent()))
+                        .on_hover_text("Transparency").clicked() {
+                            self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                        }
+                    ui.label("Display:");
+
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
+                    egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
+                        .selected_text(cur_zoom_option.name())
+                        .width(60.0)
+                        .show_ui(ui, |ui| {
+                            for option in IMAGE_ZOOM_OPTIONS {
+                                if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                            }
+                        });
+                    let new_zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
+                    self.image_editor.zoom = new_zoom;
+                    ui.add_space(1.0);
+                    ui.label("Zoom:");
+
+                    ui.spacing_mut().item_spacing = spacing;
+                });
+            });
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_parent_tile_picker(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        tanim: &mut TileAnimation,
+        tilesets: &mut AssetList<Tileset>
+    ) {
         egui::Panel::left(self.parent_tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            if let Some(tileset) = tilesets.get(&tanim.parent_tileset_id) {
+            if let Some(anim_tileset) = tilesets.get(&tanim.parent_tileset_id) {
                 self.parent_tile_picker.zoom = 4.0;
                 self.parent_tile_picker.display = self.image_editor.display;
-                let slot = tileset.texture_slot(self.parent_tile_picker.display.is_transparent(), false);
-                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-                self.parent_tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
-                if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                    let Some(tloop) = tanim.loops.get(selected_tile as usize) &&
-                    self.anim_tile_view.selected_frame != tloop.start as usize {
-                        self.anim_tile_view.selected_frame = tloop.start as usize;
-                        self.anim_tile_view.scroll_to_selection();
-                    }
+                let slot = anim_tileset.texture_slot(self.parent_tile_picker.display.is_transparent(), false);
+                let texture = anim_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
+                self.parent_tile_picker.show(ui, wc.settings, anim_tileset, texture, wc.settings.image_bg_color);
+                if self.parent_tile_picker.image_l_picked {
+                    self.parent_selected_tile_changed(tanim, tilesets);
+                }
             }
         });
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        tanim: &mut TileAnimation,
+        tilesets: &mut AssetList<Tileset>
+    ) {
+        self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
+
+        self.show_menu_bar(ui, wc, dialogs, tanim);
+        self.show_parent_tile_picker(ui, wc, tanim, tilesets);
+        self.show_toolbar(ui);
 
         // selected loop
-        if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-            let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) &&
-            let Some(anim_tileset) = tilesets.get_mut(&tanim.anim_tileset_id) {
-                let (mut loop_start, mut loop_len) = (tloop.start as u32, tloop.len as u32);
-                let max_loop_len = anim_tileset.num_tiles.saturating_sub(loop_start);
-                egui::Panel::top(self.anim_tile_picker_panel_id).show(ui, |ui| {
-                    ui.add_space(5.0);
-                    ui.label("Loop start:");
-                    self.anim_tile_view.show(
-                        ui,
-                        wc,
-                        &self.frame_indices,
-                        0,
-                        anim_tileset,
-                        true  //self.image_editor.display.is_transparent(),
-                    );
-                    loop_start = self.anim_tile_view.selected_frame as u32;
-                    if loop_start + loop_len > anim_tileset.num_tiles {
-                        loop_len = anim_tileset.num_tiles.saturating_sub(loop_start);
-                    }
-                });
-                egui::Panel::top(self.anim_loop_len_panel_id).show(ui, |ui| {
-                    ui.add_space(5.0);
-                    ui.horizontal(|ui| {
-                        ui.label("Loop Length:");
-                        if ui.button("\u{2796}").clicked() && loop_len > 0 {
-                            loop_len -= 1;
-                        }
-                        ui.label(format!("{}", loop_len));
-                        if ui.button("\u{2795}").clicked() && loop_len < max_loop_len {
-                            loop_len += 1;
-                        }
-                    });
-                    ui.add_space(5.0);
-                });
-                tloop.start = (loop_start & 0xff) as u8;
-                tloop.len = (loop_len & 0xff) as u8;
-
-                egui::CentralPanel::default().show(ui, |ui| {
-                    self.image_editor.set_selected_image(loop_start, anim_tileset);
-                    let colors = (0xff, 0xff);
-                    self.image_editor.show(ui, wc, anim_tileset, colors);
-                });
+        let loop_start = self.anim_tile_view.selected_frame as u32;
+        let max_loop_len = if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
+            if loop_start + self.edit_loop_len > anim_tileset.num_tiles {
+                self.edit_loop_len = anim_tileset.num_tiles.saturating_sub(loop_start);
             }
+            anim_tileset.num_tiles.saturating_sub(loop_start)
+        } else {
+            0
+        };
+        egui::Panel::bottom(self.anim_loop_len_panel_id).show(ui, |ui| {
+            ui.add_space(5.0);
+            ui.horizontal(|ui| {
+                ui.label("Loop Length:");
+                if ui.button("\u{2796}").clicked() && self.edit_loop_len > 0 {
+                    self.edit_loop_len -= 1;
+                }
+                ui.label(format!("{}", self.edit_loop_len));
+                if ui.button("\u{2795}").clicked() && self.edit_loop_len < max_loop_len {
+                    self.edit_loop_len += 1;
+                }
+
+                ui.add_space(10.0);
+
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+                            let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
+                                let start_changed = loop_start != tloop.start as u32;
+                                let len_changed = self.edit_loop_len != tloop.len as u32;
+                                if ui.add_enabled(
+                                    len_changed || (start_changed && (self.edit_loop_len != 0 || tloop.len != 0)),
+                                    egui::Button::new("Set Loop")
+                                ).clicked() {
+                                    tloop.start = if self.edit_loop_len == 0 { 0 } else { (loop_start & 0xff) as u8 };
+                                    tloop.len = (self.edit_loop_len & 0xff) as u8;
+                                }
+                            }
+                    });
+                });
+            });
+            ui.add_space(5.0);
+        });
+
+        if let Some(anim_tileset) = tilesets.get_mut(&tanim.anim_tileset_id) {
+            egui::Panel::bottom(self.anim_tile_picker_panel_id).show(ui, |ui| {
+                ui.add_space(5.0);
+                ui.label("Loop start:");
+                self.anim_tile_view.show(
+                    ui,
+                    wc,
+                    &self.frame_indices,
+                    0,
+                    anim_tileset,
+                    self.image_editor.display.is_transparent(),
+                );
+            });
+            egui::CentralPanel::default().show(ui, |ui| {
+                self.image_editor.set_selected_image(loop_start, anim_tileset);
+                let colors = (0xff, 0xff);
+                self.image_editor.show(ui, wc, anim_tileset, colors);
+            });
+        }
 
         // handle keyboard
         if wc.is_editor_on_top(self.asset_id) && let Some(anim_tileset) = tilesets.get_mut(&tanim.anim_tileset_id) {

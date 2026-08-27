@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub struct TileAnimationLoop {
     pub start: u8,
     pub len: u8,
