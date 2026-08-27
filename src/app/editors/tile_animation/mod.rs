@@ -20,6 +20,7 @@ use super::{
     ImageZoomOption,
     AssetEditorBase,
     WindowContext,
+    TilesetTileFixer,
 };
 use super::widgets::{
     ImagePickerWidget,
@@ -56,7 +57,7 @@ impl TileAnimationEditor {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(format!(
-                    "{} bytes {}",
+                    "{} bytes{}",
                     tanim.data_size(),
                     dirty
                 )).truncate());
@@ -82,6 +83,12 @@ impl TileAnimationEditor {
             Self::show_footer(ui, wc, &self.editor, tanim, base);
             self.editor.show(ui, wc, &mut self.dialogs, tanim, tilesets);
         });
+    }
+}
+
+impl TilesetTileFixer for TileAnimationEditor {
+    fn move_tile(&mut self, _tileset_id: DataAssetId, _old_index: u8, _new_index: u8) {
+        self.editor.reload_edit_loop = true;
     }
 }
 
@@ -122,6 +129,7 @@ struct Editor {
     frame_indices: Vec<SpriteAnimationFrame>,
     image_editor: ImageEditorWidget<Tileset>,
     edit_loop_len: u32,
+    reload_edit_loop: bool,
 }
 
 impl Editor {
@@ -136,8 +144,9 @@ impl Editor {
             parent_tile_picker: ImagePickerWidget::new(),
             anim_tile_view: SpriteFrameListView::new(true, false),
             frame_indices: Vec::with_capacity(255),
-            image_editor: ImageEditorWidget::new().with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT)),
+            image_editor: ImageEditorWidget::new().readonly().with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT)),
             edit_loop_len: 0,
+            reload_edit_loop: true,
         }
     }
 
@@ -148,22 +157,6 @@ impl Editor {
                 SpriteAnimationFrame { head_index: Some((n & 0xff) as u8), foot_index: None }
             }));
         }
-    }
-
-    fn parent_selected_tile_changed(&mut self, tanim: &TileAnimation, tilesets: &AssetList<Tileset>) {
-        if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-            let Some(tloop) = tanim.loops.get(selected_tile as usize) {
-                self.edit_loop_len = tloop.len as u32;
-                if self.edit_loop_len != 0 {
-                    if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
-                        self.image_editor.set_selected_image(tloop.start as u32, anim_tileset);
-                    }
-                    if self.anim_tile_view.selected_frame != tloop.start as usize {
-                        self.anim_tile_view.selected_frame = tloop.start as usize;
-                        self.anim_tile_view.scroll_to_selection();
-                    }
-                }
-            }
     }
 
     fn show_menu_bar(
@@ -262,11 +255,24 @@ impl Editor {
                 let texture = anim_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
                 self.parent_tile_picker.show(ui, wc.settings, anim_tileset, texture, wc.settings.image_bg_color);
                 if self.parent_tile_picker.image_l_picked {
-                    self.parent_selected_tile_changed(tanim, tilesets);
+                    self.reload_edit_loop = true;
                 }
             }
         });
     }
+
+    fn ensure_valid_selected_tiles(&mut self, tanim: &mut TileAnimation, tilesets: &mut AssetList<Tileset>) {
+        if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) &&
+            self.image_editor.get_selected_image() >= anim_tileset.num_tiles {
+                self.image_editor.set_selected_image(anim_tileset.num_tiles.saturating_sub(1), anim_tileset);
+            }
+        if let Some(parent_tileset) = tilesets.get(&tanim.parent_tileset_id) &&
+            let Some(tile) = self.parent_tile_picker.get_selected_image_l() &&
+            tile >= parent_tileset.num_tiles as u32 {
+                self.parent_tile_picker.set_selected_image_l(Some((parent_tileset.num_tiles as u32).saturating_sub(1)));
+            }
+    }
+
 
     pub fn show(
         &mut self,
@@ -277,6 +283,22 @@ impl Editor {
         tilesets: &mut AssetList<Tileset>
     ) {
         self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
+        self.ensure_valid_selected_tiles(tanim, tilesets);
+        if self.reload_edit_loop &&
+            let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+            let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
+                self.reload_edit_loop = false;
+                self.edit_loop_len = tloop.len as u32;
+                if self.edit_loop_len != 0 {
+                    if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
+                        self.image_editor.set_selected_image(tloop.start as u32, anim_tileset);
+                    }
+                    if self.anim_tile_view.selected_frame != tloop.start as usize {
+                        self.anim_tile_view.selected_frame = tloop.start as usize;
+                        self.anim_tile_view.scroll_to_selection();
+                    }
+                }
+            }
 
         self.show_menu_bar(ui, wc, dialogs, tanim);
         self.show_parent_tile_picker(ui, wc, tanim, tilesets);

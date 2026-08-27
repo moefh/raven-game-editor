@@ -3,8 +3,10 @@ use std::collections::HashSet;
 use crate::image::colors;
 use crate::data_asset::{
     DataAssetId,
+    DataAssetStore,
     Tileset,
     MapData,
+    TileAnimation,
 };
 use crate::image::{
     ImageCollection,
@@ -17,7 +19,11 @@ use super::{
     MapTileFixer,
     AssetIdHolder,
 };
-use super::super::resize_map_tiles;
+use super::super::{
+    resize_map_tiles,
+    WindowContext,
+    EditorStore,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum AddTileLocation {
@@ -256,4 +262,98 @@ impl ImageCollection for TileGridImage {
     fn set_num_items(&mut self, _num_items: u32) { }
     fn data(&self) -> &Vec<u8> { &self.pixels.data }
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
+}
+
+pub trait TilesetTileFixer {
+    fn move_tile(&mut self, tileset_id: DataAssetId, old_index: u8, new_index: u8);
+
+    fn add_tileset_hole(&mut self, tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8) {
+        for index in (0..num_tiles_after_hole).rev() {
+            self.move_tile(tileset_id, hole_start + index, hole_start + hole_size + index);
+        }
+    }
+
+    fn remove_tileset_hole(&mut self, tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8) {
+        for index in 0..num_tiles_after_hole {
+            self.move_tile(tileset_id, hole_start + hole_size + index, hole_start + index);
+        }
+    }
+}
+
+impl TilesetTileFixer for TileAnimation {
+    fn move_tile(&mut self, tileset_id: DataAssetId, old_index: u8, new_index: u8) {
+        if self.parent_tileset_id == tileset_id {
+            self.loops[new_index as usize] = self.loops[old_index as usize];
+        }
+        if self.anim_tileset_id == tileset_id {
+            for tloop in self.loops.iter_mut() {
+                if tloop.start == old_index {
+                    tloop.start = new_index;
+                }
+            }
+        }
+    }
+}
+
+pub fn fix_after_tileset_tiles_added(
+    wc: &mut WindowContext,
+    store: &mut DataAssetStore,
+    editors: &mut EditorStore,
+    tileset_id: DataAssetId,
+    hole_start: u8,
+    hole_size: u8,
+    num_tiles_after_hole: u8
+) {
+    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
+        TilesetTileFixer::add_tileset_hole(tileset_editor, tileset_id, hole_start, hole_size, num_tiles_after_hole);
+        MapTileFixer::add_tileset_hole(tileset_editor, hole_start, hole_size, num_tiles_after_hole);
+    }
+    for map_id in store.asset_ids.maps.iter() {
+        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
+            map_data.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            if let Some(map_editor) = editors.maps.get_mut(map_id) {
+                map_editor.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
+        }
+    }
+    for tile_anim_id in store.asset_ids.tile_anims.iter() {
+        if let Some(tile_anim) = store.assets.tile_anims.get_mut(tile_anim_id) &&
+            (tile_anim.parent_tileset_id == tileset_id || tile_anim.anim_tileset_id == tileset_id) {
+                tile_anim.add_tileset_hole(tileset_id, hole_start, hole_size, num_tiles_after_hole);
+                if let Some(tile_anim_editor) = editors.tile_anims.get_mut(tile_anim_id) {
+                    tile_anim_editor.add_tileset_hole(tileset_id, hole_start, hole_size, num_tiles_after_hole);
+                }
+            }
+    }
+    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
+    }
+}
+
+pub fn fix_after_tileset_tiles_removed(
+    wc: &mut WindowContext,
+    store: &mut DataAssetStore,
+    editors: &mut EditorStore,
+    tileset_id: DataAssetId,
+    hole_start: u8,
+    hole_size: u8,
+    num_tiles_after_hole: u8
+) {
+    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
+        TilesetTileFixer::remove_tileset_hole(tileset_editor, tileset_id, hole_start, hole_size, num_tiles_after_hole);
+        MapTileFixer::remove_tileset_hole(tileset_editor, hole_start, hole_size, num_tiles_after_hole);
+    }
+    for map_id in store.asset_ids.maps.iter() {
+        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
+            map_data.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            if let Some(map_editor) = editors.maps.get_mut(map_id) {
+                map_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
+        }
+    }
+    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
+    }
 }

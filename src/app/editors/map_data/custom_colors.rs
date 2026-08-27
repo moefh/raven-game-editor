@@ -81,7 +81,7 @@ impl CustomColorsDialog {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui.button("Ok").clicked() {
+                if ui.button("Close").clicked() {
                     ui.close();
                 }
             });

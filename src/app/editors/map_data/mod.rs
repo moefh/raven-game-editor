@@ -36,6 +36,7 @@ use super::widgets::{
     MapDisplay,
     MapTool,
     ImagePickerWidget,
+    TilePickerPopupWidget,
 };
 use super::super::{
     menu_item,
@@ -200,6 +201,7 @@ struct Editor {
     import_sys_dlg_id: String,
     map_editor: MapEditorWidget,
     image_picker: ImagePickerWidget,
+    tile_picker_popup: TilePickerPopupWidget,
     custom_colors: CustomColors,
 }
 
@@ -210,6 +212,7 @@ impl Editor {
             import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id)), true),
             custom_colors: CustomColors {
                 use_grid_color: false,
                 use_bg_color: false,
@@ -665,6 +668,15 @@ impl Editor {
                 }
                 _ => {
                     if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                        let color_picker_response = ui.button("Select");
+                        if color_picker_response.clicked() {
+                            self.tile_picker_popup.open();
+                        }
+                        let mut tile = self.image_picker.get_selected_image_l().map(|tile| tile as u8);
+                        if self.tile_picker_popup.show(wc, &color_picker_response, tileset, &mut tile) {
+                            self.image_picker.set_selected_image_l(tile.map(|tile| tile as u32));
+                        }
+
                         let bg_color = if self.custom_colors.use_bg_color { self.custom_colors.bg_color } else { wc.settings.map_bg_color };
                         let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                         if self.image_picker.selection_set != 0 {

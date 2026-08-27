@@ -145,6 +145,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub selection_enabled: bool,
     pub hover_pos: Vec2,
     pub zoom: WidgetZoom,
+    pub readonly: bool,
     last_zoom_level: f32,
     scroll: Vec2,
     tool: ImageDrawingTool,
@@ -165,6 +166,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     pub fn new() -> Self {
         ImageEditorWidget {
             _marker: std::marker::PhantomData::<ImageAsset>,
+            readonly: false,
             zoom: WidgetZoom::FitToWindow,
             scroll: Vec2::ZERO,
             selected_image: 0,
@@ -185,6 +187,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             tool_mouse_down: false,
             last_zoom_level: 0.0,
         }
+    }
+
+    pub fn readonly(mut self) -> Self {
+        self.readonly = true;
+        self
     }
 
     pub fn with_selected_image(mut self, selected_image: u32) -> Self {
@@ -289,6 +296,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn undo(&mut self, image: &mut ImageAsset) {
+        if self.readonly { return; }
+
         let image_undo_targets = self.undo_targets.entry(self.selected_image).or_default();
         let image_redo_targets = self.redo_targets.entry(self.selected_image).or_default();
         if let Some(undo_image) = image_undo_targets.pop_back() &&
@@ -301,6 +310,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn redo(&mut self, image: &mut ImageAsset) {
+        if self.readonly { return; }
+
         let image_undo_targets = self.undo_targets.entry(self.selected_image).or_default();
         let image_redo_targets = self.redo_targets.entry(self.selected_image).or_default();
         if let Some(redo_image) = image_redo_targets.pop_back() &&
@@ -313,11 +324,15 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn delete_selection(&mut self, image: &mut ImageAsset, fill_color: u8) {
+        if self.readonly { return; }
+
         self.lift_selection(image, fill_color);
         self.selection = ImageSelection::None;
     }
 
     pub fn drop_selection(&mut self, image: &mut ImageAsset) {
+        if self.readonly { return; }
+
         if self.selection.is_floating() {
             self.set_undo_target(image);
         }
@@ -330,6 +345,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn vflip(&mut self, image: &mut ImageAsset, bg_color: u8) {
+        if self.readonly { return; }
+
         if matches!(self.selection, ImageSelection::Rect(..)) {
             self.lift_selection(image, bg_color);
         }
@@ -345,6 +362,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn hflip(&mut self, image: &mut ImageAsset, bg_color: u8) {
+        if self.readonly { return; }
+
         if matches!(self.selection, ImageSelection::Rect(..)) {
             self.lift_selection(image, bg_color);
         }
@@ -360,6 +379,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn rotate(&mut self, image: &mut ImageAsset, rotation: ImageRotation, bg_color: u8) {
+        if self.readonly { return; }
+
         if self.selection.is_empty() {
             if image.width() != image.height() {   // empty selection with non-square image: float to rotate
                 self.tool = ImageDrawingTool::Select;
@@ -438,6 +459,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     fn handle_selection_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response, colors: (u8, u8)) {
+        if self.readonly { return; }
+
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             self.drag_mouse_origin = mouse_pos;
             self.drag_frag_origin = mouse_pos;
@@ -484,6 +507,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     fn handle_collision_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
+        if self.readonly { return; }
+
         if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's not shown
 
         let make_rect = || { data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32) };
@@ -535,7 +560,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             ImageDrawingTool::Pencil => {
                 if cmd_held {
                     self.pick_color(x, y, image, resp);
-                } else {
+                } else if ! self.readonly {
                     if resp.drag_started() { self.set_undo_target(image); }
                     if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
                         image.set_pixel(x, y, self.selected_image, color) {
@@ -547,7 +572,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             ImageDrawingTool::Fill => {
                 if cmd_held {
                     self.pick_color(x, y, image, resp);
-                } else {
+                } else if ! self.readonly {
                     if resp.drag_started() { self.set_undo_target(image); }
                     if let Some(color) = Self::get_selected_color_for_click(resp, colors) &&
                         image.flood_fill(x, y, self.selected_image, color) {
@@ -590,6 +615,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn cut(&mut self, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) {
+        if self.readonly { return; }
+
         self.lift_selection(image, fill_color);
         if let Some((_, frag)) = self.selection.take_fragment() {
             wc.image_clipboard = ImageClipboardData::Image(frag.take_pixels());
@@ -610,6 +637,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn paste(&mut self, wc: &mut WindowContext, image: &mut ImageAsset) {
+        if self.readonly { return; }
+
         if let ImageClipboardData::Image(pixels) = &wc.image_clipboard {
             let pos = self.get_paste_position();
             self.tool = ImageDrawingTool::Select;
@@ -619,23 +648,55 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     pub fn paste_pixels(&mut self, image: &mut ImageAsset, pixels: ImagePixels) {
+        if self.readonly { return; }
+
         self.tool = ImageDrawingTool::Select;
         self.drop_selection(image);
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels));
     }
 
     pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
+        if self.readonly { return ImageEditorAction::None; }
+
+        // redo
         let cmd_shift_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND|egui::Modifiers::SHIFT, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&cmd_shift_z)) {
             self.redo(image);
             return ImageEditorAction::Redo;
         }
+
+        // undo
         let cmd_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Z);
         if ui.input_mut(|i| i.consume_shortcut(&cmd_z)) {
             self.undo(image);
             return ImageEditorAction::Undo;
         }
 
+        // delete selection
+        let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
+        if ui.input_mut(|i| i.consume_shortcut(&del)) {
+            self.delete_selection(image, fill_color);
+            return ImageEditorAction::None;
+        }
+
+        // cut/copy/paste
+        match wc.keyboard_pressed.take() {
+            Some(KeyboardPressed::CommandV) if self.selection_enabled => {
+                self.paste(wc, image);
+                return ImageEditorAction::Paste;
+            }
+            Some(KeyboardPressed::CommandC) if self.selection_enabled => {
+                self.copy(wc, image);
+                return ImageEditorAction::Copy;
+            }
+            Some(KeyboardPressed::CommandX) if self.selection_enabled => {
+                self.cut(wc, image, fill_color);
+                return ImageEditorAction::Cut;
+            }
+            _ => {}
+        }
+
+        // select all/none
         if self.selection_enabled {
             let cmd_a = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::A);
             if ui.input_mut(|i| i.consume_shortcut(&cmd_a)) {
@@ -659,28 +720,6 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 }
                 return ImageEditorAction::Select;
             }
-        }
-
-        let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
-        if ui.input_mut(|i| i.consume_shortcut(&del)) {
-            self.delete_selection(image, fill_color);
-            return ImageEditorAction::None;
-        }
-
-        match wc.keyboard_pressed.take() {
-            Some(KeyboardPressed::CommandV) if self.selection_enabled => {
-                self.paste(wc, image);
-                return ImageEditorAction::Paste;
-            }
-            Some(KeyboardPressed::CommandC) if self.selection_enabled => {
-                self.copy(wc, image);
-                return ImageEditorAction::Copy;
-            }
-            Some(KeyboardPressed::CommandX) if self.selection_enabled => {
-                self.cut(wc, image, fill_color);
-                return ImageEditorAction::Cut;
-            }
-            _ => {}
         }
 
         ImageEditorAction::None

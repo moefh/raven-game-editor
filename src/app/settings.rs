@@ -24,6 +24,7 @@ pub struct AppSettings {
     pub color_picker_bg_color: egui::Color32,
     pub image_grid_color: egui::Color32,
     pub map_grid_color: egui::Color32,
+    pub tile_picker_popup_zoom: u32,
     pub map_animation_ms_per_frame: u32,
     pub map_animation_delay: u32,
     pub marching_ants_delay: u32,
@@ -47,6 +48,7 @@ impl AppSettings {
             color_picker_bg_color: egui::Color32::from_rgb(0xe0, 0xe0, 0xe0),
             image_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
             map_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
+            tile_picker_popup_zoom: 300,
             map_animation_ms_per_frame: 200,
             map_animation_delay: 50,
             marching_ants_delay: 100,
@@ -98,6 +100,8 @@ impl AppSettings {
         config.push_str(&format!("color_picker_bg_color = {};\n", Self::save_color(self.color_picker_bg_color)));
         config.push_str(&format!("image_grid_color = {};\n", Self::save_color(self.image_grid_color)));
         config.push_str(&format!("map_grid_color = {};\n", Self::save_color(self.map_grid_color)));
+
+        config.push_str(&format!("tile_picker_popup_zoom = {};\n", self.tile_picker_popup_zoom));
 
         config.push_str(&format!("map_animation_delay = {};\n", self.map_animation_delay));
         config.push_str(&format!("map_animation_ms_per_frame = {};\n", self.map_animation_ms_per_frame));
@@ -258,6 +262,7 @@ impl<'a> AppSettingsReader<'a> {
                 match ident.as_str() {
                     "theme" => { settings.theme = self.read_string_config()?; }
                     "zoom" => { settings.zoom = self.read_number_config()?; }
+                    "tile_picker_popup_zoom" => { settings.tile_picker_popup_zoom = self.read_number_config()?; }
                     "start_maximized" => { settings.start_maximized = self.read_number_config()? != 0; }
                     "image_bg_color" => { settings.image_bg_color = self.read_color_config()?; }
                     "map_bg_color" => { settings.map_bg_color = self.read_color_config()?; }

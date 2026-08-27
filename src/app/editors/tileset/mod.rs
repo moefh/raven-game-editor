@@ -28,6 +28,7 @@ use super::{
     SysDialogResponse,
     TileGrid,
     TileGridImage,
+    TilesetTileFixer,
     MapTileFixer,
 };
 use super::dialogs::CreateColorsetDialog;
@@ -36,6 +37,7 @@ use super::widgets::{
     ColorPickerResponse,
     ImagePickerWidget,
     ImageEditorWidget,
+    TilePickerPopupWidget,
     TileGridEditorWidget,
     TileGridEditorAction,
     ImageEditorAction,
@@ -153,8 +155,10 @@ impl MapTileFixer for TilesetEditor {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
         self.editor.tile_grid.get_tile_planes_mut()
     }
+}
 
-    fn tile_moved(&mut self, src_index: u8, dst_index: u8) {
+impl TilesetTileFixer for TilesetEditor {
+    fn move_tile(&mut self, _tileset_id: DataAssetId, src_index: u8, dst_index: u8) {
         self.editor.tile_image_editor.move_frame_undo_history(src_index as u32, dst_index as u32);
     }
 }
@@ -226,6 +230,7 @@ struct Editor {
     selected_tab: EditorTab,
     color_picker: ColorPickerWidget,
     tile_picker: ImagePickerWidget,
+    tile_picker_popup: TilePickerPopupWidget,
     tile_image_editor: ImageEditorWidget<Tileset>,
     grid_tile_picker: ImagePickerWidget,
     grid_image_editor: ImageEditorWidget<TileGridImage>,
@@ -245,6 +250,7 @@ impl Editor {
             selected_tab: EditorTab::Tile,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
             tile_picker: ImagePickerWidget::new(),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_tile_picker_popup", asset_id)), true),
             tile_image_editor: ImageEditorWidget::new(),
             grid_tile_picker: ImagePickerWidget::new().use_as_palette(true),
             grid_image_editor: ImageEditorWidget::new(),
@@ -668,6 +674,15 @@ impl Editor {
         // tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
+            let color_picker_response = ui.button("Select");
+            if color_picker_response.clicked() {
+                self.tile_picker_popup.open();
+            }
+            let mut tile = self.tile_picker.get_selected_image_l().map(|tile| tile as u8);
+            if self.tile_picker_popup.show(wc, &color_picker_response, tileset, &mut tile) {
+                self.tile_picker.set_selected_image_l(tile.map(|tile| tile as u32));
+            }
+
             self.tile_picker.zoom = 4.0;
             self.tile_picker.display = self.tile_image_editor.display;
             let slot = tileset.texture_slot(self.tile_picker.display.is_transparent(), false);

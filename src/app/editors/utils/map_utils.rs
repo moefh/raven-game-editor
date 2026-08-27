@@ -1,14 +1,6 @@
 use crate::data_asset::{
-    DataAssetId,
-    DataAssetStore,
     MapData,
     TileAnimation,
-};
-use crate::image::ImageCollection;
-
-use super::super::{
-    WindowContext,
-    EditorStore,
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -350,11 +342,7 @@ impl MapClipboardData {
 pub trait MapTileFixer {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]>;
 
-    fn tile_moved(&mut self, _old_index: u8, _new_index: u8) {
-        // default implementation does nothing
-    }
-
-    fn add_tileset_hole(&mut self, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8) {
+    fn add_tileset_hole(&mut self, hole_start: u8, hole_size: u8, _num_tiles_after_hole: u8) {
         fn add_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
             for tile in tiles {
                 if *tile >= tile_index {
@@ -362,17 +350,12 @@ pub trait MapTileFixer {
                 }
             }
         }
-        // move tile indices
         for plane in self.get_tile_planes_mut() {
             add_plane_hole(plane, hole_start, hole_size);
         }
-        // call tile_moved()
-        for index in (0..num_tiles_after_hole).rev() {
-            self.tile_moved(hole_start + index, hole_start + hole_size + index);
-        }
     }
 
-    fn remove_tileset_hole(&mut self, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8) {
+    fn remove_tileset_hole(&mut self, hole_start: u8, hole_size: u8, _num_tiles_after_hole: u8) {
         fn rm_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {
             for tile in tiles {
                 if *tile >= tile_index + num_tiles && *tile != MapData::NO_TILE {
@@ -380,13 +363,8 @@ pub trait MapTileFixer {
                 }
             }
         }
-        // move tile indices
         for plane in self.get_tile_planes_mut() {
             rm_plane_hole(plane, hole_start, hole_size);
-        }
-        // call tile_moved()
-        for index in 0..num_tiles_after_hole {
-            self.tile_moved(hole_start + hole_size + index, hole_start + index);
         }
     }
 }
@@ -394,58 +372,6 @@ pub trait MapTileFixer {
 impl MapTileFixer for MapData {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
         vec![ &mut self.fg_tiles, &mut self.bg_tiles, &mut self.para_tiles ]
-    }
-}
-
-pub fn fix_after_tileset_tiles_added(
-    wc: &mut WindowContext,
-    store: &mut DataAssetStore,
-    editors: &mut EditorStore,
-    tileset_id: DataAssetId,
-    hole_start: u8,
-    hole_size: u8,
-    num_tiles_after_hole: u8
-) {
-    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
-        tileset_editor.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-    }
-    for map_id in store.asset_ids.maps.iter() {
-        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
-            map_data.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-            if let Some(map_editor) = editors.maps.get_mut(map_id) {
-                map_editor.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-            }
-        }
-    }
-    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
-        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
-        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
-    }
-}
-
-pub fn fix_after_tileset_tiles_removed(
-    wc: &mut WindowContext,
-    store: &mut DataAssetStore,
-    editors: &mut EditorStore,
-    tileset_id: DataAssetId,
-    hole_start: u8,
-    hole_size: u8,
-    num_tiles_after_hole: u8
-) {
-    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
-        tileset_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-    }
-    for map_id in store.asset_ids.maps.iter() {
-        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
-            map_data.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-            if let Some(map_editor) = editors.maps.get_mut(map_id) {
-                map_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
-            }
-        }
-    }
-    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
-        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
-        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
     }
 }
 
