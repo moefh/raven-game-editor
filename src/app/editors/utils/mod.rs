@@ -17,11 +17,13 @@ pub use asset_id_holder::{*};
 pub use pal_sprite_utils::{*};
 pub use image_zoom_option::{*};
 
+use crate::platform::current_time_as_millis;
 use crate::data_asset::{
     Room,
     MapData,
     AssetList,
 };
+use super::WindowContext;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
@@ -76,4 +78,10 @@ impl RoomSize {
             }
         })
     }
+}
+
+pub fn get_animation_step(wc: &WindowContext) -> u32 {
+    const ANIMATION_LOOP_MOD: u64 = 3628800;
+
+    ((current_time_as_millis() / wc.settings.map_animation_ms_per_frame as u64) % ANIMATION_LOOP_MOD) as u32
 }

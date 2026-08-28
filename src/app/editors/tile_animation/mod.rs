@@ -14,6 +14,7 @@ use crate::data_asset::{
 
 use super::{
     IMAGE_ZOOM_OPTIONS,
+    get_animation_step,
     ImageZoomOption,
     AssetEditorBase,
     WindowContext,
@@ -26,7 +27,9 @@ use super::widgets::{
     TilePickerPopupWidget,
     ImageDisplay,
 };
-use super::super::menu_item;
+use super::super::{
+    menu_item,
+};
 
 use properties::PropertiesDialog;
 
@@ -118,7 +121,8 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     header_panel_id: egui::Id,
-    toolbar_panel_id: egui::Id,
+    playback_toolbar_panel_id: egui::Id,
+    display_toolbar_panel_id: egui::Id,
     parent_tile_picker_panel_id: egui::Id,
     anim_tile_picker_panel_id: egui::Id,
     anim_loop_len_panel_id: egui::Id,
@@ -129,6 +133,8 @@ struct Editor {
     image_editor: ImageEditorWidget<Tileset>,
     edit_loop_len: u32,
     reload_edit_loop: bool,
+    playing: bool,
+    reverse_play: bool,
 }
 
 impl Editor {
@@ -136,7 +142,8 @@ impl Editor {
         Editor {
             asset_id,
             header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
-            toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_toolbar", asset_id)),
+            playback_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_playback_toolbar", asset_id)),
+            display_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
             parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
             parent_tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id))),
             anim_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_anim_tile_picker", asset_id)),
@@ -147,6 +154,8 @@ impl Editor {
             image_editor: ImageEditorWidget::new().readonly().with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT)),
             edit_loop_len: 0,
             reload_edit_loop: true,
+            playing: false,
+            reverse_play: false,
         }
     }
 
@@ -180,8 +189,40 @@ impl Editor {
         });
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
-        egui::Panel::top(self.toolbar_panel_id).show(ui, |ui| {
+    fn show_playback_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
+        egui::Panel::top(self.playback_toolbar_panel_id).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                let can_play = self.parent_tile_picker.get_selected_image_l().and_then(|sel_tile| {
+                    tanim.loops.get(sel_tile as usize)
+                }).is_some_and(|tloop| tloop.len != 0);
+                if ui.add_enabled(
+                    can_play && (! self.playing || ! self.reverse_play),
+                    egui::Button::new("\u{23f4}")
+                ).on_hover_text("Play reversed").clicked() {
+                    self.playing = true;
+                    self.reverse_play = true;
+                }
+                if ui.add_enabled(
+                    self.playing,
+                    egui::Button::new("\u{23f8}")
+                ).on_hover_text("Pause").clicked() {
+                    self.playing = false;
+                }
+                if ui.add_enabled(
+                    can_play && (! self.playing || self.reverse_play),
+                    egui::Button::new("\u{23f5}")
+                ).on_hover_text("Play").clicked() {
+                    self.playing = true;
+                    self.reverse_play = false;
+                }
+            });
+            ui.add_space(0.0); // don't remove this
+        });
+    }
+
+    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
+        egui::Panel::top(self.display_toolbar_panel_id).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
@@ -257,6 +298,7 @@ impl Editor {
                     self.parent_tile_picker.get_selected_image_l()
                 ) {
                     self.parent_tile_picker.set_selected_image_l(Some(tile));
+                    self.reload_edit_loop = true;
                 }
                 self.parent_tile_picker.display = self.image_editor.display;
                 self.parent_tile_picker.show(ui, wc, anim_tileset);
@@ -308,7 +350,8 @@ impl Editor {
 
         self.show_menu_bar(ui, wc, dialogs, tanim);
         self.show_parent_tile_picker(ui, wc, tanim, tilesets);
-        self.show_toolbar(ui, wc, tanim);
+        self.show_playback_toolbar(ui, wc, tanim);
+        self.show_display_toolbar(ui, wc, tanim);
 
         // selected loop
         let loop_start = self.anim_tile_view.selected_frame as u32;
@@ -370,7 +413,22 @@ impl Editor {
                 );
             });
             egui::CentralPanel::default().show(ui, |ui| {
-                self.image_editor.set_selected_image(loop_start, anim_tileset);
+                if self.playing &&
+                    let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
+                    let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) &&
+                    tloop.len != 0 {
+                        let animation_step = get_animation_step(wc);
+                        let loop_len = tloop.len as u32;
+                        let play_tile = if self.reverse_play {
+                            tloop.start.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8) as u32
+                        } else {
+                            tloop.start.saturating_add((animation_step % loop_len as u32) as u8) as u32
+                        };
+                        self.image_editor.set_selected_image(play_tile, anim_tileset);
+                        wc.request_map_animation_repaint();
+                    } else {
+                        self.image_editor.set_selected_image(loop_start, anim_tileset);
+                    }
                 let colors = (0xff, 0xff);
                 self.image_editor.show(ui, wc, anim_tileset, colors);
             });

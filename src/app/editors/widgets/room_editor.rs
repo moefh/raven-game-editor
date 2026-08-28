@@ -8,7 +8,6 @@ use egui::{
 };
 use egui::emath::RectTransform;
 
-use crate::platform::current_time_as_millis;
 use crate::data_asset::{
     Room,
     RoomMap,
@@ -33,6 +32,7 @@ use super::{
 };
 use super::super::{
     get_animated_tile,
+    get_animation_step,
     WindowContext,
     MapLayer,
     RoomSize,
@@ -850,7 +850,7 @@ impl RoomEditorWidget {
         }
 
         let mut has_animated_tiles = false;
-        let animation_step = ((current_time_as_millis() / wc.settings.map_animation_ms_per_frame as u64) % 12) as u32;
+        let animation_step = get_animation_step(wc);
 
         // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {

@@ -10,7 +10,6 @@ use egui::{
     Image,
 };
 
-use crate::platform::current_time_as_millis;
 use crate::image::{
     ImageCollection,
     TextureSlot,
@@ -30,6 +29,7 @@ use super::{
 };
 use super::super::{
     get_animated_tile,
+    get_animation_step,
     WindowContext,
     KeyboardPressed,
     MapClipboardData,
@@ -806,7 +806,7 @@ impl MapEditorWidget {
         let bg_color = self.custom_bg_color.unwrap_or(wc.settings.map_bg_color);
         painter.rect_filled(map_area_rect, egui::CornerRadius::ZERO, bg_color);
         let mut has_animated_tiles = false;
-        let animation_step = ((current_time_as_millis() / wc.settings.map_animation_ms_per_frame as u64) % 12) as u32;
+        let animation_step = get_animation_step(wc);
 
         let (tile_anim, anim_tileset) = map_data
             .tile_anim_id
