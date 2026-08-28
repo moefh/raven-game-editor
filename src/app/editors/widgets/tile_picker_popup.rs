@@ -26,10 +26,10 @@ pub struct TilePickerPopupWidget {
 }
 
 impl TilePickerPopupWidget {
-    pub fn new(egui_id: egui::Id, close_on_pick: bool) -> Self{
+    pub fn new(egui_id: egui::Id) -> Self{
         TilePickerPopupWidget {
             egui_id,
-            close_on_pick,
+            close_on_pick: true,
             open: false,
         }
     }
@@ -45,14 +45,14 @@ impl TilePickerPopupWidget {
         rect: Rect,
         dims: (i32, i32),
         tileset: &Tileset,
-        sel_tile: Option<u8>
+        sel_tile: Option<u32>
     ) {
         // tiles
         let tile_size = Vec2::new(rect.width() / (dims.0 as f32), rect.height() / (dims.1 as f32));
         for y in 0..dims.1 {
             for x in 0..dims.0 {
                 let tile_rect = Rect::from_min_size(rect.min + tile_size * Vec2::new(x as f32, y as f32), tile_size);
-                let tile = ((y * dims.0 + x).abs() & 0xff) as u8;
+                let tile = ((y * dims.0 + x).abs() & 0xff) as u32;
                 if tile as u32 >= tileset.num_tiles { break; }
 
                 let uv = tileset.get_item_uv(tile as u32);
@@ -82,7 +82,7 @@ impl TilePickerPopupWidget {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, response: &egui::Response, tileset: &Tileset, pick_tile: &mut Option<u8>) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, response: &egui::Response, tileset: &Tileset, pick_tile: &mut Option<u32>) -> bool {
         if ! self.open { return false; }
         let tile_size = Vec2::splat(TILE_SIZE * (wc.settings.tile_picker_popup_zoom as f32 / 100.0));
         let mut picked = false;
@@ -91,7 +91,7 @@ impl TilePickerPopupWidget {
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
                 ui.horizontal(|ui| {
-                    let dim_y = ((tileset.num_tiles as f32).sqrt().min(8.0)).ceil() as i32;
+                    let dim_y = ((tileset.num_tiles as f32).sqrt().min(8.0)).floor() as i32;
                     let dims = ((tileset.num_tiles as u32).div_ceil(dim_y as u32) as i32, dim_y);
                     let size = Vec2::new(dims.0 as f32 * tile_size.x, dims.1 as f32 * tile_size.y);
                     let (response, painter) = ui.allocate_painter(size, Sense::click_and_drag());
@@ -101,7 +101,7 @@ impl TilePickerPopupWidget {
                         let y = ((pos.y - response.rect.min.y) / tile_size.y).floor() as i32;
                         let index = y * dims.0 + x;
                         if index >= 0 && index < tileset.num_tiles as i32 {
-                            *pick_tile = Some(index.abs() as u8);
+                            *pick_tile = Some(index.abs() as u32);
                             picked = true;
                         }
                     }
@@ -111,5 +111,25 @@ impl TilePickerPopupWidget {
                 });
             });
         picked
+    }
+
+    pub fn show_anchor(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        label: impl AsRef<str>,
+        tileset: &Tileset,
+        pick_tile: Option<u32>
+    ) -> Option<u32> {
+        let response = ui.button(label.as_ref());
+        if response.clicked() {
+            self.open();
+        }
+        let mut tile = pick_tile;
+        if self.show(wc, &response, tileset, &mut tile) {
+            tile
+        } else {
+            None
+        }
     }
 }

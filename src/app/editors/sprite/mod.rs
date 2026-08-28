@@ -399,11 +399,9 @@ impl Editor {
         // item picker:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            self.image_picker.zoom = 80.0 / sprite.width as f32;
+            self.image_picker.zoom = Some(80.0 / sprite.width as f32);
             self.image_picker.display = self.image_editor.display;
-            let slot = sprite.texture_slot(self.image_picker.display.is_transparent(), false);
-            let texture = sprite.texture(wc.tex_man, wc.egui.ctx, slot);
-            self.image_picker.show(ui, wc.settings, sprite, texture, wc.settings.image_bg_color);
+            self.image_picker.show(ui, wc, sprite);
             if let Some(selected_image) = self.image_picker.get_selected_image_l() {
                 self.image_editor.set_selected_image(selected_image, sprite);
             }

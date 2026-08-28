@@ -1,9 +1,6 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::image::{
-    ImageCollection,
-};
 use crate::data_asset::{
     DataAssetId,
     GenericAsset,
@@ -26,6 +23,7 @@ use super::widgets::{
     ImagePickerWidget,
     ImageEditorWidget,
     SpriteFrameListView,
+    TilePickerPopupWidget,
     ImageDisplay,
 };
 use super::super::menu_item;
@@ -125,6 +123,7 @@ struct Editor {
     anim_tile_picker_panel_id: egui::Id,
     anim_loop_len_panel_id: egui::Id,
     parent_tile_picker: ImagePickerWidget,
+    parent_tile_picker_popup: TilePickerPopupWidget,
     anim_tile_view: SpriteFrameListView,
     frame_indices: Vec<SpriteAnimationFrame>,
     image_editor: ImageEditorWidget<Tileset>,
@@ -139,6 +138,7 @@ impl Editor {
             header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
             toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_toolbar", asset_id)),
             parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
+            parent_tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id))),
             anim_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_anim_tile_picker", asset_id)),
             anim_loop_len_panel_id: egui::Id::new(format!("editor_panel_{}_anim_loop_len", asset_id)),
             parent_tile_picker: ImagePickerWidget::new(),
@@ -249,11 +249,17 @@ impl Editor {
         egui::Panel::left(self.parent_tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(anim_tileset) = tilesets.get(&tanim.parent_tileset_id) {
-                self.parent_tile_picker.zoom = 4.0;
+                if let Some(tile) = self.parent_tile_picker_popup.show_anchor(
+                    ui,
+                    wc,
+                    "Select...",
+                    anim_tileset,
+                    self.parent_tile_picker.get_selected_image_l()
+                ) {
+                    self.parent_tile_picker.set_selected_image_l(Some(tile));
+                }
                 self.parent_tile_picker.display = self.image_editor.display;
-                let slot = anim_tileset.texture_slot(self.parent_tile_picker.display.is_transparent(), false);
-                let texture = anim_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-                self.parent_tile_picker.show(ui, wc.settings, anim_tileset, texture, wc.settings.image_bg_color);
+                self.parent_tile_picker.show(ui, wc, anim_tileset);
                 if self.parent_tile_picker.image_l_picked {
                     self.reload_edit_loop = true;
                 }

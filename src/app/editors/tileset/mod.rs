@@ -10,7 +10,6 @@ use core::fmt::NumBuffer;
 use crate::misc::IMAGES;
 use crate::image::{
     colors,
-    ImageCollection,
     ImagePixels,
     ImageRotation,
 };
@@ -250,7 +249,7 @@ impl Editor {
             selected_tab: EditorTab::Tile,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
             tile_picker: ImagePickerWidget::new(),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_tile_picker_popup", asset_id)), true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_tile_picker_popup", asset_id))),
             tile_image_editor: ImageEditorWidget::new(),
             grid_tile_picker: ImagePickerWidget::new().use_as_palette(true),
             grid_image_editor: ImageEditorWidget::new(),
@@ -674,20 +673,12 @@ impl Editor {
         // tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            let color_picker_response = ui.button("Select");
-            if color_picker_response.clicked() {
-                self.tile_picker_popup.open();
-            }
-            let mut tile = self.tile_picker.get_selected_image_l().map(|tile| tile as u8);
-            if self.tile_picker_popup.show(wc, &color_picker_response, tileset, &mut tile) {
-                self.tile_picker.set_selected_image_l(tile.map(|tile| tile as u32));
+            if let Some(tile) = self.tile_picker_popup.show_anchor(ui, wc, "Select...", tileset, self.tile_picker.get_selected_image_l()) {
+                self.tile_picker.set_selected_image_l(Some(tile));
             }
 
-            self.tile_picker.zoom = 4.0;
             self.tile_picker.display = self.tile_image_editor.display;
-            let slot = tileset.texture_slot(self.tile_picker.display.is_transparent(), false);
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-            self.tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
+            self.tile_picker.show(ui, wc, tileset);
             if let Some(selected_image) = self.tile_picker.get_selected_image_l() {
                 self.tile_image_editor.set_selected_image(selected_image, tileset);
             }
@@ -716,11 +707,8 @@ impl Editor {
         // grid tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            self.grid_tile_picker.zoom = 4.0;
             self.grid_tile_picker.display = self.grid_image_editor.display;
-            let slot = tileset.texture_slot(self.grid_tile_picker.display.is_transparent(), false);
-            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-            self.grid_tile_picker.show(ui, wc.settings, tileset, texture, wc.settings.image_bg_color);
+            self.grid_tile_picker.show(ui, wc, tileset);
             self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image_l();
             self.tile_grid_editor.right_selected_tile = self.grid_tile_picker.get_selected_image_r();
         });

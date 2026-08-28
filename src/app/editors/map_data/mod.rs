@@ -3,10 +3,6 @@ mod custom_colors;
 
 use core::fmt::NumBuffer;
 
-use crate::image::{
-    ImageCollection,
-    TextureSlot,
-};
 use crate::data_asset::{
     self,
     AssetList,
@@ -192,6 +188,7 @@ impl Dialogs {
             } else {
                 None
             };
+            editor.image_picker.custom_bg_color = editor.map_editor.custom_bg_color;
         }
     }
 }
@@ -212,7 +209,7 @@ impl Editor {
             import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id)), true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
             custom_colors: CustomColors {
                 use_grid_color: false,
                 use_bg_color: false,
@@ -646,44 +643,40 @@ impl Editor {
         // tile picker:
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            self.image_picker.zoom = 4.0;
             match self.map_editor.edit_layer {
                 MapLayer::Effects => {
                     let tiles = STATIC_IMAGES.fx_tiles();
-                    let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                     if self.image_picker.selection_set != 1 {
                         self.image_picker.selection_set = 1;
                         self.image_picker.force_selection_into_visibility();
                     }
-                    self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
+                    self.image_picker.show(ui, wc, tiles);
                 }
                 MapLayer::Animation => {
                     let tiles = STATIC_IMAGES.anim_tiles();
-                    let texture = tiles.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                     if self.image_picker.selection_set != 2 {
                         self.image_picker.selection_set = 2;
                         self.image_picker.force_selection_into_visibility();
                     }
-                    self.image_picker.show(ui, wc.settings, tiles, texture, egui::Color32::BLACK);
+                    self.image_picker.show(ui, wc, tiles);
                 }
                 _ => {
                     if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
-                        let color_picker_response = ui.button("Select");
-                        if color_picker_response.clicked() {
-                            self.tile_picker_popup.open();
-                        }
-                        let mut tile = self.image_picker.get_selected_image_l().map(|tile| tile as u8);
-                        if self.tile_picker_popup.show(wc, &color_picker_response, tileset, &mut tile) {
-                            self.image_picker.set_selected_image_l(tile.map(|tile| tile as u32));
+                        if let Some(tile) = self.tile_picker_popup.show_anchor(
+                            ui,
+                            wc,
+                            "Select...",
+                            tileset,
+                            self.image_picker.get_selected_image_l()
+                        ) {
+                            self.image_picker.set_selected_image_l(Some(tile));
                         }
 
-                        let bg_color = if self.custom_colors.use_bg_color { self.custom_colors.bg_color } else { wc.settings.map_bg_color };
-                        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                         if self.image_picker.selection_set != 0 {
                             self.image_picker.selection_set = 0;
                             self.image_picker.force_selection_into_visibility();
                         }
-                        self.image_picker.show(ui, wc.settings, tileset, texture, bg_color);
+                        self.image_picker.show(ui, wc, tileset);
                     }
                 }
             }

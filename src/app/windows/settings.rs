@@ -30,6 +30,28 @@ impl SettingsWindow {
         ui.end_row();
     }
 
+    fn zoom_setting(ui: &mut egui::Ui, label: &'static str, zoom: &mut u32) {
+        ui.label(label);
+        let mut edit_zoom = *zoom as f32 / 100.0;
+        ui.horizontal(|ui| {
+            if ui.button("\u{2796}").clicked() {
+                if edit_zoom > 0.5 {
+                    edit_zoom = ((edit_zoom - 0.1) * 10.0).round() / 10.0;
+                }
+            }
+            ui.label(format!("{:3.1}x", edit_zoom));
+            if ui.button("\u{2795}").clicked() {
+                if edit_zoom < 10.0 {
+                    edit_zoom = ((edit_zoom + 0.1) * 10.0).round() / 10.0;
+                }
+            }
+        });
+        if *zoom != (edit_zoom * 100.0).round() as u32 {
+            *zoom = (edit_zoom * 100.0).round() as u32;
+        }
+        ui.end_row();
+    }
+
     fn show_main_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Main Settings").default_open(true).show(ui, |ui| {
             egui::Grid::new("editor_settings_main")
@@ -91,30 +113,13 @@ impl SettingsWindow {
     }
 
     fn show_widget_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
-        egui::CollapsingHeader::new("Widget Settings").default_open(true).show(ui, |ui| {
+        egui::CollapsingHeader::new("Editor Zoom").default_open(true).show(ui, |ui| {
             egui::Grid::new("editor_widget_settings")
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
-                    ui.label("Color picket popup zoom:");
-                    let mut edit_zoom = wc.settings.tile_picker_popup_zoom as f32 / 100.0;
-                    ui.horizontal(|ui| {
-                        if ui.button("\u{2796}").clicked() {
-                            if edit_zoom > 0.5 {
-                                edit_zoom = ((edit_zoom - 0.1) * 10.0).round() / 10.0;
-                            }
-                        }
-                        ui.label(format!("{:3.1}x", edit_zoom));
-                        if ui.button("\u{2795}").clicked() {
-                            if edit_zoom < 10.0 {
-                                edit_zoom = ((edit_zoom + 0.1) * 10.0).round() / 10.0;
-                            }
-                        }
-                    });
-                    if wc.settings.tile_picker_popup_zoom != (edit_zoom * 100.0).round() as u32 {
-                        wc.settings.tile_picker_popup_zoom = (edit_zoom * 100.0).round() as u32;
-                    }
-                    ui.end_row();
+                    Self::zoom_setting(ui, "Tile picker zoom:", &mut wc.settings.tile_picker_zoom);
+                    Self::zoom_setting(ui, "Tile picker popup zoom:", &mut wc.settings.tile_picker_popup_zoom);
                 });
         });
     }
