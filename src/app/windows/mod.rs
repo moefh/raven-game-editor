@@ -3,6 +3,7 @@ mod status;
 mod log_window;
 mod properties;
 mod check;
+mod project_comparer;
 
 use crate::misc::IMAGES;
 use crate::data_asset::{
@@ -17,6 +18,7 @@ pub use status::StatusWindow;
 pub use log_window::LogWindow;
 pub use properties::PropertiesWindow;
 pub use check::CheckWindow;
+pub use project_comparer::ProjectComparerWindow;
 
 pub enum AppWindowResize {
     FixedSize,
@@ -78,7 +80,6 @@ impl AppWindowBase {
                 }
                 ui.add(egui::Label::new(title).selectable(false));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
                     if ui.add(egui::Button::image(IMAGES.close).frame_when_inactive(false)).clicked() {
                         AppWindowAction::CloseWindow(self.id)
                     } else {
@@ -141,6 +142,7 @@ pub struct AppWindowsCollection {
     pub properties: PropertiesWindow,
     pub log_window: LogWindow,
     pub check: CheckWindow,
+    pub project_comparer: ProjectComparerWindow,
 }
 
 impl AppWindowsCollection {
@@ -151,6 +153,7 @@ impl AppWindowsCollection {
             properties: PropertiesWindow::new(AppWindowBase::new("project_properties")),
             log_window: LogWindow::new(AppWindowBase::new("project_log_window")),
             check: CheckWindow::new(AppWindowBase::new("check_window")),
+            project_comparer: ProjectComparerWindow::new(AppWindowBase::new("project_comparer_window")),
         }
     }
 
@@ -160,6 +163,7 @@ impl AppWindowsCollection {
         window_ids.push(self.status.base.id);
         window_ids.push(self.log_window.base.id);
         window_ids.push(self.check.base.id);
+        window_ids.push(self.project_comparer.base.id);
     }
 
     fn get_base_window(&self, window_id: egui::Id) -> Option<&AppWindowBase> {
@@ -168,6 +172,7 @@ impl AppWindowsCollection {
         if window_id == self.status.base.id { return Some(&self.status.base) }
         if window_id == self.log_window.base.id { return Some(&self.log_window.base) }
         if window_id == self.check.base.id { return Some(&self.check.base) }
+        if window_id == self.project_comparer.base.id { return Some(&self.project_comparer.base) }
         None
     }
 
@@ -177,6 +182,7 @@ impl AppWindowsCollection {
         if window_id == self.status.base.id { return Some(&mut self.status.base) }
         if window_id == self.log_window.base.id { return Some(&mut self.log_window.base) }
         if window_id == self.check.base.id { return Some(&mut self.check.base) }
+        if window_id == self.project_comparer.base.id { return Some(&mut self.project_comparer.base) }
         None
     }
 
@@ -193,6 +199,7 @@ impl AppWindowsCollection {
         Self::add_window_action(&mut actions, self.status.show(wc, store));
         Self::add_window_action(&mut actions, self.log_window.show(wc));
         Self::add_window_action(&mut actions, self.check.show(wc, store));
+        Self::add_window_action(&mut actions, self.project_comparer.show(wc, store));
         actions
     }
 }
@@ -250,6 +257,7 @@ impl AppWindows {
     pub fn open_settings(&mut self) { self.collection.settings.base.open = true; }
     pub fn open_status(&mut self) { self.collection.status.base.open = true; }
     pub fn open_check(&mut self) { self.collection.check.base.open = true; }
+    pub fn open_project_comparer(&mut self) { self.collection.project_comparer.base.open = true; }
 
     pub fn run_check(&mut self, store: &DataAssetStore) {
         self.collection.check.run_check(store);

@@ -188,6 +188,10 @@ pub(crate) trait DuplicableAsset<T> {
     fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> T;
 }
 
+pub trait DataHashAsset {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H);
+}
+
 pub trait GenericAsset {
     fn asset(&self) -> &DataAsset;
     fn data_size(&self) -> usize;
@@ -697,6 +701,14 @@ impl DataAssetStore {
         self.assets.prop_fonts.insert(id, PropFont::new(id, name));
         Some(id)
     }
+}
+
+pub fn calc_asset_data_hash<A: DataHashAsset>(asset: &A) -> u64 {
+    use std::hash::Hasher;
+
+    let mut hasher = std::hash::DefaultHasher::new();
+    asset.data_hash(&mut hasher);
+    hasher.finish()
 }
 
 pub fn deserialize_project(data: &str, logger: &mut StringLogger) -> Result<DataAssetStore, io::Error> {

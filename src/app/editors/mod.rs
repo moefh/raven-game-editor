@@ -217,6 +217,7 @@ impl AssetEditorBase {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let mut action = EditorWindowAction::None;
 
+                        let spacing = ui.spacing().item_spacing;
                         ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
                         if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
                             action = EditorWindowAction::Close;
@@ -229,6 +230,7 @@ impl AssetEditorBase {
                             action = EditorWindowAction::ToggleMaximize;
                         }
 
+                        ui.spacing_mut().item_spacing = spacing;
                         action
                     }).inner
                 }).inner

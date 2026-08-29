@@ -7,6 +7,7 @@ mod settings;
 mod recent_projects;
 mod asset_exporter;
 pub mod checker;
+pub mod project_comparer;
 pub mod widgets;
 
 use std::sync::{Arc, Mutex};
@@ -717,7 +718,9 @@ impl RavenEditorApp {
                     if ui.add(menu_item(IMAGES.properties, " Properties")).clicked() {
                         self.windows.open_properties();
                     }
-                    if ui.add(menu_item_no_image(" Export header...")).clicked() {
+                });
+                ui.menu_button("Tools", |ui| {
+                    if ui.add(menu_item(IMAGES.export, " Export header...")).clicked() {
                         self.sys_dialogs.save_file(
                             Some(window),
                             Self::EXPORT_HEADER_SYS_DLG_ID.to_owned(),
@@ -728,6 +731,9 @@ impl RavenEditorApp {
                                 ("All files (*.*)", &["*"]),
                             ]
                         );
+                    }
+                    if ui.add(menu_item(IMAGES.compare, " Project Comparer")).clicked() {
+                        self.windows.open_project_comparer();
                     }
                 });
                 ui.menu_button("Help", |ui| {

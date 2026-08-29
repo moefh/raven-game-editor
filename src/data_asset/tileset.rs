@@ -22,6 +22,18 @@ impl Tileset {
     }
 }
 
+impl super::DataHashAsset for Tileset {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+        self.width.hash(state);
+        self.num_tiles.hash(state);
+        self.data.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<Tileset> for Tileset {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         Tileset {

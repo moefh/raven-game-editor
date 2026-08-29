@@ -111,10 +111,13 @@ image_table! {
     paste: "../../assets/PasteIcon.png",
     info: "../../assets/InfoIcon.png",
     header: "../../assets/HeaderIcon.png",
+    compare: "../../assets/CompareIcon.png",
+    blank: "../../assets/BlankIcon.png",
+
+    // window title
     close: "../../assets/Close.png",
     maximize: "../../assets/MaximizeIcon.png",
     un_maximize: "../../assets/UnmaximizeIcon.png",
-    blank: "../../assets/BlankIcon.png",
 
     // buttons
     pen: "../../assets/PenIcon.png",

@@ -223,6 +223,7 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_pfont_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
                 ui.spacing_mut().item_spacing = egui::Vec2::new(3.0, 0.0);
 
                 ui.label("Edit:");
@@ -278,6 +279,7 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.arrow_right)).on_hover_text("Shift Right").clicked() {
                     self.shift_image(prop_font, 1, 0);
                 }
+                ui.spacing_mut().item_spacing = spacing;
             });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });

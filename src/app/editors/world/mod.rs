@@ -503,6 +503,7 @@ impl Editor {
 
                 if let Some(region) = world.regions.get_mut(region_index) {
                     ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
                         ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                         if ui.add(egui::Button::image(IMAGES.arrow_up)).on_hover_text("Shift Up").clicked() {
                             self.shift_region(region, ShiftDirection::Up);
@@ -528,6 +529,8 @@ impl Editor {
                                 }
                             });
                         });
+
+                        ui.spacing_mut().item_spacing = spacing;
                     });
                 }
 
