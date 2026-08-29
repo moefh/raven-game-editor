@@ -25,23 +25,6 @@ use super::super::{
     EditorStore,
 };
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum AddTileLocation {
-    BeforeSelected,
-    AfterSelected,
-    AtEnd,
-}
-
-impl AddTileLocation {
-    pub fn text(self) -> &'static str {
-        match self {
-            Self::BeforeSelected => { "before selected" }
-            Self::AfterSelected => { "after selected" }
-            Self::AtEnd => { "at end" }
-        }
-    }
-}
-
 pub struct TileGrid {
     pub width: u32,
     pub height: u32,

@@ -1,5 +1,6 @@
 mod properties;
 mod add_frames;
+mod add_imported_frames;
 mod remove_frames;
 mod import;
 mod export;
@@ -35,11 +36,15 @@ use super::widgets::{
     ImageDrawingTool,
     ImageDisplay,
 };
-use super::super::menu_item;
+use super::super::{
+    menu_item,
+    menu_item_no_image,
+};
 
 use properties::PropertiesDialog;
 use remove_frames::RemoveFramesDialog;
-use add_frames::{AddFramesDialog, AddFramesAction};
+use add_frames::AddFramesDialog;
+use add_imported_frames::AddImportedFramesDialog;
 use import::ImportDialog;
 use export::ExportDialog;
 
@@ -125,6 +130,7 @@ impl SpriteFrameFixer for SpriteEditor {
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_frames_dialog: AddFramesDialog,
+    add_imported_frames_dialog: AddImportedFramesDialog,
     rm_frames_dialog: RemoveFramesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
@@ -136,6 +142,7 @@ impl Dialogs {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             add_frames_dialog: AddFramesDialog::new(),
+            add_imported_frames_dialog: AddImportedFramesDialog::new(),
             rm_frames_dialog: RemoveFramesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
@@ -156,6 +163,9 @@ impl Dialogs {
             Self::ensure_valid_selected_image(editor, sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
+            Editor::reload_images(wc, sprite);
+        }
+        if self.add_imported_frames_dialog.open && self.add_imported_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
@@ -270,20 +280,20 @@ impl Editor {
                         );
                     }
 
+                    if ui.add(menu_item_no_image(" Insert frames from file...")).clicked() {
+                        dialogs.add_imported_frames_dialog.set_open(
+                            wc,
+                            self.image_editor.get_selected_image(),
+                            self.color_picker.state.right_color,
+                            sprite,
+                        );
+                    }
+
                     ui.separator();
 
                     if ui.add(menu_item(IMAGES.add, " Insert frames...")).clicked() {
                         dialogs.add_frames_dialog.set_open(
                             wc,
-                            AddFramesAction::Insert,
-                            self.image_editor.get_selected_image(),
-                            self.color_picker.state.right_color
-                        );
-                    }
-                    if ui.add(menu_item(IMAGES.add, " Append frames...")).clicked() {
-                        dialogs.add_frames_dialog.set_open(
-                            wc,
-                            AddFramesAction::Append,
                             self.image_editor.get_selected_image(),
                             self.color_picker.state.right_color
                         );

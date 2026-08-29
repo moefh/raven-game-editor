@@ -5,31 +5,31 @@ use super::super::{
     AssetEditorBase,
     WindowContext,
     EditorAction,
+    AddImageLocation,
 };
 
-pub enum AddFramesAction {
-    Insert,
-    Append,
-}
-
 pub struct AddFramesDialog {
-    pub image_changed: bool,
     pub open: bool,
-    pub action: AddFramesAction,
+    pub add_frame_location: AddImageLocation,
     pub num_frames: u32,
     pub sel_frame: u32,
-    pub sel_color: u8,
+    pub clear_color: u8,
+    dlg_id_grid: String,
+    dlg_id_insert_location_combo: String,
+    confirmed: bool,
 }
 
 impl AddFramesDialog {
     pub fn new() -> Self {
         AddFramesDialog {
-            image_changed: false,
+            dlg_id_grid: String::from("editor_panel_sprite_add_frame_grid"),
+            dlg_id_insert_location_combo: String::from("editor_panel_sprite_add_frame_insert_at_combo"),
+            confirmed: false,
             open: false,
-            action: AddFramesAction::Insert,
+            add_frame_location: AddImageLocation::AfterSelected,
             num_frames: 0,
             sel_frame: 0,
-            sel_color: 0,
+            clear_color: 0,
         }
     }
 
@@ -37,57 +37,70 @@ impl AddFramesDialog {
         egui::Id::new("dlg_sprite_add_frames")
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, action: AddFramesAction, sel_frame: u32, sel_color: u8) {
-        self.action = action;
+    pub fn set_open(&mut self, wc: &mut WindowContext, sel_frame: u32, clear_color: u8) {
+        self.add_frame_location = AddImageLocation::AfterSelected;
         self.num_frames = 1;
         self.sel_frame = sel_frame;
-        self.sel_color = sel_color;
+        self.clear_color = clear_color;
         self.open = true;
         wc.set_dialog_open(Self::id(), self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite, wc: &mut WindowContext) {
         let old_num_frames = sprite.num_frames;
-        sprite.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, self.sel_color);
-        if matches!(self.action, AddFramesAction::Insert) && self.sel_frame < old_num_frames {
-            let num_frames_after_hole = old_num_frames - self.sel_frame;
-            let src_top = self.sel_frame * sprite.height;
-            let dst_top = (self.sel_frame + self.num_frames) * sprite.height;
-            let row_len = sprite.width as usize;
-            let mut src_row = vec![0; row_len];
-            let mut dst_row = vec![0; row_len];
-            let num_copy_rows = num_frames_after_hole * sprite.height;
-            for y in (0..num_copy_rows).rev() {
-                let src = ((src_top + y) * sprite.width) as usize;
-                let dst = ((dst_top + y) * sprite.width) as usize;
-                src_row.copy_from_slice(&sprite.data[src..src+row_len]);
-                dst_row.copy_from_slice(&sprite.data[dst..dst+row_len]);
-                sprite.data[src..src+row_len].copy_from_slice(&dst_row);
-                sprite.data[dst..dst+row_len].copy_from_slice(&src_row);
-            }
-            wc.add_editor_action(EditorAction::SpriteFramesAdded {
-                sprite_id: sprite.asset.id,
-                hole_start: self.sel_frame,
-                hole_size: self.num_frames,
-                num_frames_after_hole,
-            });
-        }
-        self.image_changed = true;
+        let insertion_point = match self.add_frame_location {
+            AddImageLocation::BeforeSelected => { self.sel_frame.min(sprite.num_frames) }
+            AddImageLocation::AfterSelected => { (self.sel_frame + 1).min(sprite.num_frames) }
+            AddImageLocation::AtEnd => { sprite.num_frames }
+        };
+        sprite.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, self.clear_color);
+        let frame_size = (sprite.width * sprite.height) as usize;
+        let src_start = insertion_point as usize * frame_size;
+        let src_end = (sprite.num_frames - self.num_frames) as usize * frame_size;
+        let dst_start = (insertion_point + self.num_frames) as usize * frame_size;
+        sprite.data.copy_within(src_start..src_end, dst_start);
+        sprite.data[src_start..dst_start].fill(self.clear_color);
+        let num_frames_after_hole = old_num_frames - insertion_point;
+        wc.add_editor_action(EditorAction::SpriteFramesAdded {
+            sprite_id: sprite.asset.id,
+            hole_start: insertion_point,
+            hole_size: self.num_frames,
+            num_frames_after_hole,
+        });
+        self.confirmed = true;
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
-        let title = match self.action {
-            AddFramesAction::Insert => { "Insert Frames" }
-            AddFramesAction::Append => { "Append Frames" }
-        };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Add frames", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                egui::Grid::new(format!("editor_panel_{}_add_frames_grid", sprite.asset.id))
+                egui::Grid::new(&self.dlg_id_grid)
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         ui.label("Num frames:");
                         ui.add(egui::Slider::new(&mut self.num_frames, 1..=16));
+                        ui.end_row();
+
+                        ui.label("Insert at:");
+                        egui::ComboBox::from_id_salt(&self.dlg_id_insert_location_combo)
+                            .selected_text(self.add_frame_location.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.add_frame_location,
+                                    AddImageLocation::BeforeSelected,
+                                    AddImageLocation::BeforeSelected.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_frame_location,
+                                    AddImageLocation::AfterSelected,
+                                    AddImageLocation::AfterSelected.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_frame_location,
+                                    AddImageLocation::AtEnd,
+                                    AddImageLocation::AtEnd.text()
+                                );
+                            });
                         ui.end_row();
                     });
             });
@@ -105,8 +118,8 @@ impl AddFramesDialog {
             self.open = false;
             wc.set_dialog_open(Self::id(), self.open);
         }
-        if self.image_changed {
-            self.image_changed = false;
+        if self.confirmed {
+            self.confirmed = false;
             true
         } else {
             false

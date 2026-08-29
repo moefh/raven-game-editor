@@ -3,6 +3,23 @@ use crate::image::{
     ImageSlicingMethod,
 };
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum AddImageLocation {
+    BeforeSelected,
+    AfterSelected,
+    AtEnd,
+}
+
+impl AddImageLocation {
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::BeforeSelected => { "before selected" }
+            Self::AfterSelected => { "after selected" }
+            Self::AtEnd => { "at end" }
+        }
+    }
+}
+
 pub enum ImageClipboardData {
     Empty,
     Image(ImagePixels),

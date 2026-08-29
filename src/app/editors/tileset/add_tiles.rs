@@ -5,24 +5,28 @@ use super::super::{
     AssetEditorBase,
     WindowContext,
     EditorAction,
-    AddTileLocation,
+    AddImageLocation,
 };
 
 pub struct AddTilesDialog {
     pub open: bool,
-    pub add_tile_location: AddTileLocation,
+    pub add_tile_location: AddImageLocation,
     pub num_tiles: u32,
     pub sel_tile: u32,
     pub clear_color: u8,
+    dlg_id_grid: String,
+    dlg_id_insert_location_combo: String,
     confirmed: bool,
 }
 
 impl AddTilesDialog {
     pub fn new() -> Self {
         AddTilesDialog {
+            dlg_id_grid: String::from("editor_panel_tileset_add_tiles_grid"),
+            dlg_id_insert_location_combo: String::from("editor_panel_tileset_add_tiles_insert_at_combo"),
             confirmed: false,
             open: false,
-            add_tile_location: AddTileLocation::AfterSelected,
+            add_tile_location: AddImageLocation::AfterSelected,
             num_tiles: 0,
             sel_tile: 0,
             clear_color: 0,
@@ -34,7 +38,7 @@ impl AddTilesDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sel_tile: u32, clear_color: u8) {
-        self.add_tile_location = AddTileLocation::AfterSelected;
+        self.add_tile_location = AddImageLocation::AfterSelected;
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.clear_color = clear_color;
@@ -45,9 +49,9 @@ impl AddTilesDialog {
     fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
         let old_num_tiles = tileset.num_tiles;
         let insertion_point = match self.add_tile_location {
-            AddTileLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
-            AddTileLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
-            AddTileLocation::AtEnd => { tileset.num_tiles }
+            AddImageLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
+            AddImageLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
+            AddImageLocation::AtEnd => { tileset.num_tiles }
         };
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.clear_color);
         let tile_size = (tileset.height * tileset.width) as usize;
@@ -71,7 +75,7 @@ impl AddTilesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Add Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
+                egui::Grid::new(&self.dlg_id_grid)
                     .num_columns(2)
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
@@ -85,23 +89,23 @@ impl AddTilesDialog {
                         ui.end_row();
 
                         ui.label("Insert at:");
-                        egui::ComboBox::from_id_salt(format!("editor_panel_{}_insert_tile_at_combo", tileset.asset.id))
+                        egui::ComboBox::from_id_salt(&self.dlg_id_insert_location_combo)
                             .selected_text(self.add_tile_location.text())
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::BeforeSelected,
-                                    AddTileLocation::BeforeSelected.text()
+                                    AddImageLocation::BeforeSelected,
+                                    AddImageLocation::BeforeSelected.text()
                                 );
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::AfterSelected,
-                                    AddTileLocation::AfterSelected.text()
+                                    AddImageLocation::AfterSelected,
+                                    AddImageLocation::AfterSelected.text()
                                 );
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::AtEnd,
-                                    AddTileLocation::AtEnd.text()
+                                    AddImageLocation::AtEnd,
+                                    AddImageLocation::AtEnd.text()
                                 );
                             });
                         ui.end_row();

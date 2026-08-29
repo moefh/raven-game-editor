@@ -13,7 +13,7 @@ use super::super::{
     EditorAction,
     SysDialogResponse,
     SysDialogOpenFile,
-    AddTileLocation,
+    AddImageLocation,
 };
 
 pub struct AddImportedTilesDialog {
@@ -21,7 +21,7 @@ pub struct AddImportedTilesDialog {
     pub dlg_window_id: egui::Id,
     pub import_tileset_sys_dlg_id: String,
     pub load_options: ImageLoadOptions,
-    pub add_tile_location: AddTileLocation,
+    pub add_tile_location: AddImageLocation,
     pub sel_tile: u32,
     pub clear_color: u8,
 }
@@ -40,7 +40,7 @@ impl AddImportedTilesDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_tileset_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
-            add_tile_location: AddTileLocation::AtEnd,
+            add_tile_location: AddImageLocation::AtEnd,
             sel_tile: 0,
             clear_color: 0,
             import_tileset_sys_dlg_id: String::new(),
@@ -48,7 +48,7 @@ impl AddImportedTilesDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sel_tile: u32, clear_color: u8, tileset: &Tileset) {
-        self.add_tile_location = AddTileLocation::AtEnd;
+        self.add_tile_location = AddImageLocation::AtEnd;
         self.sel_tile = sel_tile;
         self.clear_color = clear_color;
         self.load_options = Self::DEFAULT_LOAD_OPTIONS;
@@ -65,9 +65,9 @@ impl AddImportedTilesDialog {
     fn create_empty_tiles(&mut self, wc: &mut WindowContext, num_tiles: u32, tileset: &mut Tileset) -> usize {
         let old_num_tiles = tileset.num_tiles;
         let insertion_point = match self.add_tile_location {
-            AddTileLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
-            AddTileLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
-            AddTileLocation::AtEnd => { tileset.num_tiles }
+            AddImageLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
+            AddImageLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
+            AddImageLocation::AtEnd => { tileset.num_tiles }
         };
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + num_tiles, self.clear_color);
         if insertion_point < old_num_tiles {
@@ -159,18 +159,18 @@ impl AddImportedTilesDialog {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::BeforeSelected,
-                                    AddTileLocation::BeforeSelected.text()
+                                    AddImageLocation::BeforeSelected,
+                                    AddImageLocation::BeforeSelected.text()
                                 );
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::AfterSelected,
-                                    AddTileLocation::AfterSelected.text()
+                                    AddImageLocation::AfterSelected,
+                                    AddImageLocation::AfterSelected.text()
                                 );
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddTileLocation::AtEnd,
-                                    AddTileLocation::AtEnd.text()
+                                    AddImageLocation::AtEnd,
+                                    AddImageLocation::AtEnd.text()
                                 );
                             });
                         ui.end_row();
