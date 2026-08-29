@@ -534,7 +534,7 @@ impl Editor {
                         );
                     }
 
-                    if ui.add_enabled(can_change_tiles, menu_item_no_image(" Add imported tiles...")).clicked() {
+                    if ui.add_enabled(can_change_tiles, menu_item_no_image(" Add tiles from file...")).clicked() {
                         dialogs.add_imported_tiles_dialog.set_open(
                             wc,
                             self.tile_image_editor.get_selected_image(),

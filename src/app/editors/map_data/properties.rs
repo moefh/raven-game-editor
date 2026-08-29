@@ -141,7 +141,7 @@ impl PropertiesDialog {
                             });
                         ui.end_row();
 
-                        ui.label("Tile Anim:");
+                        ui.label("Tile Animation:");
                         let cur_tanim_name = if let Some(cur_tanim) = self.tile_anim_id.and_then(|tanim_id| tile_anims.get(&tanim_id)) {
                             &cur_tanim.asset.name
                         } else {
