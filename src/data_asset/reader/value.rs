@@ -361,7 +361,6 @@ impl ValueAssetRef {
         }
     }
 
-    /*
     pub fn get_asset_id_or_none(&self, data: &ProjectData) -> Result<Option<DataAssetId>> {
         match self.pointer {
             ValueAssetRefPointer::Asset { asset_type, index } => {
@@ -375,5 +374,4 @@ impl ValueAssetRef {
             }
         }
     }
-    */
 }

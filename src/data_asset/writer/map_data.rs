@@ -46,11 +46,33 @@ pub fn write_maps(writer: &ProjectDataWriter, map_ids: &[DataAssetId]) -> Result
     for id in map_ids.iter() {
         if let Some(map_data) = writer.store.assets.maps.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::MapData, *id)?;
+            writer.write("  {\n");
+
+            // size
+            writer.write(format!(
+                "    {}, {}, {}, {},\n",
+                map_data.width,
+                map_data.height,
+                map_data.para_width,
+                map_data.para_height
+            ));
+
+            // tileset
             let tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, map_data.tileset_id)?;
-            writer.write(format!("  {{ {}, {}, {}, {}, &{}_tilesets[{}], {}_map_tiles_{} }},\n",
-                map_data.width, map_data.height, map_data.para_width, map_data.para_height,
-                writer.ident.prefix_lower, tileset_index,
-                writer.ident.prefix_lower, name_id));
+            writer.write(format!("    &{}_tilesets[{}], // tileset\n", writer.ident.prefix_lower, tileset_index));
+
+            // tile animation
+            if let Some(tile_anim_id) = map_data.tile_anim_id {
+                let tile_anim_index = writer.ident.get_asset_index(DataAssetType::TileAnimation, tile_anim_id)?;
+                writer.write(format!("    &{}_tile_animations[{}], // tile animation\n", writer.ident.prefix_lower, tile_anim_index));
+            } else {
+                writer.write("    NULL,  // tile animation\n");
+            }
+
+            // tiles
+            writer.write(format!("    {}_map_tiles_{}\n", writer.ident.prefix_lower, name_id));
+
+            writer.write("  },\n");
         }
     }
     writer.write("};\n");

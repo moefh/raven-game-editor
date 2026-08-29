@@ -22,6 +22,7 @@ pub fn get_asset_def() -> ValueDefStruct
         (String::from("para_w"), ValueDef::U16),
         (String::from("para_h"), ValueDef::U16),
         (String::from("tileset"), ValueDef::AssetRef),
+        (String::from("tile_anim"), ValueDef::AssetRef),
         (String::from("tiles"), ValueDef::ArrayRef),
     ])
 }
@@ -32,6 +33,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     let para_width = asset_struct.get_u16("para_w")?;
     let para_height = asset_struct.get_u16("para_h")?;
     let tileset_ref = asset_struct.get_asset_ref("tileset")?;
+    let tile_anim_ref = asset_struct.get_asset_ref("tile_anim")?;
     let array = asset_struct.get_array_ref("tiles")?;
 
     let name = project_data.extract_asset_name("map_tiles_", array)?;
@@ -57,7 +59,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     Ok(MapData {
         asset: DataAsset::new(DataAssetType::MapData, asset_id, DataAsset::identifier_to_name(name)),
         tileset_id: tileset_ref.get_asset_id(project_data)?,
-        tile_anim_id: None,
+        tile_anim_id: tile_anim_ref.get_asset_id_or_none(project_data)?,
         width,
         height,
         para_width,
