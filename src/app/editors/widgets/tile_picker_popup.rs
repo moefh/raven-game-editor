@@ -53,9 +53,9 @@ impl TilePickerPopupWidget {
             for x in 0..dims.0 {
                 let tile_rect = Rect::from_min_size(rect.min + tile_size * Vec2::new(x as f32, y as f32), tile_size);
                 let tile = ((y * dims.0 + x).abs() & 0xff) as u32;
-                if tile as u32 >= tileset.num_tiles { break; }
+                if tile >= tileset.num_tiles { break; }
 
-                let uv = tileset.get_item_uv(tile as u32);
+                let uv = tileset.get_item_uv(tile);
                 let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv).paint_at(ui, tile_rect);
             }
@@ -92,7 +92,7 @@ impl TilePickerPopupWidget {
             .show(|ui| {
                 ui.horizontal(|ui| {
                     let dim_y = ((tileset.num_tiles as f32).sqrt().min(8.0)).floor() as i32;
-                    let dims = ((tileset.num_tiles as u32).div_ceil(dim_y as u32) as i32, dim_y);
+                    let dims = (tileset.num_tiles.div_ceil(dim_y as u32) as i32, dim_y);
                     let size = Vec2::new(dims.0 as f32 * tile_size.x, dims.1 as f32 * tile_size.y);
                     let (response, painter) = ui.allocate_painter(size, Sense::click_and_drag());
                     Self::draw_tileset(&painter, ui, wc, response.rect, dims, tileset, *pick_tile);
@@ -101,7 +101,7 @@ impl TilePickerPopupWidget {
                         let y = ((pos.y - response.rect.min.y) / tile_size.y).floor() as i32;
                         let index = y * dims.0 + x;
                         if index >= 0 && index < tileset.num_tiles as i32 {
-                            *pick_tile = Some(index.abs() as u32);
+                            *pick_tile = Some(index.unsigned_abs());
                             picked = true;
                         }
                     }

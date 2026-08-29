@@ -94,6 +94,7 @@ fn sorted_assets<T: GenericAsset>(assets: &AssetList<T>) -> impl Iterator<Item =
 pub struct AssetEditorBase {
     pub id: DataAssetId,
     pub egui_id: egui::Id,
+    pub footer_panel_id: egui::Id,
     pub open: bool,
     pub closed_last_frame: bool,
     title: String,
@@ -111,6 +112,7 @@ impl AssetEditorBase {
             title: String::new(),
             closed_last_frame: false,
             egui_id: egui::Id::new(format!("editor_{}", id)),
+            footer_panel_id: egui::Id::new(format!("editor_{}_footer_panel", id)),
             maximized_state: MaximizedState::Normal,
             window_rect: egui::Rect::ZERO,
             saved_hash: 0,

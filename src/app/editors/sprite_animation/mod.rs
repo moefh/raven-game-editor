@@ -1,9 +1,6 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::image::{
-    colors,
-};
 use crate::data_asset::{
     self,
     SpriteAnimation,
@@ -16,6 +13,7 @@ use crate::data_asset::{
 };
 
 use super::{
+    get_animation_step,
     IMAGE_ZOOM_OPTIONS,
     ImageZoomOption,
     AssetEditorBase,
@@ -26,7 +24,6 @@ use super::{
     EditorAction,
 };
 use super::widgets::{
-    ColorPickerWidget,
     ImageEditorWidget,
     SpriteFrameListView,
     ImageDisplay,
@@ -39,7 +36,7 @@ use super::super::{
 use properties::PropertiesDialog;
 
 enum EditorTabs {
-    Sprite,
+    Loop,
     Frames,
 }
 
@@ -80,7 +77,7 @@ impl SpriteAnimationEditor {
     fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, animation: &SpriteAnimation, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, animation.asset.id));
-        egui::Panel::bottom(format!("editor_panel_{}_bottom", animation.asset.id)).frame(bottom_frame).show(ui, |ui| {
+        egui::Panel::bottom(base.footer_panel_id).frame(bottom_frame).show(ui, |ui| {
             let dirty = if base.is_dirty() { " (modified)" } else { "" };
             let num_loops = animation.loops.iter().fold(0, |n, aloop| {
                 n + if aloop.frame_indices.is_empty() { 0 } else { 1 }
@@ -98,7 +95,7 @@ impl SpriteAnimationEditor {
     ) {
         self.dialogs.show(wc, animation, asset_ids, sprites, &mut self.editor);
 
-        self.base.show_window(wc, animation, [550.0, 450.0], [550.0, 450.0], |ui, wc, animation, base| {
+        self.base.show_window(wc, animation, [640.0, 450.0], [640.0, 450.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, asset_ids, sprites);
         });
@@ -143,14 +140,25 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
+    panel_id_menu_bar: egui::Id,
+    panel_id_loops: egui::Id,
+    panel_id_tab_header: egui::Id,
+    panel_id_display_bar: egui::Id,
+    panel_id_loop_info_bar: egui::Id,
+    panel_id_loop_frames: egui::Id,
+    panel_id_loop_properties_grid: egui::Id,
+    panel_id_loop_sel_frames: egui::Id,
+    panel_id_loop_all_frames: egui::Id,
+    combo_salt_zoom: egui::Id,
     selected_tab: EditorTabs,
     selected_loop: usize,
     sprite_frames: Vec<SpriteAnimationFrame>,
-    color_picker: ColorPickerWidget,
     image_editor: ImageEditorWidget<Sprite>,
     main_frames_list: SpriteFrameListView,
     loop_frames_list: SpriteFrameListView,
     all_frames_list: SpriteFrameListView,
+    playing: bool,
+    reverse_play: bool,
 }
 
 impl Editor {
@@ -158,16 +166,29 @@ impl Editor {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_sprite_animation", asset_id),
-            selected_tab: EditorTabs::Sprite,
+            panel_id_menu_bar: egui::Id::new(format!("editor_panel_{}_top", asset_id)),
+            panel_id_loops: egui::Id::new(format!("editor_panel_{}_left", asset_id)),
+            panel_id_tab_header: egui::Id::new(format!("editor_panel_{}_tabs", asset_id)),
+            panel_id_display_bar: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
+            panel_id_loop_info_bar: egui::Id::new(format!("editor_panel_{}_loop_info_bar", asset_id)),
+            panel_id_loop_frames: egui::Id::new(format!("editor_panel_{}_loop_frames", asset_id)),
+            panel_id_loop_properties_grid: egui::Id::new(format!("editor_panel_{}_prop_grid", asset_id)),
+            panel_id_loop_sel_frames: egui::Id::new(format!("editor_panel_{}_loop_sel_frames", asset_id)),
+            panel_id_loop_all_frames: egui::Id::new(format!("editor_panel_{}_loop_all_frames", asset_id)),
+            combo_salt_zoom: egui::Id::new(format!("pal_sprite_editor_{}_zoom_combo", asset_id)),
+
+            selected_tab: EditorTabs::Loop,
             selected_loop: 0,
             sprite_frames: Vec::new(),
-            color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, false),
             image_editor: ImageEditorWidget::<Sprite>::new()
                 .with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT | ImageDisplay::GRID))
-                .with_tool(ImageDrawingTool::Collision),
+                .with_tool(ImageDrawingTool::Collision)
+                .readonly(),
             main_frames_list: SpriteFrameListView::new(true, false),
             loop_frames_list: SpriteFrameListView::new(false, false),
             all_frames_list: SpriteFrameListView::new(true, true),
+            playing: false,
+            reverse_play: false,
         }
     }
 
@@ -184,7 +205,7 @@ impl Editor {
         self.all_frames_list.selected_frame = 0;
     }
 
-    fn sprite_tab(
+    fn loop_tab(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -197,87 +218,20 @@ impl Editor {
             None => { return; }
         };
 
-        let asset_id = animation.asset.id;
+        // Loop name
+        egui::Panel::top(self.panel_id_loop_info_bar).resizable(false).show(ui, |ui| {
+            ui.add_space(4.0);
 
-        // toolbar:
-        egui::Panel::top(format!("editor_panel_{}_toolbar", asset_id)).resizable(false).show(ui, |ui| {
-            ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
-                let spacing = ui.spacing().item_spacing;
-                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-
-                ui.label("Tool:");
-                ui.add_space(1.0);
-                if ui.add(
-                    egui::Button::image(IMAGES.pen)
-                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
-                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
-                ).on_hover_text("Pencil").clicked() {
-                    self.image_editor.set_tool(ImageDrawingTool::Pencil);
+                if let Some(aloop) = animation.loops.get_mut(self.selected_loop) {
+                    ui.label("Name:");
+                    ui.add(egui::TextEdit::singleline(&mut aloop.name_id).desired_width(200.0));
                 }
-                if ui.add(
-                    egui::Button::image(IMAGES.select)
-                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Collision)
-                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Collision)
-                ).on_hover_text("Collision").clicked() {
-                    self.image_editor.set_tool(ImageDrawingTool::Collision);
-                }
-
-                ui.spacing_mut().item_spacing = spacing;
-                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                    ui.horizontal(|ui| {
-                        let spacing = ui.spacing().item_spacing;
-                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
-                        if ui.add(egui::Button::image(IMAGES.grid)
-                                  .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
-                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
-                            .on_hover_text("Grid").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::GRID);
-                            }
-                        if ui.add(egui::Button::image(IMAGES.transparency)
-                                  .selected(self.image_editor.display.is_transparent())
-                                  .frame_when_inactive(self.image_editor.display.is_transparent()))
-                            .on_hover_text("Transparency").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
-                            }
-                        if ui.add(egui::Button::image(IMAGES.select)
-                                  .selected(self.image_editor.display.has_bits(ImageDisplay::COLLISION))
-                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::COLLISION)))
-                            .on_hover_text("Collision").clicked() {
-                                self.image_editor.toggle_display(ImageDisplay::COLLISION);
-                            }
-                        ui.add_space(1.0);
-                        ui.label("Display:");
-
-                        ui.add_space(5.0);
-                        ui.separator();
-                        ui.add_space(5.0);
-
-                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
-                        egui::ComboBox::from_id_salt(format!("pal_sprite_editor_{}_zoom_combo", self.asset_id))
-                            .selected_text(cur_zoom_option.name())
-                            .width(60.0)
-                            .show_ui(ui, |ui| {
-                                for option in IMAGE_ZOOM_OPTIONS {
-                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
-                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
-                                }
-                            });
-                        self.image_editor.zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
-                        ui.add_space(1.0);
-                        ui.label("Zoom:");
-
-                        ui.spacing_mut().item_spacing = spacing;
-                    });
-                });
             });
-            ui.add_space(0.0);  // don't remove this, it's necessary
-        });
 
-        // Loop info
-        egui::Panel::top(format!("editor_panel_{}_loop_info_bar", asset_id)).resizable(false).show(ui, |ui| {
-            ui.add_space(2.0);
+            ui.add_space(4.0);
+
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
@@ -286,34 +240,17 @@ impl Editor {
                     ui.label("Frame speed: ");
                     ui.add(egui::DragValue::new(&mut aloop.frame_speed).speed(1.0).range(1..=256));
 
-                    ui.add_space(5.0);
+                    ui.add_space(10.0);
                     ui.separator();
-                    ui.add_space(5.0);
+                    ui.add_space(10.0);
 
                     ui.label("Don't loop: ");
                     ui.checkbox(&mut aloop.dont_loop, "");
                 }
-
-                // show current frame index:
-                if let Some(image_item) = animation.loops.get(self.selected_loop)
-                    .and_then(|aloop| aloop.frame_indices.get(self.main_frames_list.selected_frame))
-                    .and_then(|frame| frame.head_index) {
-                        ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(format!("Frame {}", image_item));
-                                ui.add_space(5.0);
-                                ui.separator();
-                            });
-                            ui.add_space(0.0);  // don't remove this, it's necessary
-                        });
-                    }
             });
-            ui.add_space(0.0);  // don't remove this, it's necessary
-        });
 
-        // Collision
-        egui::Panel::top(format!("editor_panel_{}_collision_bar", asset_id)).resizable(false).show(ui, |ui| {
-            ui.add_space(2.0);
+            ui.add_space(4.0);
+
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
                 ui.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
@@ -346,17 +283,114 @@ impl Editor {
                 ui.label("x");
                 ui.add(egui::DragValue::new(&mut animation.clip_rect.h).speed(1.0).range(0..=max_h));
             });
+            ui.add_space(4.0);
+        });
+
+        // Display
+        egui::Panel::top(self.panel_id_display_bar).resizable(false).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                // playback
+                let can_play = animation.loops.get(self.selected_loop).is_some_and(|aloop| aloop.frame_indices.len() > 1);
+                if ui.add_enabled(
+                    can_play && (! self.playing || ! self.reverse_play),
+                    egui::Button::new("\u{23f4}")
+                ).on_hover_text("Play reversed").clicked() {
+                    self.playing = true;
+                    self.reverse_play = true;
+                }
+                ui.add_space(6.0);
+                if ui.add_enabled(
+                    self.playing,
+                    egui::Button::new("\u{23f8}")
+                ).on_hover_text("Pause").clicked() {
+                    self.playing = false;
+                }
+                ui.add_space(6.0);
+                if ui.add_enabled(
+                    can_play && (! self.playing || self.reverse_play),
+                    egui::Button::new("\u{23f5}")
+                ).on_hover_text("Play").clicked() {
+                    self.playing = true;
+                    self.reverse_play = false;
+                }
+
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(10.0);
+
+                if let Some(aloop) = animation.loops.get(self.selected_loop) &&
+                    let Some(frame) = aloop.frame_indices.get(self.main_frames_list.selected_frame) &&
+                    let Some(sprite_frame_index) = frame.head_index {
+                        ui.label(format!(
+                            "Frame {} [sprite {}]",
+                            self.main_frames_list.selected_frame,
+                            sprite_frame_index
+                        ));
+                    }
+
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(10.0);
+
+                // display
+                ui.spacing_mut().item_spacing = spacing;
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        let spacing = ui.spacing().item_spacing;
+                        ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                                  .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
+                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
+                            .on_hover_text("Grid").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::GRID);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.transparency)
+                                  .selected(self.image_editor.display.is_transparent())
+                                  .frame_when_inactive(self.image_editor.display.is_transparent()))
+                            .on_hover_text("Transparency").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.select)
+                                  .selected(self.image_editor.display.has_bits(ImageDisplay::COLLISION))
+                                  .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::COLLISION)))
+                            .on_hover_text("Collision").clicked() {
+                                self.image_editor.toggle_display(ImageDisplay::COLLISION);
+                            }
+                        ui.add_space(1.0);
+                        ui.label("Display:");
+
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
+                        let mut cur_zoom_option = ImageZoomOption::from_image_editor_zoom(self.image_editor.zoom);
+                        egui::ComboBox::from_id_salt(self.combo_salt_zoom)
+                            .selected_text(cur_zoom_option.name())
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for option in IMAGE_ZOOM_OPTIONS {
+                                    if option.is_custom() && ! cur_zoom_option.is_custom() { continue; }
+                                    ui.selectable_value(&mut cur_zoom_option, option, option.name());
+                                }
+                            });
+                        self.image_editor.zoom = cur_zoom_option.image_editor_zoom(self.image_editor.zoom);
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+
+                        ui.spacing_mut().item_spacing = spacing;
+                    });
+                });
+            });
             ui.add_space(0.0);  // don't remove this, it's necessary
         });
 
-        // color picker:
-        egui::Panel::right(format!("editor_panel_{}_right", asset_id)).resizable(false).show(ui, |ui| {
-            ui.add_space(5.0);
-            self.color_picker.show(ui, wc);
-        });
-
         // loop frames:
-        egui::Panel::bottom(format!("editor_panel_{}_loop_frames", asset_id)).show(ui, |ui| {
+        egui::Panel::bottom(self.panel_id_loop_frames).show(ui, |ui| {
             ui.add_space(8.0);
             if let Some(aloop) = animation.loops.get(self.selected_loop) {
                 self.main_frames_list.show(
@@ -372,21 +406,27 @@ impl Editor {
 
         // body:
         egui::CentralPanel::default().show(ui, |ui| {
-            if let Some(image_item) = animation.loops.get(self.selected_loop)
-                .and_then(|aloop| aloop.frame_indices.get(self.main_frames_list.selected_frame))
-                .and_then(|frame| frame.head_index)  {
-                    self.image_editor.set_selected_image(image_item as u32, sprite);
-                    self.image_editor.set_collision_rect(Some(animation.clip_rect));
-                    let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
-                    self.image_editor.show(ui, wc, sprite, colors);
-                    self.color_picker.maybe_set_colors(
-                        self.image_editor.pick_left_color.take(),
-                        self.image_editor.pick_right_color.take()
-                    );
-                    if let Some(rect) = self.image_editor.get_collision_rect() {
-                        animation.clip_rect = rect;
+            if let Some(aloop) = animation.loops.get(self.selected_loop) {
+                let loop_len = aloop.frame_indices.len();
+                let frame_index = if self.playing && loop_len != 0 {
+                    wc.request_animation_repaint();
+                    if self.reverse_play {
+                        loop_len - 1 - get_animation_step(wc) as usize % loop_len
+                    } else {
+                        get_animation_step(wc) as usize % loop_len
                     }
+                } else {
+                    self.main_frames_list.selected_frame
+                };
+                let sprite_index = aloop.frame_indices.get(frame_index).and_then(|frame| frame.head_index).unwrap_or(0);
+                self.image_editor.set_selected_image(sprite_index as u32, sprite);
+                self.image_editor.set_collision_rect(Some(animation.clip_rect));
+                let colors = (0xff, 0xff);
+                self.image_editor.show(ui, wc, sprite, colors);
+                if let Some(rect) = self.image_editor.get_collision_rect() {
+                    animation.clip_rect = rect;
                 }
+            }
         });
     }
 
@@ -403,20 +443,14 @@ impl Editor {
             None => { return; }
         };
 
-        let asset_id = animation.asset.id;
-
-        egui::Panel::top(format!("editor_panel_{}_loop_sel_frames", asset_id)).show(ui, |ui| {
+        egui::Panel::top(self.panel_id_loop_sel_frames).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(aloop) = animation.loops.get_mut(self.selected_loop) {
-                egui::Grid::new(format!("editor_panel_{}_prop_grid", animation.asset.id))
+                egui::Grid::new(self.panel_id_loop_properties_grid)
                     .num_columns(2)
                     .spacing([4.0, 4.0])
                     .show(ui, |ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut aloop.name_id);
-                        ui.end_row();
-
-                        ui.label("Length:");
+                        ui.label("Loop length:");
                         ui.horizontal(|ui| {
                             let min_frames = if self.selected_loop == 0 { 1 } else { 0 };
                             if ui.button("\u{2796}").clicked() && aloop.frame_indices.len() > min_frames {
@@ -452,7 +486,7 @@ impl Editor {
             }
         });
 
-        egui::Panel::top(format!("editor_panel_{}_loop_all_frames", asset_id)).show(ui, |ui| {
+        egui::Panel::top(self.panel_id_loop_all_frames).show(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 ui.label("Sprite frames (drag to the lists below):");
@@ -488,11 +522,11 @@ impl Editor {
                     head_ui.label("Head frames:");
                     head_ui.take_available_space();
                     egui::ScrollArea::vertical().id_salt("head").auto_shrink([false, false]).show(head_ui, |ui| {
-                        for frame in &mut aloop.frame_indices {
+                        for (frame_num, frame) in aloop.frame_indices.iter_mut().enumerate() {
                             let (_, dropped_payload) = ui.dnd_drop_zone::<FrameDragPayload, ()>(drop_frame, |ui| {
                                 let name = match frame.head_index {
-                                    Some(index) => &format!("{}", index),
-                                    None => "(empty)",
+                                    Some(sprite_index) => &format!("[{:02}]: {}", frame_num, sprite_index),
+                                    None => &format!("[{:02}]: (empty)", frame_num),
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
@@ -509,11 +543,11 @@ impl Editor {
 
                     foot_ui.label("Foot frames:");
                     egui::ScrollArea::vertical().id_salt("foot").auto_shrink([false, false]).show(foot_ui, |ui| {
-                        for frame in &mut aloop.frame_indices {
+                        for (frame_num, frame) in aloop.frame_indices.iter_mut().enumerate() {
                             let (_, dropped_payload) = ui.dnd_drop_zone::<FrameDragPayload, ()>(drop_frame, |ui| {
                                 let name = match frame.foot_index {
-                                    Some(index) => &format!("{}", index),
-                                    None => "(empty)",
+                                    Some(sprite_index) => &format!("[{:02}]: {}", frame_num, sprite_index),
+                                    None => &format!("[{:02}]: (empty)", frame_num),
                                 };
                                 let label = ui.add(egui::Label::new(name).selectable(false).sense(egui::Sense::click()));
                                 egui::Popup::context_menu(&label).show(|ui| {
@@ -575,7 +609,7 @@ impl Editor {
         }
 
         // header:
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(self.panel_id_menu_bar).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Animation", |ui| {
                     if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
@@ -608,7 +642,7 @@ impl Editor {
         });
 
         // loops:
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).max_size(120.0).show(ui, |ui| {
+        egui::Panel::left(self.panel_id_loops).resizable(false).max_size(120.0).show(ui, |ui| {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 for (loop_index, aloop) in animation.loops.iter().enumerate() {
@@ -622,10 +656,10 @@ impl Editor {
         });
 
         // tabs:
-        egui::Panel::top(format!("editor_panel_{}_tabs", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(self.panel_id_tab_header).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Sprite), "Sprite").clicked() {
-                    self.selected_tab = EditorTabs::Sprite;
+                if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Loop), "Loop").clicked() {
+                    self.selected_tab = EditorTabs::Loop;
                 }
                 if ui.selectable_label(matches!(self.selected_tab, EditorTabs::Frames), "Frames").clicked() {
                     self.selected_tab = EditorTabs::Frames;
@@ -634,13 +668,8 @@ impl Editor {
         });
 
         match self.selected_tab {
-            EditorTabs::Sprite => self.sprite_tab(ui, wc, animation, asset_ids, sprites),
+            EditorTabs::Loop => self.loop_tab(ui, wc, animation, asset_ids, sprites),
             EditorTabs::Frames => self.frames_tab(ui, wc, animation, asset_ids, sprites),
         };
-
-        // keyboard:
-        if wc.is_editor_on_top(self.asset_id) && let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
-            self.image_editor.handle_keyboard(ui, wc, sprite, self.color_picker.state.right_color);
-        }
     }
 }

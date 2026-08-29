@@ -507,7 +507,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
     }
 
     fn handle_collision_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
-        if self.readonly { return; }
+        // collision editing is NOT disabled on read-only mode, to
+        // disable it either hide it or set the editing tool to
+        // anything other than collision
 
         if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's not shown
 
@@ -655,7 +657,13 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         self.selection = ImageSelection::Fragment(Pos2::ZERO, ImageFragment::from_pixels(image.get_asset_id(), pixels));
     }
 
-    pub fn handle_keyboard(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &mut ImageAsset, fill_color: u8) -> ImageEditorAction {
+    pub fn handle_keyboard(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        image: &mut ImageAsset,
+        fill_color: u8
+    ) -> ImageEditorAction {
         if self.readonly { return ImageEditorAction::None; }
 
         // redo

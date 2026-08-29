@@ -121,7 +121,6 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     header_panel_id: egui::Id,
-    playback_toolbar_panel_id: egui::Id,
     display_toolbar_panel_id: egui::Id,
     parent_tile_picker_panel_id: egui::Id,
     anim_tile_picker_panel_id: egui::Id,
@@ -142,7 +141,6 @@ impl Editor {
         Editor {
             asset_id,
             header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
-            playback_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_playback_toolbar", asset_id)),
             display_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
             parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
             parent_tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id))),
@@ -189,10 +187,11 @@ impl Editor {
         });
     }
 
-    fn show_playback_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
-        egui::Panel::top(self.playback_toolbar_panel_id).show(ui, |ui| {
+    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
+        egui::Panel::top(self.display_toolbar_panel_id).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
+                // playback
                 let can_play = self.parent_tile_picker.get_selected_image_l().and_then(|sel_tile| {
                     tanim.loops.get(sel_tile as usize)
                 }).is_some_and(|tloop| tloop.len != 0);
@@ -216,23 +215,8 @@ impl Editor {
                     self.playing = true;
                     self.reverse_play = false;
                 }
-            });
-            ui.add_space(0.0); // don't remove this
-        });
-    }
 
-    fn show_display_toolbar(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, tanim: &TileAnimation) {
-        egui::Panel::top(self.display_toolbar_panel_id).show(ui, |ui| {
-            ui.add_space(2.0);
-            ui.horizontal(|ui| {
-                if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                    let Some(tloop) = tanim.loops.get(selected_tile as usize) &&
-                    tloop.len != 0 {
-                        ui.label(format!("Animation: {} frames", tloop.len));
-                    } else {
-                        ui.label("No animation");
-                    }
-
+                // display
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         ui.add_space(2.0);
@@ -316,8 +300,8 @@ impl Editor {
             }
         if let Some(parent_tileset) = tilesets.get(&tanim.parent_tileset_id) &&
             let Some(tile) = self.parent_tile_picker.get_selected_image_l() &&
-            tile >= parent_tileset.num_tiles as u32 {
-                self.parent_tile_picker.set_selected_image_l(Some((parent_tileset.num_tiles as u32).saturating_sub(1)));
+            tile >= parent_tileset.num_tiles {
+                self.parent_tile_picker.set_selected_image_l(Some(parent_tileset.num_tiles.saturating_sub(1)));
             }
     }
 
@@ -350,7 +334,6 @@ impl Editor {
 
         self.show_menu_bar(ui, wc, dialogs, tanim);
         self.show_parent_tile_picker(ui, wc, tanim, tilesets);
-        self.show_playback_toolbar(ui, wc, tanim);
         self.show_display_toolbar(ui, wc, tanim);
 
         // selected loop
@@ -422,10 +405,10 @@ impl Editor {
                         let play_tile = if self.reverse_play {
                             tloop.start.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8) as u32
                         } else {
-                            tloop.start.saturating_add((animation_step % loop_len as u32) as u8) as u32
+                            tloop.start.saturating_add((animation_step % loop_len) as u8) as u32
                         };
                         self.image_editor.set_selected_image(play_tile, anim_tileset);
-                        wc.request_map_animation_repaint();
+                        wc.request_animation_repaint();
                     } else {
                         self.image_editor.set_selected_image(loop_start, anim_tileset);
                     }

@@ -26,8 +26,8 @@ pub struct AppSettings {
     pub map_grid_color: egui::Color32,
     pub tile_picker_zoom: u32,
     pub tile_picker_popup_zoom: u32,
-    pub map_animation_ms_per_frame: u32,
-    pub map_animation_delay: u32,
+    pub animation_ms_per_frame: u32,
+    pub animation_delay: u32,
     pub marching_ants_delay: u32,
     pub marching_ants_dash_size: u32,
     pub marching_ants_thickness: u32,
@@ -51,8 +51,8 @@ impl AppSettings {
             map_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
             tile_picker_zoom: 400,
             tile_picker_popup_zoom: 300,
-            map_animation_ms_per_frame: 200,
-            map_animation_delay: 50,
+            animation_ms_per_frame: 200,
+            animation_delay: 50,
             marching_ants_delay: 100,
             marching_ants_dash_size: 5,
             marching_ants_thickness: 3,
@@ -106,8 +106,8 @@ impl AppSettings {
         config.push_str(&format!("tile_picker_zoom = {};\n", self.tile_picker_zoom));
         config.push_str(&format!("tile_picker_popup_zoom = {};\n", self.tile_picker_popup_zoom));
 
-        config.push_str(&format!("map_animation_delay = {};\n", self.map_animation_delay));
-        config.push_str(&format!("map_animation_ms_per_frame = {};\n", self.map_animation_ms_per_frame));
+        config.push_str(&format!("animation_delay = {};\n", self.animation_delay));
+        config.push_str(&format!("animation_ms_per_frame = {};\n", self.animation_ms_per_frame));
 
         config.push_str(&format!("marching_ants_delay = {};\n", self.marching_ants_delay));
         config.push_str(&format!("marching_ants_thickness = {};\n", self.marching_ants_thickness));
@@ -273,8 +273,8 @@ impl<'a> AppSettingsReader<'a> {
                     "color_picker_bg_color" => { settings.color_picker_bg_color = self.read_color_config()?; }
                     "image_grid_color" => { settings.image_grid_color = self.read_color_config()?; }
                     "map_grid_color" => { settings.map_grid_color = self.read_color_config()?; }
-                    "map_animation_delay" => { settings.map_animation_delay = self.read_number_config()?; }
-                    "map_animation_ms_per_frame" => { settings.map_animation_ms_per_frame = self.read_number_config()?; }
+                    "animation_delay" => { settings.animation_delay = self.read_number_config()?; }
+                    "animation_ms_per_frame" => { settings.animation_ms_per_frame = self.read_number_config()?; }
                     "marching_ants_delay" => { settings.marching_ants_delay = self.read_number_config()?; }
                     "marching_ants_thickness" => { settings.marching_ants_thickness = self.read_number_config()?; }
                     "marching_ants_dash_size" => { settings.marching_ants_dash_size = self.read_number_config()?; }

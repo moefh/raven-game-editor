@@ -34,16 +34,12 @@ impl SettingsWindow {
         ui.label(label);
         let mut edit_zoom = *zoom as f32 / 100.0;
         ui.horizontal(|ui| {
-            if ui.button("\u{2796}").clicked() {
-                if edit_zoom > 0.5 {
-                    edit_zoom = ((edit_zoom - 0.1) * 10.0).round() / 10.0;
-                }
+            if ui.button("\u{2796}").clicked() && edit_zoom > 0.5 {
+                edit_zoom = ((edit_zoom - 0.1) * 10.0).round() / 10.0;
             }
             ui.label(format!("{:3.1}x", edit_zoom));
-            if ui.button("\u{2795}").clicked() {
-                if edit_zoom < 10.0 {
-                    edit_zoom = ((edit_zoom + 0.1) * 10.0).round() / 10.0;
-                }
+            if ui.button("\u{2795}").clicked() && edit_zoom < 10.0 {
+                edit_zoom = ((edit_zoom + 0.1) * 10.0).round() / 10.0;
             }
         });
         if *zoom != (edit_zoom * 100.0).round() as u32 {
@@ -163,18 +159,18 @@ impl SettingsWindow {
         });
     }
 
-    fn show_map_animation_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
-        egui::CollapsingHeader::new("Map Animation").default_open(true).show(ui, |ui| {
-            egui::Grid::new("editor_settings_map_animation")
+    fn show_animation_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
+        egui::CollapsingHeader::new("Animation").default_open(true).show(ui, |ui| {
+            egui::Grid::new("editor_settings_animation")
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
                     ui.label("Delay:");
-                    ui.add(egui::Slider::new(&mut wc.settings.map_animation_delay, 50..=1000));
+                    ui.add(egui::Slider::new(&mut wc.settings.animation_delay, 50..=1000));
                     ui.end_row();
 
                     ui.label("ms/frame:");
-                    ui.add(egui::Slider::new(&mut wc.settings.map_animation_ms_per_frame, 16..=2000));
+                    ui.add(egui::Slider::new(&mut wc.settings.animation_ms_per_frame, 16..=2000));
                     ui.end_row();
                 })
         });
@@ -227,7 +223,7 @@ impl SettingsWindow {
                     ui.add_space(5.0);
                     Self::show_widget_settings(ui, wc);
                     ui.add_space(5.0);
-                    Self::show_map_animation_settings(ui, wc);
+                    Self::show_animation_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_colorset_settings(ui, wc);
                     ui.add_space(5.0);

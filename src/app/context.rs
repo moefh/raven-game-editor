@@ -187,8 +187,8 @@ impl<'a> WindowContext<'a> {
         self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.marching_ants_delay as u64));
     }
 
-    pub fn request_map_animation_repaint(&self) {
-        self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.map_animation_delay as u64));
+    pub fn request_animation_repaint(&self) {
+        self.egui.ctx.request_repaint_after(std::time::Duration::from_millis(self.settings.animation_delay as u64));
     }
 
     pub fn is_editor_on_top(&self, id: DataAssetId) -> bool {

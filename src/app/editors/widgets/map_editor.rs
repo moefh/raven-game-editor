@@ -989,7 +989,7 @@ impl MapEditorWidget {
         }
 
         if has_animated_tiles {
-            wc.request_map_animation_repaint();
+            wc.request_animation_repaint();
         }
 
         // ====================================================
