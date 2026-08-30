@@ -12,7 +12,7 @@ pub struct MessageBoxDialog {
 }
 
 impl MessageBoxDialog {
-    const WINDOW_WIDTH: f32 = 350.0;
+    const WINDOW_WIDTH: f32 = 450.0;
 
     pub fn new() -> Self {
         MessageBoxDialog {
@@ -37,7 +37,12 @@ impl MessageBoxDialog {
 
         if create_dialog_window(sys_dialogs, ui, self.id, Self::WINDOW_WIDTH, &self.title, |ui| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
-                ui.label(&self.text);
+                ui.with_layout(
+                    egui::Layout::left_to_right(egui::Align::LEFT),
+                    |ui| {
+                        ui.add(egui::Label::new(&self.text).wrap());
+                    }
+                );
             });
             if ui.button("OK").clicked() {
                 ui.close();
