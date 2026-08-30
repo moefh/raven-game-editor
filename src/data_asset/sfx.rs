@@ -37,6 +37,20 @@ impl Sfx {
 
 }
 
+impl super::DataHashAsset for Sfx {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+        self.len.hash(state);
+        self.loop_start.hash(state);
+        self.loop_len.hash(state);
+        self.bits_per_sample.hash(state);
+        self.samples.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<Sfx> for Sfx {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         Sfx {

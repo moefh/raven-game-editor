@@ -124,6 +124,20 @@ impl ModData {
     }
 }
 
+impl super::DataHashAsset for ModData {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+
+        self.samples.hash(state);
+        self.pattern.hash(state);
+        self.song_positions.hash(state);
+        self.num_channels.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<ModData> for ModData {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         ModData {

@@ -26,6 +26,20 @@ impl PropFont {
     }
 }
 
+impl super::DataHashAsset for PropFont {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+
+        self.max_width.hash(state);
+        self.height.hash(state);
+        self.data.hash(state);
+        self.char_widths.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<PropFont> for PropFont {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         PropFont {

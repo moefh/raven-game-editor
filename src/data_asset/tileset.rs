@@ -28,7 +28,9 @@ impl super::DataHashAsset for Tileset {
 
         self.asset.asset_type.hash(state);
         self.asset.name.hash(state);
+
         self.width.hash(state);
+        self.height.hash(state);
         self.num_tiles.hash(state);
         self.data.hash(state);
     }

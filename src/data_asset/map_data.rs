@@ -37,6 +37,23 @@ impl MapData {
     }
 }
 
+impl super::DataHashAsset for MapData {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+        self.width.hash(state);
+        self.height.hash(state);
+        self.para_width.hash(state);
+        self.para_height.hash(state);
+        self.fg_tiles.hash(state);
+        self.bg_tiles.hash(state);
+        self.fx_tiles.hash(state);
+        self.para_tiles.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<MapData> for MapData {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         MapData {

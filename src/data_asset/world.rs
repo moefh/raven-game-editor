@@ -44,6 +44,24 @@ impl World {
     }
 }
 
+impl super::DataHashAsset for World {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+
+        for region in &self.regions {
+            region.name.hash(state);
+            region.x.hash(state);
+            region.y.hash(state);
+            region.width.hash(state);
+            region.height.hash(state);
+            region.blocks.hash(state);
+        }
+    }
+}
+
 impl super::DuplicableAsset<World> for World {
     fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> Self {
         World {

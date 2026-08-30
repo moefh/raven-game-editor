@@ -69,6 +69,49 @@ impl Room {
     }
 }
 
+impl super::DataHashAsset for Room {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+        for map in &self.maps {
+            map.x.hash(state);
+            map.y.hash(state);
+        }
+        for trigger in &self.triggers {
+            trigger.trigger_id.hash(state);
+            trigger.name_id.hash(state);
+            trigger.x.hash(state);
+            trigger.y.hash(state);
+            match trigger.trigger_type {
+                RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
+                    data0.hash(state);
+                    data1.hash(state);
+                    data2.hash(state);
+                    data3.hash(state);
+                }
+                RoomTriggerType::PlayerSpawn { direction } => {
+                    direction.hash(state);
+                }
+                RoomTriggerType::EnemySpawn { enemy_type, direction, .. } => {
+                    enemy_type.hash(state);
+                    direction.hash(state);
+                }
+                RoomTriggerType::Door { dest_trigger_id, .. } => {
+                    dest_trigger_id.hash(state);
+                }
+                RoomTriggerType::Trap { width, height, trap_type } => {
+                    width.hash(state);
+                    height.hash(state);
+                    trap_type.hash(state);
+                }
+            }
+        }
+        self.has_script.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<Room> for Room {
     fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> Self {
         Room {

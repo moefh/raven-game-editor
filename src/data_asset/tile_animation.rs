@@ -29,6 +29,16 @@ impl TileAnimation {
     }
 }
 
+impl super::DataHashAsset for TileAnimation {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+        self.loops.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<TileAnimation> for TileAnimation {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         TileAnimation {

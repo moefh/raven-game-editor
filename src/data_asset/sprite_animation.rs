@@ -60,6 +60,19 @@ impl SpriteAnimation {
     }
 }
 
+impl super::DataHashAsset for SpriteAnimation {
+    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+
+        self.asset.asset_type.hash(state);
+        self.asset.name.hash(state);
+
+        self.clip_rect.hash(state);
+        self.foot_overlap.hash(state);
+        self.loops.hash(state);
+    }
+}
+
 impl super::DuplicableAsset<SpriteAnimation> for SpriteAnimation {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         SpriteAnimation {
