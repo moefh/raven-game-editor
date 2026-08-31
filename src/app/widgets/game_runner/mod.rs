@@ -1,5 +1,6 @@
 mod player;
 mod util;
+pub mod collision;
 pub mod joystick;
 
 use player::{*};
@@ -386,11 +387,11 @@ impl GameRunnerWidget {
     fn tick_engine(
         &mut self,
         room: &Room,
-        player_sprite: &Sprite,
+        _player_sprite: &Sprite,
         player_anim: &SpriteAnimation,
-        _store: &DataAssetStore
+        store: &DataAssetStore
     ) {
-        self.player.tick_engine(room, player_sprite, player_anim);
+        self.player.tick_engine(room, player_anim, store, &self.joystick);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &DataAssetStore) {

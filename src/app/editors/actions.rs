@@ -21,6 +21,7 @@ use super::super::{
 
 pub enum EditorAction {
     StartGameRunnerOnMap { map_id: DataAssetId },
+    StartGameRunnerOnRoom { room_id: DataAssetId },
     ExportMap { map_id: DataAssetId },
     ExportRoom { room_id: DataAssetId },
     ExportSpriteAnimation { animation_id: DataAssetId },
@@ -58,6 +59,11 @@ impl EditorAction {
                     "Room Not Found",
                     "You must create a room containing this map."
                 );
+            }
+
+            EditorAction::StartGameRunnerOnRoom { room_id } => {
+                windows.collection.game_runner.reset(room_id, store);
+                windows.collection.game_runner.open(wc);
             }
 
             EditorAction::ExportMap { map_id } => {

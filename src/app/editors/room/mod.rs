@@ -578,7 +578,7 @@ impl Editor {
         }
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui) {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room) {
         egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
@@ -668,6 +668,14 @@ impl Editor {
                             });
                         ui.add_space(1.0);
                         ui.label("Zoom:");
+
+                        ui.add_space(5.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+
+                        if ui.button("\u{23f5}").on_hover_text("Test Room").clicked() {
+                            wc.add_editor_action(EditorAction::StartGameRunnerOnRoom { room_id: room.asset.id });
+                        }
                     });
                 });
                 ui.spacing_mut().item_spacing = spacing;
@@ -791,7 +799,7 @@ impl Editor {
         self.sort_ids(asset_ids, assets);
 
         self.show_header(ui, wc, dialogs, room, asset_ids, assets);
-        self.show_toolbar(ui);
+        self.show_toolbar(ui, wc, room);
 
         // properties panel:
         egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {

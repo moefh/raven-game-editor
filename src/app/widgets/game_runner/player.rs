@@ -1,10 +1,11 @@
 use crate::data_asset::{
+    DataAssetStore,
     Room,
-    Sprite,
     SpriteAnimation,
 };
 
 use super::joystick::{*};
+use super::collision::{*};
 
 pub const DX_ACCEL: i32       =  0x100;
 pub const DX_FRICTION: i32    =  0x0c0;
@@ -160,8 +161,41 @@ impl Player {
         }
     }
 
-    pub fn tick_engine(&mut self, _room: &Room, _player_sprite: &Sprite, player_anim: &SpriteAnimation) {
-        self.x += self.dx >> 8;
+    pub fn tick_engine(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore, joy: &Joystick) {
+        let dx = self.dx >> 8;
+        let dy = self.dy >> 8;
+        let mut rect = CollisionRect {
+            x: self.x,
+            y: self.y,
+            w: player_anim.clip_rect.w,
+            h: player_anim.clip_rect.h,
+        };
+        let col_flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy);
+        if (col_flags & COLLISION_FLAGS_DOWN) != 0 {
+            self.dy = 0;
+            if joy.held(JOY_RIGHT|JOY_LEFT) {
+                self.state = PlayerState::Walk;
+            } else if self.state != PlayerState::Crouch {
+                self.state = PlayerState::Stand;
+            }
+            self.anim_frame = 0;
+        } else if (col_flags & COLLISION_FLAGS_UP) != 0 {
+            if self.dy < 0 { self.dy = 0; }
+            if self.state == PlayerState::Jump {
+                self.state = PlayerState::Fall;
+                self.anim_frame = 0;
+            }
+        } else if self.state == PlayerState::Stand || self.state == PlayerState::Walk || self.state == PlayerState::Crouch {
+            let save_y = rect.y;
+            if collision_move(&mut rect, room, &store.assets.maps, 0, 1) == 0 {
+                self.state = PlayerState::Fall;
+                self.anim_frame = 0;
+            }
+            rect.y = save_y;
+        }
+
+        self.x = rect.x;
+        self.y = rect.y;
         self.anim_loop = self.state.get_anim_loop();
         if let Some(cur_loop) = player_anim.loops.get(self.anim_loop) {
             self.anim_frame += cur_loop.frame_speed as u32;

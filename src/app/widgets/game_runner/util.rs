@@ -28,8 +28,5 @@ pub fn get_room_size(room: &Room, store: &DataAssetStore) -> RoomSize {
 
 pub fn get_room_size_vec2(room: &Room, store: &DataAssetStore) -> egui::Vec2 {
     let size = get_room_size(room, store);
-    egui::Vec2::new(
-        size.width as f32 * TILE_SIZE,
-        size.height as f32 * TILE_SIZE
-    )
+    egui::Vec2::new(size.width as f32, size.height as f32)
 }
