@@ -1,4 +1,5 @@
 use crate::data_asset::{
+    self,
     Sprite,
     SpriteAnimation,
     DataAssetId,
@@ -29,43 +30,55 @@ pub struct PropertiesDialog {
     pub open: bool,
     pub sprite_id: DataAssetId,
     pub name: String,
+    dlg_id: egui::Id,
+    sorted_sprite_ids: Vec<DataAssetId>,
 }
 
 impl PropertiesDialog {
     pub fn new(sprite_id: DataAssetId) -> Self {
         PropertiesDialog {
+            dlg_id: egui::Id::new("dlg_animation_properties"),
             open: false,
             sprite_id,
             name: String::new(),
+            sorted_sprite_ids: Vec::new(),
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_animation_properties")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, animation: &SpriteAnimation) {
-        self.name.clear();
-        self.name.push_str(&animation.asset.name);
+        self.name.replace_range(.., &animation.asset.name);
         self.sprite_id = animation.sprite_id;
+        self.sorted_sprite_ids.clear();
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, animation: &mut SpriteAnimation, sprites: &AssetList<Sprite>) {
-        animation.asset.name.clear();
-        animation.asset.name.push_str(&self.name);
+        animation.asset.name.replace_range(.., &self.name);
         if animation.sprite_id != self.sprite_id && let Some(sprite) = sprites.get(&self.sprite_id) {
             animation.sprite_id = self.sprite_id;
             fix_animation_loop_indices(animation, sprite);
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, animation: &mut SpriteAnimation,
-                sprite_ids: &AssetIdList, sprites: &AssetList<Sprite>) {
-        if ! self.open { return; }
+    fn sort_ids(&mut self, sprite_ids: &AssetIdList, sprites: &AssetList<Sprite>) {
+        if self.sorted_sprite_ids.is_empty() {
+            sprite_ids.copy_to(&mut self.sorted_sprite_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, sprites);
+        }
+    }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Animation Properties", |ui, _wc| {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        animation: &mut SpriteAnimation,
+        sprite_ids: &AssetIdList,
+        sprites: &AssetList<Sprite>
+    ) {
+        if ! self.open { return; }
+        self.sort_ids(sprite_ids, sprites);
+
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 300.0, "Animation Properties", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", animation.asset.id))
                     .num_columns(2)
@@ -84,7 +97,7 @@ impl PropertiesDialog {
                         egui::ComboBox::from_id_salt(format!("anim_editor_sprite_combo_{}", animation.asset.id))
                             .selected_text(cur_sprite_name)
                             .show_ui(ui, |ui| {
-                                for sprite_id in sprite_ids.iter() {
+                                for sprite_id in self.sorted_sprite_ids.iter() {
                                     if let Some(sprite) = sprites.get(sprite_id) {
                                         ui.selectable_value(&mut self.sprite_id, sprite.asset.id, &sprite.asset.name);
                                     }
@@ -105,7 +118,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
     }
 }

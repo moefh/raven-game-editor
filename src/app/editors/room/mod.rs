@@ -220,6 +220,8 @@ struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
     room_editor: RoomEditorWidget,
+    sorted_animation_ids: Vec<DataAssetId>,
+    sorted_room_ids: Vec<DataAssetId>,
 }
 
 impl Editor {
@@ -228,6 +230,8 @@ impl Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
             room_editor: RoomEditorWidget::new(),
+            sorted_animation_ids: Vec::new(),
+            sorted_room_ids: Vec::new(),
         }
     }
 
@@ -326,7 +330,7 @@ impl Editor {
         (choose_maps, sel_map)
     }
 
-    fn show_trigger_tree(&self, ui: &mut egui::Ui, room: &Room) -> (bool, Option<usize>, Option<usize>) {
+    fn show_trigger_tree(&mut self, ui: &mut egui::Ui, room: &Room) -> (bool, Option<usize>, Option<usize>) {
         let (mut add_trigger, mut sel_trigger, mut rm_trigger) = (false, None, None);
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_tree", room.asset.id));
         let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
@@ -364,6 +368,7 @@ impl Editor {
                     }
                 });
                 if selected && self.room_editor.has_selected_item_changed() {
+                    self.clear_sorted_ids();
                     resp.scroll_to_me(None);
                 }
             }
@@ -371,8 +376,13 @@ impl Editor {
         (add_trigger, sel_trigger, rm_trigger)
     }
 
-    fn show_map_properties(&self, ui: &mut egui::Ui, map_index: usize, room: &mut Room,
-                           maps: &AssetList<MapData>) -> Option<()> {
+    fn show_map_properties(
+        &self,
+        ui: &mut egui::Ui,
+        map_index: usize,
+        room: &mut Room,
+        maps: &AssetList<MapData>
+    ) -> Option<()> {
         let room_map = room.maps.get_mut(map_index)?;
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_prop_tree", self.asset_id));
 
@@ -439,7 +449,8 @@ impl Editor {
         ui.end_row();
 
         ui.label("Name:");
-        ui.text_edit_singleline(&mut trigger.name_id);
+        //ui.text_edit_singleline(&mut trigger.name_id).desired_width(200.0);
+        ui.add(egui::TextEdit::singleline(&mut trigger.name_id).desired_width(150.0));
         ui.end_row();
 
         ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
@@ -488,7 +499,7 @@ impl Editor {
                 egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_animation", self.asset_id))
                     .selected_text(cur_anim_name)
                     .show_ui(ui, |ui| {
-                        for anim_id in asset_ids.animations.iter() {
+                        for anim_id in self.sorted_animation_ids.iter() {
                             if let Some(anim) = assets.animations.get(anim_id) {
                                 ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
                             }
@@ -520,7 +531,7 @@ impl Editor {
                 egui::ComboBox::from_id_salt(format!("editor_{}_trg_door_room", self.asset_id))
                     .selected_text(cur_room_name)
                     .show_ui(ui, |ui| {
-                        for sel_room_id in asset_ids.rooms.iter() {
+                        for sel_room_id in self.sorted_room_ids.iter() {
                             if let Some(sel_room_name) = assets.room_names.get(sel_room_id) {
                                 ui.selectable_value(dest_room_id, *sel_room_id, sel_room_name);
                             }
@@ -666,8 +677,15 @@ impl Editor {
         });
     }
 
-    fn show_header(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs,
-                   room: &mut Room, _asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+    fn show_header(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        _asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Room", |ui| {
@@ -724,6 +742,40 @@ impl Editor {
         }
     }
 
+    fn clear_sorted_ids(&mut self) {
+        self.sorted_room_ids.clear();
+        self.sorted_animation_ids.clear();
+    }
+
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
+            self.clear_sorted_ids();
+        }
+
+        if self.sorted_animation_ids.is_empty() {
+            asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+        }
+        if self.sorted_room_ids.is_empty() {
+            asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
+            self.sorted_room_ids.sort_by(|x, y| {
+                if let Some(name_x) = assets.room_names.get(x) {
+                    if let Some(name_y) = assets.room_names.get(y) {
+                        name_x.cmp(name_y)
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                } else {
+                    if assets.room_names.get(y).is_some() {
+                        std::cmp::Ordering::Less
+                    } else {
+                        x.cmp(y)
+                    }
+                }
+            });
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -736,6 +788,7 @@ impl Editor {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.import_room(wc, file, room, asset_ids);
         }
+        self.sort_ids(asset_ids, assets);
 
         self.show_header(ui, wc, dialogs, room, asset_ids, assets);
         self.show_toolbar(ui);
@@ -754,9 +807,11 @@ impl Editor {
                     if add_trigger { self.add_trigger(room); }
                     if let Some(map_index) = sel_map {
                         self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
+                        self.clear_sorted_ids();
                     }
                     if let Some(trg_index) = sel_trigger {
                         self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
+                        self.clear_sorted_ids();
                     }
                     if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
                 });

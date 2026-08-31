@@ -38,8 +38,8 @@ pub struct PropertiesDialog {
     pub new_tile: u8,
     pub resized: bool,
     pub changed_tileset: bool,
-    tileset_ids: Vec<DataAssetId>,
-    tile_anim_ids: Vec<DataAssetId>,
+    sorted_tileset_ids: Vec<DataAssetId>,
+    sorted_tile_anim_ids: Vec<DataAssetId>,
 }
 
 impl PropertiesDialog {
@@ -57,8 +57,8 @@ impl PropertiesDialog {
             new_tile: 0,
             resized: false,
             changed_tileset: false,
-            tileset_ids: Vec::new(),
-            tile_anim_ids: Vec::new(),
+            sorted_tileset_ids: Vec::new(),
+            sorted_tile_anim_ids: Vec::new(),
         }
     }
 
@@ -78,8 +78,8 @@ impl PropertiesDialog {
         self.new_tile = new_tile;
         self.resized = false;
         self.changed_tileset = false;
-        self.tileset_ids.clear();
-        self.tile_anim_ids.clear();
+        self.sorted_tileset_ids.clear();
+        self.sorted_tile_anim_ids.clear();
         self.open = true;
         wc.set_dialog_open(self.dlg_id, self.open);
     }
@@ -112,13 +112,13 @@ impl PropertiesDialog {
     }
 
     fn sort_ids(&mut self, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>, tile_anims: &AssetList<TileAnimation>) {
-        if self.tileset_ids.is_empty() {
-            asset_ids.tilesets.copy_to(&mut self.tileset_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.tileset_ids, tilesets);
+        if self.sorted_tileset_ids.is_empty() {
+            asset_ids.tilesets.copy_to(&mut self.sorted_tileset_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
         }
-        if self.tile_anim_ids.is_empty() {
-            asset_ids.tile_anims.copy_to(&mut self.tile_anim_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.tile_anim_ids, tile_anims);
+        if self.sorted_tile_anim_ids.is_empty() {
+            asset_ids.tile_anims.copy_to(&mut self.sorted_tile_anim_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tile_anim_ids, tile_anims);
         }
     }
 
@@ -152,7 +152,7 @@ impl PropertiesDialog {
                         egui::ComboBox::from_id_salt(format!("map_editor_tileset_combo_{}", map_data.asset.id))
                             .selected_text(cur_tileset_name)
                             .show_ui(ui, |ui| {
-                                for tileset_id in &self.tileset_ids {
+                                for tileset_id in &self.sorted_tileset_ids {
                                     if let Some(tileset) = tilesets.get(tileset_id) {
                                         ui.selectable_value(&mut self.tileset_id, tileset.asset.id, &tileset.asset.name);
                                     }
@@ -170,7 +170,7 @@ impl PropertiesDialog {
                             .selected_text(cur_tanim_name)
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(&mut self.tile_anim_id, None, "(no animation)");
-                                for tile_anim_id in &self.tile_anim_ids {
+                                for tile_anim_id in &self.sorted_tile_anim_ids {
                                     if let Some(tanim) = tile_anims.get(tile_anim_id) {
                                         ui.selectable_value(&mut self.tile_anim_id, Some(tanim.asset.id), &tanim.asset.name);
                                     }
