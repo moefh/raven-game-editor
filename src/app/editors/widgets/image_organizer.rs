@@ -27,8 +27,8 @@ pub struct ImageOrganizerWidget {
 impl ImageOrganizerWidget {
     pub fn new() -> Self{
         ImageOrganizerWidget {
-            num_images_x: 16,
-            num_images_y: 8,
+            num_images_x: 1,
+            num_images_y: 1,
             display: ImageDisplay::new(ImageDisplay::GRID),
             zoom: 3.0,
             indices: Vec::new(),
@@ -37,6 +37,8 @@ impl ImageOrganizerWidget {
     }
 
     pub fn reset(&mut self, num_images: u32) {
+        self.num_images_y = ((num_images as f32 / 2.0).sqrt()).ceil() as i32;
+        self.num_images_x = num_images.div_ceil(self.num_images_y as u32) as i32;
         self.indices.resize(num_images as usize, 0);
         for (i, index) in self.indices.iter_mut().enumerate() {
             *index = i as u32;

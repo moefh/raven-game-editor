@@ -91,7 +91,7 @@ impl TilePickerPopupWidget {
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
                 ui.horizontal(|ui| {
-                    let dim_y = ((tileset.num_tiles as f32).sqrt().min(8.0)).floor() as i32;
+                    let dim_y = ((tileset.num_tiles as f32 / 2.0).sqrt()).ceil() as i32;
                     let dims = (tileset.num_tiles.div_ceil(dim_y as u32) as i32, dim_y);
                     let size = Vec2::new(dims.0 as f32 * tile_size.x, dims.1 as f32 * tile_size.y);
                     let (response, painter) = ui.allocate_painter(size, Sense::click_and_drag());

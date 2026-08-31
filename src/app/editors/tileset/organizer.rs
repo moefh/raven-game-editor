@@ -51,7 +51,8 @@ impl OrganizerDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
         let zoom = wc.settings.tile_picker_popup_zoom as f32 / 100.0;
-        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, zoom * TILE_SIZE * 16.0 + 100.0, "Organize Tiles", |ui, wc| {
+        let dialog_width = zoom * TILE_SIZE * self.tiles.num_images_x as f32 + 100.0;
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, dialog_width, "Organize Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 self.tiles.show(ui, wc, tileset);
             });
