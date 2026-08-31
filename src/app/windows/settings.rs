@@ -176,6 +176,19 @@ impl SettingsWindow {
         });
     }
 
+    fn show_game_runner_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
+        egui::CollapsingHeader::new("Game Runner").default_open(true).show(ui, |ui| {
+            egui::Grid::new("editor_settings_game_runner")
+                .num_columns(2)
+                .spacing([8.0, 8.0])
+                .show(ui, |ui| {
+                    ui.label("ms/frame:");
+                    ui.add(egui::Slider::new(&mut wc.settings.game_runner_ms_per_frame, 16..=200));
+                    ui.end_row();
+                })
+        });
+    }
+
     fn show_marching_ants_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Marching Ants").default_open(true).show(ui, |ui| {
             egui::Grid::new("editor_settings_marching_ants")
@@ -224,6 +237,8 @@ impl SettingsWindow {
                     Self::show_widget_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_animation_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_game_runner_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_colorset_settings(ui, wc);
                     ui.add_space(5.0);

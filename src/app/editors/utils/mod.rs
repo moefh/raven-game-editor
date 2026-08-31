@@ -85,3 +85,9 @@ pub fn get_animation_step(wc: &WindowContext) -> u32 {
 
     ((current_time_as_millis() / wc.settings.animation_ms_per_frame as u64) % ANIMATION_LOOP_MOD) as u32
 }
+
+pub fn get_game_runner_step(wc: &WindowContext) -> u32 {
+    const LOOP_MOD: u64 = 3628800;
+
+    ((current_time_as_millis() / wc.settings.game_runner_ms_per_frame as u64) % LOOP_MOD) as u32
+}

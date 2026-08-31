@@ -43,8 +43,7 @@ impl GameRunnerWindow {
     pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
         let zoom = self.game.game.zoom;
         let default_rect = self.base.default_rect(wc, GameRunnerWidget::WIDTH * zoom + 20.0, GameRunnerWidget::HEIGHT * zoom + 40.0);
-        let (width, height) = (default_rect.width(), default_rect.height());
-        self.base.show_window(wc, default_rect, [width, height], |ui, wc, base| {
+        self.base.show_window(wc, default_rect, [400.0, 300.0], |ui, wc, base| {
             let action = base.show_title_bar(ui, Some(IMAGES.pico), "Game Test");
             egui::CentralPanel::default().show(ui, |ui| {
                 self.game.show(ui, wc, store);
