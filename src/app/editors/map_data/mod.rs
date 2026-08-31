@@ -428,6 +428,8 @@ impl Editor {
                     dialogs.custom_colors_dialog.set_open(wc);
                 }
 
+                ui.add_space(10.0);
+
                 ui.label("Zoom:");
                 ui.add_space(1.0);
                 let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.map_editor.zoom) {
