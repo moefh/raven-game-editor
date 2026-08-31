@@ -416,13 +416,17 @@ impl Editor {
                 ui.separator();
                 ui.add_space(5.0);
 
-                if ui.button("Colors").on_hover_text("Use custom colors").clicked() {
-                    dialogs.custom_colors_dialog.set_open(wc);
+                if ui.button("\u{23f5}").on_hover_text("Test Map").clicked() {
+                    wc.add_editor_action(EditorAction::StartGameRunnerOnMap { map_id: map_data.asset.id });
                 }
 
                 ui.add_space(5.0);
                 ui.separator();
                 ui.add_space(5.0);
+
+                if ui.button("Colors").on_hover_text("Use custom colors").clicked() {
+                    dialogs.custom_colors_dialog.set_open(wc);
+                }
 
                 ui.label("Zoom:");
                 ui.add_space(1.0);

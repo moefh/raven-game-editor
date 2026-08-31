@@ -14,9 +14,13 @@ use super::{
     WindowContext,
     EditorStore,
 };
-use super::super::AssetExporter;
+use super::super::{
+    AppWindows,
+    AssetExporter,
+};
 
 pub enum EditorAction {
+    StartGameRunnerOnMap { map_id: DataAssetId },
     ExportMap { map_id: DataAssetId },
     ExportRoom { room_id: DataAssetId },
     ExportSpriteAnimation { animation_id: DataAssetId },
@@ -30,8 +34,32 @@ pub enum EditorAction {
 }
 
 impl EditorAction {
-    pub fn run(self, wc: &mut WindowContext, store: &mut DataAssetStore, editors: &mut EditorStore, exporter: &mut AssetExporter) {
+    pub fn run(
+        self,
+        wc: &mut WindowContext,
+        store: &mut DataAssetStore,
+        editors: &mut EditorStore,
+        windows: &mut AppWindows,
+        exporter: &mut AssetExporter
+    ) {
         match self {
+            EditorAction::StartGameRunnerOnMap { map_id } => {
+                for room in store.assets.rooms.iter() {
+                    for room_map in &room.maps {
+                        if room_map.map_id == map_id {
+                            windows.collection.game_runner.reset(room.asset.id, store);
+                            windows.collection.game_runner.open(wc);
+                            return;
+                        }
+                    }
+                }
+                wc.dialogs.open_message_box(
+                    wc.window_tracker,
+                    "Room Not Found",
+                    "You must create a room containing this map."
+                );
+            }
+
             EditorAction::ExportMap { map_id } => {
                 let request_id = format!("export_map_{}", map_id);
                 exporter.add_request(request_id.clone(), map_id);

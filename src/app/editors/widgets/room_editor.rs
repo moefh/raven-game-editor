@@ -28,11 +28,11 @@ use crate::misc::STATIC_IMAGES;
 use super::{
     TILE_SIZE,
     SCREEN_SIZE,
-    get_map_layer_tile,
 };
 use super::super::{
     get_animated_tile,
     get_animation_step,
+    get_map_layer_tile,
     WindowContext,
     MapLayer,
     RoomSize,

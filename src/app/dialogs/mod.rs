@@ -88,8 +88,13 @@ impl AppDialogs {
         self.colorset.set_open(wt, colorset);
     }
 
-    pub fn show_non_response_dialogs(&mut self, ui: &mut egui::Ui, wt: &mut AppWindowTracker,
-                                     sys_dialogs: &SysDialogs, settings: &mut AppSettings) {
+    pub fn show_non_response_dialogs(
+        &mut self,
+        ui: &mut egui::Ui,
+        wt: &mut AppWindowTracker,
+        sys_dialogs: &SysDialogs,
+        settings: &mut AppSettings
+    ) {
         self.about.show(ui, wt, sys_dialogs);
         self.message_box.show(ui, wt, sys_dialogs);
         self.colorset.show(ui, wt, sys_dialogs, settings);

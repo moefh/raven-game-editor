@@ -1026,7 +1026,7 @@ impl RavenEditorApp {
         let window_actions = self.windows.show(&mut win_ctx, &mut self.store);
 
         for editor_action in std::mem::take(&mut win_ctx.editor_actions) {
-            editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors, &mut self.asset_exporter);
+            editor_action.run(&mut win_ctx, &mut self.store, &mut self.editors, &mut self.windows, &mut self.asset_exporter);
         }
 
         self.map_clipboard = win_ctx.map_clipboard.take();

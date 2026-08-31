@@ -4,6 +4,7 @@ mod log_window;
 mod properties;
 mod check;
 mod project_comparer;
+mod game_runner;
 
 use crate::misc::IMAGES;
 use crate::data_asset::{
@@ -19,6 +20,7 @@ pub use log_window::LogWindow;
 pub use properties::PropertiesWindow;
 pub use check::CheckWindow;
 pub use project_comparer::ProjectComparerWindow;
+pub use game_runner::GameRunnerWindow;
 
 pub enum AppWindowResize {
     FixedSize,
@@ -56,6 +58,10 @@ impl AppWindowBase {
             id: egui::Id::new(id_str),
             open: false,
         }
+    }
+
+    pub fn bring_to_top(&self, wc: &WindowContext) {
+        super::AppWindowTracker::bring_to_top(self.id, wc.egui.ctx);
     }
 
     pub fn default_rect(&self, wc: &WindowContext, width: f32, height: f32) -> egui::Rect {
@@ -143,6 +149,7 @@ pub struct AppWindowsCollection {
     pub log_window: LogWindow,
     pub check: CheckWindow,
     pub project_comparer: ProjectComparerWindow,
+    pub game_runner: GameRunnerWindow,
 }
 
 impl AppWindowsCollection {
@@ -154,6 +161,7 @@ impl AppWindowsCollection {
             log_window: LogWindow::new(AppWindowBase::new("project_log_window")),
             check: CheckWindow::new(AppWindowBase::new("check_window")),
             project_comparer: ProjectComparerWindow::new(AppWindowBase::new("project_comparer_window")),
+            game_runner: GameRunnerWindow::new(AppWindowBase::new("game_runner")),
         }
     }
 
@@ -164,6 +172,7 @@ impl AppWindowsCollection {
         window_ids.push(self.log_window.base.id);
         window_ids.push(self.check.base.id);
         window_ids.push(self.project_comparer.base.id);
+        window_ids.push(self.game_runner.base.id);
     }
 
     fn get_base_window(&self, window_id: egui::Id) -> Option<&AppWindowBase> {
@@ -173,6 +182,7 @@ impl AppWindowsCollection {
         if window_id == self.log_window.base.id { return Some(&self.log_window.base) }
         if window_id == self.check.base.id { return Some(&self.check.base) }
         if window_id == self.project_comparer.base.id { return Some(&self.project_comparer.base) }
+        if window_id == self.game_runner.base.id { return Some(&self.game_runner.base) }
         None
     }
 
@@ -183,6 +193,7 @@ impl AppWindowsCollection {
         if window_id == self.log_window.base.id { return Some(&mut self.log_window.base) }
         if window_id == self.check.base.id { return Some(&mut self.check.base) }
         if window_id == self.project_comparer.base.id { return Some(&mut self.project_comparer.base) }
+        if window_id == self.game_runner.base.id { return Some(&mut self.game_runner.base) }
         None
     }
 
@@ -200,6 +211,7 @@ impl AppWindowsCollection {
         Self::add_window_action(&mut actions, self.log_window.show(wc));
         Self::add_window_action(&mut actions, self.check.show(wc, store));
         Self::add_window_action(&mut actions, self.project_comparer.show(wc, store));
+        Self::add_window_action(&mut actions, self.game_runner.show(wc, store));
         actions
     }
 }

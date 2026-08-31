@@ -17,9 +17,9 @@ use crate::image::{
 
 use super::{
     TILE_SIZE,
-    get_map_layer_tile,
 };
 use super::super::{
+    get_map_layer_tile,
     WindowContext,
     MapLayer,
 };
