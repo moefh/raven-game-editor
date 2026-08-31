@@ -395,7 +395,8 @@ impl MapEditorWidget {
             return;
         }
 
-        if let MapSelection::WholeFragment(pos, frag) = &self.selection && (layer != MapLayer::Background || ! frag.para_data.is_empty()) {
+        if let MapSelection::WholeFragment(pos, frag) = &self.selection {
+            let tint = layer == MapLayer::Background || layer == MapLayer::Parallax;
             let frag_x = pos.x as i32;
             let frag_y = pos.y as i32;
             for y in 0..frag.height {
@@ -406,7 +407,11 @@ impl MapEditorWidget {
                     if tile == MapData::NO_TILE || tile as u32 >= image.num_items() { continue; }
                     let tile_rect = Self::get_tile_rect(tile_x, tile_y, self.zoom, canvas_rect.min + self.scroll);
                     let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(image.get_item_uv(tile as u32));
-                    image.paint_at(ui, tile_rect);
+                    if tint {
+                        image.tint(Self::HEAVY_LAYER_TINT).paint_at(ui, tile_rect);
+                    } else {
+                        image.paint_at(ui, tile_rect);
+                    }
                 }
             }
         }

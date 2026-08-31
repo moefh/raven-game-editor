@@ -4,6 +4,7 @@ mod add_imported_tiles;
 mod remove_tiles;
 mod import;
 mod export;
+mod organizer;
 
 use core::fmt::NumBuffer;
 
@@ -28,6 +29,7 @@ use super::{
     TileGrid,
     TileGridImage,
     TilesetTileFixer,
+    TilesetTileShuffler,
     MapTileFixer,
 };
 use super::dialogs::CreateColorsetDialog;
@@ -54,6 +56,7 @@ use add_tiles::AddTilesDialog;
 use add_imported_tiles::AddImportedTilesDialog;
 use export::ExportDialog;
 use import::ImportDialog;
+use organizer::OrganizerDialog;
 
 enum EditorTab {
     Tile,
@@ -162,6 +165,12 @@ impl TilesetTileFixer for TilesetEditor {
     }
 }
 
+impl TilesetTileShuffler for TilesetEditor {
+    fn shuffle_tiles(&mut self, _tileset_id: DataAssetId, shuffle: &[u32]) {
+        self.editor.tile_image_editor.shuffle_frame_undo_history(shuffle);
+    }
+}
+
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     add_tiles_dialog: AddTilesDialog,
@@ -170,6 +179,7 @@ struct Dialogs {
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
     create_colorset_dialog: CreateColorsetDialog,
+    organizer_dialog: OrganizerDialog,
 }
 
 impl Dialogs {
@@ -182,6 +192,7 @@ impl Dialogs {
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
             create_colorset_dialog: CreateColorsetDialog::new(id),
+            organizer_dialog: OrganizerDialog::new(),
        }
     }
 
@@ -195,6 +206,9 @@ impl Dialogs {
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, tileset: &mut Tileset) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset);
+            editor.tile_image_editor.set_image_changed();
+        }
+        if self.organizer_dialog.open && self.organizer_dialog.show(wc, tileset) {
             editor.tile_image_editor.set_image_changed();
         }
         if self.add_tiles_dialog.open && self.add_tiles_dialog.show(wc, tileset) {
@@ -554,6 +568,11 @@ impl Editor {
                     }
                     if ui.add_enabled(can_change_tiles && tileset.num_tiles > 1, menu_item(IMAGES.trash, " Remove tiles...")).clicked() {
                         dialogs.rm_tiles_dialog.set_open(wc, tileset, self.tile_image_editor.get_selected_image());
+                    }
+                });
+                ui.menu_button("Tools", |ui| {
+                    if ui.add_enabled(tileset.num_tiles > 1, menu_item(IMAGES.properties, " Organize Tiles")).clicked() {
+                        dialogs.organizer_dialog.set_open(wc, tileset);
                     }
                 });
             });

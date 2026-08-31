@@ -3,7 +3,7 @@ use crate::data_asset::{
     TileAnimation,
 };
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MapLayer {
     Foreground,
     Background,
@@ -341,6 +341,21 @@ impl MapClipboardData {
 
 pub trait MapTileFixer {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]>;
+
+    fn shuffle_tiles(&mut self, shuffle: &[u32]) {
+        for plane in self.get_tile_planes_mut() {
+            let old = Vec::from_iter(plane.iter().copied());
+            for (to, &from) in shuffle.iter().enumerate() {
+                if from as usize != to {
+                    for (i, tile) in plane.iter_mut().enumerate() {
+                        if old[i] as u32 == from {
+                            *tile = (to & 0xff) as u8;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     fn add_tileset_hole(&mut self, hole_start: u8, hole_size: u8, _num_tiles_after_hole: u8) {
         fn add_plane_hole(tiles: &mut [u8], tile_index: u8, num_tiles: u8) {

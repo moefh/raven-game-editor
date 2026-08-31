@@ -256,6 +256,20 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    pub fn shuffle_frame_undo_history(&mut self, shuffle: &[u32]) {
+        fn shuffle_target(targets: &mut HashMap<u32, VecDeque<ImageFragment>>, shuffle: &[u32]) -> HashMap<u32, VecDeque<ImageFragment>> {
+            let mut ret = HashMap::new();
+            for (to, from) in shuffle.iter().enumerate() {
+                if let Some(target) = targets.remove(from) {
+                    ret.insert(to as u32, target);
+                }
+            }
+            ret
+        }
+        self.undo_targets = shuffle_target(&mut self.undo_targets, shuffle);
+        self.redo_targets = shuffle_target(&mut self.redo_targets, shuffle);
+    }
+
     pub fn force_palette(&mut self, palette: &[u8], color_to_palette_index_map: &[u8]) {
         if let ImageSelection::Fragment(_, frag) = &mut self.selection &&
             frag.pixels.force_palette(palette, color_to_palette_index_map) {

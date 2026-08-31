@@ -144,10 +144,8 @@ impl ProjectComparerDisplay {
                 if ui.add_enabled(
                     self.other_store.is_some(),
                     egui::Button::image_and_text(IMAGES.compare, "Compare").frame_when_inactive(false)
-                ).on_hover_text("Compare project").clicked() {
-                    if let Some(other) = &self.other_store {
-                        self.comparer.run(store, other);
-                    }
+                ).on_hover_text("Compare project").clicked() && let Some(other) = &self.other_store {
+                    self.comparer.run(store, other);
                 }
             });
             ui.add_space(0.0);

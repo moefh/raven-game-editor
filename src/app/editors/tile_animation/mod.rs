@@ -19,6 +19,7 @@ use super::{
     AssetEditorBase,
     WindowContext,
     TilesetTileFixer,
+    TilesetTileShuffler,
 };
 use super::widgets::{
     ImagePickerWidget,
@@ -89,6 +90,12 @@ impl TileAnimationEditor {
 
 impl TilesetTileFixer for TileAnimationEditor {
     fn move_tile(&mut self, _tileset_id: DataAssetId, _old_index: u8, _new_index: u8) {
+        self.editor.reload_edit_loop = true;
+    }
+}
+
+impl TilesetTileShuffler for TileAnimationEditor {
+    fn shuffle_tiles(&mut self, _tileset_id: DataAssetId, _shuffle: &[u32]) {
         self.editor.reload_edit_loop = true;
     }
 }

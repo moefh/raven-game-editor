@@ -13,6 +13,7 @@ mod prop_font;
 mod reader;
 mod writer;
 mod header_def;
+pub mod utils;
 
 use std::{fmt, io};
 use std::collections::HashMap;
@@ -284,6 +285,10 @@ impl AssetIdList {
 
     pub fn get_first(&self) -> Option<DataAssetId> {
         self.store.first().copied()
+    }
+
+    pub fn copy_to(&self, copy: &mut Vec<DataAssetId>) {
+        copy.splice(.., self.store.iter().copied());
     }
 }
 

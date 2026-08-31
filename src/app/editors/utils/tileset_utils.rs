@@ -57,6 +57,11 @@ impl TileGrid {
         hasher.finish()
     }
 
+    pub fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        self.tileset_hash = 0;  // force re-creation of image next time it's used
+        vec![ &mut self.fg_tiles ]
+    }
+
     pub fn get_image<'a>(&'a mut self, tileset: &Tileset) -> &'a TileGridImage {
         let tileset_hash = Self::calc_tileset_hash(tileset);
         if self.tileset_hash != tileset_hash {
@@ -200,13 +205,6 @@ impl TileGrid {
     }
 }
 
-impl MapTileFixer for TileGrid {
-    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
-        self.tileset_hash = 0;  // force re-creation of image next time it's used
-        vec![ &mut self.fg_tiles ]
-    }
-}
-
 pub struct TileGridImage {
     tileset_id: DataAssetId,
     pixels: ImagePixels,
@@ -247,6 +245,10 @@ impl ImageCollection for TileGridImage {
     fn data_mut(&mut self) -> &mut Vec<u8> { &mut self.pixels.data }
 }
 
+pub trait TilesetTileShuffler {
+    fn shuffle_tiles(&mut self, tileset_id: DataAssetId, shuffle: &[u32]);
+}
+
 pub trait TilesetTileFixer {
     fn move_tile(&mut self, tileset_id: DataAssetId, old_index: u8, new_index: u8);
 
@@ -259,6 +261,17 @@ pub trait TilesetTileFixer {
     fn remove_tileset_hole(&mut self, tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8) {
         for index in 0..num_tiles_after_hole {
             self.move_tile(tileset_id, hole_start + hole_size + index, hole_start + index);
+        }
+    }
+}
+
+impl TilesetTileShuffler for TileAnimation {
+    fn shuffle_tiles(&mut self, tileset_id: DataAssetId, shuffle: &[u32]) {
+        if self.parent_tileset_id == tileset_id && shuffle.len() <= self.loops.len() {
+            let old = self.loops;
+            for (to, &from) in shuffle.iter().enumerate() {
+                self.loops[to] = old[from as usize];
+            }
         }
     }
 }
@@ -334,6 +347,40 @@ pub fn fix_after_tileset_tiles_removed(
                 map_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
             }
         }
+    }
+    if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
+        tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
+    }
+}
+
+pub fn fix_after_tileset_tiles_shuffled(
+    wc: &mut WindowContext,
+    store: &mut DataAssetStore,
+    editors: &mut EditorStore,
+    tileset_id: DataAssetId,
+    shuffle: Vec<u32>
+) {
+    if let Some(tileset_editor) = editors.tilesets.get_mut(&tileset_id) {
+        TilesetTileShuffler::shuffle_tiles(tileset_editor, tileset_id, &shuffle);
+        MapTileFixer::shuffle_tiles(tileset_editor, &shuffle);
+    }
+    for map_id in store.asset_ids.maps.iter() {
+        if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
+            map_data.shuffle_tiles(&shuffle);
+            if let Some(map_editor) = editors.maps.get_mut(map_id) {
+                map_editor.shuffle_tiles(&shuffle);
+            }
+        }
+    }
+    for tile_anim_id in store.asset_ids.tile_anims.iter() {
+        if let Some(tile_anim) = store.assets.tile_anims.get_mut(tile_anim_id) &&
+            (tile_anim.parent_tileset_id == tileset_id || tile_anim.anim_tileset_id == tileset_id) {
+                tile_anim.shuffle_tiles(tileset_id, &shuffle);
+                if let Some(tile_anim_editor) = editors.tile_anims.get_mut(tile_anim_id) {
+                    tile_anim_editor.shuffle_tiles(tileset_id, &shuffle);
+                }
+            }
     }
     if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
         tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);

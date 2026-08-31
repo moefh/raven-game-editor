@@ -6,6 +6,7 @@ use crate::data_asset::{
 use super::{
     fix_after_tileset_tiles_added,
     fix_after_tileset_tiles_removed,
+    fix_after_tileset_tiles_shuffled,
     fix_after_sprite_frames_added,
     fix_after_sprite_frames_removed,
     fix_after_pal_sprite_frames_added,
@@ -21,6 +22,7 @@ pub enum EditorAction {
     ExportSpriteAnimation { animation_id: DataAssetId },
     TilesetTilesAdded { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
     TilesetTilesRemoved { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
+    TilesetTilesShuffled { tileset_id: DataAssetId, shuffle: Vec<u32> },
     SpriteFramesAdded { sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
     SpriteFramesRemoved { sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
     PalSpriteFramesAdded { pal_sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
@@ -81,6 +83,10 @@ impl EditorAction {
 
             EditorAction::TilesetTilesRemoved { tileset_id, hole_start, hole_size, num_tiles_after_hole } => {
                 fix_after_tileset_tiles_removed(wc, store, editors, tileset_id, hole_start, hole_size, num_tiles_after_hole);
+            }
+
+            EditorAction::TilesetTilesShuffled { tileset_id, shuffle } => {
+                fix_after_tileset_tiles_shuffled(wc, store, editors, tileset_id, shuffle);
             }
 
             EditorAction::SpriteFramesAdded { sprite_id, hole_start, hole_size, num_frames_after_hole } => {

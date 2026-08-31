@@ -16,6 +16,7 @@ mod prop_font_editor;
 mod font_view;
 mod tile_grid_editor;
 mod tile_picker_popup;
+mod image_organizer;
 
 use egui::{Vec2, Rect, Pos2};
 
@@ -47,6 +48,7 @@ pub use prop_font_editor::{*};
 pub use font_view::{*};
 pub use tile_grid_editor::{*};
 pub use tile_picker_popup::{*};
+pub use image_organizer::{*};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum WidgetZoom {
