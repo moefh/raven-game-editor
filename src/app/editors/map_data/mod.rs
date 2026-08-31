@@ -357,6 +357,15 @@ impl Editor {
                     self.map_editor.display.toggle(MapDisplay::BACKGROUND);
                 }
 
+                if ui.add_enabled(
+                    map_data.para_width != 0 && map_data.para_height != 0,
+                    egui::Button::image(IMAGES.layer_parallax)
+                        .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
+                        .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
+                ).on_hover_text("Show parallax").clicked() {
+                    self.map_editor.display.toggle(MapDisplay::PARALLAX);
+                }
+
                 if ui.add(
                     egui::Button::image(IMAGES.layer_fx)
                         .selected(self.map_editor.display.has_bits(MapDisplay::EFFECTS))
@@ -371,15 +380,6 @@ impl Editor {
                         .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::ANIMATION))
                 ).on_hover_text("Show animation").clicked() {
                     self.map_editor.display.toggle(MapDisplay::ANIMATION);
-                }
-
-                if ui.add_enabled(
-                    map_data.para_width != 0 && map_data.para_height != 0,
-                    egui::Button::image(IMAGES.layer_parallax)
-                        .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
-                        .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
-                ).on_hover_text("Show parallax").clicked() {
-                    self.map_editor.display.toggle(MapDisplay::PARALLAX);
                 }
 
                 if ui.add(
@@ -449,18 +449,21 @@ impl Editor {
 
                         let mut fg_tile_buf = NumBuffer::new();
                         let mut bg_tile_buf = NumBuffer::new();
+                        let mut para_tile_buf = NumBuffer::new();
                         let mut fx_tile_buf = NumBuffer::new();
                         let mut an_tile_buf = NumBuffer::new();
 
                         let fg_tile = Self::get_map_tile_name(self.map_editor.hover_tile_fg, &mut fg_tile_buf);
                         let bg_tile = Self::get_map_tile_name(self.map_editor.hover_tile_bg, &mut bg_tile_buf);
+                        let para_tile = Self::get_map_tile_name(self.map_editor.hover_tile_para, &mut para_tile_buf);
                         let fx_tile = Self::get_map_tile_name(self.map_editor.hover_tile_fx, &mut fx_tile_buf);
                         let an_tile = Self::get_map_tile_name(self.map_editor.hover_tile_an, &mut an_tile_buf);
 
                         ui.label(format!(
-                            "[tile {}/{}/{}/{}]",
+                            "[tile {}/{}/{}/{}/{}]",
                             fg_tile,
                             bg_tile,
+                            para_tile,
                             fx_tile,
                             an_tile
                         ));
@@ -503,6 +506,16 @@ impl Editor {
                     self.map_editor.display.set(MapDisplay::BACKGROUND);
                 }
 
+                if ui.add_enabled(
+                    map_data.para_width != 0 && map_data.para_height != 0,
+                    egui::Button::image(IMAGES.layer_parallax)
+                        .selected(self.map_editor.edit_layer == MapLayer::Parallax)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax)
+                ).on_hover_text("Edit parallax").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::Parallax);
+                    self.map_editor.display.set(MapDisplay::PARALLAX);
+                }
+
                 if ui.add(
                     egui::Button::image(IMAGES.layer_fx)
                         .selected(self.map_editor.edit_layer == MapLayer::Effects)
@@ -519,16 +532,6 @@ impl Editor {
                 ).on_hover_text("Edit animation").clicked() {
                     self.map_editor.edit_layer = MapLayer::Animation;
                     self.map_editor.display.set(MapDisplay::ANIMATION);
-                }
-
-                if ui.add_enabled(
-                    map_data.para_width != 0 && map_data.para_height != 0,
-                    egui::Button::image(IMAGES.layer_parallax)
-                        .selected(self.map_editor.edit_layer == MapLayer::Parallax)
-                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax)
-                ).on_hover_text("Edit parallax").clicked() {
-                    self.map_editor.set_edit_layer(MapLayer::Parallax);
-                    self.map_editor.display.set(MapDisplay::PARALLAX);
                 }
 
                 if ui.add(

@@ -186,6 +186,7 @@ pub struct MapEditorWidget {
     pub hover_pos: Vec2,
     pub hover_tile_fg: Option<u8>,
     pub hover_tile_bg: Option<u8>,
+    pub hover_tile_para: Option<u8>,
     pub hover_tile_fx: Option<u8>,
     pub hover_tile_an: Option<u8>,
     pub custom_grid_color: Option<Color32>,
@@ -213,7 +214,7 @@ impl MapEditorWidget {
             scroll: Vec2::ZERO,
             edit_layer: MapLayer::Screen,
             tool: MapTool::Pencil,
-            display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::GRID),
+            display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::PARALLAX | MapDisplay::GRID),
             left_draw_tile: 0,
             right_draw_tile: MapData::NO_TILE,
             left_draw_tile_changed: false,
@@ -221,6 +222,7 @@ impl MapEditorWidget {
             hover_pos: Vec2::ZERO,
             hover_tile_fg: None,
             hover_tile_bg: None,
+            hover_tile_para: None,
             hover_tile_fx: None,
             hover_tile_an: None,
             custom_grid_color: None,
@@ -685,7 +687,9 @@ impl MapEditorWidget {
         match &wc.map_clipboard {
             MapClipboardData::MapLayerFragment(frag) => {
                 self.tool = MapTool::SelectLayer;
-                self.edit_layer = frag.layer;
+                if ! (frag.layer.is_for_tileset() && self.edit_layer.is_for_tileset()) {
+                    self.edit_layer = frag.layer;
+                }
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
                 self.selection = MapSelection::LayerFragment(self.get_paste_position(), frag.clone());
@@ -869,7 +873,12 @@ impl MapEditorWidget {
                         let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                             (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                         } else {
-                            (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
+                            let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
+                                TextureSlot::Opaque
+                            } else {
+                                TextureSlot::Transparent
+                            };
+                            (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
                         };
                         let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
                         let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
@@ -1029,6 +1038,7 @@ impl MapEditorWidget {
             self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom / TILE_SIZE).max(Vec2::ZERO);
             self.hover_tile_fg = self.get_full_layer_tile(MapLayer::Foreground, self.hover_pos.to_pos2(), map_data);
             self.hover_tile_bg = self.get_full_layer_tile(MapLayer::Background, self.hover_pos.to_pos2(), map_data);
+            self.hover_tile_para = self.get_para_layer_tile(self.hover_pos.to_pos2(), map_data);
             self.hover_tile_fx = self.get_full_layer_tile(MapLayer::Effects, self.hover_pos.to_pos2(), map_data);
             self.hover_tile_an = self.get_full_layer_tile(MapLayer::Animation, self.hover_pos.to_pos2(), map_data);
         }

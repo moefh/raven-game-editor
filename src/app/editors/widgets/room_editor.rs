@@ -695,6 +695,26 @@ impl RoomEditorWidget {
         Self::draw_outline_rect(painter, to_canvas.transform_rect(rect));
     }
 
+    fn draw_map_para_layer(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        to_canvas: &RectTransform,
+        map_pos: Pos2,
+        map_data: &MapData,
+        tileset: &Tileset
+    ) {
+        for y in 0..map_data.para_height {
+            for x in 0..map_data.para_width {
+                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
+                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
+                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
+            }
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn draw_map_bg_layer(
         &self,
@@ -732,7 +752,12 @@ impl RoomEditorWidget {
                     };
                 if tile as u32 >= use_tileset.num_tiles { continue; }
                 let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+                let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
+                    TextureSlot::Opaque
+                } else {
+                    TextureSlot::Transparent
+                };
+                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
                 Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(use_tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
             }
         }
@@ -862,6 +887,7 @@ impl RoomEditorWidget {
                         .map(|tile_anim| (Some(tile_anim), assets.tilesets.get(&tile_anim.anim_tileset_id)))
                         .unwrap_or((None, None));
                     let map_rect = Self::get_map_rect(room_map, map_data);
+                    self.draw_map_para_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
                     if self.draw_map_bg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset, tile_anim, anim_tileset, animation_step) {
                         has_animated_tiles = true;
                     }

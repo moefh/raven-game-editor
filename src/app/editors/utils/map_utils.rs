@@ -13,6 +13,15 @@ pub enum MapLayer {
     Screen,
 }
 
+impl MapLayer {
+    pub fn is_for_tileset(&self) -> bool {
+        match self {
+            MapLayer::Foreground | MapLayer::Background | MapLayer::Parallax => { true }
+            MapLayer::Animation | MapLayer::Effects | MapLayer::Screen => { false }
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct MapRect {
     pub x: u32,

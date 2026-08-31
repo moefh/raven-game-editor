@@ -348,6 +348,15 @@ pub fn fix_after_tileset_tiles_removed(
             }
         }
     }
+    for tile_anim_id in store.asset_ids.tile_anims.iter() {
+        if let Some(tile_anim) = store.assets.tile_anims.get_mut(tile_anim_id) &&
+            (tile_anim.parent_tileset_id == tileset_id || tile_anim.anim_tileset_id == tileset_id) {
+                tile_anim.remove_tileset_hole(tileset_id, hole_start, hole_size, num_tiles_after_hole);
+                if let Some(tile_anim_editor) = editors.tile_anims.get_mut(tile_anim_id) {
+                    tile_anim_editor.remove_tileset_hole(tileset_id, hole_start, hole_size, num_tiles_after_hole);
+                }
+            }
+    }
     if let Some(tileset) = store.assets.tilesets.get_mut(&tileset_id) {
         tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(false, false), true);
         tileset.load_texture(wc.tex_man, wc.egui.ctx, tileset.texture_slot(true, false), true);
