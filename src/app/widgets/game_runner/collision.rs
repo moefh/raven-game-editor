@@ -84,7 +84,7 @@ fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: 
                 }
                 let ix = (rx + sx) % TILE_SIZE;
                 let iy = (rect.y + rect.h - 1) % TILE_SIZE;
-                if iy >= TILE_SIZE - 1 - ix { // under ramp
+                if iy >= ix { // under ramp
                     if sx > 0 {
                         // ramp from the wrong size
                         return COLLISION_FLAGS_RIGHT;
@@ -120,7 +120,7 @@ fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: 
                 }
                 let ix = (rx + sx) % TILE_SIZE;
                 let iy = (rect.y + rect.h - 1) % TILE_SIZE;
-                if 2*iy >= TILE_SIZE - 1 - ix { // under ramp
+                if 2*iy - TILE_SIZE >= TILE_SIZE - 1 - ix { // under ramp
                     if sx < 0 {
                         // ramp from the wrong size
                         return COLLISION_FLAGS_LEFT;
