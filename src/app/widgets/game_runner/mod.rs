@@ -1,11 +1,11 @@
 mod player;
 mod util;
+pub mod controller;
 pub mod collision;
-pub mod joystick;
 
+use controller::{*};
 use player::{*};
 use util::{*};
-use joystick::Joystick;
 
 use egui::{
     Vec2,
@@ -59,7 +59,7 @@ pub struct GameRunnerWidget {
     pub player_anim_id: Option<DataAssetId>,
     pub frame_counter: u32,
     pub player: Player,
-    pub joystick: Joystick,
+    pub controller: Controller,
     map_animation_step: u32,
     last_game_runner_step: u32,
 }
@@ -76,7 +76,7 @@ impl GameRunnerWidget {
             scroll: Vec2::ZERO,
             frame_counter: 0,
             player: Player::new(),
-            joystick: Joystick::new(),
+            controller: Controller::new(),
 
             parent_window_id,
             room_id: None,
@@ -391,7 +391,7 @@ impl GameRunnerWidget {
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
     ) {
-        self.player.tick_engine(room, player_anim, store, &self.joystick);
+        self.player.tick_engine(room, player_anim, store, &self.controller);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &DataAssetStore) {
@@ -400,9 +400,9 @@ impl GameRunnerWidget {
             let Some(room) = self.room_id.and_then(|room_id| store.assets.rooms.get(&room_id)) {
                 if self.advance_frame_counter(wc) {
                     if wc.is_window_on_top(self.parent_window_id) {
-                        self.joystick.update(ui);
+                        self.controller.update(ui, wc);
                     }
-                    self.player.control(&self.joystick);
+                    self.player.control(&self.controller);
                     self.tick_engine(room, player_sprite, player_anim, store);
                 }
                 self.draw_frame(ui, wc, room, player_sprite, player_anim, store);

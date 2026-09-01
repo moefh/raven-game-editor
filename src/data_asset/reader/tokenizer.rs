@@ -116,6 +116,13 @@ impl Token {
         }
     }
 
+    pub fn drain_string(&mut self) -> Option<String> {
+        match &mut self.data {
+            TokenData::String(s) => Some(std::mem::take(s)),
+            _ => None,
+        }
+    }
+
     pub fn get_ident(&self) -> Option<&str> {
         match &self.data {
             TokenData::Ident(s) => Some(s),

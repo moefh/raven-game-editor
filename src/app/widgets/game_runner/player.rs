@@ -4,7 +4,7 @@ use crate::data_asset::{
     SpriteAnimation,
 };
 
-use super::joystick::{*};
+use super::controller::{*};
 use super::collision::{*};
 
 pub const DX_ACCEL: i32       =  0x100;
@@ -89,13 +89,13 @@ impl Player {
         self.dy = 0;
     }
 
-    pub fn control(&mut self, joy: &Joystick) {
+    pub fn control(&mut self, pad: &Controller) {
         // walk
         if self.state == PlayerState::Stand || self.state == PlayerState::Walk || self.state == PlayerState::Crouch {
-            if self.state != PlayerState::Walk && joy.held(JOY_RIGHT|JOY_LEFT) {
+            if self.state != PlayerState::Walk && pad.held(GAMEPAD_RIGHT|GAMEPAD_LEFT) {
                 self.state = PlayerState::Walk;
                 self.anim_frame = 0;
-            } else if self.state == PlayerState::Walk && ! joy.held(JOY_RIGHT|JOY_LEFT) {
+            } else if self.state == PlayerState::Walk && ! pad.held(GAMEPAD_RIGHT|GAMEPAD_LEFT) {
                 self.state = PlayerState::Stand;
                 self.anim_frame = 0;
             }
@@ -111,32 +111,32 @@ impl Player {
         }
 
         // change direction
-        if joy.held(JOY_RIGHT|JOY_LEFT) {
-            self.direction = if joy.held(JOY_RIGHT) { Direction::Right } else { Direction::Left };
+        if pad.held(GAMEPAD_RIGHT|GAMEPAD_LEFT) {
+            self.direction = if pad.held(GAMEPAD_RIGHT) { Direction::Right } else { Direction::Left };
         }
 
         // crouch
-        if self.state == PlayerState::Stand && joy.held(JOY_DOWN) {
+        if self.state == PlayerState::Stand && pad.held(GAMEPAD_DOWN) {
             self.state = PlayerState::Crouch;
             self.anim_frame = 0;
         }
-        if self.state == PlayerState::Crouch && joy.held(JOY_UP|JOY_A) {
+        if self.state == PlayerState::Crouch && pad.held(GAMEPAD_UP|GAMEPAD_A) {
             self.state = PlayerState::Stand;
             self.anim_frame = 0;
         }
 
         // limit x speed
-        if joy.held(JOY_RIGHT) {
+        if pad.held(GAMEPAD_RIGHT) {
             self.dx += DX_ACCEL;
             if self.dx > DX_MAX { self.dx = DX_MAX; }
         }
-        if joy.held(JOY_LEFT) {
+        if pad.held(GAMEPAD_LEFT) {
             self.dx -= DX_ACCEL;
             if self.dx < -DX_MAX { self.dx = -DX_MAX; }
         }
 
         // jump
-        if (self.state == PlayerState::Stand || self.state == PlayerState::Walk) && joy.pressed(JOY_A) {
+        if (self.state == PlayerState::Stand || self.state == PlayerState::Walk) && pad.pressed(GAMEPAD_A) {
             self.dy = DY_JUMP_START;
             self.state = PlayerState::Jump;
             self.anim_frame = 0;
@@ -144,7 +144,7 @@ impl Player {
 
         // hold jump / start fall
         if self.state == PlayerState::Jump {
-            if joy.held(JOY_A) && self.dy < 0 {
+            if pad.held(GAMEPAD_A) && self.dy < 0 {
                 self.dy += DY_JUMP_HOLD;
             } else {
                 self.state = PlayerState::Fall;
@@ -161,7 +161,7 @@ impl Player {
         }
     }
 
-    pub fn tick_engine(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore, joy: &Joystick) {
+    pub fn tick_engine(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore, pad: &Controller) {
         let dx = self.dx >> 8;
         let dy = self.dy >> 8;
         let mut rect = CollisionRect {
@@ -173,7 +173,7 @@ impl Player {
         let col_flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy);
         if (col_flags & COLLISION_FLAGS_DOWN) != 0 {
             self.dy = 0;
-            if joy.held(JOY_RIGHT|JOY_LEFT) {
+            if pad.held(GAMEPAD_RIGHT|GAMEPAD_LEFT) {
                 self.state = PlayerState::Walk;
             } else if self.state != PlayerState::Crouch {
                 self.state = PlayerState::Stand;

@@ -1,8 +1,14 @@
 use std::io::{Result, Error};
+use std::collections::HashMap;
 
 use crate::platform::{
     read_settings_file,
     write_settings_file,
+};
+use crate::platform::gamepad::{
+    self,
+    GamepadMapping,
+    GamepadAxisMapping,
 };
 use crate::image::{
     ColorSet,
@@ -14,6 +20,51 @@ use crate::data_asset::{
     Token,
     TokenData
 };
+
+fn get_default_gamepad_mappings() -> HashMap<String, GamepadMapping> {
+    HashMap::from([
+        (String::from("Zikway HID gamepad (Vendor: 3537 Product: 1041)"), GamepadMapping {
+            buttons: [
+                gamepad::GAMEPAD_A,
+                gamepad::GAMEPAD_B,
+                0,
+                gamepad::GAMEPAD_X,
+                gamepad::GAMEPAD_Y,
+                0,
+                gamepad::GAMEPAD_LB,
+                gamepad::GAMEPAD_RB,
+                gamepad::GAMEPAD_LT,
+                gamepad::GAMEPAD_RT,
+                gamepad::GAMEPAD_SELECT,
+                gamepad::GAMEPAD_START,
+                gamepad::GAMEPAD_HOME,
+                gamepad::GAMEPAD_L3,
+                gamepad::GAMEPAD_R3,
+                0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            axes: [
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT),
+                GamepadAxisMapping::new(gamepad::GAMEPAD_UP, gamepad::GAMEPAD_DOWN),
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+                GamepadAxisMapping::EMPTY,
+            ],
+        }),
+
+    ])
+}
 
 pub struct AppSettings {
     pub theme: String,
@@ -35,6 +86,7 @@ pub struct AppSettings {
     pub marching_ants_color1: egui::Color32,
     pub marching_ants_color2: egui::Color32,
     pub colorsets: ColorSetCollection,
+    pub gamepad_mappings: HashMap<String, GamepadMapping>,
 }
 
 impl AppSettings {
@@ -61,6 +113,7 @@ impl AppSettings {
             marching_ants_color1: egui::Color32::BLACK,
             marching_ants_color2: egui::Color32::WHITE,
             colorsets: ColorSetCollection::new(),
+            gamepad_mappings: get_default_gamepad_mappings(),
         }
     }
 
@@ -80,6 +133,42 @@ impl AppSettings {
 
     fn save_color(c: egui::Color32) -> String {
         format!("[{},{},{}]", c.r(), c.g(), c.b())
+    }
+
+    fn save_gamepad_mapping(id: &str, mapping: &GamepadMapping) -> String {
+        fn save(id: &str, mapping: &GamepadMapping) -> std::result::Result<String,std::fmt::Error> {
+            use std::fmt::Write;
+
+            let mut out = String::with_capacity(1024);
+            write!(&mut out, "  \"{}\" = [\n", id)?;
+            write!(&mut out, "    [")?;
+            for (i, button) in mapping.buttons.iter().enumerate() {
+                if i.is_multiple_of(8) {
+                    if i != 0 { write!(&mut out, ",")?; }
+                    write!(&mut out, "\n      ")?;
+                } else {
+                    write!(&mut out, ", ")?;
+                }
+                write!(&mut out, "0x{:x}", button)?;
+            }
+            write!(&mut out, "\n")?;
+            write!(&mut out, "    ],\n")?;
+            write!(&mut out, "    [")?;
+            for (i, axis) in mapping.axes.iter().enumerate() {
+                if i.is_multiple_of(8) {
+                    if i != 0 { write!(&mut out, ",")?; }
+                    write!(&mut out, "\n      ")?;
+                } else {
+                    write!(&mut out, ", ")?;
+                }
+                write!(&mut out, "0x{:x},0x{:x}", axis.min, axis.max)?;
+            }
+            write!(&mut out, "\n")?;
+            write!(&mut out, "    ]\n")?;
+            write!(&mut out, "  ],\n")?;
+            Ok(out)
+        }
+        save(id, mapping).unwrap_or(String::new())
     }
 
     pub fn cleanup_ident(name: &str) -> String {
@@ -129,6 +218,13 @@ impl AppSettings {
             config.push_str(" ],\n");
         }
         config.push_str("];\n");
+
+        // gamepad mappings
+        config.push_str("gamepad_mappings = {\n");
+        for (id, mapping) in self.gamepad_mappings.iter() {
+            config.push_str(&Self::save_gamepad_mapping(id, mapping));
+        }
+        config.push_str("};\n");
 
         if let Err(e) = write_settings_file(Self::FILENAME, &config) {
             logger.log(format!("ERROR writing settings: '{}'", e));
@@ -183,6 +279,28 @@ impl<'a> AppSettingsReader<'a> {
         Ok(egui::Color32::from_rgb(r as u8, g as u8, b as u8))
     }
 
+    fn read_number_array(&mut self, numbers: &mut [u32]) -> Result<()> {
+        self.expect_punct('[')?;
+        for (i, number) in numbers.iter_mut().enumerate() {
+            if i != 0 { self.expect_punct(',')?; }
+            *number = self.read_number()? as u32;
+        }
+        self.expect_punct(']')?;
+        Ok(())
+    }
+
+    fn read_gamepad_axis_mapping_array(&mut self, axes: &mut [GamepadAxisMapping]) -> Result<()> {
+        self.expect_punct('[')?;
+        for (i, axis) in axes.iter_mut().enumerate() {
+            if i != 0 { self.expect_punct(',')?; }
+            axis.min = self.read_number()? as u32;
+            self.expect_punct(',')?;
+            axis.max = self.read_number()? as u32;
+        }
+        self.expect_punct(']')?;
+        Ok(())
+    }
+
     fn read_number_config(&mut self) -> Result<u32> {
         let n = self.read_number()?;
         self.expect_punct(';')?;
@@ -223,11 +341,11 @@ impl<'a> AppSettingsReader<'a> {
         self.expect_punct('[')?;
         loop {
             let next_name = loop {
-                let t = self.tok.read()?;
+                let mut t = self.tok.read()?;
                 if t.is_punct(']') { break None; }
                 if t.is_punct(',') { continue; }
-                if let Some(name) = t.get_ident() {
-                    break Some(name.to_owned())
+                if let Some(name) = t.drain_ident() {
+                    break Some(name)
                 }
                 return Err(Error::other(format!("expected colorset name identifier or ']', found '{}' at line {}", t, t.pos.line)));
             };
@@ -252,10 +370,35 @@ impl<'a> AppSettingsReader<'a> {
 
             colorsets.push(ColorSet::new(name, colors));
         }
-
         self.expect_punct(';')?;
 
         Ok(colorsets)
+    }
+
+    fn read_gamepad_mappings_config(&mut self) -> Result<HashMap<String, GamepadMapping>> {
+        let mut mappings = HashMap::new();
+
+        self.expect_punct('{')?;
+        loop {
+            let mut t = self.tok.read()?;
+            if t.is_punct('}') { break; }
+            if t.is_punct(',') { continue; }
+            if let Some(id) = t.drain_string() {
+                let mut mapping = GamepadMapping::new();
+                self.expect_punct('=')?;
+                self.expect_punct('[')?;
+                self.read_number_array(&mut mapping.buttons)?;
+                self.expect_punct(',')?;
+                self.read_gamepad_axis_mapping_array(&mut mapping.axes)?;
+                self.expect_punct(']')?;
+                mappings.insert(id, mapping);
+            } else {
+                return Err(Error::other(format!("expected string or ']', found '{}' at line {}", t, t.pos.line)));
+            }
+        }
+        self.expect_punct(';')?;
+
+        Ok(mappings)
     }
 
     fn read(&mut self, settings: &mut AppSettings) -> Result<()> {
@@ -293,6 +436,14 @@ impl<'a> AppSettingsReader<'a> {
                         settings.colorsets.clear_custom_colorsets();
                         for set in custom_colorsets.into_iter() {
                             settings.colorsets.add_custom_colorset(set);
+                        }
+                    }
+                    "gamepad_mappings" => {
+                        settings.gamepad_mappings = self.read_gamepad_mappings_config()?;
+                        for (id, map) in get_default_gamepad_mappings() {
+                            if ! settings.gamepad_mappings.contains_key(&id) {
+                                settings.gamepad_mappings.insert(id, map);
+                            }
                         }
                     }
                     _ => {

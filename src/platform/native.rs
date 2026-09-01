@@ -1,7 +1,9 @@
 use std::io::{Result, Error};
 use std::path::PathBuf;
 use std::sync::LazyLock;
+use std::collections::HashMap;
 
+use super::gamepad;
 use super::KeyboardPressed;
 
 const APP_ID: &str = "raven-game-editor";
@@ -79,4 +81,8 @@ pub fn get_event_key(event: &egui::Event) -> Option<KeyboardPressed> {
             None
         }
     }
+}
+
+pub fn update_gamepads(_gamepads: &mut Vec<gamepad::Gamepad>, _mappings: &HashMap<String, gamepad::GamepadMapping>) -> bool {
+    false
 }
