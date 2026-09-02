@@ -359,7 +359,7 @@ impl Editor {
 
                 if ui.add_enabled(
                     map_data.para_width != 0 && map_data.para_height != 0,
-                    egui::Button::image(IMAGES.layer_parallax)
+                    egui::Button::image(IMAGES.layer_para)
                         .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
                         .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
                 ).on_hover_text("Show parallax").clicked() {
@@ -514,7 +514,7 @@ impl Editor {
 
                 if ui.add_enabled(
                     map_data.para_width != 0 && map_data.para_height != 0,
-                    egui::Button::image(IMAGES.layer_parallax)
+                    egui::Button::image(IMAGES.pencil_para)
                         .selected(self.map_editor.edit_layer == MapLayer::Parallax)
                         .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax)
                 ).on_hover_text("Edit parallax").clicked() {
