@@ -9,6 +9,7 @@ use super::{
     AppWindowAction,
 };
 use super::super::{
+    get_setting_zoom,
     WindowContext,
 };
 use super::super::widgets::{
@@ -41,7 +42,7 @@ impl GameRunnerWindow {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
-        let zoom = self.game.game.zoom;
+        let zoom = get_setting_zoom(wc.settings.game_runner_zoom);
         let default_rect = self.base.default_rect(wc, GameRunnerWidget::WIDTH * zoom + 20.0, GameRunnerWidget::HEIGHT * zoom + 40.0);
         self.base.show_window(wc, default_rect, [400.0, 300.0], |ui, wc, base| {
             let action = base.show_title_bar(ui, Some(IMAGES.pico), "Game Test");

@@ -16,6 +16,7 @@ use crate::image::{
 use super::TILE_SIZE;
 
 use super::super::{
+    get_setting_zoom,
     WindowContext,
 };
 
@@ -84,7 +85,7 @@ impl TilePickerPopupWidget {
 
     pub fn show(&mut self, wc: &mut WindowContext, response: &egui::Response, tileset: &Tileset, pick_tile: &mut Option<u32>) -> bool {
         if ! self.open { return false; }
-        let tile_size = Vec2::splat(TILE_SIZE * (wc.settings.tile_picker_popup_zoom as f32 / 100.0));
+        let tile_size = Vec2::splat(TILE_SIZE * get_setting_zoom(wc.settings.tile_picker_popup_zoom));
         let mut picked = false;
         egui::containers::Popup::menu(response)
             .id(self.egui_id)

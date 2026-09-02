@@ -62,6 +62,7 @@ use crate::image::{
 };
 
 pub use super::{
+    get_setting_zoom,
     WindowContext,
     SysDialogResponse,
     SysDialogOpenFile,

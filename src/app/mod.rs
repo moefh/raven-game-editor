@@ -61,7 +61,10 @@ pub use windows::{
     AppWindows,
     AppWindowAction,
 };
-pub use settings::AppSettings;
+pub use settings::{
+    get_setting_zoom,
+    AppSettings,
+};
 pub use asset_exporter::AssetExporter;
 pub use crate::platform::KeyboardPressed;
 
@@ -190,7 +193,7 @@ impl RavenEditorApp {
         ctx.style_mut_of(egui::Theme::Light, |style: &mut egui::Style| {
             style.visuals.faint_bg_color = style.visuals.window_fill;
         });
-        ctx.set_zoom_factor(self.settings.zoom as f32 / 100.0);
+        ctx.set_zoom_factor(get_setting_zoom(self.settings.zoom));
         match self.settings.theme.as_str() {
             "light" => ctx.set_theme(egui::ThemePreference::Light),
             "dark" => ctx.set_theme(egui::ThemePreference::Dark),

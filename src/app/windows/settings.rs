@@ -182,6 +182,8 @@ impl SettingsWindow {
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
+                    Self::zoom_setting(ui, "Zoom:", &mut wc.settings.game_runner_zoom);
+
                     ui.label("ms/frame:");
                     ui.add(egui::Slider::new(&mut wc.settings.game_runner_ms_per_frame, 16..=200));
                     ui.end_row();

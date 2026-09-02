@@ -10,7 +10,10 @@ use egui::{
 use crate::image::ImageCollection;
 use super::image_editor::ImageDisplay;
 
-use super::super::WindowContext;
+use super::super::{
+    get_setting_zoom,
+    WindowContext,
+};
 
 pub struct ImagePickerWidget {
     pub allow_empty_selection: bool,
@@ -127,7 +130,7 @@ impl ImagePickerWidget {
         let bg_color = self.custom_bg_color.unwrap_or(wc.settings.image_bg_color);
         let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
         let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
-        let zoom = self.zoom.unwrap_or(wc.settings.tile_picker_zoom as f32 / 100.0);
+        let zoom = self.zoom.unwrap_or(get_setting_zoom(wc.settings.tile_picker_zoom));
         let image_size = zoom * image.get_item_size();
 
         // scroll to selected image if changed
