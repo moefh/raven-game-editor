@@ -146,7 +146,7 @@ impl AppSettings {
             use std::fmt::Write;
 
             let mut out = String::with_capacity(1024);
-            write!(&mut out, "  \"{}\" = [\n", id)?;
+            writeln!(&mut out, "  \"{}\" = [", id)?;
             write!(&mut out, "    [")?;
             for (i, button) in mapping.buttons.iter().enumerate() {
                 if i.is_multiple_of(8) {
@@ -157,8 +157,8 @@ impl AppSettings {
                 }
                 write!(&mut out, "0x{:x}", button)?;
             }
-            write!(&mut out, "\n")?;
-            write!(&mut out, "    ],\n")?;
+            writeln!(&mut out)?;
+            writeln!(&mut out, "    ],")?;
             write!(&mut out, "    [")?;
             for (i, axis) in mapping.axes.iter().enumerate() {
                 if i.is_multiple_of(8) {
@@ -169,12 +169,12 @@ impl AppSettings {
                 }
                 write!(&mut out, "0x{:x},0x{:x}", axis.min, axis.max)?;
             }
-            write!(&mut out, "\n")?;
-            write!(&mut out, "    ]\n")?;
-            write!(&mut out, "  ],\n")?;
+            writeln!(&mut out)?;
+            writeln!(&mut out, "    ]")?;
+            writeln!(&mut out, "  ],")?;
             Ok(out)
         }
-        save(id, mapping).unwrap_or(String::new())
+        save(id, mapping).unwrap_or_default()
     }
 
     pub fn cleanup_ident(name: &str) -> String {
@@ -449,9 +449,7 @@ impl<'a> AppSettingsReader<'a> {
                     "gamepad_mappings" => {
                         settings.gamepad_mappings = self.read_gamepad_mappings_config()?;
                         for (id, map) in get_default_gamepad_mappings() {
-                            if ! settings.gamepad_mappings.contains_key(&id) {
-                                settings.gamepad_mappings.insert(id, map);
-                            }
+                            settings.gamepad_mappings.entry(id).or_insert(map);
                         }
                     }
                     _ => {
