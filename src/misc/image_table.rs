@@ -112,6 +112,7 @@ image_table! {
     info: "../../assets/InfoIcon.png",
     header: "../../assets/HeaderIcon.png",
     compare: "../../assets/CompareIcon.png",
+    reload: "../../assets/ReloadIcon.png",
     blank: "../../assets/BlankIcon.png",
 
     // window title

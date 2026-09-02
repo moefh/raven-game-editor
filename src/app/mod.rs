@@ -735,8 +735,14 @@ impl RavenEditorApp {
                             ]
                         );
                     }
-                    if ui.add(menu_item(IMAGES.compare, " Project Comparer")).clicked() {
+
+                    ui.separator();
+
+                    if ui.add(menu_item(IMAGES.compare, " Compare Project")).clicked() {
                         self.windows.open_project_comparer();
+                    }
+                    if ui.add(menu_item(IMAGES.ok, " Check Project")).clicked() {
+                        self.run_project_check(ui.ctx());
                     }
                 });
                 ui.menu_button("Help", |ui| {
@@ -788,18 +794,24 @@ impl RavenEditorApp {
                 ui.separator();
                 ui.add_space(5.0);
 
-                let log_is_open = self.windows.collection.log_window.base.open;
-                let log_button = egui::Button::image_and_text(IMAGES.log, "Log").selected(log_is_open).frame_when_inactive(log_is_open);
-                if ui.add(log_button).on_hover_text("Log Window").clicked() {
+                if ui.add(
+                    egui::Button::image_and_text(IMAGES.log, "Log")
+                        .selected(self.windows.collection.log_window.base.open)
+                        .frame_when_inactive(self.windows.collection.log_window.base.open)
+                ).on_hover_text("Log Window").clicked() {
                     self.windows.collection.log_window.toggle_open();
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
 
-                let check_is_open = self.windows.collection.check.base.open;
-                let check_button = egui::Button::image_and_text(IMAGES.ok, "Check").selected(check_is_open).frame_when_inactive(check_is_open);
-                if ui.add(check_button).on_hover_text("Run Project Check (F2)").clicked() {
-                    self.run_project_check(ui.ctx());
+                if ui.add(
+                    egui::Button::new("\u{23f5}")
+                        .selected(self.windows.collection.game_runner.base.open)
+                        .frame_when_inactive(true)
+                ).on_hover_text("Open Game Tester").clicked() {
+                    self.windows.collection.game_runner.open(ui.ctx());
                 }
 
                 ui.spacing_mut().item_spacing = spacing;

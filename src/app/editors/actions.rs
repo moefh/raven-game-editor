@@ -48,8 +48,8 @@ impl EditorAction {
                 for room in store.assets.rooms.iter() {
                     for room_map in &room.maps {
                         if room_map.map_id == map_id {
-                            windows.collection.game_runner.reset(room.asset.id, store);
-                            windows.collection.game_runner.open(wc);
+                            windows.collection.game_runner.set_room(room.asset.id, store);
+                            windows.collection.game_runner.open(&wc.egui.ctx);
                             return;
                         }
                     }
@@ -62,8 +62,8 @@ impl EditorAction {
             }
 
             EditorAction::StartGameRunnerOnRoom { room_id } => {
-                windows.collection.game_runner.reset(room_id, store);
-                windows.collection.game_runner.open(wc);
+                windows.collection.game_runner.set_room(room_id, store);
+                windows.collection.game_runner.open(&wc.egui.ctx);
             }
 
             EditorAction::ExportMap { map_id } => {

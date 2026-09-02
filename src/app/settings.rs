@@ -81,7 +81,7 @@ pub struct AppSettings {
     pub map_grid_color: egui::Color32,
     pub tile_picker_zoom: u32,
     pub tile_picker_popup_zoom: u32,
-    pub game_runner_zoom: u32,
+    pub game_runner_default_zoom: u32,
     pub game_runner_ms_per_frame: u32,
     pub animation_ms_per_frame: u32,
     pub animation_delay: u32,
@@ -109,7 +109,7 @@ impl AppSettings {
             map_grid_color: egui::Color32::from_rgb(0x80, 0x80, 0x80),
             tile_picker_zoom: 400,
             tile_picker_popup_zoom: 300,
-            game_runner_zoom: 200,
+            game_runner_default_zoom: 200,
             game_runner_ms_per_frame: 17,
             animation_ms_per_frame: 200,
             animation_delay: 50,
@@ -205,7 +205,7 @@ impl AppSettings {
 
         config.push_str(&format!("animation_delay = {};\n", self.animation_delay));
         config.push_str(&format!("animation_ms_per_frame = {};\n", self.animation_ms_per_frame));
-        config.push_str(&format!("game_runner_zoom = {};\n", self.game_runner_zoom));
+        config.push_str(&format!("game_runner_default_zoom = {};\n", self.game_runner_default_zoom));
         config.push_str(&format!("game_runner_ms_per_frame = {};\n", self.game_runner_ms_per_frame));
 
         config.push_str(&format!("marching_ants_delay = {};\n", self.marching_ants_delay));
@@ -428,7 +428,7 @@ impl<'a> AppSettingsReader<'a> {
                     "map_grid_color" => { settings.map_grid_color = self.read_color_config()?; }
                     "animation_delay" => { settings.animation_delay = self.read_number_config()?; }
                     "animation_ms_per_frame" => { settings.animation_ms_per_frame = self.read_number_config()?; }
-                    "game_runner_zoom" => { settings.game_runner_zoom = self.read_number_config()?; }
+                    "game_runner_default_zoom" => { settings.game_runner_default_zoom = self.read_number_config()?; }
                     "game_runner_ms_per_frame" => { settings.game_runner_ms_per_frame = self.read_number_config()?; }
                     "marching_ants_delay" => { settings.marching_ants_delay = self.read_number_config()?; }
                     "marching_ants_thickness" => { settings.marching_ants_thickness = self.read_number_config()?; }

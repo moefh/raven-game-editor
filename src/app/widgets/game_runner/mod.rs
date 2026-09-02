@@ -42,6 +42,7 @@ use super::super::editors::{
     get_game_runner_step,
     get_map_layer_tile,
     MapLayer,
+    RoomSize,
 };
 
 const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
@@ -52,11 +53,10 @@ const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
 };
 
 pub struct GameRunnerWidget {
-    pub parent_window_id: egui::Id,
-    pub zoom: f32,
-    pub scroll: Vec2,
     pub room_id: Option<DataAssetId>,
     pub player_anim_id: Option<DataAssetId>,
+    pub room_x: i32,
+    pub room_y: i32,
     pub frame_counter: u32,
     pub player: Player,
     pub controller: Controller,
@@ -65,37 +65,68 @@ pub struct GameRunnerWidget {
 }
 
 impl GameRunnerWidget {
-    pub const WIDTH: f32 = 320.0;
-    pub const HEIGHT: f32 = 240.0;
-    pub const SCREEN_SIZE: Vec2 = Vec2 { x: Self::WIDTH, y: Self::HEIGHT };
+    pub const WIDTH: i32 = 320;
+    pub const HEIGHT: i32 = 240;
+    pub const SCREEN_SIZE: Vec2 = Vec2 { x: Self::WIDTH as f32, y: Self::HEIGHT as f32 };
     const PLAYER_ANIMATION: &str = "bunny";
 
-    pub fn new(parent_window_id: egui::Id) -> Self {
+    pub fn new() -> Self {
         GameRunnerWidget {
-            zoom: 2.0,
-            scroll: Vec2::ZERO,
             frame_counter: 0,
             player: Player::new(),
             controller: Controller::new(),
 
-            parent_window_id,
             room_id: None,
+            room_x: 0,
+            room_y: 0,
             player_anim_id: None,
             map_animation_step: 0,
             last_game_runner_step: 0,
         }
     }
 
-    pub fn reset(&mut self, room_id: DataAssetId, store: &DataAssetStore) -> bool {
-        self.scroll = Vec2::ZERO;
+    // ================================================
+    // === ENGINE
+    // ================================================
+
+    fn advance_frame_counter(&mut self, wc: &WindowContext) -> bool {
+        self.map_animation_step = get_animation_step(wc);
+        let game_runner_step = get_game_runner_step(wc);
+        if self.last_game_runner_step != game_runner_step {
+            self.frame_counter += 1;
+            self.last_game_runner_step = game_runner_step;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn tick_engine(
+        &mut self,
+        room: &Room,
+        _player_sprite: &Sprite,
+        player_anim: &SpriteAnimation,
+        store: &DataAssetStore
+    ) {
+        self.player.tick_engine(room, player_anim, store, &self.controller);
+    }
+
+    pub fn reset(&mut self) {
+        self.room_x = 0;
+        self.room_y = 0;
         self.frame_counter = 0;
         self.last_game_runner_step = 0;
         self.map_animation_step = 0;
-        self.room_id = Some(room_id);
+        self.room_id = None;
+    }
 
-        self.player.reset();
-        if let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
+    pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) -> bool {
+        self.reset();
+        self.room_id = room_id;
+
+        if let Some(room_id) = self.room_id && let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
             self.player_anim_id = Some(anim.asset.id);
+            self.player.reset();
             if let Some(room) = store.assets.rooms.get(&room_id) && let Some(player_spawn) = get_room_player_spawn(room) {
                 self.player.x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.w) / 2;
                 self.player.y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.h;
@@ -110,38 +141,25 @@ impl GameRunnerWidget {
         }
     }
 
-    fn advance_frame_counter(&mut self, wc: &WindowContext) -> bool {
-        self.map_animation_step = get_animation_step(wc);
-        let game_runner_step = get_game_runner_step(wc);
-        if self.last_game_runner_step != game_runner_step {
-            self.frame_counter += 1;
-            self.last_game_runner_step = game_runner_step;
-            true
-        } else {
-            false
-        }
+    // ================================================
+    // === DISPLAY
+    // ================================================
+
+    fn follow_player(&mut self, player_anim: &SpriteAnimation) {
+        self.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
+        self.room_y = self.player.y + (player_anim.clip_rect.h - Self::HEIGHT) / 2;
     }
 
-    fn follow_player(&mut self, canvas_size: Vec2, _room_size: Vec2, player_anim: &SpriteAnimation) {
-        let screen_size = canvas_size / self.zoom;
-        self.scroll = Vec2::new(
-            screen_size.x / 2.0 - (self.player.x + player_anim.clip_rect.w / 2) as f32,
-            screen_size.y / 2.0 - (self.player.y + player_anim.clip_rect.h / 2) as f32,
-        );
-    }
-
-    fn clip_scroll(&mut self, canvas_size: Vec2, room_size: Vec2) {
-        let screen_size = canvas_size / self.zoom;
-        let min_scroll = screen_size - room_size;
-        if min_scroll.x <= 0.0 {
-            self.scroll.x = self.scroll.x.clamp(min_scroll.x, 0.0);
+    fn clip_scroll(&mut self, room_size: RoomSize) {
+        if room_size.width as i32 >= Self::WIDTH {
+            self.room_x = self.room_x.clamp(0, room_size.width as i32 - Self::WIDTH);
         } else {
-            self.scroll.x = 0.0;
+            self.room_x = 0;
         }
-        if min_scroll.y <= 0.0 {
-            self.scroll.y = self.scroll.y.clamp(min_scroll.y, 0.0);
+        if room_size.height as i32 >= Self::HEIGHT {
+            self.room_y = self.room_y.clamp(0, room_size.height as i32 - Self::HEIGHT);
         } else {
-            self.scroll.y = 0.0;
+            self.room_y = 0;
         }
     }
 
@@ -357,7 +375,7 @@ impl GameRunnerWidget {
         Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
     }
 
-    fn draw_frame(
+    fn draw_screen(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -369,46 +387,54 @@ impl GameRunnerWidget {
         let min_size = Self::SCREEN_SIZE.max(ui.available_size());
         let response = ui.allocate_response(min_size, egui::Sense::click());
         let canvas_rect = response.rect;
-        ui.shrink_clip_rect(canvas_rect);
 
-        let room_size = get_room_size_vec2(room, store);
-        self.follow_player(canvas_rect.size(), room_size, player_anim);
-        self.clip_scroll(canvas_rect.size(), room_size);
+        let room_size = get_room_size(room, store);
+        let zoom = (canvas_rect.width() / Self::SCREEN_SIZE.x).min(canvas_rect.height() / Self::SCREEN_SIZE.y);
+        let screen_size = zoom * Self::SCREEN_SIZE;
+        let screen_rect = Rect::from_min_size(canvas_rect.min + 0.5 * (canvas_rect.size() - screen_size), screen_size);
+        ui.shrink_clip_rect(screen_rect);
+
+        self.follow_player(player_anim);
+        self.clip_scroll(room_size);
 
         let to_canvas = RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, Self::SCREEN_SIZE),
-            Rect::from_min_size(canvas_rect.min + self.zoom * self.scroll, Self::SCREEN_SIZE * self.zoom),
+            Rect::from_min_size(Pos2::new(self.room_x as f32, self.room_y as f32), Self::SCREEN_SIZE),
+            screen_rect,
         );
         self.draw_room_bg(ui, wc, room, store, &to_canvas);
         self.draw_player(ui, wc, player_sprite, player_anim, &to_canvas);
         self.draw_room_fg(ui, wc, room, store, &to_canvas);
     }
 
-    fn tick_engine(
-        &mut self,
-        room: &Room,
-        _player_sprite: &Sprite,
-        player_anim: &SpriteAnimation,
-        store: &DataAssetStore
-    ) {
-        self.player.tick_engine(room, player_anim, store, &self.controller);
-    }
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataAssetStore) {
+        let room = match self.room_id {
+            None => { return; }
+            Some(room_id) => {
+                if let Some(room) = store.assets.rooms.get(&room_id) {
+                    room
+                } else {
+                    self.room_id = None;
+                    return;
+                }
+            }
+        };
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &DataAssetStore) {
-        if let Some(player_anim) = self.player_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) &&
-            let Some(player_sprite) = store.assets.sprites.get(&player_anim.sprite_id) &&
-            let Some(room) = self.room_id.and_then(|room_id| store.assets.rooms.get(&room_id)) {
+        if let Some(player_anim) = self.player_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
+            if let Some(player_sprite) = store.assets.sprites.get(&player_anim.sprite_id) {
                 if self.advance_frame_counter(wc) {
-                    if wc.is_window_on_top(self.parent_window_id) {
+                    if wc.is_window_on_top(window_id) {
                         self.controller.update(ui, wc);
                     }
                     self.player.control(&self.controller);
                     self.tick_engine(room, player_sprite, player_anim, store);
                 }
-                self.draw_frame(ui, wc, room, player_sprite, player_anim, store);
+                self.draw_screen(ui, wc, room, player_sprite, player_anim, store);
                 wc.request_game_run_repaint();
             } else {
                 ui.label("Required assets not found!");
             }
+        } else {
+            ui.label(format!("Sprite animation '{}' doesn't exist!", Self::PLAYER_ANIMATION));
+        }
     }
 }

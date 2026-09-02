@@ -25,8 +25,3 @@ pub fn get_room_size(room: &Room, store: &DataAssetStore) -> RoomSize {
     let room_size_in_tiles = RoomSize::from_room(room, &store.assets.maps);
     RoomSize::new(room_size_in_tiles.width * Tileset::TILE_SIZE, room_size_in_tiles.height * Tileset::TILE_SIZE)
 }
-
-pub fn get_room_size_vec2(room: &Room, store: &DataAssetStore) -> egui::Vec2 {
-    let size = get_room_size(room, store);
-    egui::Vec2::new(size.width as f32, size.height as f32)
-}

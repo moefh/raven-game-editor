@@ -60,8 +60,8 @@ impl AppWindowBase {
         }
     }
 
-    pub fn bring_to_top(&self, wc: &WindowContext) {
-        super::AppWindowTracker::bring_to_top(self.id, wc.egui.ctx);
+    pub fn bring_to_top(&self, ctx: &egui::Context) {
+        super::AppWindowTracker::bring_to_top(self.id, ctx);
     }
 
     pub fn default_rect(&self, wc: &WindowContext, width: f32, height: f32) -> egui::Rect {
@@ -257,6 +257,8 @@ impl AppWindows {
 
     pub fn clear_project(&mut self) {
         self.collection.check.clear();
+        self.collection.project_comparer.clear();
+        self.collection.game_runner.reset();
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {

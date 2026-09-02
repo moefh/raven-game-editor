@@ -78,7 +78,32 @@ pub fn get_prop_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Optio
     store.assets.prop_fonts.iter().find(|asset| asset.asset.name == name)
 }
 
+pub struct BaseProjectDiff {
+    pub cur_data_size: usize,
+    pub other_data_size: usize,
+}
+
+impl BaseProjectDiff {
+    fn new() -> Self {
+        BaseProjectDiff {
+            cur_data_size: 0,
+            other_data_size: 0,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.cur_data_size = 0;
+        self.other_data_size = 0;
+    }
+
+    pub fn compare(&mut self, store: &DataAssetStore, other: &DataAssetStore) {
+        self.cur_data_size = store.assets.data_size();
+        self.other_data_size = other.assets.data_size();
+    }
+}
+
 pub struct ProjectComparer {
+    pub base_project: BaseProjectDiff,
     pub tilesets: TilesetListDiff,
     pub tile_anims: TileAnimationListDiff,
     pub maps: MapListDiff,
@@ -96,6 +121,7 @@ pub struct ProjectComparer {
 impl ProjectComparer {
     pub fn new() -> Self {
         ProjectComparer {
+            base_project: BaseProjectDiff::new(),
             tilesets: TilesetListDiff::new(),
             tile_anims: TileAnimationListDiff::new(),
             maps: MapListDiff::new(),
@@ -109,6 +135,21 @@ impl ProjectComparer {
             fonts: FontListDiff::new(),
             prop_fonts: PropFontListDiff::new(),
         }
+    }
+
+    pub fn has_any_asset_differences(&self) -> bool {
+        ! (self.tilesets.is_empty() &&
+            self.tile_anims.is_empty() &&
+            self.maps.is_empty() &&
+            self.rooms.is_empty() &&
+            self.worlds.is_empty() &&
+            self.sprites.is_empty() &&
+            self.animations.is_empty() &&
+            self.pal_sprites.is_empty() &&
+            self.mods.is_empty() &&
+            self.sfxs.is_empty() &&
+            self.fonts.is_empty() &&
+            self.prop_fonts.is_empty())
     }
 
     pub fn has_asset_differences(&self, asset_type: DataAssetType) -> bool {
@@ -128,7 +169,24 @@ impl ProjectComparer {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.base_project.clear();
+        self.tilesets.clear();
+        self.tile_anims.clear();
+        self.maps.clear();
+        self.rooms.clear();
+        self.worlds.clear();
+        self.sprites.clear();
+        self.pal_sprites.clear();
+        self.animations.clear();
+        self.mods.clear();
+        self.sfxs.clear();
+        self.fonts.clear();
+        self.prop_fonts.clear();
+    }
+
     pub fn run(&mut self, cur_store: &DataAssetStore, other_store: &DataAssetStore) {
+        self.base_project.compare(cur_store, other_store);
         self.tilesets.compare(cur_store, other_store);
         self.tile_anims.compare(cur_store, other_store);
         self.maps.compare(cur_store, other_store);

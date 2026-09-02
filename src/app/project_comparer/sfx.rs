@@ -25,10 +25,14 @@ impl SfxListDiff {
         self.diffs.is_empty() && self.cur_only.is_empty() && self.other_only.is_empty()
     }
 
-    pub fn compare(&mut self, cur_store: &DataAssetStore, other_store: &DataAssetStore) {
+    pub fn clear(&mut self) {
         self.diffs.clear();
         self.cur_only.clear();
         self.other_only.clear();
+    }
+
+    pub fn compare(&mut self, cur_store: &DataAssetStore, other_store: &DataAssetStore) {
+        self.clear();
 
         self.cur_only.splice(.., cur_store.asset_ids.sfxs.iter().copied());
         for other in other_store.assets.sfxs.iter() {
