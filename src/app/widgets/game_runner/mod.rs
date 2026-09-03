@@ -1,29 +1,26 @@
 mod player;
+mod enemy;
 mod util;
+pub mod consts;
 pub mod controller;
 pub mod collision;
 
 use controller::{*};
-use player::{*};
+use player::Player;
+use enemy::Enemy;
 use util::{*};
 
 use egui::{
     Vec2,
     Rect,
     Pos2,
-    Image,
 };
 
-use crate::image::{
-    TextureSlot,
-    ImageCollection,
-};
 use crate::data_asset::{
     DataAssetStore,
     DataAssetId,
     SpriteAnimation,
     SpriteAnimationLoop,
-    Tileset,
     Sprite,
     Room,
     RoomTriggerType,
@@ -42,7 +39,7 @@ use super::super::editors::{
     DrawMapLayerInfo,
 };
 
-const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
+pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
     name_id: String::new(),
     frame_indices: Vec::new(),
     dont_loop: false,
@@ -56,6 +53,7 @@ pub struct GameRunnerWidget {
     pub room_y: i32,
     pub frame_counter: u32,
     pub player: Player,
+    pub enemies: Vec<Enemy>,
     pub controller: Controller,
     map_animation_step: u32,
     last_game_runner_step: u32,
@@ -71,6 +69,7 @@ impl GameRunnerWidget {
         GameRunnerWidget {
             frame_counter: 0,
             player: Player::new(),
+            enemies: Vec::new(),
             controller: Controller::new(),
 
             room_id: None,
@@ -106,6 +105,9 @@ impl GameRunnerWidget {
         store: &DataAssetStore
     ) {
         self.player.tick_engine(room, player_anim, store, &self.controller);
+        for enemy in self.enemies.iter_mut() {
+            enemy.tick_engine(room, store);
+        }
     }
 
     pub fn reset(&mut self) {
@@ -114,27 +116,37 @@ impl GameRunnerWidget {
         self.frame_counter = 0;
         self.last_game_runner_step = 0;
         self.map_animation_step = 0;
+        self.player.reset();
+        self.enemies.clear();
+        self.player_anim_id = None;
         self.room_id = None;
     }
 
-    pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) -> bool {
-        self.reset();
-        self.room_id = room_id;
+    pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) {
+        if let Some(room_id) = room_id && let Some(room) = store.assets.rooms.get(&room_id) {
+            self.load_room(room, store);
+        } else {
+            self.reset();
+        }
+    }
 
-        if let Some(room_id) = self.room_id && let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
+    fn load_room(&mut self, room: &Room, store: &DataAssetStore) {
+        self.reset();
+
+        if let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
+            self.room_id = Some(room.asset.id);
             self.player_anim_id = Some(anim.asset.id);
             self.player.reset();
-            if let Some(room) = store.assets.rooms.get(&room_id) && let Some(player_spawn) = get_room_player_spawn(room) {
-                self.player.x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.w) / 2;
-                self.player.y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.h;
-                if let RoomTriggerType::PlayerSpawn { direction } = player_spawn.trigger_type {
-                    self.player.direction = direction.value().into();
-                }
+            self.player.move_to_spawn(room, anim);
+            self.spawn_enemies(room, store);
+        }
+    }
+
+    fn spawn_enemies(&mut self, room: &Room, _store: &DataAssetStore) {
+        for trigger in &room.triggers {
+            if let RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } =  trigger.trigger_type {
+                self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction));
             }
-            true
-        } else {
-            self.player_anim_id = None;
-            false
         }
     }
 
@@ -195,62 +207,6 @@ impl GameRunnerWidget {
         }
     }
 
-    fn draw_player(
-        &mut self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        player_sprite: &Sprite,
-        player_anim: &SpriteAnimation,
-        screen_pos: egui::Pos2,
-        zoom: f32,
-    ) {
-        let empty_loop = EMPTY_ANIMATION_LOOP;
-        let cur_loop = player_anim.loops.get(self.player.anim_loop)
-            .or_else(|| player_anim.loops.first())
-            .unwrap_or(&empty_loop);
-        let loop_frame = self.player.anim_frame >> 8;
-        let loop_frame = if loop_frame as usize >= cur_loop.frame_indices.len() {
-            if cur_loop.dont_loop {
-                let loop_frame = (cur_loop.frame_indices.len() as u32).saturating_sub(1);
-                self.player.anim_frame = loop_frame << 8;
-                loop_frame
-            } else {
-                self.player.anim_frame &= 0xff;
-                0
-            }
-        } else {
-            loop_frame
-        };
-
-        let sprite_frame = cur_loop.frame_indices.get(loop_frame as usize).and_then(|frame| frame.head_index).unwrap_or(0) as u32;
-        let sprite_x = match self.player.direction {
-            Direction::Left  => { self.player.x - (player_sprite.width as i32 - (player_anim.clip_rect.x + player_anim.clip_rect.w)) }
-            Direction::Right => { self.player.x - player_anim.clip_rect.x }
-        };
-        let sprite_y = self.player.y - player_anim.clip_rect.y;
-
-        let sprite_size = Vec2::new(player_sprite.width as f32, player_sprite.height as f32);
-        let sprite_uv = match self.player.direction {
-            Direction::Left => {
-                let uv = player_sprite.get_item_uv(sprite_frame);
-                Rect::from_min_max(
-                    Pos2::new(uv.max.x, uv.min.y),
-                    Pos2::new(uv.min.x, uv.max.y)
-                )
-            }
-            Direction::Right => {
-                player_sprite.get_item_uv(sprite_frame)
-            }
-        };
-
-        let draw_rect = egui::Rect::from_min_size(
-            screen_pos + zoom * Vec2::new(sprite_x as f32, sprite_y as f32),
-            zoom * sprite_size
-        );
-        let texture = player_sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
-    }
-
     fn draw_screen(
         &mut self,
         ui: &mut egui::Ui,
@@ -281,7 +237,12 @@ impl GameRunnerWidget {
         };
 
         self.draw_room_bg(ui, wc, room, store, &draw_map_info);
-        self.draw_player(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
+        self.player.draw(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
+        for enemy in self.enemies.iter_mut() {
+            if let Some(anim) = store.assets.animations.get(&enemy.anim_id) && let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
+                enemy.draw(ui, wc, sprite, anim, draw_map_info.pos, zoom);
+            }
+        }
         self.draw_room_fg(ui, wc, room, store, &draw_map_info);
     }
 

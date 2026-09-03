@@ -1,36 +1,25 @@
 use crate::data_asset::{
     DataAssetStore,
     Room,
+    Tileset,
+    Sprite,
     SpriteAnimation,
+    RoomTriggerType,
+};
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
 };
 
+use super::{
+    EMPTY_ANIMATION_LOOP,
+    Direction,
+    WindowContext,
+};
+use super::consts::{*};
 use super::controller::{*};
 use super::collision::{*};
-
-pub const DX_ACCEL: i32       =  0x100;
-pub const DX_FRICTION: i32    =  0x0c0;
-pub const DX_MAX: i32         =  0x700;
-
-pub const DY_GRAVITY: i32     =  0x0c0;
-pub const DY_MAX: i32         =  0x900;
-pub const DY_JUMP_START: i32  = -0xa00;
-pub const DY_JUMP_HOLD: i32   = -0x060;
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Direction {
-    Right,
-    Left,
-}
-
-impl From<u8> for Direction {
-    fn from(val: u8) -> Self {
-        if val != 0 {
-            Direction::Left
-        } else {
-            Direction::Right
-        }
-    }
-}
+use super::util::{*};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PlayerState {
@@ -87,6 +76,16 @@ impl Player {
         self.anim_loop = 0;
         self.dx = 0;
         self.dy = 0;
+    }
+
+    pub fn move_to_spawn(&mut self, room: &Room, anim: &SpriteAnimation) {
+        if let Some(player_spawn) = get_room_player_spawn(room) {
+            self.x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.w) / 2;
+            self.y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.h;
+            if let RoomTriggerType::PlayerSpawn { direction } = player_spawn.trigger_type {
+                self.direction = direction.value().into();
+            }
+        }
     }
 
     pub fn control(&mut self, pad: &Controller) {
@@ -200,5 +199,61 @@ impl Player {
         if let Some(cur_loop) = player_anim.loops.get(self.anim_loop) {
             self.anim_frame += cur_loop.frame_speed as u32;
         }
+    }
+
+    pub fn draw(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        sprite: &Sprite,
+        anim: &SpriteAnimation,
+        screen_pos: egui::Pos2,
+        zoom: f32,
+    ) {
+        let empty_loop = EMPTY_ANIMATION_LOOP;
+        let cur_loop = anim.loops.get(self.anim_loop)
+            .or_else(|| anim.loops.first())
+            .unwrap_or(&empty_loop);
+        let loop_frame = self.anim_frame >> 8;
+        let loop_frame = if loop_frame as usize >= cur_loop.frame_indices.len() {
+            if cur_loop.dont_loop {
+                let loop_frame = (cur_loop.frame_indices.len() as u32).saturating_sub(1);
+                self.anim_frame = loop_frame << 8;
+                loop_frame
+            } else {
+                self.anim_frame &= 0xff;
+                0
+            }
+        } else {
+            loop_frame
+        };
+
+        let sprite_frame = cur_loop.frame_indices.get(loop_frame as usize).and_then(|frame| frame.head_index).unwrap_or(0) as u32;
+        let sprite_x = match self.direction {
+            Direction::Left  => { self.x - (sprite.width as i32 - (anim.clip_rect.x + anim.clip_rect.w)) }
+            Direction::Right => { self.x - anim.clip_rect.x }
+        };
+        let sprite_y = self.y - anim.clip_rect.y;
+
+        let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
+        let sprite_uv = match self.direction {
+            Direction::Left => {
+                let uv = sprite.get_item_uv(sprite_frame);
+                egui::Rect::from_min_max(
+                    egui::Pos2::new(uv.max.x, uv.min.y),
+                    egui::Pos2::new(uv.min.x, uv.max.y)
+                )
+            }
+            Direction::Right => {
+                sprite.get_item_uv(sprite_frame)
+            }
+        };
+
+        let draw_rect = egui::Rect::from_min_size(
+            screen_pos + zoom * egui::Vec2::new(sprite_x as f32, sprite_y as f32),
+            zoom * sprite_size
+        );
+        let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+        egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
     }
 }
