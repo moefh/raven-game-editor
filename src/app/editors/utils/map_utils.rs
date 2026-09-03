@@ -264,7 +264,7 @@ impl MapWholeFragment {
                 bg_data.push(map_data.bg_tiles[tile_index]);
                 fx_data.push(map_data.fx_tiles[tile_index]);
                 if copy_para {
-                    para_data.push(map_data.bg_tiles[tile_index]);
+                    para_data.push(map_data.para_tiles[tile_index]);
                 }
             }
         }
@@ -307,6 +307,8 @@ impl MapWholeFragment {
         if (x > 0 &&   x  as u32 >= map_width) || (y > 0 &&   y  as u32 >= map_height) { return; }
         if (x < 0 && (-x) as u32 >= map_width) || (y < 0 && (-y) as u32 >= map_height) { return; }
 
+        let paste_para = ! self.para_data.is_empty() && map_data.para_width == map_data.width && map_data.para_height == map_data.height;
+
         let mut src_x = 0;
         let mut src_y = 0;
         let mut width = self.width;
@@ -327,7 +329,7 @@ impl MapWholeFragment {
                 let fg_tile = self.fg_data[src+ix]; if fg_tile != MapData::NO_TILE { map_data.fg_tiles[dest+ix] = fg_tile; }
                 let bg_tile = self.bg_data[src+ix]; if bg_tile != MapData::NO_TILE { map_data.bg_tiles[dest+ix] = bg_tile; }
                 let fx_tile = self.fx_data[src+ix]; if fx_tile != MapData::NO_TILE { map_data.fx_tiles[dest+ix] = fx_tile; }
-                if ! self.para_data.is_empty() {
+                if paste_para {
                     map_data.para_tiles[dest+ix] = self.para_data[src+ix];
                 }
             }
