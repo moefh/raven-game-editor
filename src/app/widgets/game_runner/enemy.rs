@@ -40,12 +40,15 @@ pub const ENEMY_ANIM_LOOP_RUN: usize = 1;
 //pub const ENEMY_ANIM_LOOP_BLINK: usize = 5;
 //pub const ENEMY_ANIM_LOOP_SPLAT: usize = 6;
 //pub const ENEMY_ANIM_LOOP_PREP_JUMP: usize = 7;
+//pub const ENEMY_ANIM_LOOP_EXPLODE: usize = 8;
+pub const ENEMY_ANIM_LOOP_FLOAT: usize = 9;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum EnemyState {
     Walker(WalkerState),
     //Chiller(ChillerState),
     //Hopper(HopperState),
+    Floater(FloaterState),
     Unknown,
 }
 
@@ -55,6 +58,7 @@ impl EnemyState {
             0 => { EnemyState::Walker(WalkerState::default()) }
             //1 => { EnemyState::Chiller(ChillerState::default()) }
             //2 => { EnemyState::Hopper(HopperState::Stand) }
+            3 => { EnemyState::Floater(FloaterState::default()) }
             _ => { EnemyState::Unknown }
         }
     }
@@ -63,12 +67,24 @@ impl EnemyState {
 #[derive(Clone, Copy, PartialEq, Default)]
 pub enum WalkerState {
     #[default]
-    Walker,
+    Walk,
 }
 
 impl WalkerState {
     pub fn get_anim_loop(self) -> usize {
         ENEMY_ANIM_LOOP_RUN
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Default)]
+pub enum FloaterState {
+    #[default]
+    Float,
+}
+
+impl FloaterState {
+    pub fn get_anim_loop(self) -> usize {
+        ENEMY_ANIM_LOOP_FLOAT
     }
 }
 
@@ -100,23 +116,32 @@ pub struct Enemy {
     pub anim_id: DataAssetId,
     pub anim_loop: usize,
     pub anim_frame: u32,  // 24.8 fixpoint
-    //pub dx: i32,          // 24.8 fixpoint
-    //pub dy: i32,          // 24.8 fixpoint
+    pub dx: i32,          // 24.8 fixpoint
+    pub dy: i32,          // 24.8 fixpoint
 }
 
+// === floater ===========================================
 impl Enemy {
-    pub fn new(x: i16, y: i16, anim_id: DataAssetId, enemy_type: u16, direction: RoomEntityDirection) -> Self {
-        Enemy {
-            x: x as i32,
-            y: y as i32,
-            state: EnemyState::from_type(enemy_type),
-            direction: direction.into(),
-            anim_id,
-            anim_frame: 0,
-            anim_loop: 0,
-            //dx: 0,
-            //dy: 0,
+    fn init_floater(&mut self, state: FloaterState, _room: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) {
+        self.dx = 0;
+        self.dy = self.y;
+        self.anim_loop = state.get_anim_loop();
+    }
+
+    fn update_floater(&mut self, _state: FloaterState, _room: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) {
+        self.dx += 16;
+        if (self.dx >> 8) >= Self::FLOAT_DELTA.len() as i32 {
+            self.dx &= 0xff;
         }
+
+        self.y = self.dy + Self::FLOAT_DELTA[(self.dx>>8) as usize];
+    }
+}
+
+// === waker ===========================================
+impl Enemy {
+    fn init_walker(&mut self, _state: WalkerState, _room_id: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) {
+        // nothing to do
     }
 
     fn update_walker(&mut self, state: WalkerState, room: &Room, anim: &SpriteAnimation, store: &DataAssetStore) {
@@ -146,17 +171,58 @@ impl Enemy {
         }
         self.anim_loop = state.get_anim_loop();
     }
+}
+
+impl Enemy {
+    const FLOAT_DELTA: &[i32] = &[0, -1, -2, -2, -1, 0, 1, 2, 2, 1 ];
+
+    pub fn new(
+        x: i16,
+        y: i16,
+        anim_id: DataAssetId,
+        enemy_type: u16,
+        direction: RoomEntityDirection,
+        room: &Room,
+        store: &DataAssetStore
+    ) -> Self {
+        let mut enemy = Enemy {
+            x: x as i32,
+            y: y as i32,
+            state: EnemyState::from_type(enemy_type),
+            direction: direction.into(),
+            anim_id,
+            anim_frame: 0,
+            anim_loop: 0,
+            dx: 0,
+            dy: 0,
+        };
+        enemy.init_engine(room, store);
+        enemy
+    }
 
     pub fn tick_engine(&mut self, room: &Room, store: &DataAssetStore) {
         if let Some(anim) = store.assets.animations.get(&self.anim_id) {
             match self.state {
                 EnemyState::Walker(state) => { self.update_walker(state, room, anim, store); }
+                EnemyState::Floater(state) => { self.update_floater(state, room, anim, store); }
                 //EnemyState::Chiller(state) => { self.update_chiller(state, room, anim, store); }
                 //EnemyState::Hopper(state) => { self.update_hopper(state, room, anim, store); }
                 EnemyState::Unknown => { self.anim_loop = 0; }
             }
             if let Some(cur_loop) = anim.loops.get(self.anim_loop) {
                 self.anim_frame += cur_loop.frame_speed as u32;
+            }
+        }
+    }
+
+    fn init_engine(&mut self, room: &Room, store: &DataAssetStore) {
+        if let Some(anim) = store.assets.animations.get(&self.anim_id) {
+            match self.state {
+                EnemyState::Walker(state) => { self.init_walker(state, room, anim, store); }
+                EnemyState::Floater(state) => { self.init_floater(state, room, anim, store); }
+                //EnemyState::Chiller(state) => { self.init_chiller(state, room, anim, store); }
+                //EnemyState::Hopper(state) => { self.init_hopper(state, room, anim, store); }
+                EnemyState::Unknown => { self.anim_loop = 0; }
             }
         }
     }

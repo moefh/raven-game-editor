@@ -142,10 +142,10 @@ impl GameRunnerWidget {
         }
     }
 
-    fn spawn_enemies(&mut self, room: &Room, _store: &DataAssetStore) {
+    fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
         for trigger in &room.triggers {
             if let RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } =  trigger.trigger_type {
-                self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction));
+                self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction, room, store));
             }
         }
     }
