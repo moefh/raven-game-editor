@@ -30,8 +30,8 @@ impl GameRunnerWindow {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.display.game.reset();
+    pub fn clear(&mut self) {
+        self.display.clear();
     }
 
     pub fn open(&mut self, ctx: &egui::Context) {
@@ -68,6 +68,11 @@ impl GameDisplay {
             game: GameRunnerWidget::new(),
             sorted_room_ids: Vec::new(),
         }
+    }
+
+    fn clear(&mut self) {
+        self.sorted_room_ids.clear();
+        self.game.reset();
     }
 
     fn sort_ids(&mut self, store: &DataAssetStore) {
@@ -107,7 +112,10 @@ impl GameDisplay {
                 ui.label("Room:");
                 self.show_room_combo(ui, store);
 
-                if ui.add(egui::Button::image(IMAGES.reload)).on_hover_text("Restart room").clicked() {
+                if ui.add_enabled(
+                    self.game.room_id.is_some(),
+                    egui::Button::image(IMAGES.reload)
+                ).on_hover_text("Restart room").clicked() {
                     self.game.set_room(self.game.room_id, store);
                 }
             });

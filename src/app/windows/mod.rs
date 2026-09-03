@@ -258,7 +258,7 @@ impl AppWindows {
     pub fn clear_project(&mut self) {
         self.collection.check.clear();
         self.collection.project_comparer.clear();
-        self.collection.game_runner.reset();
+        self.collection.game_runner.clear();
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {
