@@ -13,7 +13,6 @@ use egui::{
     Pos2,
     Image,
 };
-use egui::emath::RectTransform;
 
 use crate::image::{
     TextureSlot,
@@ -24,12 +23,9 @@ use crate::data_asset::{
     DataAssetId,
     SpriteAnimation,
     SpriteAnimationLoop,
-    TileAnimation,
     Tileset,
-    MapData,
     Sprite,
     Room,
-    RoomMap,
     RoomTriggerType,
 };
 
@@ -37,12 +33,13 @@ use super::super::{
     WindowContext,
 };
 use super::super::editors::{
-    get_animated_tile,
     get_animation_step,
     get_game_runner_step,
-    get_map_layer_tile,
-    MapLayer,
+    draw_para_layer,
+    draw_bg_layer,
+    draw_fg_layer,
     RoomSize,
+    DrawMapLayerInfo,
 };
 
 const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
@@ -163,140 +160,21 @@ impl GameRunnerWidget {
         }
     }
 
-    fn get_map_rect(room_map: &RoomMap, map_data: &MapData) -> Rect {
-        let map_pos = Pos2::new(room_map.x as f32, room_map.y as f32);
-        let map_size = Vec2::new(map_data.width as f32, map_data.height as f32);
-        TILE_SIZE * egui::Rect::from_min_size(map_pos, map_size)
-    }
-
-    fn get_tile_rect(x: u32, y: u32, map_pos: Pos2) -> Rect {
-        let tile_pos = TILE_SIZE * Vec2::new(x as f32, y as f32);
-        Rect::from_min_size(map_pos + tile_pos, Vec2::splat(TILE_SIZE))
-    }
-
-    fn draw_map_para_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset
-    ) {
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn draw_map_bg_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset,
-        tile_anim: Option<&TileAnimation>,
-        anim_tileset: Option<&Tileset>,
-    ) {
-        for y in 0..map_data.height {
-            for x in 0..map_data.width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == MapData::NO_TILE { continue; }
-                let (tile, use_tileset) = if let Some(new_tile) = get_animated_tile(
-                    tile,
-                    MapLayer::Background,
-                    get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                    tile_anim,
-                    self.map_animation_step
-                ) {
-                    if let Some(anim_tileset) = anim_tileset {
-                        (new_tile, anim_tileset)
-                    } else {
-                        (new_tile, tileset)
-                    }
-                } else {
-                    (tile, tileset)
-                };
-                if tile as u32 >= use_tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
-                    TextureSlot::Opaque
-                } else {
-                    TextureSlot::Transparent
-                };
-                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(use_tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn draw_map_fg_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset,
-        tile_anim: Option<&TileAnimation>,
-        anim_tileset: Option<&Tileset>,
-    ) {
-        for y in 0..map_data.height {
-            for x in 0..map_data.width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                if tile == MapData::NO_TILE { continue; }
-                let (tile, use_tileset) = if let Some(new_tile) = get_animated_tile(
-                    tile,
-                    MapLayer::Foreground,
-                    get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                    tile_anim,
-                    self.map_animation_step
-                ) {
-                    if let Some(anim_tileset) = anim_tileset {
-                        (new_tile, anim_tileset)
-                    } else {
-                        (new_tile, tileset)
-                    }
-                } else {
-                    (tile, tileset)
-                };
-                if tile as u32 >= use_tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(use_tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-    }
-
     fn draw_room_bg(
         &self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
         store: &DataAssetStore,
-        to_canvas: &RectTransform
+        draw_map_info: &DrawMapLayerInfo
     ) {
         for room_map in room.maps.iter() {
-            if let Some(map_data) = store.assets.maps.get(&room_map.map_id) &&
-                let Some(tileset) = store.assets.tilesets.get(&map_data.tileset_id) {
-                    let (tile_anim, anim_tileset) = map_data
-                        .tile_anim_id
-                        .and_then(|tile_anim_id| store.assets.tile_anims.get(&tile_anim_id))
-                        .map(|tile_anim| (Some(tile_anim), store.assets.tilesets.get(&tile_anim.anim_tileset_id)))
-                        .unwrap_or((None, None));
-                    let map_rect = Self::get_map_rect(room_map, map_data);
-                    self.draw_map_para_layer(ui, wc, to_canvas, map_rect.min, map_data, tileset);
-                    self.draw_map_bg_layer(ui, wc, to_canvas, map_rect.min, map_data, tileset, tile_anim, anim_tileset);
-                }
+            if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
+                let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
+                let draw_bg_info = draw_map_info.add_pos(map_pos);
+                draw_para_layer(ui, wc, map_data, &store.assets.tilesets, &store.assets.tile_anims, &draw_bg_info, None);
+                draw_bg_layer(ui, wc, map_data, &store.assets.tilesets, &store.assets.tile_anims, &draw_bg_info, None);
+            }
         }
     }
 
@@ -306,19 +184,14 @@ impl GameRunnerWidget {
         wc: &mut WindowContext,
         room: &Room,
         store: &DataAssetStore,
-        to_canvas: &RectTransform
+        draw_map_info: &DrawMapLayerInfo
     ) {
         for room_map in room.maps.iter() {
-            if let Some(map_data) = store.assets.maps.get(&room_map.map_id) &&
-                let Some(tileset) = store.assets.tilesets.get(&map_data.tileset_id) {
-                    let map_rect = Self::get_map_rect(room_map, map_data);
-                    let (tile_anim, anim_tileset) = map_data
-                        .tile_anim_id
-                        .and_then(|tile_anim_id| store.assets.tile_anims.get(&tile_anim_id))
-                        .map(|tile_anim| (Some(tile_anim), store.assets.tilesets.get(&tile_anim.anim_tileset_id)))
-                        .unwrap_or((None, None));
-                    self.draw_map_fg_layer(ui, wc, to_canvas, map_rect.min, map_data, tileset, tile_anim, anim_tileset);
-                }
+            if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
+                let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
+                let draw_fg_info = draw_map_info.add_pos(map_pos);
+                draw_fg_layer(ui, wc, map_data, &store.assets.tilesets, &store.assets.tile_anims, &draw_fg_info, None);
+            }
         }
     }
 
@@ -328,7 +201,8 @@ impl GameRunnerWidget {
         wc: &mut WindowContext,
         player_sprite: &Sprite,
         player_anim: &SpriteAnimation,
-        to_canvas: &RectTransform
+        screen_pos: egui::Pos2,
+        zoom: f32,
     ) {
         let empty_loop = EMPTY_ANIMATION_LOOP;
         let cur_loop = player_anim.loops.get(self.player.anim_loop)
@@ -356,7 +230,6 @@ impl GameRunnerWidget {
         let sprite_y = self.player.y - player_anim.clip_rect.y;
 
         let sprite_size = Vec2::new(player_sprite.width as f32, player_sprite.height as f32);
-        let sprite_rect = Rect::from_min_size(Pos2::new(sprite_x as f32, sprite_y as f32), sprite_size);
         let sprite_uv = match self.player.direction {
             Direction::Left => {
                 let uv = player_sprite.get_item_uv(sprite_frame);
@@ -370,7 +243,10 @@ impl GameRunnerWidget {
             }
         };
 
-        let draw_rect = to_canvas.transform_rect(sprite_rect);
+        let draw_rect = egui::Rect::from_min_size(
+            screen_pos + zoom * Vec2::new(sprite_x as f32, sprite_y as f32),
+            zoom * sprite_size
+        );
         let texture = player_sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
     }
@@ -391,19 +267,22 @@ impl GameRunnerWidget {
         let room_size = get_room_size(room, store);
         let zoom = (canvas_rect.width() / Self::SCREEN_SIZE.x).min(canvas_rect.height() / Self::SCREEN_SIZE.y);
         let screen_size = zoom * Self::SCREEN_SIZE;
-        let screen_rect = Rect::from_min_size(canvas_rect.min + 0.5 * (canvas_rect.size() - screen_size), screen_size);
+        let screen_pos = canvas_rect.min + 0.5 * (canvas_rect.size() - screen_size);
+        let screen_rect = Rect::from_min_size(screen_pos, screen_size);
         ui.shrink_clip_rect(screen_rect);
 
         self.follow_player(player_anim);
         self.clip_scroll(room_size);
 
-        let to_canvas = RectTransform::from_to(
-            Rect::from_min_size(Pos2::new(self.room_x as f32, self.room_y as f32), Self::SCREEN_SIZE),
-            screen_rect,
-        );
-        self.draw_room_bg(ui, wc, room, store, &to_canvas);
-        self.draw_player(ui, wc, player_sprite, player_anim, &to_canvas);
-        self.draw_room_fg(ui, wc, room, store, &to_canvas);
+        let draw_map_info = DrawMapLayerInfo {
+            zoom,
+            pos: screen_pos - zoom * Vec2::new(self.room_x as f32, self.room_y as f32),
+            animation_step: Some(self.map_animation_step),
+        };
+
+        self.draw_room_bg(ui, wc, room, store, &draw_map_info);
+        self.draw_player(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
+        self.draw_room_fg(ui, wc, room, store, &draw_map_info);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataAssetStore) {

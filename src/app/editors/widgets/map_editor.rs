@@ -27,7 +27,9 @@ use super::{
     SCREEN_SIZE,
 };
 use super::super::{
-    get_animated_tile,
+    draw_para_layer,
+    draw_bg_layer,
+    draw_fg_layer,
     get_animation_step,
     get_map_layer_tile,
     WindowContext,
@@ -38,6 +40,7 @@ use super::super::{
     MapLayerFragment,
     MapRect,
     MapLayer,
+    DrawMapLayerInfo,
 };
 
 const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2 { x: 1.0, y: 1.0 } };
@@ -814,34 +817,29 @@ impl MapEditorWidget {
         // draw background green
         let bg_color = self.custom_bg_color.unwrap_or(wc.settings.map_bg_color);
         painter.rect_filled(map_area_rect, egui::CornerRadius::ZERO, bg_color);
+
         let mut has_animated_tiles = false;
         let animation_step = get_animation_step(wc);
+        let draw_layer_info = DrawMapLayerInfo {
+            zoom: self.zoom,
+            pos: canvas_rect.min + self.scroll,
+            animation_step: if self.display.has_bits(MapDisplay::ANIMATE_TILES) {
+                Some(animation_step)
+            } else {
+                None
+            },
+        };
 
-        let (tile_anim, anim_tileset) = map_data
-            .tile_anim_id
-            .and_then(|tile_anim_id| tile_anims.get(&tile_anim_id))
-            .map(|tile_anim| (Some(tile_anim), tilesets.get(&tile_anim.anim_tileset_id)))
-            .unwrap_or((None, None));
         if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
             // parallax
             if self.display.has_bits(MapDisplay::PARALLAX) && map_data.para_width != 0 && map_data.para_height != 0 {
-                for y in 0..map_data.para_height {
-                    for x in 0..map_data.para_width {
-                        let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                        if tile == MapData::NO_TILE { continue; }
-                        let (uv, texture) = if tile as u32 >= tileset.num_tiles {
-                            (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
-                        } else {
-                            (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
-                        };
-                        let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + para_scroll);
-                        let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
-                        if self.edit_layer == MapLayer::Foreground || self.edit_layer == MapLayer::Background {
-                            image.tint(Self::LIGHT_LAYER_TINT).paint_at(ui, tile_rect);
-                        } else {
-                            image.paint_at(ui, tile_rect);
-                        }
-                    }
+                let para_tint = if self.edit_layer == MapLayer::Foreground || self.edit_layer == MapLayer::Background {
+                    Some(Self::LIGHT_LAYER_TINT)
+                } else {
+                    None
+                };
+                if draw_para_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, para_tint) {
+                    has_animated_tiles = true;
                 }
 
                 self.paint_floating_selection_for_layer(ui, MapLayer::Parallax, wc, tileset, TextureSlot::Opaque, canvas_rect);
@@ -849,90 +847,27 @@ impl MapEditorWidget {
 
             // background
             if self.display.has_bits(MapDisplay::BACKGROUND) {
-                for y in 0..map_data.height {
-                    for x in 0..map_data.width {
-                        let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                        if tile == MapData::NO_TILE { continue; }
-                        let (tile, use_tileset) = if self.display.has_bits(MapDisplay::ANIMATE_TILES) &&
-                            let Some(new_tile) = get_animated_tile(
-                                tile,
-                                MapLayer::Background,
-                                get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                                tile_anim,
-                                animation_step
-                            ) {
-                                has_animated_tiles = true;
-                                if let Some(anim_tileset) = anim_tileset {
-                                    (new_tile, anim_tileset)
-                                } else {
-                                    (new_tile, tileset)
-                                }
-                            } else {
-                                (tile, tileset)
-                            };
-                        let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
-                            (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
-                        } else {
-                            let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
-                                TextureSlot::Opaque
-                            } else {
-                                TextureSlot::Transparent
-                            };
-                            (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
-                        };
-                        let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                        let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
-                        let image = match self.edit_layer {
-                            MapLayer::Foreground => { image.tint(Self::LIGHT_LAYER_TINT) }
-                            MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
-                            _ => { image }
-                        };
-                        image.paint_at(ui, tile_rect);
-                    }
+                let bg_tint = match self.edit_layer {
+                    MapLayer::Foreground => { Some(Self::LIGHT_LAYER_TINT) }
+                    MapLayer::Parallax => { Some(Self::HEAVY_LAYER_TINT) }
+                    _ => { None }
+                };
+                if draw_bg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, bg_tint) {
+                    has_animated_tiles = true;
                 }
-
                 self.paint_floating_selection_for_layer(ui, MapLayer::Background, wc, tileset, TextureSlot::Opaque, canvas_rect);
             }
 
             // foreground
             if self.display.has_bits(MapDisplay::FOREGROUND) {
-                for y in 0..map_data.height {
-                    for x in 0..map_data.width {
-                        let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                        if tile == MapData::NO_TILE { continue; }
-                        let (tile, use_tileset) = if self.display.has_bits(MapDisplay::ANIMATE_TILES) &&
-                            let Some(new_tile) = get_animated_tile(
-                                tile,
-                                MapLayer::Foreground,
-                                get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                                tile_anim,
-                                animation_step
-                            ) {
-                                has_animated_tiles = true;
-                                if let Some(anim_tileset) = anim_tileset {
-                                    (new_tile, anim_tileset)
-                                } else {
-                                    (new_tile, tileset)
-                                }
-                            } else {
-                                (tile, tileset)
-                            };
-                        let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
-                            (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
-                        } else {
-                            (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
-                        };
-                        let tile_rect = Self::get_tile_rect(x, y, self.zoom, canvas_rect.min + self.scroll);
-                        let image = Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(uv);
-                        let image = match self.edit_layer {
-                            MapLayer::Background => { image.tint(Self::LIGHT_LAYER_TINT) }
-                            MapLayer::Parallax => { image.tint(Self::HEAVY_LAYER_TINT) }
-                            _ => { image }
-                        };
-                        image.paint_at(ui, tile_rect);
-                    }
+                let fg_tint = match self.edit_layer {
+                    MapLayer::Background => { Some(Self::LIGHT_LAYER_TINT) }
+                    MapLayer::Parallax => { Some(Self::HEAVY_LAYER_TINT) }
+                    _ => { None }
+                };
+                if draw_fg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, fg_tint) {
+                    has_animated_tiles = true;
                 }
-
                 self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, wc, tileset, TextureSlot::Opaque, canvas_rect);
             }
         }

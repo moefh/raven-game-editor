@@ -78,7 +78,7 @@ impl TilePickerPopupWidget {
             let x = tile as i32 % dims.0;
             let y = tile as i32 / dims.0;
             let tile_rect = Rect::from_min_size(rect.min + tile_size * Vec2::new(x as f32, y as f32), tile_size);
-            let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(255, 0, 255));
+            let stroke = egui::Stroke::new(3.0, egui::Color32::from_rgb(255, 0, 255));
             painter.rect_stroke(tile_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
         }
     }

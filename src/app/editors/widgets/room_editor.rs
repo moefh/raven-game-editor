@@ -16,7 +16,6 @@ use crate::data_asset::{
     RoomEntityDirection,
     MapData,
     Tileset,
-    TileAnimation,
 };
 use crate::image::{
     ImageCollection,
@@ -30,13 +29,16 @@ use super::{
     SCREEN_SIZE,
 };
 use super::super::{
-    get_animated_tile,
+    draw_para_layer,
+    draw_bg_layer,
+    draw_fg_layer,
     get_animation_step,
     get_map_layer_tile,
     WindowContext,
     MapLayer,
     RoomSize,
     RectBorder,
+    DrawMapLayerInfo,
 };
 use super::super::room::{
     RoomEditorAssetLists,
@@ -695,119 +697,6 @@ impl RoomEditorWidget {
         Self::draw_outline_rect(painter, to_canvas.transform_rect(rect));
     }
 
-    fn draw_map_para_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset
-    ) {
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn draw_map_bg_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset,
-        tile_anim: Option<&TileAnimation>,
-        anim_tileset: Option<&Tileset>,
-        animation_step: u32,
-    ) -> bool {
-        let mut has_animated_tiles = false;
-        for y in 0..map_data.height {
-            for x in 0..map_data.width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-                if tile == MapData::NO_TILE { continue; }
-                let (tile, use_tileset) = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
-                    let Some(new_tile) = get_animated_tile(
-                        tile,
-                        MapLayer::Background,
-                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                        tile_anim,
-                        animation_step
-                    ) {
-                        has_animated_tiles = true;
-                        if let Some(anim_tileset) = anim_tileset {
-                            (new_tile, anim_tileset)
-                        } else {
-                            (new_tile, tileset)
-                        }
-                    } else {
-                        (tile, tileset)
-                    };
-                if tile as u32 >= use_tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
-                    TextureSlot::Opaque
-                } else {
-                    TextureSlot::Transparent
-                };
-                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, slot);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(use_tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-        has_animated_tiles
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn draw_map_fg_layer(
-        &self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        to_canvas: &RectTransform,
-        map_pos: Pos2,
-        map_data: &MapData,
-        tileset: &Tileset,
-        tile_anim: Option<&TileAnimation>,
-        anim_tileset: Option<&Tileset>,
-        animation_step: u32,
-    ) -> bool {
-        let mut has_animated_tiles = false;
-        for y in 0..map_data.height {
-            for x in 0..map_data.width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-                if tile == MapData::NO_TILE { continue; }
-                let (tile, use_tileset) = if self.display.has_bits(RoomDisplay::ANIMATE_TILES) &&
-                    let Some(new_tile) = get_animated_tile(
-                        tile,
-                        MapLayer::Background,
-                        get_map_layer_tile(map_data, MapLayer::Animation, x, y),
-                        tile_anim,
-                        animation_step
-                    ) {
-                        has_animated_tiles = true;
-                        if let Some(anim_tileset) = anim_tileset {
-                            (new_tile, anim_tileset)
-                        } else {
-                            (new_tile, tileset)
-                        }
-                    } else {
-                        (tile, tileset)
-                    };
-                if tile as u32 >= use_tileset.num_tiles { continue; }
-                let draw_rect = to_canvas.transform_rect(Self::get_tile_rect(x, y, map_pos));
-                let texture = use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(use_tileset.get_item_uv(tile as u32)).paint_at(ui, draw_rect);
-            }
-        }
-        has_animated_tiles
-    }
-
     fn draw_map_fx_layer(
         &self,
         ui: &mut egui::Ui,
@@ -876,19 +765,26 @@ impl RoomEditorWidget {
 
         let mut has_animated_tiles = false;
         let animation_step = get_animation_step(wc);
+        let draw_layer_info = DrawMapLayerInfo {
+            zoom: self.zoom,
+            pos: to_canvas.to().min,
+            animation_step: if self.display.has_bits(RoomDisplay::ANIMATE_TILES) {
+                Some(animation_step)
+            } else {
+                None
+            },
+        };
 
         // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {
             for room_map in room.maps.iter() {
-                if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
-                    let (tile_anim, anim_tileset) = map_data
-                        .tile_anim_id
-                        .and_then(|tile_anim_id| assets.tile_anims.get(&tile_anim_id))
-                        .map(|tile_anim| (Some(tile_anim), assets.tilesets.get(&tile_anim.anim_tileset_id)))
-                        .unwrap_or((None, None));
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    self.draw_map_para_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset);
-                    if self.draw_map_bg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset, tile_anim, anim_tileset, animation_step) {
+                    let draw_bg_info = draw_layer_info.add_pos(self.zoom * map_rect.min);
+                    if draw_para_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
+                        has_animated_tiles = true;
+                    }
+                    if draw_bg_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
                         has_animated_tiles = true;
                     }
                 }
@@ -903,14 +799,10 @@ impl RoomEditorWidget {
         // draw map FG layer
         if self.display.has_bits(RoomDisplay::FOREGROUND) {
             for room_map in room.maps.iter() {
-                if let Some(map_data) = assets.maps.get(&room_map.map_id) && let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    let (tile_anim, anim_tileset) = map_data
-                        .tile_anim_id
-                        .and_then(|tile_anim_id| assets.tile_anims.get(&tile_anim_id))
-                        .map(|tile_anim| (Some(tile_anim), assets.tilesets.get(&tile_anim.anim_tileset_id)))
-                        .unwrap_or((None, None));
-                    if self.draw_map_fg_layer(ui, wc, &to_canvas, map_rect.min, map_data, tileset, tile_anim, anim_tileset, animation_step) {
+                    let draw_fg_info = draw_layer_info.add_pos(self.zoom * map_rect.min);
+                    if draw_fg_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_fg_info, None) {
                         has_animated_tiles = true;
                     }
                 }
