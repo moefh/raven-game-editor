@@ -55,7 +55,10 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 writer.write(
                     format!(
                         ".enemy_spawn = {{ &{}_sprite_animations[{}], {}, {} }}",
-                        writer.ident.prefix_lower, animation_index, enemy_type, direction.value()
+                        writer.ident.prefix_lower,
+                        animation_index,
+                        enemy_type.value(),
+                        direction.value()
                     )
                 );
             }

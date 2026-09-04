@@ -6,6 +6,39 @@ pub enum RoomEntityDirection {
     Left,
 }
 
+#[derive(Copy, Clone, PartialEq, std::hash::Hash)]
+pub enum RoomEnemyType {
+    Walker,
+    Chiller,
+    Hopper,
+    Floater,
+    Other(u16),
+}
+
+impl RoomEnemyType {
+    pub fn value(self) -> u16 {
+        match self {
+            RoomEnemyType::Walker   => { 0 }
+            RoomEnemyType::Chiller  => { 1 }
+            RoomEnemyType::Hopper   => { 2 }
+            RoomEnemyType::Floater  => { 3 }
+            RoomEnemyType::Other(n) => { n }
+        }
+    }
+}
+
+impl From<u16> for RoomEnemyType {
+    fn from(value: u16) -> Self {
+        match value {
+            0 => { RoomEnemyType::Walker }
+            1 => { RoomEnemyType::Chiller }
+            2 => { RoomEnemyType::Hopper }
+            3 => { RoomEnemyType::Floater }
+            n => { RoomEnemyType::Other(n) }
+        }
+    }
+}
+
 impl RoomEntityDirection {
     pub fn value(self) -> u8 {
         match self {
@@ -36,7 +69,7 @@ pub struct RoomMap {
 pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
     PlayerSpawn { direction: RoomEntityDirection },
-    EnemySpawn { animation_id: DataAssetId, enemy_type: u16, direction: RoomEntityDirection },
+    EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection },
     Door { dest_room_id: DataAssetId, dest_trigger_id: u16 },
     Trap { width: u16, height: u16, trap_type: u16 },
 }

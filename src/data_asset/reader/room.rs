@@ -171,7 +171,7 @@ fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> R
     let direction = data.get_u8("direction")?;
     Ok(RoomTriggerType::EnemySpawn {
         animation_id: animation_ref.get_asset_id(project_data)?,
-        enemy_type,
+        enemy_type: enemy_type.into(),
         direction: RoomEntityDirection::from(direction),
     })
 }

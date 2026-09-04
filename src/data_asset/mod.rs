@@ -30,6 +30,7 @@ pub use room::{
     Room,
     RoomMap,
     RoomTrigger,
+    RoomEnemyType,
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomEntityDirection,

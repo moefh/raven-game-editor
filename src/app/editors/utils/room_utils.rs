@@ -1,8 +1,54 @@
 use crate::data_asset::{
     AssetIdCollection,
+    RoomEnemyType,
     RoomTriggerType,
     RoomEntityDirection,
 };
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum RoomEnemyTypeSel {
+    Walker,
+    Chiller,
+    Hopper,
+    Floater,
+    Other,
+}
+
+impl RoomEnemyTypeSel {
+    pub fn text(&self) -> &'static str {
+        match self {
+            RoomEnemyTypeSel::Walker  => { "walker" }
+            RoomEnemyTypeSel::Chiller => { "chiller" }
+            RoomEnemyTypeSel::Hopper  => { "hopper" }
+            RoomEnemyTypeSel::Floater => { "floater" }
+            RoomEnemyTypeSel::Other   => { "other..." }
+        }
+    }
+}
+
+impl From<RoomEnemyType> for RoomEnemyTypeSel {
+    fn from(value: RoomEnemyType) -> Self {
+        match value {
+            RoomEnemyType::Walker   => { RoomEnemyTypeSel::Walker }
+            RoomEnemyType::Chiller  => { RoomEnemyTypeSel::Chiller }
+            RoomEnemyType::Hopper   => { RoomEnemyTypeSel::Hopper }
+            RoomEnemyType::Floater  => { RoomEnemyTypeSel::Floater }
+            RoomEnemyType::Other(_) => { RoomEnemyTypeSel::Other }
+        }
+    }
+}
+
+impl From<RoomEnemyTypeSel> for RoomEnemyType {
+    fn from(value: RoomEnemyTypeSel) -> Self {
+        match value {
+            RoomEnemyTypeSel::Walker   => { RoomEnemyType::Walker }
+            RoomEnemyTypeSel::Chiller  => { RoomEnemyType::Chiller }
+            RoomEnemyTypeSel::Hopper   => { RoomEnemyType::Hopper }
+            RoomEnemyTypeSel::Floater  => { RoomEnemyType::Floater }
+            RoomEnemyTypeSel::Other    => { RoomEnemyType::Other(4) }
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RoomTriggerTypeSel {
@@ -40,7 +86,11 @@ impl RoomTriggerTypeSel {
             }
             RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
                 if let Some(animation_id) = asset_ids.animations.get_first() {
-                    *trigger_type = RoomTriggerType::EnemySpawn { animation_id, enemy_type: 0, direction: RoomEntityDirection::Right };
+                    *trigger_type = RoomTriggerType::EnemySpawn {
+                        animation_id,
+                        enemy_type: RoomEnemyType::Walker,
+                        direction: RoomEntityDirection::Right,
+                    };
                     true
                 } else {
                     false

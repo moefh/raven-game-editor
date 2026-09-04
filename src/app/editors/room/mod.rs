@@ -28,6 +28,7 @@ use super::{
     SysDialogOpenFile,
     RoomSize,
     RoomTriggerTypeSel,
+    RoomEnemyTypeSel,
     EditorAction,
 };
 use super::widgets::{
@@ -507,9 +508,31 @@ impl Editor {
                     });
                 ui.end_row();
 
-                ui.label("Enemy type:");
-                ui.add(egui::DragValue::new(enemy_type).speed(1.0).range(0..=u16::MAX));
+                ui.label("Behavior:");
+                let mut enemy_type_sel = RoomEnemyTypeSel::from(*enemy_type);
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_type", self.asset_id))
+                    .selected_text(enemy_type_sel.text())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Walker,  RoomEnemyTypeSel::Walker.text());
+                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Chiller, RoomEnemyTypeSel::Chiller.text());
+                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Hopper,  RoomEnemyTypeSel::Hopper.text());
+                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Floater, RoomEnemyTypeSel::Floater.text());
+                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Other,   RoomEnemyTypeSel::Other.text());
+                    });
                 ui.end_row();
+                if enemy_type_sel != RoomEnemyTypeSel::from(*enemy_type) {
+                    *enemy_type = enemy_type_sel.into();
+                }
+
+                if enemy_type_sel == RoomEnemyTypeSel::Other {
+                    let mut enemy_type_val = enemy_type.value();
+                    ui.label("   other:");
+                    ui.add(egui::DragValue::new(&mut enemy_type_val).speed(1.0).range(0..=u16::MAX));
+                    ui.end_row();
+                    if enemy_type_val != enemy_type.value() {
+                        *enemy_type = enemy_type_val.into();
+                    }
+                }
 
                 ui.label("Dir:");
                 egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_direction", self.asset_id))

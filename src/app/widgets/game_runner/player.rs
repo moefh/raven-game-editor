@@ -1,5 +1,6 @@
 use crate::data_asset::{
     DataAssetStore,
+    DataAssetId,
     Room,
     Tileset,
     Sprite,
@@ -47,6 +48,7 @@ pub struct Player {
     pub y: i32,
     pub state: PlayerState,
     pub direction: Direction,
+    pub anim_id: Option<DataAssetId>,
     pub anim_loop: usize,
     pub anim_frame: u32,  // 24.8 fixpoint
     pub dx: i32,          // 24.8 fixpoint
@@ -60,6 +62,7 @@ impl Player {
             y: 0,
             state: PlayerState::Stand,
             direction: Direction::Right,
+            anim_id: None,
             anim_frame: 0,
             anim_loop: 0,
             dx: 0,
@@ -72,6 +75,7 @@ impl Player {
         self.y = 0;
         self.state = PlayerState::Stand;
         self.direction = Direction::Right;
+        self.anim_id = None;
         self.anim_frame = 0;
         self.anim_loop = 0;
         self.dx = 0;

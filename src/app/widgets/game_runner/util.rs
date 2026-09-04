@@ -14,13 +14,21 @@ use super::super::super::editors::{
 
 pub const TILE_SIZE: f32 = Tileset::TILE_SIZE as f32;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Direction {
     Right,
     Left,
 }
 
 impl Direction {
+    pub fn from_dx(dx: i32) -> Self {
+        if dx < 0 {
+            Direction::Left
+        } else {
+            Direction::Right
+        }
+    }
+
     pub fn dx(self) -> i32 {
         match self {
             Direction::Right => { 1 }

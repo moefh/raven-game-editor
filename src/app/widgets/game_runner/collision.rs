@@ -29,6 +29,10 @@ pub struct CollisionRect {
     pub h: i32,
 }
 
+pub fn is_point_in_rect(x: i32, y: i32, rect: &CollisionRect) -> bool {
+    return x >= rect.x && y >= rect.y && x < rect.x + rect.w && y < rect.y + rect.h;
+}
+
 pub fn get_room_tile_at(room: &Room, maps: &AssetList<MapData>, x: i32, y: i32) -> u8 {
     for room_map in &room.maps {
         if let Some(map) = maps.get(&room_map.map_id) {

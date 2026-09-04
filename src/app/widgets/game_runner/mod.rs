@@ -48,7 +48,6 @@ pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
 
 pub struct GameRunnerWidget {
     pub room_id: Option<DataAssetId>,
-    pub player_anim_id: Option<DataAssetId>,
     pub room_x: i32,
     pub room_y: i32,
     pub frame_counter: u32,
@@ -75,7 +74,6 @@ impl GameRunnerWidget {
             room_id: None,
             room_x: 0,
             room_y: 0,
-            player_anim_id: None,
             map_animation_step: 0,
             last_game_runner_step: 0,
         }
@@ -106,7 +104,7 @@ impl GameRunnerWidget {
     ) {
         self.player.tick_engine(room, player_anim, store, &self.controller);
         for enemy in self.enemies.iter_mut() {
-            enemy.tick_engine(room, store);
+            enemy.tick_engine(room, &self.player, store);
         }
     }
 
@@ -118,7 +116,6 @@ impl GameRunnerWidget {
         self.map_animation_step = 0;
         self.player.reset();
         self.enemies.clear();
-        self.player_anim_id = None;
         self.room_id = None;
     }
 
@@ -135,8 +132,8 @@ impl GameRunnerWidget {
 
         if let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
             self.room_id = Some(room.asset.id);
-            self.player_anim_id = Some(anim.asset.id);
             self.player.reset();
+            self.player.anim_id = Some(anim.asset.id);
             self.player.move_to_spawn(room, anim);
             self.spawn_enemies(room, store);
         }
@@ -239,9 +236,7 @@ impl GameRunnerWidget {
         self.draw_room_bg(ui, wc, room, store, &draw_map_info);
         self.player.draw(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
         for enemy in self.enemies.iter_mut() {
-            if let Some(anim) = store.assets.animations.get(&enemy.anim_id) && let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
-                enemy.draw(ui, wc, sprite, anim, draw_map_info.pos, zoom);
-            }
+            enemy.draw(ui, wc, draw_map_info.pos, zoom, store);
         }
         self.draw_room_fg(ui, wc, room, store, &draw_map_info);
     }
@@ -259,7 +254,7 @@ impl GameRunnerWidget {
             }
         };
 
-        if let Some(player_anim) = self.player_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
+        if let Some(player_anim) = self.player.anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
             if let Some(player_sprite) = store.assets.sprites.get(&player_anim.sprite_id) {
                 if self.advance_frame_counter(wc) {
                     if wc.is_window_on_top(window_id) {
