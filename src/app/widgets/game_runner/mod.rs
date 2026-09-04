@@ -5,11 +5,6 @@ pub mod consts;
 pub mod controller;
 pub mod collision;
 
-use controller::{*};
-use player::Player;
-use enemy::Enemy;
-use util::{*};
-
 use egui::{
     Vec2,
     Rect,
@@ -23,7 +18,9 @@ use crate::data_asset::{
     SpriteAnimationLoop,
     Sprite,
     Room,
+    RoomTrigger,
     RoomTriggerType,
+    Tileset,
 };
 
 use super::super::{
@@ -38,6 +35,12 @@ use super::super::editors::{
     RoomSize,
     DrawMapLayerInfo,
 };
+
+use controller::{*};
+use collision::{*};
+use player::Player;
+use enemy::Enemy;
+use util::{*};
 
 pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
     name_id: String::new(),
@@ -83,6 +86,28 @@ impl GameRunnerWidget {
     // === ENGINE
     // ================================================
 
+    fn place_player_at_door_exit(
+        &mut self,
+        door_exit: &RoomTrigger,
+        dx: i32,
+        dy: i32,
+        player_anim: &SpriteAnimation,
+        room: &Room,
+        store: &DataAssetStore
+    ) {
+        const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
+        let tile_x = door_exit.x as i32 / TILE_SIZE;
+        let tile_y = door_exit.y as i32 / TILE_SIZE;
+        if get_room_tile_at(room, &store.assets.maps, tile_x + 1, tile_y) == 0x0f {
+            self.player.x = dx + door_exit.x as i32 + TILE_SIZE + 2;
+            if self.player.dx < 0 { self.player.dx = 0; }
+        } else {
+            self.player.x = dx + door_exit.x as i32 - 2 - player_anim.clip_rect.w;
+            if self.player.dx > 0 { self.player.dx = 0; }
+        }
+        self.player.y = dy + door_exit.y as i32;
+    }
+
     fn advance_frame_counter(&mut self, wc: &WindowContext) -> bool {
         self.map_animation_step = get_animation_step(wc);
         let game_runner_step = get_game_runner_step(wc);
@@ -95,17 +120,42 @@ impl GameRunnerWidget {
         }
     }
 
+    fn process_room_triggers(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore) -> bool {
+        for door in &room.triggers {
+            if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = door.trigger_type {
+                let rect = CollisionRect::new(door.x as i32, door.y as i32, Tileset::TILE_SIZE as i32, 4*Tileset::TILE_SIZE as i32);
+                let px = self.player.x + player_anim.clip_rect.w/2;
+                let py1 = self.player.y + 8;
+                let py2 = self.player.y + player_anim.clip_rect.h - 9;
+                if rect.contains_point(px, py1) || rect.contains_point(px, py2) {
+                    if let Some(dest_room) = store.assets.rooms.get(&dest_room_id) {
+                        if let Some(dest_trigger) = dest_room.triggers.iter().find(|tr| tr.trigger_id == dest_trigger_id) {
+                            self.load_room(dest_room, store);
+                            let dx = self.player.x - door.x as i32;
+                            let dy = self.player.y - door.y as i32;
+                            self.place_player_at_door_exit(dest_trigger, dx, dy, player_anim, dest_room, store);
+                            self.follow_player(player_anim);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
     fn tick_engine(
         &mut self,
         room: &Room,
         _player_sprite: &Sprite,
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
-    ) {
+    ) -> bool {
         self.player.tick_engine(room, player_anim, store, &self.controller);
         for enemy in self.enemies.iter_mut() {
             enemy.tick_engine(room, &self.player, store);
         }
+        self.process_room_triggers(room, player_anim, store)
     }
 
     pub fn reset(&mut self) {
@@ -120,23 +170,24 @@ impl GameRunnerWidget {
     }
 
     pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) {
-        if let Some(room_id) = room_id && let Some(room) = store.assets.rooms.get(&room_id) {
-            self.load_room(room, store);
-        } else {
-            self.reset();
-        }
+        self.reset();
+        if let Some(room_id) = room_id &&
+            let Some(room) = store.assets.rooms.get(&room_id) &&
+            let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
+                self.load_room(room, store);
+                self.player.anim_id = Some(anim.asset.id);
+                self.player.move_to_spawn(room, anim);
+            } else {
+                // room id with no player animation will show an error message
+                self.room_id = room_id;
+                self.player.anim_id = None;
+            }
     }
 
     fn load_room(&mut self, room: &Room, store: &DataAssetStore) {
-        self.reset();
-
-        if let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
-            self.room_id = Some(room.asset.id);
-            self.player.reset();
-            self.player.anim_id = Some(anim.asset.id);
-            self.player.move_to_spawn(room, anim);
-            self.spawn_enemies(room, store);
-        }
+        self.room_id = Some(room.asset.id);
+        self.enemies.clear();
+        self.spawn_enemies(room, store);
     }
 
     fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
@@ -261,7 +312,10 @@ impl GameRunnerWidget {
                         self.controller.update(ui, wc);
                     }
                     self.player.control(&self.controller);
-                    self.tick_engine(room, player_sprite, player_anim, store);
+                    if self.tick_engine(room, player_sprite, player_anim, store) {
+                        // room changed; don't show this frame
+                        return;
+                    }
                 }
                 self.draw_screen(ui, wc, room, player_sprite, player_anim, store);
                 wc.request_game_run_repaint();

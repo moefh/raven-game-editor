@@ -13,9 +13,7 @@ use super::{
 use super::super::consts::{*};
 use super::super::collision::{*};
 
-#[derive(Clone, Copy, PartialEq, Default)]
 pub enum State {
-    #[default]
     AmbushWait,
     AmbushPlunge,
     Splat,
@@ -27,7 +25,7 @@ pub enum State {
 }
 
 impl State {
-    pub fn get_anim_loop(self) -> EnemyAnimLoop {
+    pub fn get_anim_loop(&self) -> EnemyAnimLoop {
         match self {
             State::AmbushWait => { EnemyAnimLoop::Stand }
             State::AmbushPlunge => { EnemyAnimLoop::Fall }

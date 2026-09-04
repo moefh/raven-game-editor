@@ -1,4 +1,5 @@
 mod walker;
+mod chiller;
 mod hopper;
 mod floater;
 
@@ -25,6 +26,7 @@ use super::{
 use super::collision::{*};
 
 use walker::Walker;
+use chiller::Chiller;
 use hopper::Hopper;
 use floater::Floater;
 
@@ -62,7 +64,7 @@ impl EnemyAnimLoop {
 
 enum EnemyBehavior {
     Walker(Walker),
-    //Chiller(Chiller),
+    Chiller(Chiller),
     Hopper(Hopper),
     Floater(Floater),
     Unknown,
@@ -73,7 +75,7 @@ impl EnemyBehavior {
         if let Some(anim) = store.assets.animations.get(&enemy.anim_id) {
             match enemy_type {
                 RoomEnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, room, anim, store)) }
-                RoomEnemyType::Chiller => { return EnemyBehavior::Unknown }
+                RoomEnemyType::Chiller => { return EnemyBehavior::Chiller(Chiller::new(enemy, room, anim, store)) }
                 RoomEnemyType::Hopper => { return EnemyBehavior::Hopper(Hopper::new(enemy, room, anim, store)) }
                 RoomEnemyType::Floater => { return EnemyBehavior::Floater(Floater::new(enemy, room, anim, store)) }
                 RoomEnemyType::Other(_) => {}
@@ -87,7 +89,7 @@ impl EnemyBehavior {
     pub fn tick(&mut self, enemy: &mut EnemyInfo, player: &Player, anim: &SpriteAnimation, room: &Room, store: &DataAssetStore) {
         match self {
             EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, anim, store); }
-            //EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, anim, store); }
+            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, anim, store); }
             EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, anim, store); }
             EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, anim, store); }
             EnemyBehavior::Unknown => {}
@@ -114,10 +116,9 @@ impl EnemyInfo {
             w: enemy_anim.clip_rect.w + 10*TILE_SIZE,
             h: enemy_anim.clip_rect.h + 10*TILE_SIZE,
         };
-
         let px = player.x + player_anim.clip_rect.w / 2;
         let py = player.y + player_anim.clip_rect.h / 2;
-        if is_point_in_rect(px, py, &watched_area) {
+        if watched_area.contains_point(px, py) {
             Some(Direction::from_dx(px - (self.x + enemy_anim.clip_rect.w/2)))
         } else {
             None
