@@ -203,6 +203,7 @@ pub struct MapEditorWidget {
     undo_targets: VecDeque<MapUndoData>,
     redo_targets: VecDeque<MapUndoData>,
     tool_mouse_down: bool,
+    last_map_area_size: Vec2,
 }
 
 impl MapEditorWidget {
@@ -239,6 +240,7 @@ impl MapEditorWidget {
             undo_targets: VecDeque::new(),
             redo_targets: VecDeque::new(),
             tool_mouse_down: false,
+            last_map_area_size: Vec2::ZERO,
         }
     }
 
@@ -431,8 +433,15 @@ impl MapEditorWidget {
         canvas_to_map_para: &emath::RectTransform
     ) {
         let (mouse_pos, map_size) = match self.edit_layer {
-            MapLayer::Parallax => (canvas_to_map_para * pointer_pos, canvas_to_map_para.to().size()),
-            _ => (canvas_to_map_full * pointer_pos, canvas_to_map_full.to().size()),
+            MapLayer::Parallax => {
+                if map_data.para_width == 0 || map_data.para_height == 0 {
+                    return;
+                }
+                (canvas_to_map_para * pointer_pos, canvas_to_map_para.to().size())
+            }
+            _ => {
+                (canvas_to_map_full * pointer_pos, canvas_to_map_full.to().size())
+            }
         };
         if ! resp.dragged_by(egui::PointerButton::Primary) {
             if ! resp.dragged_by(egui::PointerButton::Secondary) && ! resp.dragged_by(egui::PointerButton::Middle) {
@@ -572,7 +581,11 @@ impl MapEditorWidget {
                             self.get_full_layer_tile(self.edit_layer, canvas_to_map_full * pointer_pos, map_data)
                         }
                         MapLayer::Parallax => {
-                            self.get_para_layer_tile(canvas_to_map_para * pointer_pos, map_data)
+                            if map_data.para_width != 0 && map_data.para_height != 0 {
+                                self.get_para_layer_tile(canvas_to_map_para * pointer_pos, map_data)
+                            } else {
+                                None
+                            }
                         }
                         MapLayer::Screen => {
                             None
@@ -588,8 +601,10 @@ impl MapEditorWidget {
                             self.set_full_layer_tile(self.edit_layer, canvas_to_map_full * pointer_pos, tile, map_data);
                         }
                         MapLayer::Parallax => {
-                            if response.drag_started() { self.set_undo_target(map_data); }
-                            self.set_para_layer_tile(canvas_to_map_para * pointer_pos, tile, map_data);
+                            if map_data.para_width != 0 && map_data.para_height != 0 {
+                                if response.drag_started() { self.set_undo_target(map_data); }
+                                self.set_para_layer_tile(canvas_to_map_para * pointer_pos, tile, map_data);
+                            }
                         }
                         MapLayer::Screen => {}
                     }
@@ -679,11 +694,13 @@ impl MapEditorWidget {
         }
     }
 
-    fn get_paste_position(&self) -> Pos2 {
-        Pos2 {
-            x: ((-self.scroll.x / self.zoom + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
-            y: ((-self.scroll.y / self.zoom + TILE_SIZE - 1.0) / TILE_SIZE).floor(),
-        }
+    fn get_paste_position(&self, frag_size: Vec2) -> Pos2 {
+        let top_left = Pos2 {
+            x: (-self.scroll.x / self.zoom / TILE_SIZE).ceil(),
+            y: (-self.scroll.y / self.zoom / TILE_SIZE).ceil(),
+        };
+        let pos = (0.5 * (self.last_map_area_size / self.zoom / TILE_SIZE - frag_size)).floor().max(Vec2::ZERO);
+        top_left + pos
     }
 
     pub fn paste(&mut self, wc: &mut WindowContext, map_data: &mut MapData) {
@@ -695,7 +712,7 @@ impl MapEditorWidget {
                 }
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
-                self.selection = MapSelection::LayerFragment(self.get_paste_position(), frag.clone());
+                self.selection = MapSelection::LayerFragment(self.get_paste_position(frag.size()), frag.clone());
             }
 
             MapClipboardData::MapWholeFragment(frag) => {
@@ -710,7 +727,7 @@ impl MapEditorWidget {
                 }
                 self.set_undo_target(map_data);
                 self.drop_selection(map_data);
-                self.selection = MapSelection::WholeFragment(self.get_paste_position(), frag.clone());
+                self.selection = MapSelection::WholeFragment(self.get_paste_position(frag.size()), frag.clone());
             }
 
             _ => {}
@@ -749,9 +766,11 @@ impl MapEditorWidget {
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num2))) {
             self.display.toggle(MapDisplay::BACKGROUND);
         }
-        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num3))) {
-            self.display.toggle(MapDisplay::PARALLAX);
-        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num3))) &&
+            map_data.para_width != 0 &&
+            map_data.para_height != 0 {
+                self.display.toggle(MapDisplay::PARALLAX);
+            }
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num4))) {
             self.display.toggle(MapDisplay::EFFECTS);
         }
@@ -771,10 +790,12 @@ impl MapEditorWidget {
             self.set_edit_layer(MapLayer::Background);
             self.display.set(MapDisplay::BACKGROUND);
         }
-        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::E))) {
-            self.set_edit_layer(MapLayer::Parallax);
-            self.display.set(MapDisplay::PARALLAX);
-        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::E))) &&
+            map_data.para_width != 0 &&
+            map_data.para_height != 0 {
+                self.set_edit_layer(MapLayer::Parallax);
+                self.display.set(MapDisplay::PARALLAX);
+            }
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::R))) {
             self.set_edit_layer(MapLayer::Effects);
             self.display.set(MapDisplay::EFFECTS);
@@ -785,7 +806,6 @@ impl MapEditorWidget {
         }
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Y))) {
             self.set_edit_layer(MapLayer::Screen);
-            self.display.set(MapDisplay::SCREEN);
         }
 
         // tools
@@ -862,6 +882,8 @@ impl MapEditorWidget {
         } else {
             Rect::from_min_size(canvas_rect.min, map_size.min(canvas_rect.size()))
         };
+
+        self.last_map_area_size = map_area_rect.size();
 
         // limit scroll in case we've been resized
         self.clip_scroll(canvas_rect.size(), map_size);

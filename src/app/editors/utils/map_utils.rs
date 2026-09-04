@@ -76,6 +76,10 @@ pub struct MapLayerFragment {
 }
 
 impl MapLayerFragment {
+    pub fn size(&self) -> egui::Vec2 {
+        egui::Vec2::new(self.width as f32, self.height as f32)
+    }
+
     pub fn copy_map(map_data: &mut MapData, layer: MapLayer, rect: MapRect) -> Option<MapLayerFragment> {
         let (map_width, map_height, map_data) = match layer {
             MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles),
@@ -245,6 +249,10 @@ pub struct MapWholeFragment {
 }
 
 impl MapWholeFragment {
+    pub fn size(&self) -> egui::Vec2 {
+        egui::Vec2::new(self.width as f32, self.height as f32)
+    }
+
     pub fn copy_map(map_data: &MapData, rect: MapRect, include_para: bool) -> Option<MapWholeFragment> {
         let map_width = map_data.width;
         let map_height = map_data.height;
