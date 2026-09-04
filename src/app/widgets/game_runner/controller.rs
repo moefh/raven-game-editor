@@ -21,14 +21,18 @@ impl Controller {
     fn read_keyboard(&mut self, ui: &mut egui::Ui) {
         ui.input(|i| {
             self.cur = GAMEPAD_NONE |
+                if i.key_down(egui::Key::W) { GAMEPAD_UP } else { 0 } |
+                if i.key_down(egui::Key::S) { GAMEPAD_DOWN } else { 0 } |
+                if i.key_down(egui::Key::A) { GAMEPAD_LEFT } else { 0 } |
+                if i.key_down(egui::Key::D) { GAMEPAD_RIGHT } else { 0 } |
                 if i.key_down(egui::Key::ArrowUp) { GAMEPAD_UP } else { 0 } |
                 if i.key_down(egui::Key::ArrowDown) { GAMEPAD_DOWN } else { 0 } |
                 if i.key_down(egui::Key::ArrowLeft) { GAMEPAD_LEFT } else { 0 } |
                 if i.key_down(egui::Key::ArrowRight) { GAMEPAD_RIGHT } else { 0 } |
                 if i.key_down(egui::Key::Space) { GAMEPAD_A } else { 0 };
-                if i.key_down(egui::Key::B) { GAMEPAD_B } else { 0 };
+                if i.key_down(egui::Key::Z) { GAMEPAD_B } else { 0 };
                 if i.key_down(egui::Key::X) { GAMEPAD_X } else { 0 };
-                if i.key_down(egui::Key::Y) { GAMEPAD_Y } else { 0 };
+                if i.key_down(egui::Key::C) { GAMEPAD_Y } else { 0 };
         });
     }
 
