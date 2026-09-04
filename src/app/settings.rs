@@ -6,7 +6,6 @@ use crate::platform::{
     write_settings_file,
 };
 use crate::platform::gamepad::{
-    self,
     GamepadMapping,
     GamepadAxisMapping,
 };
@@ -21,53 +20,10 @@ use crate::data_asset::{
     TokenData
 };
 
+use super::gamepad_settings;
+
 pub fn get_setting_zoom(setting: u32) -> f32 {
     setting as f32 / 100.0
-}
-
-fn get_default_gamepad_mappings() -> HashMap<String, GamepadMapping> {
-    HashMap::from([
-        (String::from("Zikway HID gamepad (Vendor: 3537 Product: 1041)"), GamepadMapping {
-            buttons: [
-                gamepad::GAMEPAD_A,
-                gamepad::GAMEPAD_B,
-                0,
-                gamepad::GAMEPAD_X,
-                gamepad::GAMEPAD_Y,
-                0,
-                gamepad::GAMEPAD_LB,
-                gamepad::GAMEPAD_RB,
-                gamepad::GAMEPAD_LT,
-                gamepad::GAMEPAD_RT,
-                gamepad::GAMEPAD_SELECT,
-                gamepad::GAMEPAD_START,
-                gamepad::GAMEPAD_HOME,
-                gamepad::GAMEPAD_L3,
-                gamepad::GAMEPAD_R3,
-                0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ],
-            axes: [
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT),
-                GamepadAxisMapping::new(gamepad::GAMEPAD_UP, gamepad::GAMEPAD_DOWN),
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-                GamepadAxisMapping::EMPTY,
-            ],
-        }),
-
-    ])
 }
 
 pub struct AppSettings {
@@ -119,7 +75,7 @@ impl AppSettings {
             marching_ants_color1: egui::Color32::BLACK,
             marching_ants_color2: egui::Color32::WHITE,
             colorsets: ColorSetCollection::new(),
-            gamepad_mappings: get_default_gamepad_mappings(),
+            gamepad_mappings: gamepad_settings::get_default(),
         }
     }
 
@@ -448,7 +404,7 @@ impl<'a> AppSettingsReader<'a> {
                     }
                     "gamepad_mappings" => {
                         settings.gamepad_mappings = self.read_gamepad_mappings_config()?;
-                        for (id, map) in get_default_gamepad_mappings() {
+                        for (id, map) in gamepad_settings::get_default() {
                             settings.gamepad_mappings.entry(id).or_insert(map);
                         }
                     }

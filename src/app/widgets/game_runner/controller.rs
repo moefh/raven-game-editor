@@ -29,10 +29,10 @@ impl Controller {
                 if i.key_down(egui::Key::ArrowDown) { GAMEPAD_DOWN } else { 0 } |
                 if i.key_down(egui::Key::ArrowLeft) { GAMEPAD_LEFT } else { 0 } |
                 if i.key_down(egui::Key::ArrowRight) { GAMEPAD_RIGHT } else { 0 } |
-                if i.key_down(egui::Key::Space) { GAMEPAD_A } else { 0 };
-                if i.key_down(egui::Key::Z) { GAMEPAD_B } else { 0 };
-                if i.key_down(egui::Key::X) { GAMEPAD_X } else { 0 };
-                if i.key_down(egui::Key::C) { GAMEPAD_Y } else { 0 };
+                if i.key_down(egui::Key::Space) { GAMEPAD_SNES_B } else { 0 } |
+                if i.key_down(egui::Key::Z) { GAMEPAD_SNES_A } else { 0 } |
+                if i.key_down(egui::Key::X) { GAMEPAD_SNES_Y } else { 0 } |
+                if i.key_down(egui::Key::C) { GAMEPAD_SNES_X } else { 0 };
         });
     }
 

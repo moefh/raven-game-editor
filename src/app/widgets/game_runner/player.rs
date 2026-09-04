@@ -22,6 +22,8 @@ use super::controller::{*};
 use super::collision::{*};
 use super::util::{*};
 
+const JUMP_BUTTON: u32 = GAMEPAD_SNES_B;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum PlayerState {
     Stand,
@@ -123,7 +125,7 @@ impl Player {
             self.state = PlayerState::Crouch;
             self.anim_frame = 0;
         }
-        if self.state == PlayerState::Crouch && pad.held(GAMEPAD_UP|GAMEPAD_A) {
+        if self.state == PlayerState::Crouch && pad.held(GAMEPAD_UP|JUMP_BUTTON) {
             self.state = PlayerState::Stand;
             self.anim_frame = 0;
         }
@@ -139,7 +141,7 @@ impl Player {
         }
 
         // jump
-        if (self.state == PlayerState::Stand || self.state == PlayerState::Walk) && pad.pressed(GAMEPAD_A) {
+        if (self.state == PlayerState::Stand || self.state == PlayerState::Walk) && pad.pressed(JUMP_BUTTON) {
             self.dy = DY_JUMP_START;
             self.state = PlayerState::Jump;
             self.anim_frame = 0;
@@ -147,7 +149,7 @@ impl Player {
 
         // hold jump / start fall
         if self.state == PlayerState::Jump {
-            if pad.held(GAMEPAD_A) && self.dy < 0 {
+            if pad.held(JUMP_BUTTON) && self.dy < 0 {
                 self.dy += DY_JUMP_HOLD;
             } else {
                 self.state = PlayerState::Fall;

@@ -9,6 +9,7 @@ mod asset_exporter;
 pub mod checker;
 pub mod project_comparer;
 pub mod widgets;
+pub mod gamepad_settings;
 
 use std::sync::{Arc, Mutex};
 

@@ -101,10 +101,10 @@ fn read_standard_gamepad(gp: &web_sys::Gamepad) -> std::result::Result<u32, wasm
         let button: web_sys::GamepadButton = buttons.get(btn).dyn_into()?;
         if button.pressed() {
             flags |= match btn {
-                0 => { gamepad::GAMEPAD_A }
-                1 => { gamepad::GAMEPAD_B }
-                2 => { gamepad::GAMEPAD_X }
-                3 => { gamepad::GAMEPAD_Y }
+                0 => { gamepad::GAMEPAD_SNES_B }
+                1 => { gamepad::GAMEPAD_SNES_A }
+                2 => { gamepad::GAMEPAD_SNES_Y }
+                3 => { gamepad::GAMEPAD_SNES_X }
                 4 => { gamepad::GAMEPAD_LB }
                 5 => { gamepad::GAMEPAD_RB }
                 6 => { gamepad::GAMEPAD_LT }
