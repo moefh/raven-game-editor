@@ -49,9 +49,10 @@ impl AddFramesDialog {
     fn confirm(&mut self, sprite: &mut Sprite, wc: &mut WindowContext) {
         let old_num_frames = sprite.num_frames;
         let insertion_point = match self.add_frame_location {
+            AddImageLocation::Start => { 0 }
             AddImageLocation::BeforeSelected => { self.sel_frame.min(sprite.num_frames) }
             AddImageLocation::AfterSelected => { (self.sel_frame + 1).min(sprite.num_frames) }
-            AddImageLocation::AtEnd => { sprite.num_frames }
+            AddImageLocation::End => { sprite.num_frames }
         };
         sprite.resize(sprite.width, sprite.height, sprite.num_frames + self.num_frames, self.clear_color);
         let frame_size = (sprite.width * sprite.height) as usize;
@@ -87,6 +88,11 @@ impl AddFramesDialog {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut self.add_frame_location,
+                                    AddImageLocation::Start,
+                                    AddImageLocation::Start.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_frame_location,
                                     AddImageLocation::BeforeSelected,
                                     AddImageLocation::BeforeSelected.text()
                                 );
@@ -97,8 +103,8 @@ impl AddFramesDialog {
                                 );
                                 ui.selectable_value(
                                     &mut self.add_frame_location,
-                                    AddImageLocation::AtEnd,
-                                    AddImageLocation::AtEnd.text()
+                                    AddImageLocation::End,
+                                    AddImageLocation::End.text()
                                 );
                             });
                         ui.end_row();

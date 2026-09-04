@@ -5,17 +5,34 @@ use crate::image::{
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum AddImageLocation {
+    Start,
     BeforeSelected,
     AfterSelected,
-    AtEnd,
+    End,
 }
 
 impl AddImageLocation {
     pub fn text(self) -> &'static str {
         match self {
+            Self::Start => { "the start" }
             Self::BeforeSelected => { "before selected" }
             Self::AfterSelected => { "after selected" }
-            Self::AtEnd => { "at end" }
+            Self::End => { "the end" }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum SelectImageLocation {
+    Start,
+    Selected,
+}
+
+impl SelectImageLocation {
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Start => { "the start" }
+            Self::Selected => { "selected" }
         }
     }
 }

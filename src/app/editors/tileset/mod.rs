@@ -4,7 +4,9 @@ mod add_imported_tiles;
 mod remove_tiles;
 mod import;
 mod export;
+mod export_selected_tiles;
 mod organizer;
+mod custom_colors;
 
 use core::fmt::NumBuffer;
 
@@ -55,8 +57,13 @@ use remove_tiles::RemoveTilesDialog;
 use add_tiles::AddTilesDialog;
 use add_imported_tiles::AddImportedTilesDialog;
 use export::ExportDialog;
+use export_selected_tiles::ExportSelectedTilesDialog;
 use import::ImportDialog;
 use organizer::OrganizerDialog;
+use custom_colors::{
+    CustomColors,
+    CustomColorsDialog
+};
 
 enum EditorTab {
     Tile,
@@ -144,8 +151,8 @@ impl TilesetEditor {
         self.dialogs.show(wc, &mut self.editor, tileset);
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
-        let min_size = min_size.max(egui::Vec2::new(500.0, 400.0));
-        let default_size = default_size.max(egui::Vec2::new(500.0, 400.0));
+        let min_size = min_size.max(egui::Vec2::new(540.0, 400.0));
+        let default_size = default_size.max(egui::Vec2::new(540.0, 400.0));
         self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
             Self::show_footer(ui, wc, &self.editor, base, tileset);
             self.editor.show(ui, wc, &mut self.dialogs, tileset);
@@ -178,8 +185,10 @@ struct Dialogs {
     rm_tiles_dialog: RemoveTilesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
+    export_selected_tiles_dialog: ExportSelectedTilesDialog,
     create_colorset_dialog: CreateColorsetDialog,
     organizer_dialog: OrganizerDialog,
+    custom_colors_dialog: CustomColorsDialog,
 }
 
 impl Dialogs {
@@ -191,8 +200,10 @@ impl Dialogs {
             rm_tiles_dialog: RemoveTilesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
+            export_selected_tiles_dialog: ExportSelectedTilesDialog::new(),
             create_colorset_dialog: CreateColorsetDialog::new(id),
             organizer_dialog: OrganizerDialog::new(),
+            custom_colors_dialog: CustomColorsDialog::new(),
        }
     }
 
@@ -223,7 +234,9 @@ impl Dialogs {
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, tileset);
-            editor.tile_image_editor.set_image_changed();
+        }
+        if self.export_selected_tiles_dialog.open {
+            self.export_selected_tiles_dialog.show(wc, tileset);
         }
         if self.import_dialog.open && self.import_dialog.show(wc, tileset) {
             self.ensure_valid_selected_image(editor, tileset);
@@ -232,6 +245,11 @@ impl Dialogs {
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, tileset) {
             editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
+        }
+        if self.custom_colors_dialog.open && self.custom_colors_dialog.show(wc, &mut editor.custom_colors) {
+            editor.tile_image_editor.custom_grid_color = editor.custom_colors.get_grid_color();
+            editor.tile_image_editor.custom_bg_color = editor.custom_colors.get_bg_color();
+            editor.tile_picker.custom_bg_color = editor.custom_colors.get_bg_color();
         }
     }
 }
@@ -249,6 +267,7 @@ struct Editor {
     grid_image_editor: ImageEditorWidget<TileGridImage>,
     tile_grid_editor: TileGridEditorWidget,
     tile_grid: TileGrid,
+    custom_colors: CustomColors,
 }
 
 impl Editor {
@@ -269,6 +288,12 @@ impl Editor {
             grid_image_editor: ImageEditorWidget::new(),
             tile_grid_editor: TileGridEditorWidget::new(),
             tile_grid: TileGrid::new(asset_id),
+            custom_colors: CustomColors {
+                use_grid_color: false,
+                use_bg_color: false,
+                grid_color: egui::Color32::RED,
+                bg_color: egui::Color32::from_rgb(0, 0xffu8, 0),
+            },
         }
     }
 
@@ -557,6 +582,14 @@ impl Editor {
                         );
                     }
 
+                    if ui.add_enabled(can_change_tiles, menu_item(IMAGES.export, " Export tiles to file...")).clicked() {
+                        dialogs.export_selected_tiles_dialog.set_open(
+                            wc,
+                            self.tile_image_editor.get_selected_image(),
+                            tileset
+                        );
+                    }
+
                     ui.separator();
 
                     if ui.add_enabled(can_change_tiles, menu_item(IMAGES.add, " Add tiles...")).clicked() {
@@ -579,7 +612,7 @@ impl Editor {
         });
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, tileset: &mut Tileset) {
+    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
@@ -679,6 +712,12 @@ impl Editor {
                         };
                         ui.add_space(1.0);
                         ui.label("Zoom:");
+
+                        ui.add_space(10.0);
+
+                        if ui.button("Colors").on_hover_text("Use custom colors").clicked() {
+                            dialogs.custom_colors_dialog.set_open(wc);
+                        }
 
                         ui.spacing_mut().item_spacing = spacing;
                     });
@@ -808,7 +847,7 @@ impl Editor {
 
     fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, tileset: &mut Tileset) {
         self.show_menu_bar(ui, wc, dialogs, tileset);
-        self.show_toolbar(ui, wc, tileset);
+        self.show_toolbar(ui, wc, dialogs, tileset);
 
         // color picker:
         egui::Panel::right(format!("editor_panel_{}_right", self.asset_id)).resizable(false).show(ui, |ui| {

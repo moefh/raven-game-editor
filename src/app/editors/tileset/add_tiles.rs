@@ -49,9 +49,10 @@ impl AddTilesDialog {
     fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
         let old_num_tiles = tileset.num_tiles;
         let insertion_point = match self.add_tile_location {
+            AddImageLocation::Start => { 0 }
             AddImageLocation::BeforeSelected => { self.sel_tile.min(tileset.num_tiles) }
             AddImageLocation::AfterSelected => { (self.sel_tile + 1).min(tileset.num_tiles) }
-            AddImageLocation::AtEnd => { tileset.num_tiles }
+            AddImageLocation::End => { tileset.num_tiles }
         };
         tileset.resize(tileset.width, tileset.height, tileset.num_tiles + self.num_tiles, self.clear_color);
         let tile_size = (tileset.height * tileset.width) as usize;
@@ -94,6 +95,11 @@ impl AddTilesDialog {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
+                                    AddImageLocation::Start,
+                                    AddImageLocation::Start.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_tile_location,
                                     AddImageLocation::BeforeSelected,
                                     AddImageLocation::BeforeSelected.text()
                                 );
@@ -104,8 +110,8 @@ impl AddTilesDialog {
                                 );
                                 ui.selectable_value(
                                     &mut self.add_tile_location,
-                                    AddImageLocation::AtEnd,
-                                    AddImageLocation::AtEnd.text()
+                                    AddImageLocation::End,
+                                    AddImageLocation::End.text()
                                 );
                             });
                         ui.end_row();

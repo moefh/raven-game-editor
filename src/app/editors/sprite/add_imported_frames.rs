@@ -41,7 +41,7 @@ impl AddImportedFramesDialog {
             open: false,
             dlg_window_id: egui::Id::new("dlg_sprite_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
-            add_frame_location: AddImageLocation::AtEnd,
+            add_frame_location: AddImageLocation::End,
             sel_frame: 0,
             clear_color: 0,
             import_sprite_sys_dlg_id: String::new(),
@@ -49,7 +49,7 @@ impl AddImportedFramesDialog {
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sel_frame: u32, clear_color: u8, sprite: &Sprite) {
-        self.add_frame_location = AddImageLocation::AtEnd;
+        self.add_frame_location = AddImageLocation::End;
         self.sel_frame = sel_frame;
         self.clear_color = clear_color;
         self.load_options = Self::DEFAULT_LOAD_OPTIONS;
@@ -66,9 +66,10 @@ impl AddImportedFramesDialog {
     fn create_empty_frames(&mut self, wc: &mut WindowContext, num_frames: u32, sprite: &mut Sprite) -> usize {
         let old_num_frames = sprite.num_frames;
         let insertion_point = match self.add_frame_location {
+            AddImageLocation::Start => { 0 }
             AddImageLocation::BeforeSelected => { self.sel_frame.min(sprite.num_frames) }
             AddImageLocation::AfterSelected => { (self.sel_frame + 1).min(sprite.num_frames) }
-            AddImageLocation::AtEnd => { sprite.num_frames }
+            AddImageLocation::End => { sprite.num_frames }
         };
         sprite.resize(sprite.width, sprite.height, sprite.num_frames + num_frames, self.clear_color);
         if insertion_point < old_num_frames {
@@ -224,6 +225,11 @@ impl AddImportedFramesDialog {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut self.add_frame_location,
+                                    AddImageLocation::Start,
+                                    AddImageLocation::Start.text()
+                                );
+                                ui.selectable_value(
+                                    &mut self.add_frame_location,
                                     AddImageLocation::BeforeSelected,
                                     AddImageLocation::BeforeSelected.text()
                                 );
@@ -234,8 +240,8 @@ impl AddImportedFramesDialog {
                                 );
                                 ui.selectable_value(
                                     &mut self.add_frame_location,
-                                    AddImageLocation::AtEnd,
-                                    AddImageLocation::AtEnd.text()
+                                    AddImageLocation::End,
+                                    AddImageLocation::End.text()
                                 );
                             });
                         ui.end_row();

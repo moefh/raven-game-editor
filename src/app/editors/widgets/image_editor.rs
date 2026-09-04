@@ -146,6 +146,8 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub hover_pos: Vec2,
     pub zoom: WidgetZoom,
     pub readonly: bool,
+    pub custom_grid_color: Option<egui::Color32>,
+    pub custom_bg_color: Option<egui::Color32>,
     last_zoom_level: f32,
     scroll: Vec2,
     tool: ImageDrawingTool,
@@ -186,6 +188,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             hover_pos: Vec2::ZERO,
             tool_mouse_down: false,
             last_zoom_level: 0.0,
+            custom_grid_color: None,
+            custom_bg_color: None,
         }
     }
 
@@ -754,9 +758,9 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     fn draw_background(&self, ui: &mut egui::Ui, wc: &WindowContext, bg_rect: Rect, image: &ImageAsset, zoom: f32) {
         let painter = ui.painter_at(bg_rect);
-        painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, wc.settings.image_bg_color);
+        painter.rect_filled(bg_rect, egui::CornerRadius::ZERO, self.custom_bg_color.unwrap_or(wc.settings.image_bg_color));
 
-        let comp = wc.settings.image_grid_color.to_srgba_unmultiplied();
+        let comp = self.custom_grid_color.unwrap_or(wc.settings.image_grid_color).to_srgba_unmultiplied();
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(comp[0], comp[1], comp[2], 96));
         let width = image.width();
         let height = image.height();
