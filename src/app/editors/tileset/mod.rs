@@ -624,7 +624,7 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.pen)
                           .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Pencil)
                           .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Pencil))
-                    .on_hover_text("Pencil").clicked() {
+                    .on_hover_text("Pencil (A)").clicked() {
                         self.tile_image_editor.set_tool(ImageDrawingTool::Pencil);
                         self.grid_image_editor.set_tool(ImageDrawingTool::Pencil);
                     }
@@ -632,7 +632,7 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.fill)
                           .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Fill)
                           .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Fill))
-                    .on_hover_text("Fill").clicked() {
+                    .on_hover_text("Fill (S)").clicked() {
                         self.tile_image_editor.set_tool(ImageDrawingTool::Fill);
                         self.grid_image_editor.set_tool(ImageDrawingTool::Fill);
                     }
@@ -640,7 +640,7 @@ impl Editor {
                 if ui.add(egui::Button::image(IMAGES.select)
                           .selected(self.tile_image_editor.get_tool() == ImageDrawingTool::Select)
                           .frame_when_inactive(self.tile_image_editor.get_tool() == ImageDrawingTool::Select))
-                    .on_hover_text("Select").clicked() {
+                    .on_hover_text("Select (D)").clicked() {
                         self.tile_image_editor.set_tool(ImageDrawingTool::Select);
                         self.grid_image_editor.set_tool(ImageDrawingTool::Select);
                     }
@@ -671,14 +671,14 @@ impl Editor {
                         if ui.add(egui::Button::image(IMAGES.grid)
                                   .selected(self.tile_image_editor.display.has_bits(ImageDisplay::GRID))
                                   .frame_when_inactive(self.tile_image_editor.display.has_bits(ImageDisplay::GRID)))
-                            .on_hover_text("Grid").clicked() {
+                            .on_hover_text("Toggle Grid display").clicked() {
                                 self.tile_image_editor.toggle_display(ImageDisplay::GRID);
                                 self.grid_image_editor.display = self.tile_image_editor.display;
                             }
                         if ui.add(egui::Button::image(IMAGES.transparency)
                                   .selected(self.tile_image_editor.display.is_transparent())
                                   .frame_when_inactive(self.tile_image_editor.display.is_transparent()))
-                            .on_hover_text("Transparency").clicked() {
+                            .on_hover_text("Toggle Transparency display").clicked() {
                                 self.tile_image_editor.toggle_display(ImageDisplay::TRANSPARENT);
                                 self.grid_image_editor.display = self.tile_image_editor.display;
                             }
@@ -765,6 +765,10 @@ impl Editor {
         // grid tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
+            if let Some(tile) = self.tile_picker_popup.show_anchor(ui, wc, "Select...", tileset, self.grid_tile_picker.get_selected_image_l()) {
+                self.grid_tile_picker.set_selected_image_l(Some(tile));
+            }
+
             self.grid_tile_picker.display = self.grid_image_editor.display;
             self.grid_tile_picker.show(ui, wc, tileset);
             self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image_l();

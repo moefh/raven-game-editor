@@ -741,6 +741,77 @@ impl MapEditorWidget {
             Some(KeyboardPressed::CommandV) => { self.paste(wc, map_data); }
             None => {}
         }
+
+        // display layers
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num1))) {
+            self.display.toggle(MapDisplay::FOREGROUND);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num2))) {
+            self.display.toggle(MapDisplay::BACKGROUND);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num3))) {
+            self.display.toggle(MapDisplay::PARALLAX);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num4))) {
+            self.display.toggle(MapDisplay::EFFECTS);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num5))) {
+            self.display.toggle(MapDisplay::ANIMATION);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Num6))) {
+            self.display.toggle(MapDisplay::SCREEN);
+        }
+
+        // edit layers
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Q))) {
+            self.set_edit_layer(MapLayer::Foreground);
+            self.display.set(MapDisplay::FOREGROUND);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::W))) {
+            self.set_edit_layer(MapLayer::Background);
+            self.display.set(MapDisplay::BACKGROUND);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::E))) {
+            self.set_edit_layer(MapLayer::Parallax);
+            self.display.set(MapDisplay::PARALLAX);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::R))) {
+            self.set_edit_layer(MapLayer::Effects);
+            self.display.set(MapDisplay::EFFECTS);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::T))) {
+            self.set_edit_layer(MapLayer::Animation);
+            self.display.set(MapDisplay::ANIMATION);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Y))) {
+            self.set_edit_layer(MapLayer::Screen);
+            self.display.set(MapDisplay::SCREEN);
+        }
+
+        // tools
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::A))) {
+            self.set_tool(MapTool::Pencil);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::X))) {
+            let can_select_all = map_data.width == map_data.para_width && map_data.height == map_data.para_height;
+            let new_tool = match self.tool {
+                MapTool::Pencil           => { MapTool::SelectLayer }
+                MapTool::SelectLayer      => { MapTool::SelectFullLayers }
+                MapTool::SelectFullLayers => { if can_select_all { MapTool::SelectAllLayers } else { MapTool::Pencil } }
+                MapTool::SelectAllLayers  => { MapTool::Pencil }
+            };
+            self.set_tool(new_tool);
+        }
+        if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::S))) {
+            let can_select_all = map_data.width == map_data.para_width && map_data.height == map_data.para_height;
+            let new_tool = match self.tool {
+                MapTool::Pencil           => { MapTool::SelectLayer }
+                MapTool::SelectLayer      => { MapTool::SelectFullLayers }
+                MapTool::SelectFullLayers => { if can_select_all { MapTool::SelectAllLayers } else { MapTool::SelectLayer } }
+                MapTool::SelectAllLayers  => { MapTool::SelectLayer }
+            };
+            self.set_tool(new_tool);
+        }
     }
 
     fn calc_para_scroll(&self, map_area_rect: Rect, map_data: &MapData) -> Vec2 {

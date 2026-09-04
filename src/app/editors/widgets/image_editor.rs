@@ -722,6 +722,42 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             _ => {}
         }
 
+        if ! self.readonly {
+            // tools
+            let key_x = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::X);
+            if ui.input_mut(|i| i.consume_shortcut(&key_x)) {
+                let new_tool = match self.tool {
+                    ImageDrawingTool::Pencil => {
+                        ImageDrawingTool::Fill
+                    }
+                    ImageDrawingTool::Fill => {
+                        if self.selection_enabled {
+                            ImageDrawingTool::Select
+                        } else {
+                            ImageDrawingTool::Pencil
+                        }
+                    }
+                    ImageDrawingTool::Select => {
+                        ImageDrawingTool::Pencil
+                    }
+                    ImageDrawingTool::Collision => {
+                        ImageDrawingTool::Pencil
+                    }
+                };
+                self.set_tool(new_tool);
+            }
+            if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::A))) {
+                self.set_tool(ImageDrawingTool::Pencil);
+            }
+            if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::S))) {
+                    self.set_tool(ImageDrawingTool::Fill);
+                }
+            if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::D))) &&
+                self.selection_enabled {
+                    self.set_tool(ImageDrawingTool::Select);
+                }
+        }
+
         // select all/none
         if self.selection_enabled {
             let cmd_a = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::A);

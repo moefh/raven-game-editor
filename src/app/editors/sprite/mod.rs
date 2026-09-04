@@ -315,21 +315,27 @@ impl Editor {
                 ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
                 ui.label("Tool:");
                 ui.add_space(1.0);
-                if ui.add(egui::Button::image(IMAGES.pen)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)).on_hover_text("Pencil").clicked() {
+                if ui.add(
+                    egui::Button::image(IMAGES.pen)
+                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Pencil)
+                ).on_hover_text("Pencil (A)").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Pencil);
                 }
 
-                if ui.add(egui::Button::image(IMAGES.fill)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Fill)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Fill)).on_hover_text("Fill").clicked() {
+                if ui.add(
+                    egui::Button::image(IMAGES.fill)
+                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Fill)
+                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Fill)
+                ).on_hover_text("Fill (S)").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Fill);
                 }
 
-                if ui.add(egui::Button::image(IMAGES.select)
-                          .selected(self.image_editor.get_tool() == ImageDrawingTool::Select)
-                          .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Select)).on_hover_text("Select").clicked() {
+                if ui.add(
+                    egui::Button::image(IMAGES.select)
+                        .selected(self.image_editor.get_tool() == ImageDrawingTool::Select)
+                        .frame_when_inactive(self.image_editor.get_tool() == ImageDrawingTool::Select)
+                ).on_hover_text("Select (D)").clicked() {
                     self.image_editor.set_tool(ImageDrawingTool::Select);
                 }
 
@@ -359,13 +365,13 @@ impl Editor {
                         if ui.add(egui::Button::image(IMAGES.grid)
                                   .selected(self.image_editor.display.has_bits(ImageDisplay::GRID))
                                   .frame_when_inactive(self.image_editor.display.has_bits(ImageDisplay::GRID)))
-                            .on_hover_text("Grid").clicked() {
+                            .on_hover_text("Toggle Grid Display").clicked() {
                                 self.image_editor.toggle_display(ImageDisplay::GRID);
                             }
                         if ui.add(egui::Button::image(IMAGES.transparency)
                                   .selected(self.image_editor.display.is_transparent())
                                   .frame_when_inactive(self.image_editor.display.is_transparent()))
-                            .on_hover_text("Transparency").clicked() {
+                            .on_hover_text("Toggle Transparency Display").clicked() {
                                 self.image_editor.toggle_display(ImageDisplay::TRANSPARENT);
                             }
                         ui.add_space(1.0);
