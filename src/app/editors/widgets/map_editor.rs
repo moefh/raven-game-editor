@@ -1072,10 +1072,11 @@ impl MapEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) || (response.dragged() && keys_pressed.alt) {
-            self.scroll += response.drag_delta();
-            self.clip_scroll(canvas_rect.size(), map_size);
-        }
+        if response.dragged_by(egui::PointerButton::Middle) ||
+            (response.dragged() && (keys_pressed.alt || (self.edit_layer == MapLayer::Screen && !self.display.has_bits(MapDisplay::SCREEN)))) {
+                self.scroll += response.drag_delta();
+                self.clip_scroll(canvas_rect.size(), map_size);
+            }
 
         // check click
         if response.drag_stopped() {
