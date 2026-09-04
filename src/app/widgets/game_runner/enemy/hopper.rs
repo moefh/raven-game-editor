@@ -66,7 +66,7 @@ impl Hopper {
         }
     }
 
-    fn to_state(&mut self, state: State, enemy: &mut EnemyInfo, wait: i16) {
+    fn go_state(&mut self, state: State, enemy: &mut EnemyInfo, wait: i16) {
         self.state = state;
         self.wait = wait;
         enemy.anim_frame = 0;
@@ -76,7 +76,7 @@ impl Hopper {
         match self.state {
             State::AmbushWait => {
                 if let Some(dir) = check_player_seen(enemy, player, anim, store) {
-                    self.to_state(State::AmbushPlunge, enemy, 0);
+                    self.go_state(State::AmbushPlunge, enemy, 0);
                     enemy.direction = dir;
                     self.dx = dir.dx() * 0x80;
                     self.dy = 0;
@@ -87,7 +87,7 @@ impl Hopper {
                 self.dy += DY_GRAVITY;
                 if self.dy >= DY_MAX { self.dy = DY_MAX; }
                 if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store) & COLLISION_FLAGS_DOWN) != 0 {
-                    self.to_state(State::Splat, enemy, 0);
+                    self.go_state(State::Splat, enemy, 0);
                     self.dy = 0;
                 }
             }
@@ -95,10 +95,10 @@ impl Hopper {
             State::Splat => {
                 if enemy.is_at_animation_end(anim) {
                     if let Some(dir) = check_player_seen(enemy, player, anim, store) {
-                        self.to_state(State::PouncePrep, enemy, 0);
+                        self.go_state(State::PouncePrep, enemy, 0);
                         enemy.direction = dir;
                     } else {
-                        self.to_state(State::PatrolWalk, enemy, 2000);
+                        self.go_state(State::PatrolWalk, enemy, 2000);
                         self.dx = enemy.direction.dx() * 0x100;
                         self.dy = 0;
                     }
@@ -107,31 +107,31 @@ impl Hopper {
 
             State::PatrolWalk => {
                 if let Some(dir) = check_player_seen(enemy, player, anim, store) {
-                    self.to_state(State::PouncePrep, enemy, 0);
+                    self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else {
                     self.wait -= 1;
                     if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(self.dx>>8, self.dy>>8, room, anim, store) {
-                        self.to_state(State::PatrolBlink, enemy, 0);
+                        self.go_state(State::PatrolBlink, enemy, 0);
                     }
                 }
             }
 
             State::PatrolBlink => {
                 if let Some(dir) = check_player_seen(enemy, player, anim, store) {
-                    self.to_state(State::PouncePrep, enemy, 0);
+                    self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else if enemy.is_at_animation_end(anim) {
-                    self.to_state(State::PatrolLook, enemy, 0);
+                    self.go_state(State::PatrolLook, enemy, 0);
                 }
             }
 
             State::PatrolLook => {
                 if let Some(dir) = check_player_seen(enemy, player, anim, store) {
-                    self.to_state(State::PouncePrep, enemy, 0);
+                    self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else if enemy.is_at_animation_end(anim) {
-                    self.to_state(State::PatrolWalk, enemy, 2000);
+                    self.go_state(State::PatrolWalk, enemy, 2000);
                     self.dx = enemy.direction.dx() * 0x100;
                     self.dy = 0;
                 }
@@ -139,7 +139,7 @@ impl Hopper {
 
             State::PouncePrep => {
                 if enemy.is_at_animation_end(anim) {
-                    self.to_state(State::PounceJump, enemy, 0);
+                    self.go_state(State::PounceJump, enemy, 0);
                     if let Some(dir) = check_player_seen(enemy, player, anim, store) {
                         enemy.direction = dir;
                     }
@@ -152,7 +152,7 @@ impl Hopper {
                 self.dy += DY_GRAVITY;
                 if self.dy >= DY_MAX { self.dy = DY_MAX; }
                 if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store) & COLLISION_FLAGS_DOWN) != 0 {
-                    self.to_state(State::Splat, enemy, 0);
+                    self.go_state(State::Splat, enemy, 0);
                     self.dy = 0;
                 }
             }

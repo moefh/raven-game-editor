@@ -127,18 +127,16 @@ impl GameRunnerWidget {
                 let px = self.player.x + player_anim.clip_rect.w/2;
                 let py1 = self.player.y + 8;
                 let py2 = self.player.y + player_anim.clip_rect.h - 9;
-                if rect.contains_point(px, py1) || rect.contains_point(px, py2) {
-                    if let Some(dest_room) = store.assets.rooms.get(&dest_room_id) {
-                        if let Some(dest_trigger) = dest_room.triggers.iter().find(|tr| tr.trigger_id == dest_trigger_id) {
-                            self.load_room(dest_room, store);
-                            let dx = self.player.x - door.x as i32;
-                            let dy = self.player.y - door.y as i32;
-                            self.place_player_at_door_exit(dest_trigger, dx, dy, player_anim, dest_room, store);
-                            self.follow_player(player_anim);
-                            return true;
-                        }
+                if (rect.contains_point(px, py1) || rect.contains_point(px, py2)) &&
+                    let Some(dest_room) = store.assets.rooms.get(&dest_room_id) &&
+                    let Some(dest_trigger) = dest_room.triggers.iter().find(|tr| tr.trigger_id == dest_trigger_id) {
+                        self.load_room(dest_room, store);
+                        let dx = self.player.x - door.x as i32;
+                        let dy = self.player.y - door.y as i32;
+                        self.place_player_at_door_exit(dest_trigger, dx, dy, player_anim, dest_room, store);
+                        self.follow_player(player_anim);
+                        return true;
                     }
-                }
             }
         }
         false

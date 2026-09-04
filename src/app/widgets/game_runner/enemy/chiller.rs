@@ -41,7 +41,7 @@ impl Chiller {
         }
     }
 
-    fn to_state(&mut self, state: State, enemy: &mut EnemyInfo, wait: i16) {
+    fn go_state(&mut self, state: State, enemy: &mut EnemyInfo, wait: i16) {
         self.state = state;
         self.wait = wait;
         enemy.anim_frame = 0;
@@ -51,18 +51,18 @@ impl Chiller {
         match self.state {
             State::Look => {
                 if enemy.is_at_animation_end(anim) {
-                    self.to_state(State::Walk, enemy, 2000);
+                    self.go_state(State::Walk, enemy, 2000);
                 }
             }
             State::Walk => {
                 self.wait -= 1;
                 if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store) {
-                    self.to_state(State::Blink, enemy, 0);
+                    self.go_state(State::Blink, enemy, 0);
                 }
             }
             State::Blink => {
                 if enemy.is_at_animation_end(anim) {
-                    self.to_state(State::Look, enemy, 0);
+                    self.go_state(State::Look, enemy, 0);
                 }
             }
         }
