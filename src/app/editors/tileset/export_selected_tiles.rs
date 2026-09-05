@@ -90,7 +90,7 @@ impl ExportSelectedTilesDialog {
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         ui.label("Start at:");
-                        egui::ComboBox::from_id_salt(&self.dlg_id_insert_location_combo)
+                        egui::ComboBox::from_id_salt(self.dlg_id_insert_location_combo)
                             .selected_text(self.start_tile_location.text())
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
