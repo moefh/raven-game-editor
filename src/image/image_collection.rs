@@ -151,14 +151,15 @@ pub trait ImageCollection {
 
         let height = self.height();
         let width = self.width();
+        let num_items = self.num_items();
         let data = self.data_mut();
         let mut new_data = vec![new_pixel; new_data_len];
-        for index in 0..data.len().min(new_num_items as usize) {
+        for item in 0..num_items.min(new_num_items) {
             for y in 0..height.min(new_height) {
                 let len = width.min(new_width) as usize;
-                let src_start = (((index as u32 * height) + y) * width) as usize;
+                let src_start = (((item * height) + y) * width) as usize;
                 let src_end = src_start + len;
-                let dst_start = (((index as u32 * new_height) + y) * new_width) as usize;
+                let dst_start = (((item * new_height) + y) * new_width) as usize;
                 let dst_end = dst_start + len;
 
                 new_data.splice(dst_start..dst_end, data[src_start..src_end].iter().copied());
