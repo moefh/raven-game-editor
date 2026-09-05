@@ -1,9 +1,13 @@
 use std::io::{Result, Error};
 use std::path::PathBuf;
 use std::sync::LazyLock;
-use std::collections::HashMap;
+use std::collections::{
+    BTreeMap,
+    HashMap,
+};
 
 use super::gamepad;
+use super::gamepad_buttons::{*};
 use super::KeyboardPressed;
 
 const APP_ID: &str = "raven-game-editor";
@@ -13,8 +17,10 @@ static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3>
 });
 
 pub struct GamepadManager {
-    gamepads: HashMap<gilrs::GamepadId, gamepad::Gamepad>,
     gilrs: Option<gilrs::Gilrs>,
+    gamepads: HashMap<gilrs::GamepadId, gamepad::Gamepad>,
+    active_gamepad_id: Option<gilrs::GamepadId>,
+    raw_events: Vec<gamepad::RawEvent>,
 }
 
 impl GamepadManager {
@@ -22,41 +28,46 @@ impl GamepadManager {
         GamepadManager {
             gilrs: gilrs::Gilrs::new().ok(),
             gamepads: HashMap::new(),
+            active_gamepad_id: None,
+            raw_events: Vec::new(),
         }
     }
 
-    pub fn get_default_mappings() -> HashMap<String, gamepad::GamepadMapping> {
-        HashMap::from([
-            (String::from("Microntek              USB Joystick          "), gamepad::GamepadMapping {
-                buttons: HashMap::from([
-                    (65824, gamepad::GAMEPAD_XBOX_Y),
-                    (65825, gamepad::GAMEPAD_XBOX_B),
-                    (65826, gamepad::GAMEPAD_XBOX_A),
-                    (65827, gamepad::GAMEPAD_XBOX_X),
-                    (65828, gamepad::GAMEPAD_LB),
-                    (65829, gamepad::GAMEPAD_RB),
-                    (65830, gamepad::GAMEPAD_LT),
-                    (65831, gamepad::GAMEPAD_RT),
-                    (65832, gamepad::GAMEPAD_SELECT),
-                    (65833, gamepad::GAMEPAD_START),
-                    (65834, gamepad::GAMEPAD_L3),
-                    (65835, gamepad::GAMEPAD_R3),
-                ]),
-                axes: HashMap::from([
-                    (196608, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT)),
-                    (196609, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_UP,   gamepad::GAMEPAD_DOWN)),
-                ]),
-            })
-        ])
+    pub fn active_gamepad(&self) -> Option<&gamepad::Gamepad> {
+        self.active_gamepad_id.and_then(|id| self.gamepads.get(&id))
     }
 
     pub fn gamepads(&self) -> impl Iterator<Item = &gamepad::Gamepad> {
         self.gamepads.values()
     }
 
-    pub fn update(&mut self, mappings: &HashMap<String, gamepad::GamepadMapping>) -> bool {
+    pub fn get_raw_events(&mut self) -> &[gamepad::RawEvent] {
+        self.raw_events.clear();
         if let Some(gilrs) = &mut self.gilrs {
             while let Some(ev) = gilrs.next_event() {
+                self.active_gamepad_id = Some(ev.id);
+                let gp = gilrs.gamepad(ev.id);
+                self.gamepads.entry(ev.id).or_insert_with(|| {
+                    gamepad::Gamepad::new(gp.name().to_owned())
+                });
+                match ev.event {
+                    gilrs::EventType::ButtonPressed(_btn, code) => {
+                        self.raw_events.push(gamepad::RawEvent::Button { code: code.into_u32() });
+                    }
+                    gilrs::EventType::AxisChanged(_axis, val, code) => {
+                        self.raw_events.push(gamepad::RawEvent::Axis { code: code.into_u32(), val });
+                    }
+                    _ => {}
+                }
+            }
+        }
+        &self.raw_events
+    }
+
+    pub fn update(&mut self, mappings: &BTreeMap<String, gamepad::Mapping>) -> bool {
+        if let Some(gilrs) = &mut self.gilrs {
+            while let Some(ev) = gilrs.next_event() {
+                self.active_gamepad_id = Some(ev.id);
                 let gp = gilrs.gamepad(ev.id);
                 let gamepad = self.gamepads.entry(ev.id).or_insert_with(|| {
                     gamepad::Gamepad::new(gp.name().to_owned())
@@ -64,23 +75,23 @@ impl GamepadManager {
                 match ev.event {
                     gilrs::EventType::ButtonChanged(btn, val, code) => {
                         let gamepad_val = match btn {
-                            gilrs::ev::Button::South         => { gamepad::GAMEPAD_PS_X }
-                            gilrs::ev::Button::East          => { gamepad::GAMEPAD_PS_CIRCLE }
-                            gilrs::ev::Button::North         => { gamepad::GAMEPAD_PS_TRIANGLE }
-                            gilrs::ev::Button::West          => { gamepad::GAMEPAD_PS_SQUARE }
-                            gilrs::ev::Button::LeftTrigger   => { gamepad::GAMEPAD_LB }
-                            gilrs::ev::Button::LeftTrigger2  => { gamepad::GAMEPAD_LT }
-                            gilrs::ev::Button::RightTrigger  => { gamepad::GAMEPAD_RB }
-                            gilrs::ev::Button::RightTrigger2 => { gamepad::GAMEPAD_RT }
-                            gilrs::ev::Button::Select        => { gamepad::GAMEPAD_SELECT }
-                            gilrs::ev::Button::Start         => { gamepad::GAMEPAD_START }
-                            gilrs::ev::Button::Mode          => { gamepad::GAMEPAD_HOME }
-                            gilrs::ev::Button::LeftThumb     => { gamepad::GAMEPAD_L3 }
-                            gilrs::ev::Button::RightThumb    => { gamepad::GAMEPAD_R3 }
-                            gilrs::ev::Button::DPadUp        => { gamepad::GAMEPAD_UP }
-                            gilrs::ev::Button::DPadDown      => { gamepad::GAMEPAD_DOWN }
-                            gilrs::ev::Button::DPadLeft      => { gamepad::GAMEPAD_LEFT }
-                            gilrs::ev::Button::DPadRight     => { gamepad::GAMEPAD_RIGHT }
+                            gilrs::ev::Button::South         => { GAMEPAD_PS_X }
+                            gilrs::ev::Button::East          => { GAMEPAD_PS_CIRCLE }
+                            gilrs::ev::Button::North         => { GAMEPAD_PS_TRIANGLE }
+                            gilrs::ev::Button::West          => { GAMEPAD_PS_SQUARE }
+                            gilrs::ev::Button::LeftTrigger   => { GAMEPAD_LB }
+                            gilrs::ev::Button::LeftTrigger2  => { GAMEPAD_LT }
+                            gilrs::ev::Button::RightTrigger  => { GAMEPAD_RB }
+                            gilrs::ev::Button::RightTrigger2 => { GAMEPAD_RT }
+                            gilrs::ev::Button::Select        => { GAMEPAD_SELECT }
+                            gilrs::ev::Button::Start         => { GAMEPAD_START }
+                            gilrs::ev::Button::Mode          => { GAMEPAD_HOME }
+                            gilrs::ev::Button::LeftThumb     => { GAMEPAD_L3 }
+                            gilrs::ev::Button::RightThumb    => { GAMEPAD_R3 }
+                            gilrs::ev::Button::DPadUp        => { GAMEPAD_UP }
+                            gilrs::ev::Button::DPadDown      => { GAMEPAD_DOWN }
+                            gilrs::ev::Button::DPadLeft      => { GAMEPAD_LEFT }
+                            gilrs::ev::Button::DPadRight     => { GAMEPAD_RIGHT }
                             gilrs::ev::Button::C             => { 0 }
                             gilrs::ev::Button::Z             => { 0 }
                             gilrs::ev::Button::Unknown => {

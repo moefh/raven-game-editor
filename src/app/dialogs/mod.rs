@@ -4,6 +4,7 @@ mod confirmation;
 mod confirm_exit;
 mod colorset;
 mod text_input;
+mod gamepad_mapping;
 
 use about::{*};
 use message_box::{*};
@@ -11,7 +12,9 @@ use confirmation::{*};
 use confirm_exit::{*};
 use colorset::{*};
 use text_input::{*};
+use gamepad_mapping::{*};
 
+use crate::platform::GamepadManager;
 use crate::misc::IMAGES;
 
 use super::{
@@ -35,6 +38,7 @@ pub struct AppDialogs {
     confirm_exit: ConfirmExitDialog,
     colorset: ColorsetEditorDialog,
     text_input: TextInputDialog,
+    gamepad_mapping: GamepadMappingDialog,
 }
 
 impl AppDialogs {
@@ -46,6 +50,7 @@ impl AppDialogs {
             confirm_exit: ConfirmExitDialog::new(),
             colorset: ColorsetEditorDialog::new(),
             text_input: TextInputDialog::new(),
+            gamepad_mapping: GamepadMappingDialog::new(),
         }
     }
 
@@ -88,6 +93,10 @@ impl AppDialogs {
         self.colorset.set_open(wt, colorset);
     }
 
+    pub fn open_gamepad_mapping_dialog(&mut self, wt: &mut AppWindowTracker) {
+        self.gamepad_mapping.set_open(wt);
+    }
+
     pub fn show_non_response_dialogs(
         &mut self,
         ui: &mut egui::Ui,
@@ -114,6 +123,17 @@ impl AppDialogs {
 
     pub fn get_text_input_dialog_input(&mut self) -> String {
         self.text_input.get_input()
+    }
+
+    pub fn show_gamepad_mapping_dialog(
+        &mut self,
+        ui: &mut egui::Ui,
+        wt: &mut AppWindowTracker,
+        sys_dialogs: &SysDialogs,
+        settings: &mut AppSettings,
+        gamepad_manager: &mut GamepadManager
+    ) {
+        self.gamepad_mapping.show(ui, wt, sys_dialogs, settings, gamepad_manager);
     }
 }
 

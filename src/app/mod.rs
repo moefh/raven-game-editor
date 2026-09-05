@@ -584,6 +584,8 @@ impl RavenEditorApp {
     fn show_dialogs(&mut self, ui: &mut egui::Ui) {
         self.dialogs.show_non_response_dialogs(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings);
 
+        self.dialogs.show_gamepad_mapping_dialog(ui, &mut self.window_tracker, &self.sys_dialogs, &mut self.settings, &mut self.gamepad_manager);
+
         // confirm exit dialog
         let confirm_exit_dialog_result = self.dialogs.show_confirm_exit_dialog(ui, &mut self.window_tracker, &self.sys_dialogs);
         if confirm_exit_dialog_result == DialogResult::Yes {

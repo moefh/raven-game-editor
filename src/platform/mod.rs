@@ -1,4 +1,5 @@
 pub mod gamepad;
+pub mod gamepad_buttons;
 
 pub enum KeyboardPressed {
     CommandC,

@@ -219,6 +219,10 @@ impl<'a> WindowContext<'a> {
         self.dialogs.open_colorset_dialog(self.window_tracker, colorset);
     }
 
+    pub fn open_gamepad_mapping_dialog(&mut self) {
+        self.dialogs.open_gamepad_mapping_dialog(self.window_tracker);
+    }
+
     // bring to the top the layer among `ids` that's closest to the top
     pub fn bring_topmost_to_top(&self, ids: &HashSet<egui::Id>) -> Option<egui::Id> {
         let top_layer_id = self.window_tracker.get_topmost_of(ids, self.egui.ctx);

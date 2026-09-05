@@ -1,14 +1,13 @@
 use std::io::{Result, Error};
-use std::collections::HashMap;
+use std::collections::{
+    HashMap,
+    BTreeMap,
+};
 
 use crate::platform::{
-    self,
+    gamepad,
     read_settings_file,
     write_settings_file,
-};
-use crate::platform::gamepad::{
-    GamepadMapping,
-    GamepadAxisMapping,
 };
 use crate::image::{
     ColorSet,
@@ -46,7 +45,7 @@ pub struct AppSettings {
     pub marching_ants_color1: egui::Color32,
     pub marching_ants_color2: egui::Color32,
     pub colorsets: ColorSetCollection,
-    pub gamepad_mappings: HashMap<String, GamepadMapping>,
+    pub gamepad_mappings: BTreeMap<String, gamepad::Mapping>,
 }
 
 impl AppSettings {
@@ -74,14 +73,15 @@ impl AppSettings {
             marching_ants_color1: egui::Color32::BLACK,
             marching_ants_color2: egui::Color32::WHITE,
             colorsets: ColorSetCollection::new(),
-            gamepad_mappings: platform::GamepadManager::get_default_mappings(),
+            gamepad_mappings: BTreeMap::new(),
         }
     }
 
     fn load_settings_file(&mut self) -> Result<()> {
         let config = read_settings_file(Self::FILENAME)?;
         let mut reader = AppSettingsReader::new(&config);
-        reader.read(self)
+        reader.read(self)?;
+        Ok(())
     }
 
     pub fn load(logger: &mut StringLogger) -> Self {
@@ -96,8 +96,8 @@ impl AppSettings {
         format!("[{},{},{}]", c.r(), c.g(), c.b())
     }
 
-    fn save_gamepad_mapping(id: &str, mapping: &GamepadMapping) -> String {
-        fn save(id: &str, mapping: &GamepadMapping) -> std::result::Result<String,std::fmt::Error> {
+    fn save_gamepad_mapping(id: &str, mapping: &gamepad::Mapping) -> String {
+        fn save(id: &str, mapping: &gamepad::Mapping) -> std::result::Result<String,std::fmt::Error> {
             use std::fmt::Write;
 
             let mut out = String::with_capacity(1024);
@@ -173,7 +173,6 @@ impl AppSettings {
             config.push_str(&Self::save_gamepad_mapping(id, mapping));
         }
         config.push_str("};\n");
-        config.push_str("};\n");
 
         if let Err(e) = write_settings_file(Self::FILENAME, &config) {
             logger.log(format!("ERROR writing settings: '{}'", e));
@@ -248,7 +247,7 @@ impl<'a> AppSettingsReader<'a> {
         Ok(buttons)
     }
 
-    fn read_gamepad_axis_mapping_array(&mut self) -> Result<HashMap<u32, GamepadAxisMapping>> {
+    fn read_gamepad_axis_mapping_array(&mut self) -> Result<HashMap<u32, gamepad::AxisMapping>> {
         let mut axes = HashMap::new();
         self.expect_punct('[')?;
         loop {
@@ -264,7 +263,7 @@ impl<'a> AppSettingsReader<'a> {
                 let min = self.read_number()? as u32;
                 self.expect_punct(',')?;
                 let max = self.read_number()? as u32;
-                axes.insert(raw, GamepadAxisMapping::new(min, max));
+                axes.insert(raw, gamepad::AxisMapping::new(min, max));
             }
         }
         Ok(axes)
@@ -344,8 +343,8 @@ impl<'a> AppSettingsReader<'a> {
         Ok(colorsets)
     }
 
-    fn read_gamepad_mappings_config(&mut self) -> Result<HashMap<String, GamepadMapping>> {
-        let mut mappings = HashMap::new();
+    fn read_gamepad_mappings_config(&mut self) -> Result<BTreeMap<String, gamepad::Mapping>> {
+        let mut mappings = BTreeMap::new();
 
         self.expect_punct('{')?;
         loop {
@@ -359,7 +358,7 @@ impl<'a> AppSettingsReader<'a> {
                 self.expect_punct(',')?;
                 let axes = self.read_gamepad_axis_mapping_array()?;
                 self.expect_punct(']')?;
-                mappings.insert(id, GamepadMapping::new(buttons, axes));
+                mappings.insert(id, gamepad::Mapping::with_mapping(buttons, axes));
             } else {
                 return Err(Error::other(format!("expected string or ']', found '{}' at line {}", t, t.pos.line)));
             }
@@ -409,9 +408,6 @@ impl<'a> AppSettingsReader<'a> {
                     }
                     "gamepad_mappings" => {
                         settings.gamepad_mappings = self.read_gamepad_mappings_config()?;
-                        for (id, map) in platform::GamepadManager::get_default_mappings() {
-                            settings.gamepad_mappings.entry(id).or_insert(map);
-                        }
                     }
                     _ => {
                         self.skip_config_value()?;

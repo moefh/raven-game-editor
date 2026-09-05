@@ -1,48 +1,14 @@
 use std::collections::HashMap;
 
-pub const GAMEPAD_NONE: u32   = 0;
-pub const GAMEPAD_UP: u32     = 1 << 0;
-pub const GAMEPAD_DOWN: u32   = 1 << 1;
-pub const GAMEPAD_LEFT: u32   = 1 << 2;
-pub const GAMEPAD_RIGHT: u32  = 1 << 3;
-pub const GAMEPAD_LB: u32     = 1 << 4;
-pub const GAMEPAD_RB: u32     = 1 << 5;
-pub const GAMEPAD_LT: u32     = 1 << 6;
-pub const GAMEPAD_RT: u32     = 1 << 7;
-pub const GAMEPAD_L3: u32     = 1 << 8;
-pub const GAMEPAD_R3: u32     = 1 << 9;
-pub const GAMEPAD_SELECT: u32 = 1 << 10;
-pub const GAMEPAD_START: u32  = 1 << 11;
-pub const GAMEPAD_HOME: u32   = 1 << 12;
-
-// Nintendo button names:
-pub const GAMEPAD_SNES_X: u32 = 1 << 13;  // XBOX_Y, PS_TRIANGLE
-pub const GAMEPAD_SNES_Y: u32 = 1 << 14;  // XBOX_X, PS_SQUARE
-pub const GAMEPAD_SNES_A: u32 = 1 << 15;  // XBOX_B, PS_CIRCLE
-pub const GAMEPAD_SNES_B: u32 = 1 << 16;  // XBOX_A, PS_X
-
-// Playstation button names:
-pub const GAMEPAD_PS_TRIANGLE: u32 = GAMEPAD_SNES_X;
-pub const GAMEPAD_PS_SQUARE: u32   = GAMEPAD_SNES_Y;
-pub const GAMEPAD_PS_CIRCLE: u32   = GAMEPAD_SNES_A;
-pub const GAMEPAD_PS_X: u32        = GAMEPAD_SNES_B;
-
-// XBOX button names:
-pub const GAMEPAD_XBOX_Y: u32 = GAMEPAD_SNES_X;
-pub const GAMEPAD_XBOX_X: u32 = GAMEPAD_SNES_Y;
-
-pub const GAMEPAD_XBOX_B: u32 = GAMEPAD_SNES_A;
-pub const GAMEPAD_XBOX_A: u32 = GAMEPAD_SNES_B;
-
 #[derive(Debug)]
-pub struct GamepadAxisMapping {
+pub struct AxisMapping {
     pub min: u32,
     pub max: u32,
 }
 
-impl GamepadAxisMapping {
+impl AxisMapping {
     pub fn new(min: u32, max: u32) -> Self {
-        GamepadAxisMapping {
+        AxisMapping {
             min,
             max,
         }
@@ -50,16 +16,63 @@ impl GamepadAxisMapping {
 }
 
 #[derive(Debug)]
-pub struct GamepadMapping {
-    pub buttons: HashMap<u32, u32>,              // buttons[raw] = GAMEPAD_xxx
-    pub axes: HashMap<u32, GamepadAxisMapping>,  // axes[raw].min = GAMEPAD_xxx, axes[raw].max = GAMEPAD_xxx
+pub struct Mapping {
+    pub buttons: HashMap<u32, u32>,       // buttons[raw] = GAMEPAD_xxx
+    pub axes: HashMap<u32, AxisMapping>,  // axes[raw].min = GAMEPAD_xxx, axes[raw].max = GAMEPAD_xxx
 }
 
-impl GamepadMapping {
-    pub fn new(buttons: HashMap<u32, u32>, axes: HashMap<u32, GamepadAxisMapping>) -> Self {
-        GamepadMapping {
+impl Mapping {
+    pub fn new() -> Self {
+        Self::with_mapping(HashMap::new(), HashMap::new())
+    }
+
+    pub fn with_mapping(buttons: HashMap<u32, u32>, axes: HashMap<u32, AxisMapping>) -> Self {
+        Mapping {
             buttons,
             axes,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.buttons.clear();
+        self.axes.clear();
+    }
+
+    pub fn is_button_set(&self, button: u32) -> bool {
+        self.buttons.values().find(|&b| *b == button).is_some() ||
+            self.axes.values().find(|a| a.min == button || a.max == button).is_some()
+    }
+}
+
+#[derive(Debug)]
+pub enum RawEvent {
+    Button { code: u32 },
+    Axis { code: u32, val: f32 },
+}
+
+impl RawEvent {
+    pub fn add_to_mapping(&self, button: u32, mapping: &mut Mapping) -> bool {
+        match self {
+            RawEvent::Button { code } => {
+                mapping.buttons.insert(*code, button);
+                true
+            }
+            RawEvent::Axis { code, val } => {
+                let is_min = if *val <= -0.9 {
+                    true
+                } else if *val >= 0.9 {
+                    false
+                } else {
+                    return false;
+                };
+                let axis = mapping.axes.entry(*code).or_insert_with(|| AxisMapping::new(0, 0));
+                if is_min {
+                    axis.min = button;
+                } else {
+                    axis.max = button;
+                }
+                true
+            }
         }
     }
 }

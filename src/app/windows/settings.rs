@@ -159,6 +159,35 @@ impl SettingsWindow {
         });
     }
 
+    fn show_gamepad_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
+        egui::CollapsingHeader::new("Gamepads").default_open(true).show(ui, |ui| {
+            if ! wc.settings.gamepad_mappings.is_empty() {
+                egui::Grid::new("editor_settings_gamepads")
+                    .num_columns(2)
+                    .spacing([4.0, 8.0])
+                    .show(ui, |ui| {
+                        let mut remove_mapping_id = None;
+                        for id in wc.settings.gamepad_mappings.keys() {
+                            if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove").clicked() {
+                                remove_mapping_id = Some(id.to_owned());
+                            }
+                            ui.add(egui::Label::new(id).truncate());
+                            ui.end_row();
+                        }
+                        if let Some(id) = remove_mapping_id {
+                            wc.settings.gamepad_mappings.remove(&id);
+                        }
+                    });
+
+                ui.add_space(5.0);
+            }
+
+            if ui.add(egui::Button::new("Add Custom Mapping")).clicked() {
+                wc.open_gamepad_mapping_dialog();
+            }
+        });
+    }
+
     fn show_animation_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Animation").default_open(true).show(ui, |ui| {
             egui::Grid::new("editor_settings_animation")
@@ -241,6 +270,8 @@ impl SettingsWindow {
                     Self::show_animation_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_game_runner_settings(ui, wc);
+                    ui.add_space(5.0);
+                    Self::show_gamepad_settings(ui, wc);
                     ui.add_space(5.0);
                     Self::show_colorset_settings(ui, wc);
                     ui.add_space(5.0);

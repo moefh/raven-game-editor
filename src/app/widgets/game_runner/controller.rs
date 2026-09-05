@@ -1,4 +1,4 @@
-pub use crate::platform::gamepad::{*};
+pub use crate::platform::gamepad_buttons::{*};
 
 use super::WindowContext;
 
