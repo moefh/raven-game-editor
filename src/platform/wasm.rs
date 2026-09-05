@@ -201,6 +201,27 @@ impl GamepadManager {
                     (1, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_UP,   gamepad::GAMEPAD_DOWN)),
                 ]),
             }),
+
+            (String::from("0079-0006-USB Joystick          "), gamepad::GamepadMapping {
+                buttons: HashMap::from([
+                    (0, gamepad::GAMEPAD_PS_TRIANGLE),
+                    (1, gamepad::GAMEPAD_PS_CIRCLE),
+                    (2, gamepad::GAMEPAD_PS_X),
+                    (3, gamepad::GAMEPAD_PS_SQUARE),
+                    (4, gamepad::GAMEPAD_LB),
+                    (5, gamepad::GAMEPAD_RB),
+                    (6, gamepad::GAMEPAD_LT),
+                    (7, gamepad::GAMEPAD_RT),
+                    (8, gamepad::GAMEPAD_SELECT),
+                    (9, gamepad::GAMEPAD_START),
+                    (10, gamepad::GAMEPAD_L3),
+                    (11, gamepad::GAMEPAD_R3),
+                ]),
+                axes: HashMap::from([
+                    (0, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT)),
+                    (1, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_UP,   gamepad::GAMEPAD_DOWN)),
+                ]),
+            }),
         ])
     }
 
