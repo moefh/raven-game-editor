@@ -9,7 +9,6 @@ mod asset_exporter;
 pub mod checker;
 pub mod project_comparer;
 pub mod widgets;
-pub mod gamepad_settings;
 
 use std::sync::{Arc, Mutex};
 
@@ -67,7 +66,10 @@ pub use settings::{
     AppSettings,
 };
 pub use asset_exporter::AssetExporter;
-pub use crate::platform::KeyboardPressed;
+pub use crate::platform::{
+    KeyboardPressed,
+    GamepadManager,
+};
 
 enum ConfirmationDialogAction {
     NewProject,
@@ -110,6 +112,7 @@ pub struct RavenEditorApp {
     confirmation_dialog_action: Option<ConfirmationDialogAction>,
     text_input_dialog_action: Option<TextInputDialogAction>,
     keyboard_pressed: Option<KeyboardPressed>,
+    gamepad_manager: GamepadManager,
     window_tracker: AppWindowTracker,
     asset_tree: widgets::StoreAssetTree,
     asset_exporter: AssetExporter,
@@ -142,6 +145,7 @@ impl RavenEditorApp {
             confirmation_dialog_action: None,
             text_input_dialog_action: None,
             keyboard_pressed: None,
+            gamepad_manager: GamepadManager::new(),
             window_tracker: AppWindowTracker::new(),
             asset_tree: widgets::StoreAssetTree::new(),
             recent_projects: recent_projects::RecentProjects::new(),
@@ -941,6 +945,7 @@ impl RavenEditorApp {
             logger: &mut self.logger,
             settings: &mut self.settings,
             window_tracker: &mut self.window_tracker,
+            gamepad_manager: &mut self.gamepad_manager,
             map_clipboard: self.map_clipboard.take(),
             image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),

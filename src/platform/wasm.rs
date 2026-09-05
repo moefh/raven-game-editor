@@ -132,68 +132,131 @@ fn read_mapped_gamepad(gp: &web_sys::Gamepad, map: &gamepad::GamepadMapping) -> 
     for i in 0..buttons.length().min(map.buttons.len() as u32) {
         let button: web_sys::GamepadButton = buttons.get(i).dyn_into()?;
         if button.pressed() {
-            flags |= map.buttons[i as usize];
+            flags |= map.buttons.get(&i).unwrap_or(&0);
         }
     }
 
     let axes = gp.axes();
     for i in 0..axes.length().min(map.axes.len() as u32) {
         if let Some(axis) = axes.get(i).as_f64() {
-            if axis < -0.9 { flags |= map.axes[i as usize].min; }
-            if axis >  0.9 { flags |= map.axes[i as usize].max; }
+            if axis < -0.9 { flags |= map.axes.get(&i).map(|axis| axis.min).unwrap_or(0); }
+            if axis >  0.9 { flags |= map.axes.get(&i).map(|axis| axis.max).unwrap_or(0); }
         }
     }
     Ok(flags)
 }
 
-pub fn update_gamepads(gamepads: &mut Vec<gamepad::Gamepad>, mappings: &HashMap<String, gamepad::GamepadMapping>) -> bool {
-    fn read_gamepads(
-        gamepads: &mut Vec<gamepad::Gamepad>,
-        mappings: &HashMap<String, gamepad::GamepadMapping>
-    ) -> std::result::Result<bool, wasm_bindgen::JsValue> {
-        let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
-        let gp_array = window.navigator().get_gamepads()?;
+pub struct GamepadManager {
+    gamepads: Vec<gamepad::Gamepad>,
+}
 
-        gamepads.resize_with(gp_array.length() as usize, || gamepad::Gamepad::new(String::new()));
-
-        let mut has_some_gamepad = false;
-        for (gp, gamepad) in gp_array.iter().zip(gamepads.iter_mut()) {
-            if gp.is_null() || gp.is_undefined() { continue; }
-            let gp: web_sys::Gamepad = gp.dyn_into()?;
-            if ! gp.connected() { continue; }
-
-            has_some_gamepad = true;
-            gamepad.cur = match gp.mapping() {
-                web_sys::GamepadMappingType::Standard => {
-                    read_standard_gamepad(&gp)?
-                }
-                _ => {
-                    // non-standard mapping: read id and use the corresponding mapping, if any
-                    let gp_id = gp.id();
-                    if gp_id != gamepad.id {
-                        gamepad.id.replace_range(.., &gp_id);
-                        gamepad.old = 0;
-                        console_log(format!("DETECTED CONTROLLER: {}", &gamepad.id));
-                    }
-                    if let Some(mapping) = mappings.get(&gp_id) {
-                        read_mapped_gamepad(&gp, mapping)?
-                    } else {
-                        read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
-                    }
-                }
-            };
+impl GamepadManager {
+    pub fn new() -> Self {
+        GamepadManager {
+            gamepads: Vec::new(),
         }
-        Ok(has_some_gamepad)
     }
 
-    for gamepad in gamepads.iter_mut() {
-        gamepad.old = gamepad.cur;
+    pub fn get_default_mappings() -> HashMap<String, gamepad::GamepadMapping> {
+        HashMap::from([
+            (String::from("Zikway HID gamepad (Vendor: 3537 Product: 1041)"), gamepad::GamepadMapping {
+                buttons: HashMap::from([
+                    (0, gamepad::GAMEPAD_XBOX_B),
+                    (1, gamepad::GAMEPAD_XBOX_A),
+                    (3, gamepad::GAMEPAD_XBOX_Y),
+                    (4, gamepad::GAMEPAD_XBOX_X),
+                    (6, gamepad::GAMEPAD_LB),
+                    (7, gamepad::GAMEPAD_RB),
+                    (8, gamepad::GAMEPAD_LT),
+                    (9, gamepad::GAMEPAD_RT),
+                    (8, gamepad::GAMEPAD_SELECT),
+                    (8, gamepad::GAMEPAD_START),
+                    (8, gamepad::GAMEPAD_HOME),
+                    (8, gamepad::GAMEPAD_L3),
+                    (8, gamepad::GAMEPAD_R3),
+                ]),
+                axes: HashMap::from([
+                    (6, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT)),
+                    (7, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_UP,   gamepad::GAMEPAD_DOWN)),
+                ]),
+            }),
+
+            (String::from("0079-0006-Microntek              USB Joystick          "), gamepad::GamepadMapping {
+                buttons: HashMap::from([
+                    (0, gamepad::GAMEPAD_PS_TRIANGLE),
+                    (1, gamepad::GAMEPAD_PS_CIRCLE),
+                    (2, gamepad::GAMEPAD_PS_X),
+                    (3, gamepad::GAMEPAD_PS_SQUARE),
+                    (4, gamepad::GAMEPAD_LB),
+                    (5, gamepad::GAMEPAD_RB),
+                    (6, gamepad::GAMEPAD_LT),
+                    (7, gamepad::GAMEPAD_RT),
+                    (8, gamepad::GAMEPAD_SELECT),
+                    (9, gamepad::GAMEPAD_START),
+                    (10, gamepad::GAMEPAD_L3),
+                    (11, gamepad::GAMEPAD_R3),
+                ]),
+                axes: HashMap::from([
+                    (0, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_LEFT, gamepad::GAMEPAD_RIGHT)),
+                    (1, gamepad::GamepadAxisMapping::new(gamepad::GAMEPAD_UP,   gamepad::GAMEPAD_DOWN)),
+                ]),
+            }),
+        ])
     }
-    match read_gamepads(gamepads, mappings) {
-        Ok(has_some_gamepad) => { has_some_gamepad }
-        Err(e) => {
-            web_sys::console::log_2(&wasm_bindgen::JsValue::from_str("ERROR reading gamepads:"), &e);
-            false
+
+    pub fn gamepads(&self) -> impl Iterator<Item = &gamepad::Gamepad> {
+        self.gamepads.iter()
+    }
+
+    pub fn update(&mut self, mappings: &HashMap<String, gamepad::GamepadMapping>) -> bool {
+        fn read_gamepads(
+            gamepads: &mut Vec<gamepad::Gamepad>,
+            mappings: &HashMap<String, gamepad::GamepadMapping>
+        ) -> std::result::Result<bool, wasm_bindgen::JsValue> {
+            let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
+            let gp_array = window.navigator().get_gamepads()?;
+
+            gamepads.resize_with(gp_array.length() as usize, || gamepad::Gamepad::new(String::new()));
+
+            let mut has_some_gamepad = false;
+            for (gp, gamepad) in gp_array.iter().zip(gamepads.iter_mut()) {
+                if gp.is_null() || gp.is_undefined() { continue; }
+                let gp: web_sys::Gamepad = gp.dyn_into()?;
+                if ! gp.connected() { continue; }
+
+                has_some_gamepad = true;
+                gamepad.cur = match gp.mapping() {
+                    web_sys::GamepadMappingType::Standard => {
+                        read_standard_gamepad(&gp)?
+                    }
+                    _ => {
+                        // non-standard mapping: read id and use the corresponding mapping, if any
+                        let gp_id = gp.id();
+                        if gp_id != gamepad.id {
+                            gamepad.id.replace_range(.., &gp_id);
+                            gamepad.old = 0;
+                            console_log(format!("DETECTED CONTROLLER: {}", &gamepad.id));
+                        }
+                        if let Some(mapping) = mappings.get(&gp_id) {
+                            read_mapped_gamepad(&gp, mapping)?
+                        } else {
+                            read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
+                        }
+                    }
+                };
+            }
+            Ok(has_some_gamepad)
+        }
+
+        for gamepad in self.gamepads.iter_mut() {
+            gamepad.old = gamepad.cur;
+        }
+        match read_gamepads(&mut self.gamepads, mappings) {
+            Ok(has_some_gamepad) => { has_some_gamepad }
+            Err(e) => {
+                web_sys::console::log_2(&wasm_bindgen::JsValue::from_str("ERROR reading gamepads:"), &e);
+                false
+            }
         }
     }
 }

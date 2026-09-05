@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub const GAMEPAD_NONE: u32   = 0;
 pub const GAMEPAD_UP: u32     = 1 << 0;
 pub const GAMEPAD_DOWN: u32   = 1 << 1;
@@ -28,9 +30,9 @@ pub const GAMEPAD_PS_X: u32        = GAMEPAD_SNES_B;
 // XBOX button names:
 pub const GAMEPAD_XBOX_Y: u32 = GAMEPAD_SNES_X;
 pub const GAMEPAD_XBOX_X: u32 = GAMEPAD_SNES_Y;
+
 pub const GAMEPAD_XBOX_B: u32 = GAMEPAD_SNES_A;
 pub const GAMEPAD_XBOX_A: u32 = GAMEPAD_SNES_B;
-
 
 #[derive(Debug)]
 pub struct GamepadAxisMapping {
@@ -39,8 +41,6 @@ pub struct GamepadAxisMapping {
 }
 
 impl GamepadAxisMapping {
-    pub const EMPTY: Self = GamepadAxisMapping { min: 0, max: 0 };
-
     pub fn new(min: u32, max: u32) -> Self {
         GamepadAxisMapping {
             min,
@@ -51,17 +51,15 @@ impl GamepadAxisMapping {
 
 #[derive(Debug)]
 pub struct GamepadMapping {
-    pub buttons: [u32; 32],              // buttons[web] = GAMEPAD_...
-    pub axes: [GamepadAxisMapping; 16],  // axes[web].min = GAMEPAD_..., axes[web].max = GAMEPAD_...
+    pub buttons: HashMap<u32, u32>,              // buttons[raw] = GAMEPAD_xxx
+    pub axes: HashMap<u32, GamepadAxisMapping>,  // axes[raw].min = GAMEPAD_xxx, axes[raw].max = GAMEPAD_xxx
 }
 
 impl GamepadMapping {
-    pub const BUTTON_MAPPING_EMPTY: u32 = 0;
-
-    pub fn new() -> Self {
+    pub fn new(buttons: HashMap<u32, u32>, axes: HashMap<u32, GamepadAxisMapping>) -> Self {
         GamepadMapping {
-            buttons: [Self::BUTTON_MAPPING_EMPTY; 32],
-            axes: [GamepadAxisMapping::EMPTY; 16],
+            buttons,
+            axes,
         }
     }
 }

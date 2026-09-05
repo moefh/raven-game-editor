@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::platform::KeyboardPressed;
+use crate::platform::{
+    GamepadManager,
+    KeyboardPressed,
+};
 use crate::image::TextureManager;
 use crate::data_asset::{
     DataAssetId,
@@ -176,6 +179,7 @@ pub struct WindowContext<'a> {
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
     pub window_tracker: &'a mut AppWindowTracker,
+    pub gamepad_manager: &'a mut GamepadManager,
     pub image_clipboard: ImageClipboardData,
     pub map_clipboard: MapClipboardData,
     pub keyboard_pressed: Option<KeyboardPressed>,

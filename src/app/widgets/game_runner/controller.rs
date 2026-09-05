@@ -1,4 +1,3 @@
-use crate::platform::update_gamepads;
 pub use crate::platform::gamepad::{*};
 
 use super::WindowContext;
@@ -6,7 +5,6 @@ use super::WindowContext;
 pub struct Controller {
     cur: u32,
     old: u32,
-    gamepads: Vec<Gamepad>,
 }
 
 impl Controller {
@@ -14,7 +12,6 @@ impl Controller {
         Controller {
             cur: 0,
             old: 0,
-            gamepads: Vec::new(),
         }
     }
 
@@ -36,18 +33,17 @@ impl Controller {
         });
     }
 
-    fn read_gamepads(&mut self) {
-        for gp in &self.gamepads {
+    fn read_gamepads(&mut self, wc: &mut WindowContext) {
+        wc.gamepad_manager.update(&wc.settings.gamepad_mappings);
+        for gp in wc.gamepad_manager.gamepads() {
             self.cur |= gp.cur;
         }
     }
 
-    pub fn update(&mut self, ui: &mut egui::Ui, wc: &WindowContext) {
-        update_gamepads(&mut self.gamepads, &wc.settings.gamepad_mappings);
-
+    pub fn update(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext) {
         self.old = self.cur;
         self.read_keyboard(ui);
-        self.read_gamepads();
+        self.read_gamepads(wc);
     }
 
     pub fn held(&self, buttons: u32) -> bool {
