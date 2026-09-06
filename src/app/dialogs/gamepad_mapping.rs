@@ -102,13 +102,14 @@ pub struct GamepadMappingDialog {
     id_buttons_scroll: egui::Id,
     open: bool,
     display_layout: GamepadLayout,
-    cur_config_button: u32,
     cur_mapping: gamepad::Mapping,
+    cur_config_button: u32,
+    auto_advance_button: bool,
 }
 
 impl GamepadMappingDialog {
     const WINDOW_WIDTH: f32 = 450.0;
-    const BUTTONS_LIST_HEIGHT: f32 = 200.0;
+    const BUTTONS_LIST_HEIGHT: f32 = 150.0;
 
     pub fn new() -> Self {
         GamepadMappingDialog {
@@ -118,6 +119,7 @@ impl GamepadMappingDialog {
             open: false,
             display_layout: GamepadLayout::Playstation,
             cur_config_button: 0,
+            auto_advance_button: true,
             cur_mapping: gamepad::Mapping::new(),
         }
     }
@@ -137,15 +139,25 @@ impl GamepadMappingDialog {
 
     fn show_gamepad_mapping_editor(&mut self, ui: &mut egui::Ui, gpman: &mut GamepadManager) {
         ui.request_repaint();
+        let mut jumping_to_next_button = false;
         let events = gpman.get_raw_events();
         for ev in events {
             if self.cur_config_button != 0 && ev.add_to_mapping(self.cur_config_button, &mut self.cur_mapping) {
-                self.cur_config_button = BUTTON_LIST
-                    .iter()
-                    .position(|&b| b == self.cur_config_button)
-                    .and_then(|index| BUTTON_LIST.get(index+1))
-                    .copied()
-                    .unwrap_or(0);
+                if self.auto_advance_button {
+                    self.cur_config_button = BUTTON_LIST
+                        .iter()
+                        .position(|&b| b == self.cur_config_button)
+                        .and_then(|index| {
+                            BUTTON_LIST.get(index+1)
+                        })
+                        .copied()
+                        .unwrap_or(0);
+                    if self.cur_config_button != 0 {
+                        jumping_to_next_button = true;
+                    }
+                } else {
+                    self.cur_config_button = 0;
+                }
             }
         }
 
@@ -182,6 +194,10 @@ impl GamepadMappingDialog {
                         );
                     });
                 ui.end_row();
+
+                ui.label("Auto advance button:");
+                ui.checkbox(&mut self.auto_advance_button, "");
+                ui.end_row();
             });
 
         ui.add_space(6.0);
@@ -202,7 +218,10 @@ impl GamepadMappingDialog {
                             ui.label(get_button_name(button, self.display_layout));
                             let start_config = if button == self.cur_config_button {
                                 ui.horizontal(|ui| {
-                                    ui.label("PRESS GAMEPAD BUTTON").scroll_to_me(Some(egui::Align::Center));
+                                    let response = ui.label("PRESS GAMEPAD BUTTON");
+                                    if jumping_to_next_button {
+                                        response.scroll_to_me(Some(egui::Align::Center));
+                                    }
                                     if ui.button("Cancel").clicked() {
                                         self.cur_config_button = 0;
                                     }

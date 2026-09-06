@@ -51,9 +51,19 @@ pub enum RawEvent {
 }
 
 impl RawEvent {
+    fn remove_from_mapping(button: u32, mapping: &mut Mapping) {
+        mapping.buttons.retain(|_, &mut btn| btn != button);
+        mapping.axes.retain(|_, axis| {
+            if axis.min == button { axis.min = 0 }
+            if axis.max == button { axis.max = 0 }
+            axis.min != 0 || axis.max != 0
+        });
+    }
+
     pub fn add_to_mapping(&self, button: u32, mapping: &mut Mapping) -> bool {
         match self {
             RawEvent::Button { code } => {
+                Self::remove_from_mapping(button, mapping);
                 mapping.buttons.insert(*code, button);
                 true
             }
@@ -65,6 +75,7 @@ impl RawEvent {
                 } else {
                     return false;
                 };
+                Self::remove_from_mapping(button, mapping);
                 let axis = mapping.axes.entry(*code).or_insert_with(|| AxisMapping::new(0, 0));
                 if is_min {
                     axis.min = button;

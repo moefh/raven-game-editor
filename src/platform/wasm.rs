@@ -74,7 +74,7 @@ pub fn setup_confirmation_on_close(editor_is_dirty: Arc<Mutex<bool>>) {
     let window = match web_sys::window() {
         Some(window) => { window }
         None => {
-            console_log("WARNING: main window not found while setting up close confirmation");
+            console_log(format!("WARNING: main window not found while setting up close confirmation"));
             return;
         }
     };
@@ -95,62 +95,53 @@ pub fn setup_confirmation_on_close(editor_is_dirty: Arc<Mutex<bool>>) {
     closure.forget();
 }
 
-fn read_standard_gamepad(gp: &web_sys::Gamepad) -> std::result::Result<u32, wasm_bindgen::JsValue> {
-    let mut flags = 0;
-    let buttons = gp.buttons();
-    for btn in 0..buttons.length() {
-        let button: web_sys::GamepadButton = buttons.get(btn).dyn_into()?;
-        if button.pressed() {
-            flags |= match btn {
-                0 => { GAMEPAD_SNES_B }
-                1 => { GAMEPAD_SNES_A }
-                2 => { GAMEPAD_SNES_Y }
-                3 => { GAMEPAD_SNES_X }
-                4 => { GAMEPAD_LB }
-                5 => { GAMEPAD_RB }
-                6 => { GAMEPAD_LT }
-                7 => { GAMEPAD_RT }
-                8 => { GAMEPAD_SELECT }
-                9 => { GAMEPAD_START }
-                10 => { GAMEPAD_L3 }
-                11 => { GAMEPAD_R3 }
-                12 => { GAMEPAD_UP }
-                13 => { GAMEPAD_DOWN }
-                14 => { GAMEPAD_LEFT }
-                15 => { GAMEPAD_RIGHT }
-                16 => { GAMEPAD_HOME }
-                _ => { 0 }
-            }
-        }
-    }
-    Ok(flags)
+#[derive(Clone, Copy, Debug)]
+enum GamepadRawEventType {
+    None,
+    Button(u32),
+    MinAxis(u32),
+    MaxAxis(u32),
 }
 
-fn read_mapped_gamepad(gp: &web_sys::Gamepad, map: &gamepad::Mapping) -> std::result::Result<u32, wasm_bindgen::JsValue> {
-    let mut flags = 0;
+impl GamepadRawEventType {
+    fn button(button: u32) -> Self {
+        GamepadRawEventType::Button(button)
+    }
 
-    let buttons = gp.buttons();
-    for i in 0..buttons.length().min(map.buttons.len() as u32) {
-        let button: web_sys::GamepadButton = buttons.get(i).dyn_into()?;
-        if button.pressed() {
-            flags |= map.buttons.get(&i).unwrap_or(&0);
+    fn axis(axis: u32, val: f64) -> Self {
+        if val <= -0.9 {
+            GamepadRawEventType::MinAxis(axis)
+        } else if val >= 0.9 {
+            GamepadRawEventType::MaxAxis(axis)
+        } else {
+            GamepadRawEventType::None
         }
     }
 
-    let axes = gp.axes();
-    for i in 0..axes.length().min(map.axes.len() as u32) {
-        if let Some(axis) = axes.get(i).as_f64() {
-            if axis < -0.9 { flags |= map.axes.get(&i).map(|axis| axis.min).unwrap_or(0); }
-            if axis >  0.9 { flags |= map.axes.get(&i).map(|axis| axis.max).unwrap_or(0); }
-        }
+    fn is_button(self, btn: u32) -> bool {
+        if let GamepadRawEventType::Button(b) = self && b == btn { true } else { false }
     }
-    Ok(flags)
+
+    fn is_min_axis(self, axis: u32) -> bool {
+        if let GamepadRawEventType::MinAxis(a) = self && a == axis { true } else { false }
+    }
+
+    fn is_max_axis(self, axis: u32) -> bool {
+        if let GamepadRawEventType::MinAxis(a) = self && a == axis { true } else { false }
+    }
+
+    fn is_axis(self, axis: u32, val: f64) -> bool {
+        if let GamepadRawEventType::MinAxis(a) = self && a == axis && val <= -0.9 { return true; }
+        if let GamepadRawEventType::MaxAxis(a) = self && a == axis && val >=  0.9 { return true; }
+        false
+    }
 }
 
 pub struct GamepadManager {
     gamepads: Vec<gamepad::Gamepad>,
     active_gamepad_index: usize,
     raw_events: Vec<gamepad::RawEvent>,
+    last_raw_event: Vec<GamepadRawEventType>,
 }
 
 impl GamepadManager {
@@ -159,6 +150,7 @@ impl GamepadManager {
             gamepads: Vec::new(),
             active_gamepad_index: 0,
             raw_events: Vec::new(),
+            last_raw_event: Vec::new(),
         }
     }
 
@@ -170,18 +162,72 @@ impl GamepadManager {
         self.gamepads.get(self.active_gamepad_index)
     }
 
+    fn read_standard_gamepad(gp: &web_sys::Gamepad) -> std::result::Result<u32, wasm_bindgen::JsValue> {
+        let mut flags = 0;
+        let buttons = gp.buttons();
+        for btn in 0..buttons.length() {
+            let button: web_sys::GamepadButton = buttons.get(btn).dyn_into()?;
+            if button.pressed() {
+                flags |= match btn {
+                    0 => { GAMEPAD_SNES_B }
+                    1 => { GAMEPAD_SNES_A }
+                    2 => { GAMEPAD_SNES_Y }
+                    3 => { GAMEPAD_SNES_X }
+                    4 => { GAMEPAD_LB }
+                    5 => { GAMEPAD_RB }
+                    6 => { GAMEPAD_LT }
+                    7 => { GAMEPAD_RT }
+                    8 => { GAMEPAD_SELECT }
+                    9 => { GAMEPAD_START }
+                    10 => { GAMEPAD_L3 }
+                    11 => { GAMEPAD_R3 }
+                    12 => { GAMEPAD_UP }
+                    13 => { GAMEPAD_DOWN }
+                    14 => { GAMEPAD_LEFT }
+                    15 => { GAMEPAD_RIGHT }
+                    16 => { GAMEPAD_HOME }
+                    _ => { 0 }
+                }
+            }
+        }
+        Ok(flags)
+    }
+
+    fn read_mapped_gamepad(gp: &web_sys::Gamepad, map: &gamepad::Mapping) -> std::result::Result<u32, wasm_bindgen::JsValue> {
+        let mut flags = 0;
+
+        let buttons = gp.buttons();
+        for button_index in 0..buttons.length().min(map.buttons.len() as u32) {
+            let button: web_sys::GamepadButton = buttons.get(button_index).dyn_into()?;
+            if button.pressed() {
+                flags |= map.buttons.get(&button_index).unwrap_or(&0);
+            }
+        }
+
+        let axes = gp.axes();
+        for axis_index in 0..axes.length().min(map.axes.len() as u32) {
+            if let Some(val) = axes.get(axis_index).as_f64() {
+                if val <= -0.9 { flags |= map.axes.get(&axis_index).map(|axis| axis.min).unwrap_or(0); }
+                if val >=  0.9 { flags |= map.axes.get(&axis_index).map(|axis| axis.max).unwrap_or(0); }
+            }
+        }
+        Ok(flags)
+    }
+
     pub fn get_raw_events(&mut self) -> &[gamepad::RawEvent] {
         fn get_raw_events(
             gamepads: &mut Vec<gamepad::Gamepad>,
             raw_events: &mut Vec<gamepad::RawEvent>,
+            last_raw_events: &mut Vec<GamepadRawEventType>,
             active_gamepad_index: &mut usize
         ) -> std::result::Result<(), wasm_bindgen::JsValue> {
             let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
             let gp_array = window.navigator().get_gamepads()?;
 
             gamepads.resize_with(gp_array.length() as usize, || gamepad::Gamepad::new(String::new()));
+            last_raw_events.resize_with(gp_array.length() as usize, || GamepadRawEventType::None);
 
-            for (index, (gp, gamepad)) in gp_array.iter().zip(gamepads.iter_mut()).enumerate() {
+            for (index, ((gp, gamepad), last)) in gp_array.iter().zip(gamepads.iter_mut()).zip(last_raw_events.iter_mut()).enumerate() {
                 if gp.is_null() || gp.is_undefined() { continue; }
                 let gp: web_sys::Gamepad = gp.dyn_into()?;
                 if ! gp.connected() { continue; }
@@ -190,20 +236,41 @@ impl GamepadManager {
                 let gp_id = gp.id();
                 if gp_id != gamepad.id {
                     gamepad.id.replace_range(.., &gp_id);
+                    console_log(format!("DETECTED GAMEPAD: {}", &gamepad.id));
                 }
 
                 let buttons = gp.buttons();
                 for btn in 0..buttons.length() {
                     let button: web_sys::GamepadButton = buttons.get(btn).dyn_into()?;
                     if button.pressed() {
-                        raw_events.push(gamepad::RawEvent::Button { code: btn })
+                        if ! last.is_button(btn) {
+                            console_log(format!("pressed button {}", btn));
+                            *last = GamepadRawEventType::button(btn);
+                            raw_events.push(gamepad::RawEvent::Button { code: btn })
+                        }
+                    } else if last.is_button(btn) {
+                        console_log(format!("released button {}", btn));
+                        *last = GamepadRawEventType::None;
                     }
                 }
 
                 let axes = gp.axes();
                 for axis in 0..axes.length() {
                     if let Some(val) = axes.get(axis).as_f64() {
-                        raw_events.push(gamepad::RawEvent::Axis { code: axis, val: val as f32 });
+                        if val < -1.1 || val > 1.1 {
+                            console_log(format!("ignoring invalid val={} for axis {}", val, axis));
+                            continue;
+                        }
+                        if val <= -0.9 || val >= 0.9 {
+                            if ! last.is_axis(axis, val) {
+                                console_log(format!("pressed axis {} with val {}", axis, val));
+                                *last = GamepadRawEventType::axis(axis, val);
+                                raw_events.push(gamepad::RawEvent::Axis { code: axis, val: val as f32 });
+                            }
+                        } else if last.is_min_axis(axis) || last.is_max_axis(axis) {
+                            console_log(format!("released axis {}", axis));
+                            *last = GamepadRawEventType::None;
+                        }
                     }
                 }
             }
@@ -211,7 +278,7 @@ impl GamepadManager {
         }
 
         self.raw_events.clear();
-        if let Err(e) = get_raw_events(&mut self.gamepads, &mut self.raw_events, &mut self.active_gamepad_index) {
+        if let Err(e) = get_raw_events(&mut self.gamepads, &mut self.raw_events, &mut self.last_raw_event, &mut self.active_gamepad_index) {
             web_sys::console::log_2(&wasm_bindgen::JsValue::from_str("ERROR reading gamepads:"), &e);
         }
         &self.raw_events
@@ -236,7 +303,7 @@ impl GamepadManager {
                 *active_gamepad_index = index;
                 gamepad.cur = match gp.mapping() {
                     web_sys::GamepadMappingType::Standard => {
-                        read_standard_gamepad(&gp)?
+                        GamepadManager::read_standard_gamepad(&gp)?
                     }
                     _ => {
                         // non-standard mapping: read id and use the corresponding mapping, if any
@@ -244,12 +311,12 @@ impl GamepadManager {
                         if gp_id != gamepad.id {
                             gamepad.id.replace_range(.., &gp_id);
                             gamepad.old = 0;
-                            console_log(format!("DETECTED CONTROLLER: {}", &gamepad.id));
+                            console_log(format!("DETECTED GAMEPAD: {}", &gamepad.id));
                         }
                         if let Some(mapping) = mappings.get(&gp_id) {
-                            read_mapped_gamepad(&gp, mapping)?
+                            GamepadManager::read_mapped_gamepad(&gp, mapping)?
                         } else {
-                            read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
+                            GamepadManager::read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
                         }
                     }
                 };
