@@ -95,62 +95,77 @@ pub fn setup_confirmation_on_close(editor_is_dirty: Arc<Mutex<bool>>) {
     closure.forget();
 }
 
-#[derive(Clone, Copy, Debug)]
-enum GamepadRawEventType {
-    None,
-    Button(u32),
-    MinAxis(u32),
-    MaxAxis(u32),
+struct GamepadState {
+    buttons: Vec<bool>,
+    axes: Vec<f64>,
 }
 
-impl GamepadRawEventType {
-    fn button(button: u32) -> Self {
-        GamepadRawEventType::Button(button)
-    }
-
-    fn axis(axis: u32, val: f64) -> Self {
-        if val <= -0.9 {
-            GamepadRawEventType::MinAxis(axis)
-        } else if val >= 0.9 {
-            GamepadRawEventType::MaxAxis(axis)
-        } else {
-            GamepadRawEventType::None
+impl GamepadState {
+    fn new() -> Self {
+        GamepadState {
+            buttons: Vec::new(),
+            axes: Vec::new(),
         }
     }
 
-    fn is_button(self, btn: u32) -> bool {
-        if let GamepadRawEventType::Button(b) = self && b == btn { true } else { false }
+    fn update_button(&mut self, button: u32, pressed: bool) -> Option<gamepad::RawEvent> {
+        let button_index = button as usize;
+        let changed = if let Some(old_pressed) = self.buttons.get_mut(button_index) {
+            let changed = *old_pressed != pressed;
+            *old_pressed = pressed;
+            changed
+        } else {
+            self.buttons.resize(button_index+1, false);
+            self.buttons[button_index] = pressed;
+            true
+        };
+        if changed && pressed {
+            Some(gamepad::RawEvent::Button { code: button })
+        } else {
+            None
+        }
     }
 
-    fn is_min_axis(self, axis: u32) -> bool {
-        if let GamepadRawEventType::MinAxis(a) = self && a == axis { true } else { false }
+    fn axis_val_state(val: f64) -> i32 {
+        if val <= -0.9 { -1 }
+        else if val >= 0.9 { 1 }
+        else { 0 }
     }
 
-    fn is_max_axis(self, axis: u32) -> bool {
-        if let GamepadRawEventType::MinAxis(a) = self && a == axis { true } else { false }
-    }
-
-    fn is_axis(self, axis: u32, val: f64) -> bool {
-        if let GamepadRawEventType::MinAxis(a) = self && a == axis && val <= -0.9 { return true; }
-        if let GamepadRawEventType::MaxAxis(a) = self && a == axis && val >=  0.9 { return true; }
-        false
+    fn update_axis(&mut self, axis: u32, val: f64) -> Option<gamepad::RawEvent> {
+        let state = Self::axis_val_state(val);
+        let axis_index = axis as usize;
+        let changed = if let Some(old_val) = self.axes.get_mut(axis_index) {
+            let changed = state != Self::axis_val_state(*old_val);
+            *old_val = val;
+            changed
+        } else {
+            self.axes.resize(axis_index+1, 0.0);
+            self.axes[axis_index] = val;
+            true
+        };
+        if changed && state != 0 {
+            Some(gamepad::RawEvent::Axis { code: axis, val: val as f32 })
+        } else {
+            None
+        }
     }
 }
 
 pub struct GamepadManager {
     gamepads: Vec<gamepad::Gamepad>,
+    gp_states: Vec<GamepadState>,
     active_gamepad_index: usize,
     raw_events: Vec<gamepad::RawEvent>,
-    last_raw_event: Vec<GamepadRawEventType>,
 }
 
 impl GamepadManager {
     pub fn new() -> Self {
         GamepadManager {
             gamepads: Vec::new(),
+            gp_states: Vec::new(),
             active_gamepad_index: 0,
             raw_events: Vec::new(),
-            last_raw_event: Vec::new(),
         }
     }
 
@@ -217,17 +232,17 @@ impl GamepadManager {
     pub fn get_raw_events(&mut self) -> &[gamepad::RawEvent] {
         fn get_raw_events(
             gamepads: &mut Vec<gamepad::Gamepad>,
+            gp_states: &mut Vec<GamepadState>,
             raw_events: &mut Vec<gamepad::RawEvent>,
-            last_raw_events: &mut Vec<GamepadRawEventType>,
             active_gamepad_index: &mut usize
         ) -> std::result::Result<(), wasm_bindgen::JsValue> {
             let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
             let gp_array = window.navigator().get_gamepads()?;
 
             gamepads.resize_with(gp_array.length() as usize, || gamepad::Gamepad::new(String::new()));
-            last_raw_events.resize_with(gp_array.length() as usize, || GamepadRawEventType::None);
+            gp_states.resize_with(gp_array.length() as usize, || GamepadState::new());
 
-            for (index, ((gp, gamepad), last)) in gp_array.iter().zip(gamepads.iter_mut()).zip(last_raw_events.iter_mut()).enumerate() {
+            for (index, ((gp, gamepad), gp_state)) in gp_array.iter().zip(gamepads.iter_mut()).zip(gp_states.iter_mut()).enumerate() {
                 if gp.is_null() || gp.is_undefined() { continue; }
                 let gp: web_sys::Gamepad = gp.dyn_into()?;
                 if ! gp.connected() { continue; }
@@ -242,34 +257,18 @@ impl GamepadManager {
                 let buttons = gp.buttons();
                 for btn in 0..buttons.length() {
                     let button: web_sys::GamepadButton = buttons.get(btn).dyn_into()?;
-                    if button.pressed() {
-                        if ! last.is_button(btn) {
-                            console_log(format!("pressed button {}", btn));
-                            *last = GamepadRawEventType::button(btn);
-                            raw_events.push(gamepad::RawEvent::Button { code: btn })
-                        }
-                    } else if last.is_button(btn) {
-                        console_log(format!("released button {}", btn));
-                        *last = GamepadRawEventType::None;
+                    if let Some(event) = gp_state.update_button(btn, button.pressed()) {
+                        console_log(format!("EVENT: {:?}", event));
+                        raw_events.push(event);
                     }
                 }
 
                 let axes = gp.axes();
                 for axis in 0..axes.length() {
                     if let Some(val) = axes.get(axis).as_f64() {
-                        if val < -1.1 || val > 1.1 {
-                            console_log(format!("ignoring invalid val={} for axis {}", val, axis));
-                            continue;
-                        }
-                        if val <= -0.9 || val >= 0.9 {
-                            if ! last.is_axis(axis, val) {
-                                console_log(format!("pressed axis {} with val {}", axis, val));
-                                *last = GamepadRawEventType::axis(axis, val);
-                                raw_events.push(gamepad::RawEvent::Axis { code: axis, val: val as f32 });
-                            }
-                        } else if last.is_min_axis(axis) || last.is_max_axis(axis) {
-                            console_log(format!("released axis {}", axis));
-                            *last = GamepadRawEventType::None;
+                        if let Some(event) = gp_state.update_axis(axis, val) {
+                            console_log(format!("EVENT: {:?}", event));
+                            raw_events.push(event);
                         }
                     }
                 }
@@ -278,7 +277,7 @@ impl GamepadManager {
         }
 
         self.raw_events.clear();
-        if let Err(e) = get_raw_events(&mut self.gamepads, &mut self.raw_events, &mut self.last_raw_event, &mut self.active_gamepad_index) {
+        if let Err(e) = get_raw_events(&mut self.gamepads, &mut self.gp_states, &mut self.raw_events, &mut self.active_gamepad_index) {
             web_sys::console::log_2(&wasm_bindgen::JsValue::from_str("ERROR reading gamepads:"), &e);
         }
         &self.raw_events

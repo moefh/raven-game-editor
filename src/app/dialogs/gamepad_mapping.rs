@@ -18,40 +18,12 @@ const BUTTON_LIST: &[u32] = &[
     GAMEPAD_SNES_A,
     GAMEPAD_SNES_Y,
     GAMEPAD_SNES_X,
-    GAMEPAD_LB,
-    GAMEPAD_LT,
-    GAMEPAD_L3,
-    GAMEPAD_RB,
-    GAMEPAD_RT,
-    GAMEPAD_R3,
     GAMEPAD_SELECT,
     GAMEPAD_START,
+    GAMEPAD_LB,
+    GAMEPAD_RB,
     GAMEPAD_HOME,
 ];
-
-fn get_button_name(button: u32, layout: GamepadLayout) -> &'static str {
-    match button {
-        GAMEPAD_UP     => { "Up:" }
-        GAMEPAD_DOWN   => { "Down:" }
-        GAMEPAD_LEFT   => { "Left:" }
-        GAMEPAD_RIGHT  => { "Right:" }
-        GAMEPAD_LB     => { "Left bumper:" }
-        GAMEPAD_LT     => { "Left trigger:" }
-        GAMEPAD_L3     => { "Left stick:" }
-        GAMEPAD_RB     => { "Right bumper:" }
-        GAMEPAD_RT     => { "Right trigger:" }
-        GAMEPAD_R3     => { "Right stick:" }
-        GAMEPAD_SELECT => { "Select:" }
-        GAMEPAD_START  => { "Start:" }
-        GAMEPAD_HOME   => { "Home:" }
-
-        GAMEPAD_SNES_A | GAMEPAD_SNES_B | GAMEPAD_SNES_X | GAMEPAD_SNES_Y => {
-            layout.get_button_name(button).unwrap_or("?")
-        }
-
-        _ => { "?" }
-    }
-}
 
 #[derive(Clone, Copy, PartialEq)]
 enum GamepadLayout {
@@ -69,7 +41,7 @@ impl GamepadLayout {
         }
     }
 
-    fn get_button_name(self, button: u32) -> Option<&'static str> {
+    fn get_layout_button_name(self, button: u32) -> Option<&'static str> {
         match self {
             GamepadLayout::Playstation => { match button {
                 GAMEPAD_PS_TRIANGLE => { Some("Triangle") }
@@ -92,6 +64,30 @@ impl GamepadLayout {
                 GAMEPAD_XBOX_Y => { Some("Y") }
                 _ => { None }
             }}
+        }
+    }
+
+    fn get_button_name(self, button: u32) -> &'static str {
+        match button {
+            GAMEPAD_UP     => { "Up:" }
+            GAMEPAD_DOWN   => { "Down:" }
+            GAMEPAD_LEFT   => { "Left:" }
+            GAMEPAD_RIGHT  => { "Right:" }
+            GAMEPAD_LB     => { "Left bumper:" }
+            GAMEPAD_LT     => { "Left trigger:" }
+            GAMEPAD_L3     => { "Left stick:" }
+            GAMEPAD_RB     => { "Right bumper:" }
+            GAMEPAD_RT     => { "Right trigger:" }
+            GAMEPAD_R3     => { "Right stick:" }
+            GAMEPAD_SELECT => { "Select:" }
+            GAMEPAD_START  => { "Start:" }
+            GAMEPAD_HOME   => { "Home:" }
+
+            GAMEPAD_SNES_A | GAMEPAD_SNES_B | GAMEPAD_SNES_X | GAMEPAD_SNES_Y => {
+                self.get_layout_button_name(button).unwrap_or("?")
+            }
+
+            _ => { "?" }
         }
     }
 }
@@ -215,7 +211,7 @@ impl GamepadMappingDialog {
                     .show(ui, |ui| {
                         for &button in BUTTON_LIST {
                             ui.label("");
-                            ui.label(get_button_name(button, self.display_layout));
+                            ui.label(self.display_layout.get_button_name(button));
                             let start_config = if button == self.cur_config_button {
                                 ui.horizontal(|ui| {
                                     let response = ui.label("PRESS GAMEPAD BUTTON");
