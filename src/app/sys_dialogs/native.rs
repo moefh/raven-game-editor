@@ -225,6 +225,7 @@ impl SysDialogs {
         request_id: String,
         path_id: &str,
         title: &str,
+        suggest_filename: &str,
         filters: &[(&str, &[&str])]
     ) -> bool {
         if self.request.is_some() { return false; }
@@ -235,6 +236,13 @@ impl SysDialogs {
         }
         if let Some(window) = window {
             file_dialog = file_dialog.set_parent(window);
+        }
+        if let Some(filter) = filters.first() && let Some(ext) = filter.1.first() {
+            if suggest_filename.contains('.') || *ext == "*" || ext.is_empty() {
+                file_dialog = file_dialog.set_file_name(suggest_filename);
+            } else {
+                file_dialog = file_dialog.set_file_name(format!("{}.{}", suggest_filename, ext));
+            }
         }
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);

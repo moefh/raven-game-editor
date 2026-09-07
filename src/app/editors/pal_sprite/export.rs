@@ -73,6 +73,7 @@ impl ExportDialog {
                         self.export_sys_dlg_id.clone(),
                         "sprite",
                         "Export Paletted Sprite",
+                        &pal_sprite.asset.name,
                         &[
                             ("PNG files (*.png)", &["png"]),
                             ("All files (*.*)", &["*"]),

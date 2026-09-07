@@ -67,48 +67,57 @@ impl EditorAction {
             }
 
             EditorAction::ExportMap { map_id } => {
-                let request_id = format!("export_map_{}", map_id);
-                exporter.add_request(request_id.clone(), map_id);
-                wc.sys_dialogs.save_file(
-                    Some(wc.egui.window),
-                    request_id,
-                    "map",
-                    "Export Map",
-                    &[
-                        ("Raven map files (*.ravmap)", &["ravmap"]),
-                        ("All files (*.*)", &["*"]),
-                    ]
-                );
+                if let Some(map_data) = store.assets.maps.get(&map_id) {
+                    let request_id = format!("export_map_{}", map_id);
+                    exporter.add_request(request_id.clone(), map_id);
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        request_id,
+                        "map",
+                        "Export Map",
+                        &map_data.asset.name,
+                        &[
+                            ("Raven map files (*.ravmap)", &["ravmap"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
+                }
             }
 
             EditorAction::ExportRoom { room_id } => {
-                let request_id = format!("export_room_{}", room_id);
-                exporter.add_request(request_id.clone(), room_id);
-                wc.sys_dialogs.save_file(
-                    Some(wc.egui.window),
-                    request_id,
-                    "room",
-                    "Export Room",
-                    &[
-                        ("Raven room files (*.ravroom)", &["ravroom"]),
-                        ("All files (*.*)", &["*"]),
-                    ]
-                );
+                if let Some(room) = store.assets.rooms.get(&room_id) {
+                    let request_id = format!("export_room_{}", room_id);
+                    exporter.add_request(request_id.clone(), room_id);
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        request_id,
+                        "room",
+                        "Export Room",
+                        &room.asset.name,
+                        &[
+                            ("Raven room files (*.ravroom)", &["ravroom"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
+                }
             }
 
             EditorAction::ExportSpriteAnimation { animation_id } => {
-                let request_id = format!("export_sprite_animation_{}", animation_id);
-                exporter.add_request(request_id.clone(), animation_id);
-                wc.sys_dialogs.save_file(
-                    Some(wc.egui.window),
-                    request_id,
-                    "sprite_animation",
-                    "Export Sprite Animation",
-                    &[
-                        ("Raven sprite animation files (*.ravanim)", &["ravanim"]),
-                        ("All files (*.*)", &["*"]),
-                    ]
-                );
+                if let Some(animation) = store.assets.animations.get(&animation_id) {
+                    let request_id = format!("export_sprite_animation_{}", animation_id);
+                    exporter.add_request(request_id.clone(), animation_id);
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        request_id,
+                        "sprite_animation",
+                        "Export Sprite Animation",
+                        &animation.asset.name,
+                        &[
+                            ("Raven sprite animation files (*.ravanim)", &["ravanim"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
+                }
             }
 
             EditorAction::TilesetTilesAdded { tileset_id, hole_start, hole_size, num_tiles_after_hole } => {

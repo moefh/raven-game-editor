@@ -127,6 +127,7 @@ impl ExportSelectedTilesDialog {
                         self.export_sys_dlg_id.clone(),
                         "tileset",
                         "Export Tileset",
+                        &tileset.asset.name,
                         &[
                             ("PNG files (*.png)", &["png"]),
                             ("All files (*.*)", &["*"]),

@@ -123,34 +123,27 @@ impl SettingsWindow {
     fn show_colorset_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Colorsets").default_open(true).show(ui, |ui| {
             if wc.settings.colorsets.get_num_custom_colorsets() > 0 {
-                egui::Grid::new("editor_settings_colorsets")
-                    .num_columns(3)
-                    .spacing([8.0, 8.0])
-                    .show(ui, |ui| {
-                        for index in wc.settings.colorsets.get_custom_colorset_range() {
-                            if let Some((edit, remove)) = match wc.settings.colorsets.get_custom_colorset(index) {
-                                Some(colorset) => {
-                                    ui.label(&colorset.name);
-                                    let edit = ui.add(egui::Button::new("Edit Colors")).clicked();
-                                    let remove = ui.add(
-                                        egui::Button::image(IMAGES.trash)
-                                    ).on_hover_text("Remove colorset").clicked();
-                                    ui.end_row();
-                                    Some((edit, remove))
-                                }
-                                None => { None }
-                            } {
-                                if remove {
-                                    wc.settings.colorsets.remove_custom_colorset(index);
-                                }
-                                if edit {
-                                    wc.open_colorset_dialog(index);
-                                }
-                            }
+                for index in wc.settings.colorsets.get_custom_colorset_range() {
+                    if let Some((edit, remove)) = match wc.settings.colorsets.get_custom_colorset(index) {
+                        Some(colorset) => {
+                            ui.horizontal(|ui| {
+                                let remove = ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove colorset").clicked();
+                                let edit = ui.add(egui::Button::new("Edit")).clicked();
+                                ui.label(&colorset.name);
+                                Some((edit, remove))
+                            }).inner
                         }
-                    });
-
-                ui.add_space(5.0);
+                        None => { None }
+                    } {
+                        if remove {
+                            wc.settings.colorsets.remove_custom_colorset(index);
+                        }
+                        if edit {
+                            wc.open_colorset_dialog(index);
+                        }
+                    }
+                }
+                ui.add_space(4.0);
             }
 
             if ui.add(egui::Button::new("Add Colorset")).clicked() {
@@ -162,24 +155,20 @@ impl SettingsWindow {
     fn show_gamepad_settings(ui: &mut egui::Ui, wc: &mut WindowContext) {
         egui::CollapsingHeader::new("Gamepads").default_open(true).show(ui, |ui| {
             if ! wc.settings.gamepad_mappings.is_empty() {
-                egui::Grid::new("editor_settings_gamepads")
-                    .num_columns(2)
-                    .spacing([4.0, 8.0])
-                    .show(ui, |ui| {
-                        let mut remove_mapping_id = None;
-                        for id in wc.settings.gamepad_mappings.keys() {
-                            if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove").clicked() {
-                                remove_mapping_id = Some(id.to_owned());
-                            }
-                            ui.add(egui::Label::new(id).truncate());
-                            ui.end_row();
+                let mut remove_mapping_id = None;
+                for id in wc.settings.gamepad_mappings.keys() {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove gamepad mapping").clicked() {
+                            remove_mapping_id = Some(id.to_owned());
                         }
-                        if let Some(id) = remove_mapping_id {
-                            wc.settings.gamepad_mappings.remove(&id);
-                        }
+                        ui.add(egui::Label::new(id).truncate());
                     });
+                }
+                if let Some(id) = remove_mapping_id {
+                    wc.settings.gamepad_mappings.remove(&id);
+                }
 
-                ui.add_space(5.0);
+                ui.add_space(4.0);
             }
 
             if ui.add(egui::Button::new("Add Custom Mapping")).clicked() {

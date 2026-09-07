@@ -155,8 +155,8 @@ impl GamepadState {
 pub struct GamepadManager {
     gamepads: Vec<gamepad::Gamepad>,
     gp_states: Vec<GamepadState>,
-    active_gamepad_index: usize,
     raw_events: Vec<gamepad::RawEvent>,
+    active_gamepad_index: Option<usize>,
 }
 
 impl GamepadManager {
@@ -164,8 +164,8 @@ impl GamepadManager {
         GamepadManager {
             gamepads: Vec::new(),
             gp_states: Vec::new(),
-            active_gamepad_index: 0,
             raw_events: Vec::new(),
+            active_gamepad_index: None,
         }
     }
 
@@ -174,7 +174,7 @@ impl GamepadManager {
     }
 
     pub fn active_gamepad(&self) -> Option<&gamepad::Gamepad> {
-        self.gamepads.get(self.active_gamepad_index)
+        self.active_gamepad_index.and_then(|index| self.gamepads.get(index))
     }
 
     fn read_standard_gamepad(gp: &web_sys::Gamepad) -> std::result::Result<u32, wasm_bindgen::JsValue> {
@@ -234,7 +234,7 @@ impl GamepadManager {
             gamepads: &mut Vec<gamepad::Gamepad>,
             gp_states: &mut Vec<GamepadState>,
             raw_events: &mut Vec<gamepad::RawEvent>,
-            active_gamepad_index: &mut usize
+            active_gamepad_index: &mut Option<usize>
         ) -> std::result::Result<(), wasm_bindgen::JsValue> {
             let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
             let gp_array = window.navigator().get_gamepads()?;
@@ -246,7 +246,7 @@ impl GamepadManager {
                 if gp.is_null() || gp.is_undefined() { continue; }
                 let gp: web_sys::Gamepad = gp.dyn_into()?;
                 if ! gp.connected() { continue; }
-                *active_gamepad_index = index;
+                *active_gamepad_index = Some(index);
 
                 let gp_id = gp.id();
                 if gp_id != gamepad.id {
@@ -287,7 +287,7 @@ impl GamepadManager {
         fn read_gamepads(
             gamepads: &mut Vec<gamepad::Gamepad>,
             mappings: &BTreeMap<String, gamepad::Mapping>,
-            active_gamepad_index: &mut usize,
+            active_gamepad_index: &mut Option<usize>,
         ) -> std::result::Result<(), wasm_bindgen::JsValue> {
             let window = web_sys::window().ok_or(wasm_bindgen::JsValue::from_str("can't find browser window"))?;
             let gp_array = window.navigator().get_gamepads()?;
@@ -299,7 +299,7 @@ impl GamepadManager {
                 let gp: web_sys::Gamepad = gp.dyn_into()?;
                 if ! gp.connected() { continue; }
 
-                *active_gamepad_index = index;
+                *active_gamepad_index = Some(index);
                 gamepad.cur = match gp.mapping() {
                     web_sys::GamepadMappingType::Standard => {
                         GamepadManager::read_standard_gamepad(&gp)?

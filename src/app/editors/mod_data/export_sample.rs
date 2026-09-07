@@ -112,6 +112,7 @@ impl ExportSampleDialog {
                         self.export_sys_dlg_id.clone(),
                         "mod",
                         "Export MOD Sample",
+                        "sample",
                         &[
                             ("WAVE files (*.wav)", &["wav"]),
                             ("All files (*.*)", &["*"]),

@@ -96,8 +96,9 @@ pub struct RavenEditorApp {
     pub wasm_editor_is_dirty: Arc<Mutex<bool>>,
     reset_egui_context: bool,
     store: DataAssetStore,
-    path: Option<std::path::PathBuf>,
-    path_changed: bool,
+    project_path: Option<std::path::PathBuf>,
+    project_filename: String,
+    project_path_changed: bool,
     logger: StringLogger,
     sys_dialogs: SysDialogs,
     dialogs: AppDialogs,
@@ -132,8 +133,9 @@ impl RavenEditorApp {
             settings,
             reset_egui_context: false,
             store: DataAssetStore::new(),
-            path: None,
-            path_changed: true,
+            project_path: None,
+            project_filename: String::new(),
+            project_path_changed: true,
             sys_dialogs: sys_dialogs::SysDialogs::new(cc.egui_ctx.clone()),
             dialogs: dialogs::AppDialogs::new(),
             editors: EditorStore::new(),
@@ -243,9 +245,9 @@ impl RavenEditorApp {
             Ok(store) => {
                 self.logger.log("DONE: project read");
                 self.load_project(store);
+                self.set_project_path(file.path().map(|p| p.to_owned()), file.filename());
                 if let Some(path) = file.path() {
                     self.recent_projects.add(path);
-                    self.set_path(Some(path.to_owned()));
                 }
             },
             Err(e) => {
@@ -314,6 +316,7 @@ impl RavenEditorApp {
         match self.store.serialize_project(&mut self.logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 self.logger.log(format!("DONE: project saved to {}", file.filename()));
+                self.set_project_path(file.path().map(|p| p.to_owned()), file.filename());
                 if let Some(path) = file.path() {
                     self.recent_projects.add(path);
                 }
@@ -338,6 +341,7 @@ impl RavenEditorApp {
             Self::SAVE_PROJECT_SYS_DLG_ID.to_owned(),
             "project",
             if self.is_wasm { "Save Project" } else { "Save Project As" },
+            &self.project_filename,
             &[
                 ("Raven project files (*.h)", &["h"]),
                 ("All files (*.*)", &["*"]),
@@ -346,7 +350,7 @@ impl RavenEditorApp {
     }
 
     pub fn save(&mut self, window: &eframe::Frame) {
-        if let Some(path) = &self.path && let Some(file) = SysDialogOpenFile::create(path) {
+        if let Some(path) = &self.project_path && let Some(file) = SysDialogOpenFile::create(path) {
             self.write_project(file);
         } else {
             self.save_as(window);
@@ -355,7 +359,7 @@ impl RavenEditorApp {
 
     fn new_project(&mut self) {
         self.load_project(crate::data_asset::DataAssetStore::new());
-        self.set_path(None);
+        self.set_project_path(None, "");
     }
 
     fn load_project(&mut self, store: DataAssetStore) {
@@ -369,9 +373,15 @@ impl RavenEditorApp {
         self.reset_egui_context = true;
     }
 
-    fn set_path(&mut self, path: Option<std::path::PathBuf>) {
-        self.path = path;
-        self.path_changed = true;
+    fn set_project_path(&mut self, path: Option<std::path::PathBuf>, filename: impl AsRef<str>) {
+        self.project_path_changed = true;
+        self.project_path = path;
+        let name_path = std::path::PathBuf::from(filename.as_ref());
+        if let Some(name) = name_path.file_name() {
+            self.project_filename.replace_range(.., &name.to_string_lossy());
+        } else {
+            self.project_filename.clear();
+        }
     }
 
     fn make_unique_asset_name(&self, asset_type: DataAssetType, name: &str, force_number: bool) -> String {
@@ -736,6 +746,7 @@ impl RavenEditorApp {
                             Self::EXPORT_HEADER_SYS_DLG_ID.to_owned(),
                             "project",
                             "Export Header File",
+                            "project_defs.h",
                             &[
                                 ("Header files (*.h)", &["h"]),
                                 ("All files (*.*)", &["*"]),
@@ -831,10 +842,21 @@ impl RavenEditorApp {
     fn show_footer(&mut self, ui: &mut egui::Ui) {
         egui::Panel::bottom("footer").show(ui, |ui| {
             self.sys_dialogs.block_ui(ui);
-            ui.add_space(5.0);
+            ui.add_space(2.0);
 
-            let dirty = if self.editors.is_dirty() { " (modified)" } else { "" };
-            ui.label(format!("{} bytes [{} assets]{}", self.store.assets.data_size(), self.store.num_assets(), dirty));
+            ui.horizontal(|ui| {
+                let dirty = if self.editors.is_dirty() { " (modified)" } else { "" };
+                ui.label(format!("{} bytes [{} assets]{}", self.store.assets.data_size(), self.store.num_assets(), dirty));
+                ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
+                    ui.horizontal(|ui| {
+                        if self.project_filename.is_empty() {
+                            ui.label("<untitled>");
+                        } else {
+                            ui.label(format!("[{}]", self.project_filename));
+                        }
+                    });
+                });
+            });
         });
     }
 
@@ -1079,10 +1101,7 @@ impl eframe::App for RavenEditorApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::SAVE_PROJECT_SYS_DLG_ID) {
-            let path = file.path().map(|path| path.to_owned());
-            if self.write_project(file) {
-                self.set_path(path);
-            }
+            self.write_project(file);
         }
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::OPEN_PROJECT_SYS_DLG_ID) {
             self.open(file);
@@ -1112,16 +1131,14 @@ impl eframe::App for RavenEditorApp {
             });
             self.reset_egui_context = false;
         }
-        if self.path_changed {
-            let title = match &self.path {
-                Some(path) => match path.as_path().file_name() {
-                    Some(filename) => format!("[{}] - Raven Game Editor", filename.display()).to_string(),
-                    None => "[???] - Raven Game Editor".to_owned(),
-                }
-                None => "<unnamed> - Raven Game Editor".to_owned()
+        if self.project_path_changed {
+            let title = if self.project_filename.is_empty() {
+                "<unnamed> - Raven Game Editor".to_owned()
+            } else {
+                format!("[{}] - Raven Game Editor", self.project_filename)
             };
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
-            self.path_changed = false;
+            self.project_path_changed = false;
         }
 
         self.editors.update_dirty_flags(&self.store);

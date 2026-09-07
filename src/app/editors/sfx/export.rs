@@ -105,6 +105,7 @@ impl ExportDialog {
                         self.export_sys_dlg_id.clone(),
                         "sfx",
                         "Export Sfx",
+                        &sfx.asset.name,
                         &[
                             ("WAVE files (*.wav)", &["wav"]),
                             ("All files (*.*)", &["*"]),

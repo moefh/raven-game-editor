@@ -44,24 +44,24 @@ impl GamepadLayout {
     fn get_layout_button_name(self, button: u32) -> Option<&'static str> {
         match self {
             GamepadLayout::Playstation => { match button {
-                GAMEPAD_PS_TRIANGLE => { Some("Triangle") }
-                GAMEPAD_PS_SQUARE => { Some("Square") }
-                GAMEPAD_PS_X => { Some("X") }
-                GAMEPAD_PS_CIRCLE => { Some("Circle") }
+                GAMEPAD_PS_TRIANGLE => { Some("Triangle:") }
+                GAMEPAD_PS_SQUARE => { Some("Square:") }
+                GAMEPAD_PS_X => { Some("X:") }
+                GAMEPAD_PS_CIRCLE => { Some("Circle:") }
                 _ => { None }
             }}
             GamepadLayout::Snes => { match button {
-                GAMEPAD_SNES_A => { Some("A") }
-                GAMEPAD_SNES_B => { Some("B") }
-                GAMEPAD_SNES_X => { Some("X") }
-                GAMEPAD_SNES_Y => { Some("Y") }
+                GAMEPAD_SNES_A => { Some("A:") }
+                GAMEPAD_SNES_B => { Some("B:") }
+                GAMEPAD_SNES_X => { Some("X:") }
+                GAMEPAD_SNES_Y => { Some("Y:") }
                 _ => { None }
             }}
             GamepadLayout::Xbox => { match button {
-                GAMEPAD_XBOX_A => { Some("A") }
-                GAMEPAD_XBOX_B => { Some("B") }
-                GAMEPAD_XBOX_X => { Some("X") }
-                GAMEPAD_XBOX_Y => { Some("Y") }
+                GAMEPAD_XBOX_A => { Some("A:") }
+                GAMEPAD_XBOX_B => { Some("B:") }
+                GAMEPAD_XBOX_X => { Some("X:") }
+                GAMEPAD_XBOX_Y => { Some("Y:") }
                 _ => { None }
             }}
         }
@@ -206,12 +206,14 @@ impl GamepadMappingDialog {
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 egui::Grid::new("dlg_gamepad_mapping_buttons_grid")
-                    .num_columns(3)
-                    .spacing([4.0, 4.0])
+                    .num_columns(2)
+                    .spacing([8.0, 4.0])
                     .show(ui, |ui| {
                         for &button in BUTTON_LIST {
-                            ui.label("");
-                            ui.label(self.display_layout.get_button_name(button));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(self.display_layout.get_button_name(button));
+                                ui.add_space(4.0);
+                            });
                             let start_config = if button == self.cur_config_button {
                                 ui.horizontal(|ui| {
                                     let response = ui.label("PRESS GAMEPAD BUTTON");

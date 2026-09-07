@@ -179,6 +179,7 @@ impl Editor {
                             self.export_sys_dlg_id.clone(),
                             "prop_font",
                             "Export Prop Font",
+                            &prop_font.asset.name,
                             &[
                                 ("PNG files (*.png)", &["png"]),
                                 ("All files (*.*)", &["*"]),

@@ -567,6 +567,7 @@ impl Editor {
                             self.export_mod_sys_dlg_id.clone(),
                             "mod",
                             "Export MOD file",
+                            &mod_data.asset.name,
                             &[
                                 ("MOD files (*.mod)", &["mod"]),
                                 ("All files (*)", &[""]),

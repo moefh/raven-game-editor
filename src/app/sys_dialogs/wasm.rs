@@ -212,8 +212,9 @@ impl SysDialogs {
         &mut self,
         _window: Option<&eframe::Frame>,
         request_id: String,
-        path_id: &str,
+        _path_id: &str,
         title: &str,
+        suggest_filename: &str,
         filters: &[(&str, &[&str])]
     ) -> bool {
         if self.request.is_some() { return false; }
@@ -223,10 +224,10 @@ impl SysDialogs {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
         }
         if let Some(filter) = filters.first() && let Some(ext) = filter.1.first() {
-            if *ext == "*" || *ext == "" {
-                file_dialog = file_dialog.set_file_name(path_id);
+            if suggest_filename.contains('.') || *ext == "*" || ext.is_empty() {
+                file_dialog = file_dialog.set_file_name(suggest_filename);
             } else {
-                file_dialog = file_dialog.set_file_name(format!("{}.{}", path_id, ext));
+                file_dialog = file_dialog.set_file_name(format!("{}.{}", suggest_filename, ext));
             }
         }
         let future = file_dialog.save_file();
