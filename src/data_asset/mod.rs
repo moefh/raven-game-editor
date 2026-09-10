@@ -22,6 +22,7 @@ pub use reader::{
     deserialize_project,
     deserialize_map,
     deserialize_room,
+    deserialize_world,
     deserialize_sprite_animation,
     deserialize_tile_animation,
 };
@@ -529,6 +530,10 @@ impl DataAssetStore {
 
     pub fn serialize_room(&self, room_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
         writer::serialize_room(room_id, self, logger)
+    }
+
+    pub fn serialize_world(&self, world_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_world(world_id, self, logger)
     }
 
     pub fn serialize_sprite_animation(&self, animation_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {

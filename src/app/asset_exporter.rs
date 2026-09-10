@@ -53,6 +53,7 @@ impl AssetExporter {
             match asset.asset_type {
                 DataAssetType::MapData => { Self::export_map(file, asset_id, store, logger) }
                 DataAssetType::Room => { Self::export_room(file, asset_id, store, logger) }
+                DataAssetType::World => { Self::export_world(file, asset_id, store, logger) }
                 DataAssetType::SpriteAnimation => { Self::export_sprite_animation(file, asset_id, store, logger) }
                 DataAssetType::TileAnimation => { Self::export_tile_animation(file, asset_id, store, logger) }
                 _ => {
@@ -89,6 +90,20 @@ impl AssetExporter {
             }
             Err(e) => {
                 logger.log(format!("ERROR exporting room: {}", e));
+                true
+            }
+        }
+    }
+
+    fn export_world(file: SysDialogOpenFile, world_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+        logger.log("WRITING WORLD");
+        match store.serialize_world(world_id, logger).and_then(|content| file.write_string(content)) {
+            Ok(()) => {
+                logger.log(format!("DONE: world saved to {}", file.filename()));
+                false
+            }
+            Err(e) => {
+                logger.log(format!("ERROR exporting wold: {}", e));
                 true
             }
         }

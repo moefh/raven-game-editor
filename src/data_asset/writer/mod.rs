@@ -342,6 +342,16 @@ pub fn serialize_room(room_id: DataAssetId, store: &DataAssetStore, logger: &mut
     Ok(writer.output.take())
 }
 
+pub fn serialize_world(world_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, logger);
+    writer.gen_unique_asset_names()?;
+    writer.write_header()?;
+    world::write_worlds(&writer, &[world_id])?;
+    writer.write_data_end()?;
+    world::write_world_item_names(&writer, &[world_id])?;
+    Ok(writer.output.take())
+}
+
 pub fn serialize_sprite_animation(animation_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, logger);
     writer.gen_unique_asset_names()?;

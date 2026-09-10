@@ -863,6 +863,24 @@ pub fn deserialize_room(
     }
 }
 
+pub fn deserialize_world(
+    input: &str,
+    world_id: DataAssetId,
+    asset_ids: &super::AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<super::World> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+
+    reader.data.asset_ids.insert(DataAssetType::Room, asset_ids.rooms.store.clone());
+
+    if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+        world::create(world_id, asset_struct, &reader.data)
+    } else {
+        Err(Error::other("world data not found in file"))
+    }
+}
+
 pub fn deserialize_sprite_animation(
     input: &str,
     animation_id: DataAssetId,

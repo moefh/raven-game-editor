@@ -24,6 +24,7 @@ pub enum EditorAction {
     StartGameRunnerOnRoom { room_id: DataAssetId },
     ExportMap { map_id: DataAssetId },
     ExportRoom { room_id: DataAssetId },
+    ExportWorld { world_id: DataAssetId },
     ExportSpriteAnimation { animation_id: DataAssetId },
     ExportTileAnimation { tile_anim_id: DataAssetId },
     TilesetTilesAdded { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
@@ -97,6 +98,24 @@ impl EditorAction {
                         &room.asset.name,
                         &[
                             ("Raven room files (*.ravroom)", &["ravroom"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
+                }
+            }
+
+            EditorAction::ExportWorld { world_id } => {
+                if let Some(world) = store.assets.worlds.get(&world_id) {
+                    let request_id = format!("export_world_{}", world_id);
+                    exporter.add_request(request_id.clone(), world_id);
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        request_id,
+                        "world",
+                        "Export World",
+                        &world.asset.name,
+                        &[
+                            ("Raven world files (*.ravworld)", &["ravworld"]),
                             ("All files (*.*)", &["*"]),
                         ]
                     );

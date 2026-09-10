@@ -4,6 +4,7 @@ mod region_properties;
 
 use crate::misc::IMAGES;
 use crate::data_asset::{
+    self,
     Room,
     World,
     WorldRegion,
@@ -12,13 +13,17 @@ use crate::data_asset::{
     AssetList,
     DataAssetId,
     GenericAsset,
+    AssetIdCollection,
 };
 
 use super::{
     world_grid,
     AssetEditorBase,
     WindowContext,
+    SysDialogResponse,
+    SysDialogOpenFile,
     DialogResult,
+    EditorAction,
 };
 use super::dialogs::ConfirmationDialog;
 use super::widgets::{
@@ -51,14 +56,21 @@ pub struct WorldEditorAssetLists<'a> {
     pub rooms: &'a mut AssetList<Room>,
     pub maps: &'a AssetList<MapData>,
     pub tilesets: &'a AssetList<Tileset>,
+    pub asset_ids: &'a AssetIdCollection,
 }
 
 impl<'a> WorldEditorAssetLists<'a> {
-    pub fn new(rooms: &'a mut AssetList<Room>, maps: &'a AssetList<MapData>, tilesets: &'a AssetList<Tileset>) -> Self {
+    pub fn new(
+        rooms: &'a mut AssetList<Room>,
+        maps: &'a AssetList<MapData>,
+        tilesets: &'a AssetList<Tileset>,
+        asset_ids: &'a AssetIdCollection
+    ) -> Self {
         WorldEditorAssetLists {
             rooms,
             maps,
             tilesets,
+            asset_ids,
         }
     }
 }
@@ -175,6 +187,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     selected_tab: EditorTab,
     world_grid: world_grid::WorldGridStore,
     world_editor: WorldEditorWidget,
@@ -192,6 +205,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_world", asset_id),
             selected_tab: EditorTab::World,
             world_grid: world_grid::WorldGridStore::new(),
             world_editor: WorldEditorWidget::new(),
@@ -241,6 +255,25 @@ impl Editor {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("World", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "sfx",
+                            "Import World file",
+                            &[
+                                ("Raven World files (*.ravworld)", &["ravworld"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportWorld { world_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
                         dialogs.properties_dialog.set_open(wc, world);
                     }
@@ -630,6 +663,25 @@ impl Editor {
         }
     }
 
+    fn import_world(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, world: &mut World, asset_ids: &AssetIdCollection) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_world(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_world) => {
+                // replace everything except the name:
+                new_world.asset.name.replace_range(.., &world.asset.name);
+                std::mem::swap(world, &mut new_world)
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading world file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box("Error importing World", "Error importing world file.\n\nConsult the log window for more information.");
+            }
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -638,6 +690,9 @@ impl Editor {
         world: &mut World,
         assets: &mut WorldEditorAssetLists,
     ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_world(wc, file, world, assets.asset_ids);
+        }
         if dialogs.confirmation_dialog.open &&
             dialogs.confirmation_dialog.show(wc) == DialogResult::Yes &&
             let Some(remove_region_index) = self.remove_region_index {

@@ -1023,7 +1023,9 @@ impl RavenEditorApp {
                 let mut assets = editors::WorldEditorAssetLists::new(
                     &mut self.store.assets.rooms,
                     &self.store.assets.maps,
-                    &self.store.assets.tilesets);
+                    &self.store.assets.tilesets,
+                    &self.store.asset_ids
+                );
                 editor.show(&mut win_ctx, world, &mut assets);
             }
         }
