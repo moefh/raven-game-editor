@@ -773,6 +773,7 @@ impl RoomEditorWidget {
             } else {
                 None
             },
+            collision_disabled: false,
         };
 
         // draw map BG layer

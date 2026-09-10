@@ -69,7 +69,7 @@ impl TileAnimationEditor {
                 )).truncate());
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(format!("[tile {}]", editor.parent_tile_picker.get_selected_image_l().unwrap_or(0)));
+                        ui.label(format!("[tile {}]", editor.parent_tile_picker.get_selected_image_l().unwrap_or(0xff)));
                     });
                 });
             });
@@ -159,7 +159,7 @@ impl Editor {
             parent_tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id))),
             anim_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_anim_tile_picker", asset_id)),
             anim_loop_len_panel_id: egui::Id::new(format!("editor_panel_{}_anim_loop_len", asset_id)),
-            parent_tile_picker: ImagePickerWidget::new(),
+            parent_tile_picker: ImagePickerWidget::new().with_empty_selection(),
             anim_tile_view: SpriteFrameListView::new(true, false),
             frame_indices: Vec::with_capacity(255),
             image_editor: ImageEditorWidget::new().readonly().with_image_display(ImageDisplay::new(ImageDisplay::TRANSPARENT)),
@@ -224,9 +224,8 @@ impl Editor {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 // playback
-                let can_play = self.parent_tile_picker.get_selected_image_l().and_then(|sel_tile| {
-                    tanim.loops.get(sel_tile as usize)
-                }).is_some_and(|tloop| tloop.len != 0);
+                let selected_tile = self.parent_tile_picker.get_selected_image_l().unwrap_or(0xff);
+                let can_play = tanim.loops.get(selected_tile as usize).is_some_and(|tloop| tloop.len != 0);
                 if ui.add_enabled(
                     can_play && (! self.playing || ! self.reverse_play),
                     egui::Button::new("\u{23f4}")
@@ -374,21 +373,20 @@ impl Editor {
 
         self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
         self.ensure_valid_selected_tiles(tanim, tilesets);
-        if self.reload_edit_loop &&
-            let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-            let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
-                self.reload_edit_loop = false;
-                self.edit_loop_len = tloop.len as u32;
-                if self.edit_loop_len != 0 {
-                    if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
-                        self.image_editor.set_selected_image(tloop.start as u32, anim_tileset);
-                    }
-                    if self.anim_tile_view.selected_frame != tloop.start as usize {
-                        self.anim_tile_view.selected_frame = tloop.start as usize;
-                        self.anim_tile_view.scroll_to_selection();
-                    }
+        let selected_tile = self.parent_tile_picker.get_selected_image_l().unwrap_or(0xff);
+        if self.reload_edit_loop && let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
+            self.reload_edit_loop = false;
+            self.edit_loop_len = tloop.len as u32;
+            if self.edit_loop_len != 0 {
+                if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) {
+                    self.image_editor.set_selected_image(tloop.start as u32, anim_tileset);
+                }
+                if self.anim_tile_view.selected_frame != tloop.start as usize {
+                    self.anim_tile_view.selected_frame = tloop.start as usize;
+                    self.anim_tile_view.scroll_to_selection();
                 }
             }
+        }
 
         self.show_menu_bar(ui, wc, dialogs, tanim);
         self.show_parent_tile_picker(ui, wc, tanim, tilesets);
@@ -418,24 +416,23 @@ impl Editor {
 
                 ui.add_space(20.0);
 
-                if let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                    let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
-                        let start_changed = loop_start != tloop.start as u32;
-                        let len_changed = self.edit_loop_len != tloop.len as u32;
-                        if ui.add_enabled(
-                            len_changed || (start_changed && (self.edit_loop_len != 0 || tloop.len != 0)),
-                            egui::Button::new("Set Loop")
-                        ).clicked() {
-                            tloop.start = if self.edit_loop_len == 0 { 0 } else { (loop_start & 0xff) as u8 };
-                            tloop.len = (self.edit_loop_len & 0xff) as u8;
-                        }
-                        if ui.add_enabled(
-                            tloop.len != 0,
-                            egui::Button::new("Remove Loop")
-                        ).clicked() {
-                            tloop.len = 0;
-                        }
+                if let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) {
+                    let start_changed = loop_start != tloop.start as u32;
+                    let len_changed = self.edit_loop_len != tloop.len as u32;
+                    if ui.add_enabled(
+                        len_changed || (start_changed && (self.edit_loop_len != 0 || tloop.len != 0)),
+                        egui::Button::new("Set Loop")
+                    ).clicked() {
+                        tloop.start = if self.edit_loop_len == 0 { 0 } else { (loop_start & 0xff) as u8 };
+                        tloop.len = (self.edit_loop_len & 0xff) as u8;
                     }
+                    if ui.add_enabled(
+                        tloop.len != 0,
+                        egui::Button::new("Remove Loop")
+                    ).clicked() {
+                        tloop.len = 0;
+                    }
+                }
             });
             ui.add_space(5.0);
         });
@@ -454,22 +451,19 @@ impl Editor {
                 );
             });
             egui::CentralPanel::default().show(ui, |ui| {
-                if self.playing &&
-                    let Some(selected_tile) = self.parent_tile_picker.get_selected_image_l() &&
-                    let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) &&
-                    tloop.len != 0 {
-                        let animation_step = get_animation_step(wc);
-                        let loop_len = tloop.len as u32;
-                        let play_tile = if self.reverse_play {
-                            tloop.start.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8) as u32
-                        } else {
-                            tloop.start.saturating_add((animation_step % loop_len) as u8) as u32
-                        };
-                        self.image_editor.set_selected_image(play_tile, anim_tileset);
-                        wc.request_animation_repaint();
+                if self.playing && let Some(tloop) = tanim.loops.get_mut(selected_tile as usize) && tloop.len != 0 {
+                    let animation_step = get_animation_step(wc);
+                    let loop_len = tloop.len as u32;
+                    let play_tile = if self.reverse_play {
+                        tloop.start.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8) as u32
                     } else {
-                        self.image_editor.set_selected_image(loop_start, anim_tileset);
-                    }
+                        tloop.start.saturating_add((animation_step % loop_len) as u8) as u32
+                    };
+                    self.image_editor.set_selected_image(play_tile, anim_tileset);
+                    wc.request_animation_repaint();
+                } else {
+                    self.image_editor.set_selected_image(loop_start, anim_tileset);
+                }
                 let colors = (0xff, 0xff);
                 self.image_editor.show(ui, wc, anim_tileset, colors);
             });

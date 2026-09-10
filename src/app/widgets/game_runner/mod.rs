@@ -49,14 +49,19 @@ pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
     frame_speed: 64,
 };
 
-pub struct GameRunnerWidget {
-    pub room_id: Option<DataAssetId>,
+pub struct GameRunnerState {
     pub room_x: i32,
     pub room_y: i32,
+    pub room_collision_disabled: bool,
+}
+
+pub struct GameRunnerWidget {
+    pub room_id: Option<DataAssetId>,
     pub frame_counter: u32,
     pub player: Player,
     pub enemies: Vec<Enemy>,
     pub controller: Controller,
+    state: GameRunnerState,
     map_animation_step: u32,
     last_game_runner_step: u32,
 }
@@ -75,10 +80,13 @@ impl GameRunnerWidget {
             controller: Controller::new(),
 
             room_id: None,
-            room_x: 0,
-            room_y: 0,
             map_animation_step: 0,
             last_game_runner_step: 0,
+            state: GameRunnerState {
+                room_x: 0,
+                room_y: 0,
+                room_collision_disabled: false,
+            }
         }
     }
 
@@ -98,7 +106,7 @@ impl GameRunnerWidget {
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
         let tile_x = door_exit.x as i32 / TILE_SIZE;
         let tile_y = door_exit.y as i32 / TILE_SIZE;
-        if get_room_tile_at(room, &store.assets.maps, tile_x + 1, tile_y) == 0x0f {
+        if get_room_tile_at(room, &store.assets.maps, tile_x + 1, tile_y, self.state.room_collision_disabled) == 0x0f {
             self.player.x = dx + door_exit.x as i32 + TILE_SIZE + 2;
             if self.player.dx < 0 { self.player.dx = 0; }
         } else {
@@ -149,16 +157,17 @@ impl GameRunnerWidget {
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
     ) -> bool {
-        self.player.tick_engine(room, player_anim, store, &self.controller);
+        self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state);
         for enemy in self.enemies.iter_mut() {
-            enemy.tick_engine(room, &self.player, store);
+            enemy.tick_engine(room, &self.player, store, &mut self.state);
         }
         self.process_room_triggers(room, player_anim, store)
     }
 
     pub fn reset(&mut self) {
-        self.room_x = 0;
-        self.room_y = 0;
+        self.state.room_x = 0;
+        self.state.room_y = 0;
+        self.state.room_collision_disabled = false;
         self.frame_counter = 0;
         self.last_game_runner_step = 0;
         self.map_animation_step = 0;
@@ -186,6 +195,9 @@ impl GameRunnerWidget {
         self.room_id = Some(room.asset.id);
         self.enemies.clear();
         self.spawn_enemies(room, store);
+        self.state.room_x = 0;
+        self.state.room_y = 0;
+        self.state.room_collision_disabled = false;
     }
 
     fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
@@ -201,20 +213,20 @@ impl GameRunnerWidget {
     // ================================================
 
     fn follow_player(&mut self, player_anim: &SpriteAnimation) {
-        self.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
-        self.room_y = self.player.y + (player_anim.clip_rect.h - Self::HEIGHT) / 2;
+        self.state.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
+        self.state.room_y = self.player.y + (player_anim.clip_rect.h - Self::HEIGHT) / 2;
     }
 
     fn clip_scroll(&mut self, room_size: RoomSize) {
         if room_size.width as i32 >= Self::WIDTH {
-            self.room_x = self.room_x.clamp(0, room_size.width as i32 - Self::WIDTH);
+            self.state.room_x = self.state.room_x.clamp(0, room_size.width as i32 - Self::WIDTH);
         } else {
-            self.room_x = 0;
+            self.state.room_x = 0;
         }
         if room_size.height as i32 >= Self::HEIGHT {
-            self.room_y = self.room_y.clamp(0, room_size.height as i32 - Self::HEIGHT);
+            self.state.room_y = self.state.room_y.clamp(0, room_size.height as i32 - Self::HEIGHT);
         } else {
-            self.room_y = 0;
+            self.state.room_y = 0;
         }
     }
 
@@ -278,8 +290,9 @@ impl GameRunnerWidget {
 
         let draw_map_info = DrawMapLayerInfo {
             zoom,
-            pos: screen_pos - zoom * Vec2::new(self.room_x as f32, self.room_y as f32),
+            pos: screen_pos - zoom * Vec2::new(self.state.room_x as f32, self.state.room_y as f32),
             animation_step: Some(self.map_animation_step),
+            collision_disabled: self.state.room_collision_disabled,
         };
 
         self.draw_room_bg(ui, wc, room, store, &draw_map_info);

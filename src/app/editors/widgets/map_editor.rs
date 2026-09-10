@@ -921,6 +921,7 @@ impl MapEditorWidget {
             } else {
                 None
             },
+            collision_disabled: false,
         };
 
         if let Some(tileset) = tilesets.get(&map_data.tileset_id) {

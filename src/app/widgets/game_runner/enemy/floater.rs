@@ -26,7 +26,15 @@ impl Floater {
         }
     }
 
-    pub fn update(&mut self, enemy: &mut EnemyInfo, _room: &Room, _player: &Player, _anim: &SpriteAnimation, _store: &DataAssetStore) {
+    pub fn update(
+        &mut self,
+        enemy: &mut EnemyInfo,
+        _room: &Room,
+        _player: &Player,
+        _anim: &SpriteAnimation,
+        _store: &DataAssetStore,
+        _collision_disabled: bool
+    ) {
         self.float_frame += 16;
         if (self.float_frame >> 8) >= Self::FLOAT_DY.len() {
             self.float_frame &= 0xff;

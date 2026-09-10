@@ -37,22 +37,34 @@ impl CollisionRect {
     pub fn contains_point(&self, x: i32, y: i32) -> bool {
         x >= self.x && y >= self.y && x < self.x + self.w && y < self.y + self.h
     }
+
+    pub fn intersects_rect(&self, other: &CollisionRect) -> bool {
+        self.contains_point(other.x, other.y) ||
+            self.contains_point(other.x + other.w - 1, other.y) ||
+            self.contains_point(other.x, other.y + other.h - 1) ||
+            self.contains_point(other.x + other.w - 1, other.y + other.h - 1)
+    }
 }
 
-pub fn get_room_tile_at(room: &Room, maps: &AssetList<MapData>, x: i32, y: i32) -> u8 {
+pub fn get_room_tile_at(room: &Room, maps: &AssetList<MapData>, x: i32, y: i32, collision_disabled: bool) -> u8 {
     for room_map in &room.maps {
         if let Some(map) = maps.get(&room_map.map_id) {
             let mx = x - room_map.x as i32;
             let my = y - room_map.y as i32;
             if mx >= 0 && my >= 0 && (mx as u32) < map.width && (my as u32) < map.height {
-                return map.fx_tiles[(map.width * my as u32 + mx as u32) as usize] & 0x0f;
+                let fx = map.fx_tiles[(map.width * my as u32 + mx as u32) as usize];
+                if collision_disabled && (fx & 0xf0) >= 0x80 && (fx & 0xf0) != 0xf0 {
+                    return 0x0f; // remove collision
+                } else {
+                    return fx & 0x0f;
+                }
             }
         }
     }
     TILE_BLOCK
 }
 
-fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: i32) -> u32 {
+fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: i32, collision_disabled: bool) -> u32 {
     if rect.x + sx < 0 {
         rect.x = 0;
         return COLLISION_FLAGS_LEFT;
@@ -64,7 +76,7 @@ fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: 
     let ty_top = rect.y / TILE_SIZE;
     let ty_bot = (rect.y + rect.h - 1) / TILE_SIZE;
     for ty in (ty_top..=ty_bot).rev() {
-        let tile = get_room_tile_at(room, maps, tx, ty);
+        let tile = get_room_tile_at(room, maps, tx, ty, collision_disabled);
         match tile {
             TILE_BLOCK => {
                 return if sx > 0 { COLLISION_FLAGS_RIGHT } else { COLLISION_FLAGS_LEFT };
@@ -185,7 +197,7 @@ fn h_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sx: 
     0
 }
 
-fn v_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sy: i32) -> u32 {
+fn v_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sy: i32, collision_disabled: bool) -> u32 {
     if rect.y + sy < 0 {
         rect.y = 0;
         return COLLISION_FLAGS_UP;
@@ -197,7 +209,7 @@ fn v_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sy: 
     let tx_left = rect.x / TILE_SIZE;
     let tx_right = (rect.x + rect.w - 1) / TILE_SIZE;
     for tx in tx_left..=tx_right {
-        let tile = get_room_tile_at(room, maps, tx, ty);
+        let tile = get_room_tile_at(room, maps, tx, ty, collision_disabled);
         match tile {
             TILE_BLOCK => {
                 return if sy < 0 { COLLISION_FLAGS_UP } else { COLLISION_FLAGS_DOWN };
@@ -295,7 +307,7 @@ fn v_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, sy: 
     0
 }
 
-pub fn collision_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, dx: i32, dy: i32) -> u32 {
+pub fn collision_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<MapData>, dx: i32, dy: i32, collision_disabled: bool) -> u32 {
     if dx == 0 && dy == 0 { return 0; }
     let sx = if dx < 0 { -1 } else { 1 };
     let sy = if dy < 0 { -1 } else { 1 };
@@ -303,7 +315,7 @@ pub fn collision_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<Ma
     if dx == 0 {
         let mut flags = 0;
         for _y in 0..dy.abs() {
-            flags |= v_move(rect, room, maps, sy);
+            flags |= v_move(rect, room, maps, sy, collision_disabled);
         }
         return flags;
     }
@@ -311,7 +323,7 @@ pub fn collision_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<Ma
     if dy == 0 {
         let mut flags = 0;
         for _x in 0..dx.abs() {
-            flags |= h_move(rect, room, maps, sx);
+            flags |= h_move(rect, room, maps, sx, collision_disabled);
         }
         return flags;
     }
@@ -329,12 +341,12 @@ pub fn collision_move(rect: &mut CollisionRect, room: &Room, maps: &AssetList<Ma
         let e2 = 2 * error;
         if e2 >= dy {
             error += dy;
-            flags |= h_move(rect, room, maps, sx);
+            flags |= h_move(rect, room, maps, sx, collision_disabled);
             x += sx;
         }
         if e2 <= dx {
             error += dx;
-            flags |= v_move(rect, room, maps, sy);
+            flags |= v_move(rect, room, maps, sy, collision_disabled);
             y += sy;
         }
     }

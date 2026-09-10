@@ -29,10 +29,10 @@ pub fn write_tile_animations(writer: &ProjectDataWriter, tanim_ids: &[DataAssetI
             writer.write(format!("    &{}_tilesets[{}],  // animations\n", writer.ident.prefix_lower, anim_tileset_index));
             writer.write("    {");
             for (index, tloop) in tanim.loops.iter().enumerate() {
-                if index.is_multiple_of(8) { writer.write("\n      "); }
-                writer.write(format!("{{ {:3},{:3} }}, ", tloop.start, tloop.len));
+                if index.is_multiple_of(8) { writer.write("\n     "); }
+                writer.write(format!(" {{ {:3},{:3} }},", tloop.start, tloop.len));
             }
-            writer.write("    }\n");
+            writer.write("\n    }\n");
             writer.write("  },\n");
         }
     }

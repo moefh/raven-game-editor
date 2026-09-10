@@ -47,7 +47,15 @@ impl Chiller {
         enemy.anim_frame = 0;
     }
 
-    pub fn update(&mut self, enemy: &mut EnemyInfo, room: &Room, _player: &Player, anim: &SpriteAnimation, store: &DataAssetStore) {
+    pub fn update(
+        &mut self,
+        enemy: &mut EnemyInfo,
+        room: &Room,
+        _player: &Player,
+        anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        collision_disabled: bool
+    ) {
         match self.state {
             State::Look => {
                 if enemy.is_at_animation_end(anim) {
@@ -56,7 +64,7 @@ impl Chiller {
             }
             State::Walk => {
                 self.wait -= 1;
-                if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store) {
+                if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store, collision_disabled) {
                     self.go_state(State::Blink, enemy, 0);
                 }
             }

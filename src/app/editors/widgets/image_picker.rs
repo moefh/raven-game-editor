@@ -56,6 +56,11 @@ impl ImagePickerWidget {
         self
     }
 
+    pub fn with_empty_selection(mut self) -> Self {
+        self.allow_empty_selection = true;
+        self
+    }
+
     pub fn get_selected_image_l(&self) -> Option<u32> {
         self.selected_image_l.get(&self.selection_set).copied().unwrap_or(None)
     }

@@ -447,7 +447,13 @@ pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32,
     }
 }
 
-pub fn get_animated_tile(map_tile: u8, layer: MapLayer, anim_tile: u8, tile_anim: Option<&TileAnimation>, animation_step: u32) -> Option<u8> {
+pub fn get_animated_tile(
+    map_tile: u8,
+    layer: MapLayer,
+    anim_tile: u8,
+    tile_anim: Option<&TileAnimation>,
+    animation_step: u32
+) -> Option<u8> {
     let tile_anim = tile_anim?;
     let new_tile = tile_anim.loops[map_tile as usize].start;
     let loop_len = tile_anim.loops[map_tile as usize].len as u32;
@@ -501,11 +507,29 @@ pub fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -
     }
 }
 
+pub fn get_map_animation_tile(map_data: &MapData, x: u32, y: u32, collision_disabled: bool) -> u8 {
+    if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
+
+    let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
+    if anim == 0x0f {
+        MapData::NO_TILE
+    } else if anim > 0x8 {
+        if collision_disabled {
+            MapData::NO_TILE
+        } else {
+            anim - 0x8
+        }
+    } else {
+        anim
+    }
+}
+
 #[derive(Clone)]
 pub struct DrawMapLayerInfo {
     pub zoom: f32,
     pub pos: egui::Pos2,
     pub animation_step: Option<u32>,
+    pub collision_disabled: bool,
 }
 
 impl DrawMapLayerInfo {
@@ -549,11 +573,10 @@ pub fn draw_para_layer(
     for y in 0..map_data.para_height {
         for x in 0..map_data.para_width {
             let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-            if tile == MapData::NO_TILE { continue; }
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Parallax,
-                get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
                 tile_anim,
                 animation_step
             ) {
@@ -566,6 +589,7 @@ pub fn draw_para_layer(
             } else {
                 (tile, tileset)
             };
+            if tile == MapData::NO_TILE { continue; }
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {
@@ -617,11 +641,10 @@ pub fn draw_bg_layer(
     for y in 0..map_data.height {
         for x in 0..map_data.width {
             let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
-            if tile == MapData::NO_TILE { continue; }
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Background,
-                get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
                 tile_anim,
                 animation_step
             ) {
@@ -634,6 +657,7 @@ pub fn draw_bg_layer(
             } else {
                 (tile, tileset)
             };
+            if tile == MapData::NO_TILE { continue; }
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {
@@ -690,11 +714,10 @@ pub fn draw_fg_layer(
     for y in 0..map_data.height {
         for x in 0..map_data.width {
             let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
-            if tile == MapData::NO_TILE { continue; }
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Foreground,
-                get_map_layer_tile(map_data, MapLayer::Animation, x, y),
+                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
                 tile_anim,
                 animation_step
             ) {
@@ -707,6 +730,7 @@ pub fn draw_fg_layer(
             } else {
                 (tile, tileset)
             };
+            if tile == MapData::NO_TILE { continue; }
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {

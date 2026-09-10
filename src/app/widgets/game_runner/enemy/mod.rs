@@ -22,6 +22,7 @@ use super::{
     WindowContext,
     Direction,
     Player,
+    GameRunnerState,
 };
 use super::collision::{*};
 
@@ -86,12 +87,20 @@ impl EnemyBehavior {
         EnemyBehavior::Unknown
     }
 
-    pub fn tick(&mut self, enemy: &mut EnemyInfo, player: &Player, anim: &SpriteAnimation, room: &Room, store: &DataAssetStore) {
+    pub fn tick(
+        &mut self,
+        enemy: &mut EnemyInfo,
+        player: &Player,
+        anim: &SpriteAnimation,
+        room: &Room,
+        store: &DataAssetStore,
+        collision_disabled: bool
+    ) {
         match self {
-            EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, anim, store); }
-            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, anim, store); }
-            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, anim, store); }
-            EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, anim, store); }
+            EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, anim, store, collision_disabled); }
+            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, anim, store, collision_disabled); }
+            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, anim, store, collision_disabled); }
+            EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, anim, store, collision_disabled); }
             EnemyBehavior::Unknown => {}
         }
     }
@@ -125,14 +134,14 @@ impl EnemyInfo {
         }
     }
 
-    fn move_by(&mut self, dx: i32, dy: i32, anim: &SpriteAnimation, room: &Room, store: &DataAssetStore) -> u32 {
+    fn move_by(&mut self, dx: i32, dy: i32, anim: &SpriteAnimation, room: &Room, store: &DataAssetStore, collision_disabled: bool) -> u32 {
         let mut rect = CollisionRect {
             x: self.x,
             y: self.y,
             w: anim.clip_rect.w,
             h: anim.clip_rect.h,
         };
-        let flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy);
+        let flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy, collision_disabled);
         self.x = rect.x;
         self.y = rect.y;
         flags
@@ -147,14 +156,22 @@ impl EnemyInfo {
         }
     }
 
-    fn walk_but_turn_on_bump_or_edge(&mut self, dx: i32, dy: i32, room: &Room, anim: &SpriteAnimation, store: &DataAssetStore) -> bool {
+    fn walk_but_turn_on_bump_or_edge(
+        &mut self,
+        dx: i32,
+        dy: i32,
+        room: &Room,
+        anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        collision_disabled: bool
+    ) -> bool {
         let mut fall_rect = CollisionRect {
             x: self.x + self.direction.dx() * anim.clip_rect.w,
             y: self.y,
             w: anim.clip_rect.w,
             h: anim.clip_rect.h,
         };
-        if collision_move(&mut fall_rect, room, &store.assets.maps, 0, 1) == 0 {
+        if collision_move(&mut fall_rect, room, &store.assets.maps, 0, 1, collision_disabled) == 0 {
             self.direction = self.direction.flip();
             self.anim_frame = 0;
             return true;
@@ -166,7 +183,7 @@ impl EnemyInfo {
             w: anim.clip_rect.w,
             h: anim.clip_rect.h,
         };
-        let col_flags = collision_move(&mut move_rect, room, &store.assets.maps, dx, dy);
+        let col_flags = collision_move(&mut move_rect, room, &store.assets.maps, dx, dy, collision_disabled);
         self.x = move_rect.x;
         self.y = move_rect.y;
         if (col_flags & !COLLISION_FLAGS_RAMP) != 0 {
@@ -266,9 +283,9 @@ impl Enemy {
         }
     }
 
-    pub fn tick_engine(&mut self, room: &Room, player: &Player, store: &DataAssetStore) {
+    pub fn tick_engine(&mut self, room: &Room, player: &Player, store: &DataAssetStore, game_state: &mut GameRunnerState) {
         if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) {
-            self.behavior.tick(&mut self.enemy, player, anim, room, store);
+            self.behavior.tick(&mut self.enemy, player, anim, room, store, game_state.room_collision_disabled);
             if let Some(cur_loop) = anim.loops.get(self.enemy.anim_loop.index()) {
                 self.enemy.anim_frame += cur_loop.frame_speed as u32;
             }

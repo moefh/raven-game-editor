@@ -16,6 +16,7 @@ use super::{
     EMPTY_ANIMATION_LOOP,
     Direction,
     WindowContext,
+    GameRunnerState,
 };
 use super::consts::{*};
 use super::controller::{*};
@@ -23,6 +24,7 @@ use super::collision::{*};
 use super::util::{*};
 
 const JUMP_BUTTON: u32 = GAMEPAD_SNES_B;
+const INTERACT_BUTTON: u32 = GAMEPAD_SNES_X;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PlayerState {
@@ -166,7 +168,14 @@ impl Player {
         }
     }
 
-    pub fn tick_engine(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore, pad: &Controller) {
+    pub fn tick_engine(
+        &mut self,
+        room: &Room,
+        player_anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        pad: &Controller,
+        game_state: &mut GameRunnerState,
+    ) {
         let dx = self.dx >> 8;
         let dy = self.dy >> 8;
         let mut rect = CollisionRect {
@@ -175,7 +184,7 @@ impl Player {
             w: player_anim.clip_rect.w,
             h: player_anim.clip_rect.h,
         };
-        let col_flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy);
+        let col_flags = collision_move(&mut rect, room, &store.assets.maps, dx, dy, game_state.room_collision_disabled);
         if (col_flags & COLLISION_FLAGS_DOWN) != 0 {
             self.dy = 0;
             if pad.held(GAMEPAD_RIGHT|GAMEPAD_LEFT) {
@@ -192,11 +201,23 @@ impl Player {
             }
         } else if self.state == PlayerState::Stand || self.state == PlayerState::Walk || self.state == PlayerState::Crouch {
             let save_y = rect.y;
-            if collision_move(&mut rect, room, &store.assets.maps, 0, 1) == 0 {
+            if collision_move(&mut rect, room, &store.assets.maps, 0, 1, game_state.room_collision_disabled) == 0 {
                 self.state = PlayerState::Fall;
                 self.anim_frame = 0;
             }
             rect.y = save_y;
+        }
+
+        if pad.pressed(INTERACT_BUTTON) {
+            for trigger in &room.triggers {
+                if let RoomTriggerType::Trap { width, height, .. } = trigger.trigger_type {
+                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                    if player_rect.intersects_rect(&trigger_rect) {
+                        game_state.room_collision_disabled = true;
+                    }
+                }
+            }
         }
 
         self.x = rect.x;

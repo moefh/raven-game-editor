@@ -18,7 +18,15 @@ impl Walker {
         Walker {}
     }
 
-    pub fn update(&mut self, enemy: &mut EnemyInfo, room: &Room, _player: &Player, anim: &SpriteAnimation, store: &DataAssetStore) {
-        enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store);
+    pub fn update(
+        &mut self,
+        enemy: &mut EnemyInfo,
+        room: &Room,
+        _player: &Player,
+        anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        collision_disabled: bool
+    ) {
+        enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store, collision_disabled);
     }
 }

@@ -72,7 +72,15 @@ impl Hopper {
         enemy.anim_frame = 0;
     }
 
-    pub fn update(&mut self, enemy: &mut EnemyInfo, room: &Room, player: &Player, anim: &SpriteAnimation, store: &DataAssetStore) {
+    pub fn update(
+        &mut self,
+        enemy: &mut EnemyInfo,
+        room: &Room,
+        player: &Player,
+        anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        collision_disabled: bool
+    ) {
         match self.state {
             State::AmbushWait => {
                 if let Some(dir) = check_player_seen(enemy, player, anim, store) {
@@ -86,7 +94,7 @@ impl Hopper {
             State::AmbushPlunge => {
                 self.dy += DY_GRAVITY;
                 if self.dy >= DY_MAX { self.dy = DY_MAX; }
-                if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store) & COLLISION_FLAGS_DOWN) != 0 {
+                if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store, collision_disabled) & COLLISION_FLAGS_DOWN) != 0 {
                     self.go_state(State::Splat, enemy, 0);
                     self.dy = 0;
                 }
@@ -111,7 +119,7 @@ impl Hopper {
                     enemy.direction = dir;
                 } else {
                     self.wait -= 1;
-                    if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(self.dx>>8, self.dy>>8, room, anim, store) {
+                    if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(self.dx>>8, self.dy>>8, room, anim, store, collision_disabled) {
                         self.go_state(State::PatrolBlink, enemy, 0);
                     }
                 }
@@ -151,7 +159,7 @@ impl Hopper {
             State::PounceJump => {
                 self.dy += DY_GRAVITY;
                 if self.dy >= DY_MAX { self.dy = DY_MAX; }
-                if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store) & COLLISION_FLAGS_DOWN) != 0 {
+                if (enemy.move_by(self.dx>>8, self.dy>>8, anim, room, store, collision_disabled) & COLLISION_FLAGS_DOWN) != 0 {
                     self.go_state(State::Splat, enemy, 0);
                     self.dy = 0;
                 }
