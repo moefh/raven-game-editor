@@ -25,6 +25,7 @@ pub enum EditorAction {
     ExportMap { map_id: DataAssetId },
     ExportRoom { room_id: DataAssetId },
     ExportSpriteAnimation { animation_id: DataAssetId },
+    ExportTileAnimation { tile_anim_id: DataAssetId },
     TilesetTilesAdded { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
     TilesetTilesRemoved { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
     TilesetTilesShuffled { tileset_id: DataAssetId, shuffle: Vec<u32> },
@@ -114,6 +115,24 @@ impl EditorAction {
                         &animation.asset.name,
                         &[
                             ("Raven sprite animation files (*.ravanim)", &["ravanim"]),
+                            ("All files (*.*)", &["*"]),
+                        ]
+                    );
+                }
+            }
+
+            EditorAction::ExportTileAnimation { tile_anim_id } => {
+                if let Some(tanim) = store.assets.tile_anims.get(&tile_anim_id) {
+                    let request_id = format!("export_tile_animation_{}", tile_anim_id);
+                    exporter.add_request(request_id.clone(), tile_anim_id);
+                    wc.sys_dialogs.save_file(
+                        Some(wc.egui.window),
+                        request_id,
+                        "tile_animation",
+                        "Export Tile Animation",
+                        &tanim.asset.name,
+                        &[
+                            ("Raven Tile Animation files (*.ravtanim)", &["ravtanim"]),
                             ("All files (*.*)", &["*"]),
                         ]
                     );

@@ -621,6 +621,8 @@ impl Editor {
         });
         match result {
             Ok(mut new_map_data) => {
+                // replace everything except the name:
+                new_map_data.asset.name.replace_range(.., &map_data.asset.name);
                 std::mem::swap(map_data, &mut new_map_data)
             }
 

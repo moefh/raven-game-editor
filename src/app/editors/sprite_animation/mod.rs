@@ -578,6 +578,8 @@ impl Editor {
         });
         match result {
             Ok(mut new_animation) => {
+                // replace everything except the name:
+                new_animation.asset.name.replace_range(.., &animation.asset.name);
                 std::mem::swap(animation, &mut new_animation)
             }
 

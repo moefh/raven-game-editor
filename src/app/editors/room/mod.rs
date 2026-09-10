@@ -762,6 +762,8 @@ impl Editor {
         });
         match result {
             Ok(mut new_room) => {
+                // replace everything except the name:
+                new_room.asset.name.replace_range(.., &room.asset.name);
                 std::mem::swap(room, &mut new_room)
             }
 

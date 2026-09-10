@@ -18,6 +18,13 @@ pub mod utils;
 use std::{fmt, io};
 use std::collections::HashMap;
 
+pub use reader::{
+    deserialize_project,
+    deserialize_map,
+    deserialize_room,
+    deserialize_sprite_animation,
+    deserialize_tile_animation,
+};
 pub use reader::tokenizer::{
     Tokenizer,
     Token,
@@ -528,6 +535,10 @@ impl DataAssetStore {
         writer::serialize_sprite_animation(animation_id, self, logger)
     }
 
+    pub fn serialize_tile_animation(&self, tile_anim_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
+        writer::serialize_tile_animation(tile_anim_id, self, logger)
+    }
+
     fn gen_id(&mut self) -> DataAssetId {
         self.id_generator.gen_id()
     }
@@ -715,35 +726,4 @@ pub fn calc_asset_data_hash<A: DataHashAsset>(asset: &A) -> u64 {
     let mut hasher = std::hash::DefaultHasher::new();
     asset.data_hash(&mut hasher);
     hasher.finish()
-}
-
-pub fn deserialize_project(data: &str, logger: &mut StringLogger) -> Result<DataAssetStore, io::Error> {
-    reader::deserialize_project(data, logger)
-}
-
-pub fn deserialize_map(
-    data: &str,
-    map_id: DataAssetId,
-    asset_ids: &AssetIdCollection,
-    logger: &mut StringLogger
-) -> Result<MapData, io::Error> {
-    reader::deserialize_map(data, map_id, asset_ids, logger)
-}
-
-pub fn deserialize_room(
-    data: &str,
-    room_id: DataAssetId,
-    asset_ids: &AssetIdCollection,
-    logger: &mut StringLogger
-) -> Result<Room, io::Error> {
-    reader::deserialize_room(data, room_id, asset_ids, logger)
-}
-
-pub fn deserialize_sprite_animation(
-    data: &str,
-    room_id: DataAssetId,
-    asset_ids: &AssetIdCollection,
-    logger: &mut StringLogger
-) -> Result<SpriteAnimation, io::Error> {
-    reader::deserialize_sprite_animation(data, room_id, asset_ids, logger)
 }

@@ -24,7 +24,6 @@ use super::{
     DataAssetId,
     DataAssetType,
     DataAsset,
-    AssetIdList,
 };
 
 static HUMAN_TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
@@ -187,10 +186,15 @@ impl<'a> ProjectDataWriter<'a> {
     // === ASSET IDS
     // =========================================================================
 
-    fn write_asset_ids_for(&self, asset_ids: &AssetIdList, asset_type: DataAssetType, type_name: &str) -> Result<()> {
+    fn write_asset_ids_for<'b>(
+        &self,
+        asset_ids: impl Iterator<Item = &'b DataAssetId>,
+        asset_type: DataAssetType,
+        type_name: &str
+    ) -> Result<()> {
         self.write(format!("enum {}_{}_IDS {{\n", self.ident.prefix_upper, type_name));
-        for id in asset_ids.iter() {
-            let name_id = self.ident.get_asset_name_id(asset_type, *id)?;
+        for &id in asset_ids {
+            let name_id = self.ident.get_asset_name_id(asset_type, id)?;
             let name_id_upper = name_id.to_ascii_uppercase();
             self.write(format!("  {}_{}_ID_{},\n", self.ident.prefix_upper, type_name, name_id_upper));
         }
@@ -208,18 +212,18 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("// ================================================================\n");
         self.write("\n");
 
-        self.write_asset_ids_for(&self.store.asset_ids.fonts, DataAssetType::Font, "FONT")?;
-        self.write_asset_ids_for(&self.store.asset_ids.prop_fonts, DataAssetType::PropFont, "PROP_FONT")?;
-        self.write_asset_ids_for(&self.store.asset_ids.mods, DataAssetType::ModData, "MOD")?;
-        self.write_asset_ids_for(&self.store.asset_ids.sfxs, DataAssetType::Sfx, "SFX")?;
-        self.write_asset_ids_for(&self.store.asset_ids.tilesets, DataAssetType::Tileset, "TILESET")?;
-        self.write_asset_ids_for(&self.store.asset_ids.sprites, DataAssetType::Sprite, "SPRITE")?;
-        self.write_asset_ids_for(&self.store.asset_ids.pal_sprites, DataAssetType::PalSprite, "PAL_SPRITE")?;
-        self.write_asset_ids_for(&self.store.asset_ids.maps, DataAssetType::MapData, "MAP")?;
-        self.write_asset_ids_for(&self.store.asset_ids.animations, DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
-        self.write_asset_ids_for(&self.store.asset_ids.rooms, DataAssetType::Room, "ROOM")?;
-        self.write_asset_ids_for(&self.store.asset_ids.worlds, DataAssetType::World, "WORLD")?;
-        self.write_asset_ids_for(&self.store.asset_ids.tile_anims, DataAssetType::TileAnimation, "TILE_ANIMATION")?;
+        self.write_asset_ids_for(self.store.asset_ids.fonts.iter(), DataAssetType::Font, "FONT")?;
+        self.write_asset_ids_for(self.store.asset_ids.prop_fonts.iter(), DataAssetType::PropFont, "PROP_FONT")?;
+        self.write_asset_ids_for(self.store.asset_ids.mods.iter(), DataAssetType::ModData, "MOD")?;
+        self.write_asset_ids_for(self.store.asset_ids.sfxs.iter(), DataAssetType::Sfx, "SFX")?;
+        self.write_asset_ids_for(self.store.asset_ids.tilesets.iter(), DataAssetType::Tileset, "TILESET")?;
+        self.write_asset_ids_for(self.store.asset_ids.sprites.iter(), DataAssetType::Sprite, "SPRITE")?;
+        self.write_asset_ids_for(self.store.asset_ids.pal_sprites.iter(), DataAssetType::PalSprite, "PAL_SPRITE")?;
+        self.write_asset_ids_for(self.store.asset_ids.maps.iter(), DataAssetType::MapData, "MAP")?;
+        self.write_asset_ids_for(self.store.asset_ids.animations.iter(), DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
+        self.write_asset_ids_for(self.store.asset_ids.rooms.iter(), DataAssetType::Room, "ROOM")?;
+        self.write_asset_ids_for(self.store.asset_ids.worlds.iter(), DataAssetType::World, "WORLD")?;
+        self.write_asset_ids_for(self.store.asset_ids.tile_anims.iter(), DataAssetType::TileAnimation, "TILE_ANIMATION")?;
 
         Ok(())
     }
@@ -345,5 +349,15 @@ pub fn serialize_sprite_animation(animation_id: DataAssetId, store: &DataAssetSt
     let info = sprite_animation::write_sprite_animations(&writer, &[animation_id])?;
     writer.write_data_end()?;
     sprite_animation::write_animation_names(&writer, &[animation_id], info)?;
+    Ok(writer.output.take())
+}
+
+pub fn serialize_tile_animation(tile_anim_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, logger);
+    writer.gen_unique_asset_names()?;
+    writer.write_header()?;
+    tile_animation::write_tile_animations(&writer, &[tile_anim_id])?;
+    writer.write_data_end()?;
+    writer.write_asset_ids_for([tile_anim_id].iter(), DataAssetType::TileAnimation, "TILE_ANIMATION")?;
     Ok(writer.output.take())
 }

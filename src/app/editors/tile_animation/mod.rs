@@ -2,6 +2,7 @@ mod properties;
 
 use crate::misc::IMAGES;
 use crate::data_asset::{
+    self,
     DataAssetId,
     GenericAsset,
     AssetList,
@@ -18,8 +19,11 @@ use super::{
     ImageZoomOption,
     AssetEditorBase,
     WindowContext,
+    SysDialogResponse,
+    SysDialogOpenFile,
     TilesetTileFixer,
     TilesetTileShuffler,
+    EditorAction,
 };
 use super::widgets::{
     ImagePickerWidget,
@@ -77,13 +81,13 @@ impl TileAnimationEditor {
         wc: &mut WindowContext,
         tanim: &mut TileAnimation,
         asset_ids: &AssetIdCollection,
-        tilesets: &mut AssetList<Tileset>
+        tilesets: &mut AssetList<Tileset>,
     ) {
         self.dialogs.show(wc, &mut self.editor, tanim, &asset_ids.tilesets, tilesets);
 
         self.base.show_window(wc, tanim, [500.0, 400.0], [500.0, 400.0], |ui, wc, tanim, base| {
             Self::show_footer(ui, wc, &self.editor, tanim, base);
-            self.editor.show(ui, wc, &mut self.dialogs, tanim, tilesets);
+            self.editor.show(ui, wc, &mut self.dialogs, tanim, tilesets, asset_ids);
         });
     }
 }
@@ -127,6 +131,7 @@ impl Dialogs {
 
 struct Editor {
     asset_id: DataAssetId,
+    import_sys_dlg_id: String,
     header_panel_id: egui::Id,
     display_toolbar_panel_id: egui::Id,
     parent_tile_picker_panel_id: egui::Id,
@@ -147,6 +152,7 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
+            import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
             header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
             display_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
             parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
@@ -183,6 +189,25 @@ impl Editor {
         egui::Panel::top(self.header_panel_id).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Tile Animation", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "tile_animation",
+                            "Import Tile Animation file",
+                            &[
+                                ("Raven Tile Animation files (*.ravtanim)", &["ravtanim"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportTileAnimation { tile_anim_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
                         let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                             PropertiesDialog::new(tanim.asset.id, tanim.parent_tileset_id, tanim.anim_tileset_id)
@@ -312,6 +337,27 @@ impl Editor {
             }
     }
 
+    fn import_tile_anim(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, tanim: &mut TileAnimation, asset_ids: &AssetIdCollection) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_tile_animation(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_tanim) => {
+                // replace everything except the name:
+                new_tanim.asset.name.replace_range(.., &tanim.asset.name);
+                std::mem::swap(tanim, &mut new_tanim);
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading tile animation file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box(
+                    "Error importing Tile Animation",
+                    "Error importing tile animation file.\n\nConsult the log window for more information."
+                );
+            }
+        }
+    }
 
     pub fn show(
         &mut self,
@@ -319,8 +365,13 @@ impl Editor {
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         tanim: &mut TileAnimation,
-        tilesets: &mut AssetList<Tileset>
+        tilesets: &mut AssetList<Tileset>,
+        asset_ids: &AssetIdCollection,
     ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_tile_anim(wc, file, tanim, asset_ids);
+        }
+
         self.fix_frame_indices(tanim.anim_tileset_id, tilesets);
         self.ensure_valid_selected_tiles(tanim, tilesets);
         if self.reload_edit_loop &&

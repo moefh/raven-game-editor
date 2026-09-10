@@ -54,6 +54,7 @@ impl AssetExporter {
                 DataAssetType::MapData => { Self::export_map(file, asset_id, store, logger) }
                 DataAssetType::Room => { Self::export_room(file, asset_id, store, logger) }
                 DataAssetType::SpriteAnimation => { Self::export_sprite_animation(file, asset_id, store, logger) }
+                DataAssetType::TileAnimation => { Self::export_tile_animation(file, asset_id, store, logger) }
                 _ => {
                     logger.log(format!("ERROR: exporting asset type {:?} not implemented!", asset.asset_type));
                     true
@@ -107,4 +108,17 @@ impl AssetExporter {
         }
     }
 
+    fn export_tile_animation(file: SysDialogOpenFile, tile_anim_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+        logger.log("WRITING TILE ANIMATION");
+        match store.serialize_tile_animation(tile_anim_id, logger).and_then(|content| file.write_string(content)) {
+            Ok(()) => {
+                logger.log(format!("DONE: tile animation saved to {}", file.filename()));
+                false
+            }
+            Err(e) => {
+                logger.log(format!("ERROR exporting tile animation: {}", e));
+                true
+            }
+        }
+    }
 }

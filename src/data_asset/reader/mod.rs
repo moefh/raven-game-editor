@@ -880,3 +880,22 @@ pub fn deserialize_sprite_animation(
         Err(Error::other("animation data not found in file"))
     }
 }
+
+pub fn deserialize_tile_animation(
+    input: &str,
+    tile_anim_id: DataAssetId,
+    asset_ids: &super::AssetIdCollection,
+    logger: &mut StringLogger
+) -> Result<super::TileAnimation> {
+    let mut reader = ProjectDataReader::new(input, logger);
+    reader.read_data()?;
+
+    reader.data.asset_ids.insert(DataAssetType::TileAnimation, Vec::from([tile_anim_id]));
+    reader.data.asset_ids.insert(DataAssetType::Tileset, asset_ids.tilesets.store.clone());
+
+    if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
+        tile_animation::create(tile_anim_id, asset_struct, &reader.data)
+    } else {
+        Err(Error::other("tile animation not found in file"))
+    }
+}
