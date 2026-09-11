@@ -22,6 +22,7 @@ use super::super::super::widgets::{
 };
 
 pub struct MapSelectionDialog {
+    pub dlg_id: egui::Id,
     pub open: bool,
     pub sel_map_ids: HashSet<DataAssetId>,
     pub display_map_id: Option<DataAssetId>,
@@ -31,15 +32,12 @@ pub struct MapSelectionDialog {
 impl MapSelectionDialog {
     pub fn new() -> Self {
         MapSelectionDialog {
+            dlg_id: egui::Id::new("dlg_room_maps"),
             open: false,
             sel_map_ids: HashSet::new(),
             display_map_id: None,
             map_tree: None,
         }
-    }
-
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_room_maps")
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room, maps: &AssetList<MapData>) {
@@ -50,7 +48,7 @@ impl MapSelectionDialog {
         self.display_map_id = room.maps.first().map(|m| m.map_id);
         self.map_tree = Some(SimpleAssetTree::from_assets(format!("map_sel_{}", room.asset.id), "Available Maps", sorted_assets(maps)));
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, room: &mut Room) -> bool {
@@ -73,14 +71,14 @@ impl MapSelectionDialog {
         let changed = changed || (size != room.maps.len());
 
         if changed {
-            room.maps.sort_by_key(|m| m.map_id);
+            room.maps.sort_by_key(|m| ((m.x as u32) << 16) | (m.y as u32));
         }
         changed
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
         let mut maps_changed = false;
-        let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "Room Properties", |ui, wc| {
+        let modal_response = AssetEditorBase::show_dialog_window(wc, self.dlg_id, 550.0, "Room Properties", |ui, wc| {
             let asset_id = room.asset.id;
 
             egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
@@ -146,7 +144,7 @@ impl MapSelectionDialog {
         });
         if modal_response.should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
             return modal_response.inner;
         }
         false
