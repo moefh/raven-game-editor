@@ -89,6 +89,7 @@ struct $<PREFIX>_MAP {
     int16_t para_w;
     int16_t para_h;
     const struct $<PREFIX>_IMAGE *tileset;
+    const struct $<PREFIX>_TILE_ANIMATION *animation;
     const uint8_t *tiles;
 };
 
@@ -254,6 +255,7 @@ extern const struct $<PREFIX>_IMAGE $<prefix>_tilesets[];
 extern const struct $<PREFIX>_IMAGE $<prefix>_sprites[];
 extern const struct $<PREFIX>_MAP $<prefix>_maps[];
 extern const struct $<PREFIX>_SPRITE_ANIMATION $<prefix>_sprite_animations[];
+extern const struct $<PREFIX>_TILE_ANIMATION $<prefix>_tile_animations[];
 extern const struct $<PREFIX>_ROOM $<prefix>_rooms[];
 
 #if $<PREFIX>_ADD_ROOM_SCRIPTS
