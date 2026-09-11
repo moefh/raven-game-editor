@@ -6,7 +6,8 @@ use crate::data_asset::{DataAssetId, DataAssetStore, MapData, Tileset};
 use super::{
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-    AssetProblem,
+    AssetError,
+    AssetWarning,
     MapLayer,
 };
 
@@ -33,7 +34,7 @@ fn get_para_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
 }
 
 /// check for spots not covered by an opaque tile
-fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
+fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], errors: &mut Vec<AssetError>) {
     if map_data.para_width > map_data.width || map_data.para_height > map_data.height {
         // invalid size; this will be caught by another checker
         return;
@@ -95,7 +96,7 @@ fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems:
     }
 
     if num_bad_tiles > 0 {
-        problems.push(AssetProblem::MapTransparentTile {
+        errors.push(AssetError::MapTransparentTile {
             first_tile_x: first_bad_tile_x,
             first_tile_y: first_bad_tile_y,
             num_tiles: num_bad_tiles,
@@ -104,7 +105,7 @@ fn check_map_transparency(map_data: &MapData, tileset_transp: &[bool], problems:
 }
 
 /// check for spots with double opaque tile cover (i.e., both bg and fg are opaque)
-fn check_map_opaqueness(map_data: &MapData, tileset_transp: &[bool], problems: &mut Vec<AssetProblem>) {
+fn check_map_opaqueness(map_data: &MapData, tileset_transp: &[bool], errors: &mut Vec<AssetWarning>) {
     // Build a map of all fg tile positions that may overlap a
     // an opaque spot (i.e., a bg with opaque tile set).
     let mut fg_overlaps_opaque = vec![false; (map_data.width * map_data.height) as usize];
@@ -140,7 +141,7 @@ fn check_map_opaqueness(map_data: &MapData, tileset_transp: &[bool], problems: &
     }
 
     if num_bad_tiles > 0 {
-        problems.push(AssetProblem::MapOpaqueTile {
+        errors.push(AssetWarning::MapOpaqueTile {
             first_tile_x: first_bad_tile_x,
             first_tile_y: first_bad_tile_y,
             num_tiles: num_bad_tiles,
@@ -149,12 +150,12 @@ fn check_map_opaqueness(map_data: &MapData, tileset_transp: &[bool], problems: &
 
 }
 
-fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<AssetProblem>) {
+fn check_map_tiles(map_data: &MapData, tileset: &Tileset, errors: &mut Vec<AssetError>) {
     for y in 0..map_data.height {
         for x in 0..map_data.width {
             let tile = get_fg_tile(map_data, x, y);
             if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
-                problems.push(AssetProblem::MapInvalidTile {
+                errors.push(AssetError::MapInvalidTile {
                     tile_x: x,
                     tile_y: y,
                     tile,
@@ -168,7 +169,7 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
         for x in 0..map_data.width {
             let tile = get_bg_tile(map_data, x, y);
             if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
-                problems.push(AssetProblem::MapInvalidTile {
+                errors.push(AssetError::MapInvalidTile {
                     tile_x: x,
                     tile_y: y,
                     tile,
@@ -182,7 +183,7 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
         for x in 0..map_data.para_width {
             let tile = get_para_tile(map_data, x, y);
             if tile != MapData::NO_TILE && tile as u32 >= tileset.num_tiles {
-                problems.push(AssetProblem::MapInvalidTile {
+                errors.push(AssetError::MapInvalidTile {
                     tile_x: x,
                     tile_y: y,
                     tile,
@@ -193,18 +194,18 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, problems: &mut Vec<Ass
     }
 }
 
-fn check_map_size(map_data: &MapData, problems: &mut Vec<AssetProblem>) {
+fn check_map_size(map_data: &MapData, errors: &mut Vec<AssetError>) {
     if map_data.para_width != 0 && map_data.height != 0 &&
         ((map_data.para_width * Tileset::TILE_SIZE) < SCREEN_WIDTH ||
          (map_data.para_height * Tileset::TILE_SIZE) < SCREEN_HEIGHT) {
-            problems.push(AssetProblem::MapParallaxTooSmall {
+            errors.push(AssetError::MapParallaxTooSmall {
                 para_width: map_data.para_width,
                 para_height: map_data.para_height,
             });
         }
 
     if map_data.para_width > map_data.width || map_data.para_height > map_data.height {
-        problems.push(AssetProblem::MapParallaxTooBig {
+        errors.push(AssetError::MapParallaxTooBig {
             width: map_data.width,
             height: map_data.height,
             para_width: map_data.para_width,
@@ -213,20 +214,26 @@ fn check_map_size(map_data: &MapData, problems: &mut Vec<AssetProblem>) {
     }
 }
 
-pub fn check_maps(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+pub fn check_maps(
+    asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
+    asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
+    store: &DataAssetStore
+) {
     let mut tileset_transp_map = HashMap::new();
     for map_data in store.assets.maps.iter() {
-        let mut map_problems = Vec::new();
+        let mut map_errors = Vec::new();
+        let mut map_warnings = Vec::new();
 
         if let Some(tileset) = store.assets.tilesets.get(&map_data.tileset_id) {
-            check_map_size(map_data, &mut map_problems);
-            check_map_tiles(map_data, tileset, &mut map_problems);
+            check_map_size(map_data, &mut map_errors);
+            check_map_tiles(map_data, tileset, &mut map_errors);
             let tileset_transp = tileset_transp_map.entry(map_data.tileset_id).or_insert_with(|| build_tileset_transparency(tileset));
-            check_map_transparency(map_data, tileset_transp, &mut map_problems);
-            check_map_opaqueness(map_data, tileset_transp, &mut map_problems);
+            check_map_transparency(map_data, tileset_transp, &mut map_errors);
+            check_map_opaqueness(map_data, tileset_transp, &mut map_warnings);
         } else {
-            map_problems.push(AssetProblem::MapTilesetInvalid { tileset_id: map_data.tileset_id });
+            map_errors.push(AssetError::MapTilesetInvalid { tileset_id: map_data.tileset_id });
         }
-        asset_problems.insert(map_data.asset.id, map_problems);
+        asset_errors.insert(map_data.asset.id, map_errors);
+        asset_warnings.insert(map_data.asset.id, map_warnings);
     }
 }

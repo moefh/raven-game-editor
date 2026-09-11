@@ -2,14 +2,18 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::data_asset::{DataAssetId, DataAssetStore, PalSprite};
 
-use super::AssetProblem;
+use super::{
+    AssetError,
+    AssetWarning,
+};
 
-fn check_pal_sprite(pal_sprite: &PalSprite) -> Vec<AssetProblem> {
-    let mut problems = Vec::new();
+fn check_pal_sprite(pal_sprite: &PalSprite) -> (Vec<AssetError>, Vec<AssetWarning>) {
+    let mut errors = Vec::new();
+    let warnings = Vec::new();
 
     // check number of frames
     if pal_sprite.num_frames > 255 {
-        problems.push(AssetProblem::PalSpriteTooBig { num_frames: pal_sprite.num_frames });
+        errors.push(AssetError::PalSpriteTooBig { num_frames: pal_sprite.num_frames });
     }
 
     // check that every pixel has a palette color
@@ -26,14 +30,20 @@ fn check_pal_sprite(pal_sprite: &PalSprite) -> Vec<AssetProblem> {
         }
     }
     if let Some(frame_num) = first_bad_frame {
-        problems.push(AssetProblem::PalSpriteColorOutOfPalette { frame_num, num_pixels });
+        errors.push(AssetError::PalSpriteColorOutOfPalette { frame_num, num_pixels });
     }
 
-    problems
+    (errors, warnings)
 }
 
-pub fn check_pal_sprites(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+pub fn check_pal_sprites(
+    asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
+    asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
+    store: &DataAssetStore
+) {
     for pal_sprite in store.assets.pal_sprites.iter() {
-        asset_problems.insert(pal_sprite.asset.id, check_pal_sprite(pal_sprite));
+        let (errors, warnings) = check_pal_sprite(pal_sprite);
+        asset_errors.insert(pal_sprite.asset.id, errors);
+        asset_warnings.insert(pal_sprite.asset.id, warnings);
     }
 }

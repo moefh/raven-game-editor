@@ -2,20 +2,30 @@ use std::collections::BTreeMap;
 
 use crate::data_asset::{DataAssetId, DataAssetStore, Sprite};
 
-use super::AssetProblem;
+use super::{
+    AssetError,
+    AssetWarning,
+};
 
-fn check_sprite(sprite: &Sprite) -> Vec<AssetProblem> {
-    let mut problems = Vec::new();
+fn check_sprite(sprite: &Sprite) -> (Vec<AssetError>, Vec<AssetWarning>) {
+    let mut errors = Vec::new();
+    let warnings = Vec::new();
 
     if sprite.num_frames > 255 {
-        problems.push(AssetProblem::SpriteTooBig { num_frames: sprite.num_frames });
+        errors.push(AssetError::SpriteTooBig { num_frames: sprite.num_frames });
     }
 
-    problems
+    (errors, warnings)
 }
 
-pub fn check_sprites(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+pub fn check_sprites(
+    asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
+    asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
+    store: &DataAssetStore
+) {
     for sprite in store.assets.sprites.iter() {
-        asset_problems.insert(sprite.asset.id, check_sprite(sprite));
+        let (errors, warnings) = check_sprite(sprite);
+        asset_errors.insert(sprite.asset.id, errors);
+        asset_warnings.insert(sprite.asset.id, warnings);
     }
 }

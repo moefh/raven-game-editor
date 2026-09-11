@@ -2,20 +2,30 @@ use std::collections::BTreeMap;
 
 use crate::data_asset::{DataAssetId, DataAssetStore, Tileset};
 
-use super::AssetProblem;
+use super::{
+    AssetError,
+    AssetWarning,
+};
 
-fn check_tileset(tileset: &Tileset) -> Vec<AssetProblem> {
-    let mut problems = Vec::new();
+fn check_tileset(tileset: &Tileset) -> (Vec<AssetError>, Vec<AssetWarning>) {
+    let mut errors = Vec::new();
+    let warnings = Vec::new();
 
     if tileset.num_tiles > 255 {
-        problems.push(AssetProblem::TilesetTooBig { num_tiles: tileset.num_tiles });
+        errors.push(AssetError::TilesetTooBig { num_tiles: tileset.num_tiles });
     }
 
-    problems
+    (errors, warnings)
 }
 
-pub fn check_tilesets(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+pub fn check_tilesets(
+    asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
+    asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
+    store: &DataAssetStore
+) {
     for tileset in store.assets.tilesets.iter() {
-        asset_problems.insert(tileset.asset.id, check_tileset(tileset));
+        let (errors, warnings) = check_tileset(tileset);
+        asset_errors.insert(tileset.asset.id, errors);
+        asset_warnings.insert(tileset.asset.id, warnings);
     }
 }

@@ -39,12 +39,14 @@ impl CheckWindow {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
                     let num_assets = result.num_assets_checked();
-                    let num_assets_with_problems = result.num_assets_with_problems();
-                    ui.label(format!("[{}] {}", result.timestamp, if num_assets_with_problems > 0 { "PROBLEMS DETECTED" } else { "OK" }));
-                    if num_assets_with_problems > 0 {
-                        ui.label("=== PROBLEMS FOUND =========================================");
-                        for (asset_id, problems) in &result.asset_problems {
-                            if ! problems.is_empty() {
+                    let num_assets_with_errors = result.num_assets_with_errors();
+                    let num_assets_with_warnings = result.num_assets_with_warnings();
+
+                    ui.label(format!("[{}] {}", result.timestamp, if num_assets_with_errors > 0 { "ERRORS DETECTED" } else { "OK" }));
+                    if num_assets_with_errors > 0 {
+                        ui.label("=== ERRORS FOUND =========================================");
+                        for (asset_id, errors) in &result.asset_errors {
+                            if ! errors.is_empty() {
                                 match store.assets.get_asset(*asset_id) {
                                     Some(asset) => {
                                         ui.horizontal(|ui| {
@@ -56,11 +58,35 @@ impl CheckWindow {
                                     }
                                     None => { ui.label("-> <unknown asset>:"); }
                                 }
-                                for problem in problems {
-                                    problem.log(ui, *asset_id, store);
+                                for error in errors {
+                                    error.log(ui, *asset_id, store);
                                 }
                             }
                         }
+                    }
+                    if num_assets_with_warnings > 0 {
+                        ui.label("=== WARNINGS ===============================================");
+                        for (asset_id, warnings) in &result.asset_warnings {
+                            if ! warnings.is_empty() {
+                                match store.assets.get_asset(*asset_id) {
+                                    Some(asset) => {
+                                        ui.horizontal(|ui| {
+                                            ui.label("->");
+                                            if ui.button(&asset.name).clicked() {
+                                                open_asset_id = Some(asset.id);
+                                            }
+                                        });
+                                    }
+                                    None => { ui.label("-> <unknown asset>:"); }
+                                }
+                                for warning in warnings {
+                                    warning.log(ui, *asset_id, store);
+                                }
+                            }
+                        }
+                    }
+
+                    if num_assets_with_warnings > 0 || num_assets_with_errors > 0 {
                         ui.label("============================================================");
                     }
 
@@ -85,7 +111,7 @@ impl CheckWindow {
                             result.data_size, result.merged_samples_saved_size));
                     }
 
-                    ui.label(format!("DONE: {}/{} assets ok", num_assets - num_assets_with_problems, num_assets));
+                    ui.label(format!("DONE: {}/{} assets ok", num_assets - num_assets_with_errors, num_assets));
                 });
             });
         });
@@ -99,7 +125,7 @@ impl CheckWindow {
         };
         self.base.show_window(wc, default_rect, [300.0, default_rect.height()], |ui, wc, base| {
             if let Some(result) = &self.result {
-                let title_action = if result.num_assets_with_problems() != 0 {
+                let title_action = if result.num_assets_with_errors() != 0 {
                     base.show_title_bar(ui, Some(IMAGES.error), "Project Check")
                 } else {
                     base.show_title_bar(ui, Some(IMAGES.ok), "Project Check")

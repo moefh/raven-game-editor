@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use crate::data_asset::{DataAssetId, DataAssetStore, ModData};
 use crate::data_asset::MOD_PERIOD_TABLE;
 
-use super::AssetProblem;
+use super::{
+    AssetError,
+    AssetWarning,
+};
 
 pub fn check_merged_samples(store: &DataAssetStore) -> Vec<super::MergedSample> {
     let mut merged_samples = Vec::new();
@@ -45,13 +48,14 @@ fn get_next_nearest_mod_period(period: u16) -> Option<u16> {
     Some(0)
 }
 
-fn check_mod(mod_data: &ModData) -> Vec<AssetProblem> {
-    let mut problems = Vec::new();
+fn check_mod(mod_data: &ModData) -> (Vec<AssetError>, Vec<AssetWarning>) {
+    let mut errors = Vec::new();
+    let warnings = Vec::new();
 
     let num_song_pos = mod_data.song_positions.iter().copied().max().unwrap_or(0) as usize + 1;
     let num_channels = mod_data.num_channels as usize;
     if num_song_pos * 64 * num_channels > mod_data.pattern.len() {
-        problems.push(AssetProblem::ModPatternTooSmall { expected: num_song_pos * 64 * num_channels, got: mod_data.pattern.len() });
+        errors.push(AssetError::ModPatternTooSmall { expected: num_song_pos * 64 * num_channels, got: mod_data.pattern.len() });
     }
 
     for song_pos in 0..num_song_pos {
@@ -61,7 +65,7 @@ fn check_mod(mod_data: &ModData) -> Vec<AssetProblem> {
                 if let Some(cell) = mod_data.pattern.get(cell_index) &&
                     cell.period != 0 &&
                     let Some(period) = get_next_nearest_mod_period(cell.period) {
-                        problems.push(AssetProblem::ModNoteOutOfTune {
+                        errors.push(AssetError::ModNoteOutOfTune {
                             song_position: song_pos as u32,
                             row: row as u32,
                             chan: chan as u8,
@@ -72,11 +76,17 @@ fn check_mod(mod_data: &ModData) -> Vec<AssetProblem> {
         }
     }
 
-    problems
+    (errors, warnings)
 }
 
-pub fn check_mods(asset_problems: &mut BTreeMap<DataAssetId, Vec<AssetProblem>>, store: &DataAssetStore) {
+pub fn check_mods(
+    asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
+    asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
+    store: &DataAssetStore
+) {
     for mod_data in store.assets.mods.iter() {
-        asset_problems.insert(mod_data.asset.id, check_mod(mod_data));
+        let (errors, warnings) = check_mod(mod_data);
+        asset_errors.insert(mod_data.asset.id, errors);
+        asset_warnings.insert(mod_data.asset.id, warnings);
     }
 }
