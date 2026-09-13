@@ -23,6 +23,13 @@ impl StatusWindow {
         }
     }
 
+    pub fn open(&mut self, ctx: &egui::Context) {
+        self.base.open = true;
+        if self.base.open {
+            self.base.bring_to_top(ctx);
+        }
+    }
+
     pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.max.x - 300.0, wc.window_space.min.y + 10.0),

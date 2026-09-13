@@ -83,7 +83,7 @@ fn main() -> eframe::Result {
         Box::new(|cc| {
             let mut app = RavenEditorApp::new(cc, false, logger, settings);
             if let Some(filename) = filename && let Some(file) = app::SysDialogOpenFile::create(&filename) {
-                app.open(file);
+                app.open(&cc.egui_ctx, file);
             }
             Ok(Box::new(app))
         })

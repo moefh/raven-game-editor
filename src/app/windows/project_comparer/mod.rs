@@ -64,6 +64,13 @@ impl ProjectComparerWindow {
         }
     }
 
+    pub fn open(&mut self, ctx: &egui::Context) {
+        self.base.open = true;
+        if self.base.open {
+            self.base.bring_to_top(ctx);
+        }
+    }
+
     pub fn clear(&mut self) {
         self.display.clear();
     }

@@ -266,12 +266,12 @@ impl AppWindows {
         self.collection.show(wc, store)
     }
 
-    pub fn open_log_window(&mut self) { self.collection.log_window.base.open = true; }
-    pub fn open_properties(&mut self) { self.collection.properties.base.open = true; }
-    pub fn open_settings(&mut self) { self.collection.settings.base.open = true; }
-    pub fn open_status(&mut self) { self.collection.status.base.open = true; }
-    pub fn open_check(&mut self) { self.collection.check.base.open = true; }
-    pub fn open_project_comparer(&mut self) { self.collection.project_comparer.base.open = true; }
+    pub fn open_log_window(&mut self, ctx: &egui::Context) { self.collection.log_window.open(ctx); }
+    pub fn open_properties(&mut self, ctx: &egui::Context) { self.collection.properties.open(ctx); }
+    pub fn open_settings(&mut self, ctx: &egui::Context) { self.collection.settings.open(ctx); }
+    pub fn open_status(&mut self, ctx: &egui::Context) { self.collection.status.open(ctx); }
+    pub fn open_check(&mut self, ctx: &egui::Context) { self.collection.check.open(ctx); }
+    pub fn open_project_comparer(&mut self, ctx: &egui::Context) { self.collection.project_comparer.open(ctx); }
 
     pub fn run_check(&mut self, store: &DataAssetStore) {
         self.collection.check.run_check(store);

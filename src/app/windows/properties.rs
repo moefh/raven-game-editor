@@ -14,18 +14,25 @@ pub struct PropertiesWindow {
 }
 
 impl PropertiesWindow {
-    pub fn new(base: AppWindowBase) -> Self {
-        PropertiesWindow {
-            base,
-        }
-    }
-
     const VGA_SYNC_BITS_OPTIONS: &[&str] = &[
         "0x00 (00)",
         "0x40 (01)",
         "0x80 (10)",
         "0xc0 (11)",
     ];
+
+    pub fn new(base: AppWindowBase) -> Self {
+        PropertiesWindow {
+            base,
+        }
+    }
+
+    pub fn open(&mut self, ctx: &egui::Context) {
+        self.base.open = true;
+        if self.base.open {
+            self.base.bring_to_top(ctx);
+        }
+    }
 
     fn show_properties_grid(ui: &mut egui::Ui, wc: &mut WindowContext, store: &mut DataAssetStore) {
         egui::Grid::new("project_properties_grid")

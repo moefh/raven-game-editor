@@ -213,12 +213,12 @@ impl RavenEditorApp {
         if self.windows.collection.check.base.open {
             Self::activate_window(ctx, self.windows.collection.check.base.id);
         } else {
-            self.windows.open_check();
+            self.windows.open_check(ctx);
         }
         self.windows.run_check(&self.store);
     }
 
-    pub fn export_header(&mut self, file: SysDialogOpenFile) -> bool {
+    pub fn export_header(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
         match crate::data_asset::write_header_def(&self.store.project_prefix).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 self.logger.log(format!("Exported header to {}", file.filename()));
@@ -230,13 +230,13 @@ impl RavenEditorApp {
                     "Error Exportint Header",
                     "Error exporting header.\n\nConsult the log window for details."
                 );
-                self.windows.open_log_window();
+                self.windows.open_log_window(ctx);
                 false
             }
         }
     }
 
-    pub fn open(&mut self, file: SysDialogOpenFile) {
+    pub fn open(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) {
         if let Some(path) = file.path() && let Some(dir) = path.parent() {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
@@ -256,7 +256,7 @@ impl RavenEditorApp {
                     "Error Reading Project",
                     &format!("Error reading project: {}.\n\nConsult the log window for details.", e)
                 );
-                self.windows.open_log_window();
+                self.windows.open_log_window(ctx);
             }
         }
     }
@@ -310,7 +310,7 @@ impl RavenEditorApp {
         }
     }
 
-    fn write_project(&mut self, file: SysDialogOpenFile) -> bool {
+    fn write_project(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
         self.logger.log("WRITING PROJECT");
         self.prepare_for_saving();
         match self.store.serialize_project(&mut self.logger).and_then(|content| file.write_string(content)) {
@@ -329,7 +329,7 @@ impl RavenEditorApp {
                     "Error Writing Project",
                     "Error writing project.\n\nConsult the log window for details."
                 );
-                self.windows.open_log_window();
+                self.windows.open_log_window(ctx);
                 false
             }
         }
@@ -349,9 +349,9 @@ impl RavenEditorApp {
         );
     }
 
-    pub fn save(&mut self, window: &eframe::Frame) {
+    pub fn save(&mut self, ctx: &egui::Context, window: &eframe::Frame) {
         if let Some(path) = &self.project_path && let Some(file) = SysDialogOpenFile::create(path) {
-            self.write_project(file);
+            self.write_project(ctx, file);
         } else {
             self.save_as(window);
         }
@@ -652,7 +652,7 @@ impl RavenEditorApp {
 
             let file_save_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::S);
             if ui.input_mut(|i| i.consume_shortcut(&file_save_shortcut)) {
-                self.save(window);
+                self.save(ui.ctx(), window);
             }
             let file_quit_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Q);
             if ui.input_mut(|i| i.consume_shortcut(&file_quit_shortcut)) {
@@ -702,11 +702,11 @@ impl RavenEditorApp {
                             if let Some(index) = selected_project &&
                             let Some(path) = self.recent_projects.file(index) &&
                             let Some(file) = SysDialogOpenFile::create(path) {
-                                self.open(file);
+                                self.open(ui.ctx(), file);
                             }
                         });
                         if ui.add(menu_item(IMAGES.save, " Save")).clicked() {
-                            self.save(window);
+                            self.save(ui.ctx(), window);
                         }
                         if ui.add(menu_item_no_image(" Save As...")).clicked() {
                             self.save_as(window);
@@ -714,7 +714,7 @@ impl RavenEditorApp {
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.properties, " Settings")).clicked() {
-                        self.windows.open_settings();
+                        self.windows.open_settings(ui.ctx());
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.chicken, " Quit")).clicked() {
@@ -736,7 +736,7 @@ impl RavenEditorApp {
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.properties, " Properties")).clicked() {
-                        self.windows.open_properties();
+                        self.windows.open_properties(ui.ctx());
                     }
                 });
                 ui.menu_button("Tools", |ui| {
@@ -757,7 +757,7 @@ impl RavenEditorApp {
                     ui.separator();
 
                     if ui.add(menu_item(IMAGES.compare, " Compare Project")).clicked() {
-                        self.windows.open_project_comparer();
+                        self.windows.open_project_comparer(ui.ctx());
                     }
                     if ui.add(menu_item(IMAGES.ok, " Check Project")).clicked() {
                         self.run_project_check(ui.ctx());
@@ -765,7 +765,7 @@ impl RavenEditorApp {
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.add(menu_item(IMAGES.info, " Status")).clicked() {
-                        self.windows.open_status();
+                        self.windows.open_status(ui.ctx());
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.pico, " About")).clicked() {
@@ -805,7 +805,7 @@ impl RavenEditorApp {
                 }
                 let save_label = if self.is_wasm { "Save Project" } else { "Save Project (Ctrl+S)" };
                 if ui.add(egui::Button::image(IMAGES.save).frame_when_inactive(false)).on_hover_text(save_label).clicked() {
-                    self.save(window);
+                    self.save(ui.ctx(), window);
                 }
 
                 ui.add_space(5.0);
@@ -817,7 +817,7 @@ impl RavenEditorApp {
                         .selected(self.windows.collection.log_window.base.open)
                         .frame_when_inactive(self.windows.collection.log_window.base.open)
                 ).on_hover_text("Log Window").clicked() {
-                    self.windows.collection.log_window.toggle_open();
+                    self.windows.collection.log_window.toggle_open(ui.ctx());
                 }
 
                 ui.add_space(5.0);
@@ -1103,20 +1103,20 @@ impl eframe::App for RavenEditorApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, window: &mut eframe::Frame) {
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::SAVE_PROJECT_SYS_DLG_ID) {
-            self.write_project(file);
+            self.write_project(ui.ctx(), file);
         }
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::OPEN_PROJECT_SYS_DLG_ID) {
-            self.open(file);
+            self.open(ui.ctx(), file);
         }
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
-            self.export_header(file);
+            self.export_header(ui.ctx(), file);
         }
         if self.asset_exporter.check_dialog_response(&mut self.sys_dialogs, &self.store, &mut self.logger) {
             self.open_message_box(
                 "Error Exportint Asset",
                 "Error exporting asset.\n\nConsult the log window for details."
             );
-            self.windows.open_log_window();
+            self.windows.open_log_window(ui.ctx());
         }
 
         if self.is_wasm {

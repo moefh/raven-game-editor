@@ -17,8 +17,19 @@ impl LogWindow {
         }
     }
 
-    pub fn toggle_open(&mut self) {
-        self.base.open = ! self.base.open;
+    pub fn open(&mut self, ctx: &egui::Context) {
+        self.base.open = true;
+        if self.base.open {
+            self.base.bring_to_top(ctx);
+        }
+    }
+
+    pub fn toggle_open(&mut self, ctx: &egui::Context) {
+        if ! self.base.open {
+            self.open(ctx);
+        } else {
+            self.base.open = false;
+        }
     }
 
     pub fn show(&mut self, wc: &mut WindowContext) -> AppWindowAction {

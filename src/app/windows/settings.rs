@@ -18,6 +18,13 @@ impl SettingsWindow {
         }
     }
 
+    pub fn open(&mut self, ctx: &egui::Context) {
+        self.base.open = true;
+        if self.base.open {
+            self.base.bring_to_top(ctx);
+        }
+    }
+
     fn color_setting(ui: &mut egui::Ui, label: &'static str, colors: &mut [&mut egui::Color32]) {
         ui.label(label);
         ui.horizontal(|ui| {
