@@ -768,6 +768,7 @@ impl RoomEditorWidget {
         let draw_layer_info = DrawMapLayerInfo {
             zoom: self.zoom,
             pos: to_canvas.to().min,
+            screen_rect: canvas_rect,
             animation_step: if self.display.has_bits(RoomDisplay::ANIMATE_TILES) {
                 Some(animation_step)
             } else {

@@ -291,6 +291,7 @@ impl GameRunnerWidget {
         let draw_map_info = DrawMapLayerInfo {
             zoom,
             pos: screen_pos - zoom * Vec2::new(self.state.room_x as f32, self.state.room_y as f32),
+            screen_rect,
             animation_step: Some(self.map_animation_step),
             collision_disabled: self.state.room_collision_disabled,
         };

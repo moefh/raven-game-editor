@@ -528,6 +528,7 @@ pub fn get_map_animation_tile(map_data: &MapData, x: u32, y: u32, collision_disa
 pub struct DrawMapLayerInfo {
     pub zoom: f32,
     pub pos: egui::Pos2,
+    pub screen_rect: egui::Rect,
     pub animation_step: Option<u32>,
     pub collision_disabled: bool,
 }
@@ -595,14 +596,16 @@ pub fn draw_para_layer(
             } else {
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
             };
-            let tile_rect = egui::Rect::from_min_size(
+            let tile_rect = egui::Rect::from_min_max(
                 draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new(x as f32, y as f32),
-                egui::Vec2::splat(draw.zoom * TILE_SIZE)
+                draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
             );
-            let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
-            match layer_tint {
-                Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
-                None => { image.paint_at(ui, tile_rect) }
+            if tile_rect.intersects(draw.screen_rect) {
+                let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
+                match layer_tint {
+                    Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
+                    None => { image.paint_at(ui, tile_rect) }
+                }
             }
         }
     }
@@ -668,14 +671,16 @@ pub fn draw_bg_layer(
                 };
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
             };
-            let tile_rect = egui::Rect::from_min_size(
+            let tile_rect = egui::Rect::from_min_max(
                 draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new(x as f32, y as f32),
-                egui::Vec2::splat(draw.zoom * TILE_SIZE)
+                draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
             );
-            let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
-            match layer_tint {
-                Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
-                None => { image.paint_at(ui, tile_rect) }
+            if tile_rect.intersects(draw.screen_rect) {
+                let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
+                match layer_tint {
+                    Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
+                    None => { image.paint_at(ui, tile_rect) }
+                }
             }
         }
     }
@@ -736,14 +741,16 @@ pub fn draw_fg_layer(
             } else {
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             };
-            let tile_rect = egui::Rect::from_min_size(
+            let tile_rect = egui::Rect::from_min_max(
                 draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new(x as f32, y as f32),
-                egui::Vec2::splat(draw.zoom * TILE_SIZE)
+                draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
             );
-            let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
-            match layer_tint {
-                Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
-                None => { image.paint_at(ui, tile_rect) }
+            if tile_rect.intersects(draw.screen_rect) {
+                let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
+                match layer_tint {
+                    Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
+                    None => { image.paint_at(ui, tile_rect) }
+                }
             }
         }
     }

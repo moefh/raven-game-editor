@@ -916,6 +916,7 @@ impl MapEditorWidget {
         let draw_layer_info = DrawMapLayerInfo {
             zoom: self.zoom,
             pos: canvas_rect.min + self.scroll,
+            screen_rect: map_area_rect,
             animation_step: if self.display.has_bits(MapDisplay::ANIMATE_TILES) {
                 Some(animation_step)
             } else {
