@@ -300,24 +300,16 @@ impl GamepadManager {
                 if ! gp.connected() { continue; }
 
                 *active_gamepad_index = Some(index);
-                gamepad.cur = match gp.mapping() {
-                    web_sys::GamepadMappingType::Standard => {
-                        GamepadManager::read_standard_gamepad(&gp)?
-                    }
-                    _ => {
-                        // non-standard mapping: read id and use the corresponding mapping, if any
-                        let gp_id = gp.id();
-                        if gp_id != gamepad.id {
-                            gamepad.id.replace_range(.., &gp_id);
-                            gamepad.old = 0;
-                            console_log(format!("DETECTED GAMEPAD: {}", &gamepad.id));
-                        }
-                        if let Some(mapping) = mappings.get(&gp_id) {
-                            GamepadManager::read_mapped_gamepad(&gp, mapping)?
-                        } else {
-                            GamepadManager::read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
-                        }
-                    }
+                let gp_id = gp.id();
+                if gp_id != gamepad.id {
+                    gamepad.id.replace_range(.., &gp_id);
+                    gamepad.old = 0;
+                    console_log(format!("DETECTED GAMEPAD: {}", &gamepad.id));
+                }
+                gamepad.cur = if let Some(mapping) = mappings.get(&gp_id) {
+                    GamepadManager::read_mapped_gamepad(&gp, mapping)?
+                } else {
+                    GamepadManager::read_standard_gamepad(&gp)?  // no mapping defined: try with standard anyway
                 };
             }
             Ok(())
