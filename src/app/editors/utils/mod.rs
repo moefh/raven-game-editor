@@ -6,6 +6,7 @@ mod tileset_utils;
 mod asset_id_holder;
 mod pal_sprite_utils;
 mod image_zoom_option;
+mod data_table_utils;
 pub mod world_grid;
 
 pub use map_utils::{*};
@@ -15,6 +16,7 @@ pub use sprite_utils::{*};
 pub use tileset_utils::{*};
 pub use asset_id_holder::{*};
 pub use pal_sprite_utils::{*};
+pub use data_table_utils::{*};
 pub use image_zoom_option::{*};
 
 use crate::platform::current_time_as_millis;

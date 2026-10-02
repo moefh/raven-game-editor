@@ -267,6 +267,56 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === TABLES
+    // =========================================================================
+
+    fn write_item_table(&self, table_name_upper: &str, table_name_lower: &str, table: &super::DataStoreItemTable) -> Result<()> {
+        // names
+        self.write(format!("enum {}_TABLE_{}S {{\n", self.ident.prefix_upper, table_name_upper));
+        for item in &table.items {
+            self.write(format!("  {}_TABLE_{}_{},\n", self.ident.prefix_upper, table_name_upper, IdentStore::upper_cleanup(&item.name)));
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        // sprites
+        self.write(format!("const struct {}_TABLE_ITEM raven_table_{}s[] = {{\n", self.ident.prefix_upper, table_name_lower));
+        for item in &table.items {
+            let sprite_index = self.ident.get_asset_index(DataAssetType::Sprite, item.sprite_id)?;
+            self.write(format!("  {{ &{}_sprites[{}] }},\n", self.ident.prefix_lower, sprite_index));
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    fn write_effect_table(&self, table_name: &str, table: &super::DataStoreEffectTable) -> Result<()> {
+        self.write(format!("enum {}_TABLE_{}S {{\n", self.ident.prefix_upper, table_name));
+        for name in &table.names {
+            self.write(format!("  {}_TABLE_{}_{},\n", self.ident.prefix_upper, table_name, IdentStore::upper_cleanup(name)));
+        }
+        self.write("};\n");
+        self.write("\n");
+
+        Ok(())
+    }
+
+    fn write_tables(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === TABLES\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        self.write_item_table("UPGRADE", "upgrade", &self.store.tables.upgrade)?;
+        self.write_item_table("COLLECTABLE", "collectable", &self.store.tables.collectable)?;
+        self.write_item_table("PICKUP", "pickup", &self.store.tables.pickup)?;
+        self.write_effect_table("EFFECT", &self.store.tables.effect)?;
+
+        Ok(())
+    }
+
+    // =========================================================================
     // === PROJECT
     // =========================================================================
 
@@ -302,6 +352,8 @@ impl<'a> ProjectDataWriter<'a> {
         tile_animation::write_tile_animations(&self, &self.store.asset_ids.tile_anims.store)?;
         room::write_rooms(&self, &self.store.asset_ids.rooms.store)?;
         world::write_worlds(&self, &self.store.asset_ids.worlds.store)?;
+
+        self.write_tables()?;
 
         room::write_scripts(&self, &self.store.asset_ids.rooms.store)?;
 

@@ -61,7 +61,7 @@ impl CheckResult {
 
         let merged_samples = mod_data::check_merged_samples(store);
         let merged_samples_saved_size = merged_samples.iter().fold(0, |sum, m| sum + m.saved_size);
-        let data_size = store.assets.data_size() - merged_samples_saved_size;
+        let data_size = store.data_size() - merged_samples_saved_size;
 
         CheckResult {
             timestamp,

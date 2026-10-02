@@ -7,6 +7,9 @@ use crate::misc::IMAGES;
 use crate::data_asset::{
     self,
     DataAssetId,
+    DataStoreTables,
+    DataStoreItemTable,
+    DataStoreEffectTable,
     AssetIdCollection,
     GenericAsset,
     AssetList,
@@ -42,12 +45,28 @@ use map_selection::MapSelectionDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
+enum TriggerTreeAction {
+    None,
+    Add,
+    Select(usize),
+    Remove(usize),
+    MoveUp(usize),
+    MoveDown(usize),
+}
+
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {
-        RoomTriggerType::Trap {..} => { IMAGES.log }
+        RoomTriggerType::Trap {..} => { IMAGES.info }
         RoomTriggerType::Door {..} => { IMAGES.room }
-        RoomTriggerType::PlayerSpawn {..} => { IMAGES.log }
+        RoomTriggerType::PlayerSpawn {..} => { IMAGES.info }
         RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
+        RoomTriggerType::WallButton {..} => { IMAGES.log }
+        RoomTriggerType::FloorButton {..} => { IMAGES.log }
+        RoomTriggerType::UnblockEffect {..} => { IMAGES.room_effect }
+        RoomTriggerType::DisableAnimationEffect {..} => { IMAGES.room_effect }
+        RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
+        RoomTriggerType::GetCollectable {..} => { IMAGES.room_item }
+        RoomTriggerType::GetPickup {..} => { IMAGES.room_item }
        _ => { IMAGES.info }
     }
 }
@@ -59,6 +78,7 @@ pub struct RoomEditorAssetLists<'a> {
     pub animations: &'a AssetList<SpriteAnimation>,
     pub sprites: &'a AssetList<Sprite>,
     pub room_names: &'a HashMap<DataAssetId, String>,
+    pub tables: &'a DataStoreTables,
 }
 
 impl<'a> RoomEditorAssetLists<'a> {
@@ -68,7 +88,8 @@ impl<'a> RoomEditorAssetLists<'a> {
         tile_anims: &'a AssetList<TileAnimation>,
         animations: &'a AssetList<SpriteAnimation>,
         sprites: &'a AssetList<Sprite>,
-        room_names: &'a HashMap<DataAssetId, String>
+        room_names: &'a HashMap<DataAssetId, String>,
+        tables: &'a DataStoreTables,
     ) -> Self {
         RoomEditorAssetLists {
             maps,
@@ -77,6 +98,7 @@ impl<'a> RoomEditorAssetLists<'a> {
             animations,
             sprites,
             room_names,
+            tables,
         }
     }
 }
@@ -331,8 +353,8 @@ impl Editor {
         (choose_maps, sel_map)
     }
 
-    fn show_trigger_tree(&mut self, ui: &mut egui::Ui, room: &Room) -> (bool, Option<usize>, Option<usize>) {
-        let (mut add_trigger, mut sel_trigger, mut rm_trigger) = (false, None, None);
+    fn show_trigger_tree(&mut self, ui: &mut egui::Ui, room: &Room) -> TriggerTreeAction {
+        let mut action = TriggerTreeAction::None;
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_tree", room.asset.id));
         let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
         let mut toggle_node_open = false;
@@ -340,7 +362,7 @@ impl Editor {
             let resp = ui.add(egui::Label::new("Triggers").selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
                 if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
-                    add_trigger = true;
+                    action = TriggerTreeAction::Add;
                 }
             });
             toggle_node_open = resp.clicked();
@@ -357,15 +379,20 @@ impl Editor {
                 let resp = ui.add(button);
                 if resp.clicked() {
                     selected = ! selected;
-                    sel_trigger = Some(trg_index);
+                    action = TriggerTreeAction::Select(trg_index);
                 }
                 egui::Popup::context_menu(&resp).show(|ui| {
-                    if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
-                        add_trigger = true;
+                    let can_move_up = trg_index > 0;
+                    let can_move_down = trg_index+1 < room.triggers.len();
+                    if ui.add_enabled(can_move_up, menu_item(IMAGES.arrow_up, " Move Up")).clicked() {
+                        action = TriggerTreeAction::MoveUp(trg_index);
+                    }
+                    if ui.add_enabled(can_move_down, menu_item(IMAGES.arrow_down, " Move Down")).clicked() {
+                        action = TriggerTreeAction::MoveDown(trg_index);
                     }
                     ui.separator();
                     if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
-                        rm_trigger = Some(trg_index);
+                        action = TriggerTreeAction::Remove(trg_index);
                     }
                 });
                 if selected && self.room_editor.has_selected_item_changed() {
@@ -374,7 +401,7 @@ impl Editor {
                 }
             }
         });
-        (add_trigger, sel_trigger, rm_trigger)
+        action
     }
 
     fn show_map_properties(
@@ -420,6 +447,72 @@ impl Editor {
         None
     }
 
+    fn show_item_id_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        item_id: &mut u16,
+        item_table: &DataStoreItemTable,
+    ) {
+        let mut show_other = false;
+        let item_name = item_table.items.get(*item_id as usize).map(|item| item.name.as_str()).unwrap_or_else(|| {
+            if *item_id == u16::MAX {
+                "(none)"
+            } else {
+                show_other = true;
+                "other..."
+            }
+        });
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(item_name)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(item_id, u16::MAX, "(none)");
+                for (index, item) in item_table.items.iter().enumerate() {
+                    ui.selectable_value(item_id, index as u16, &item.name);
+                }
+                ui.selectable_value(item_id, item_table.items.len() as u16, "other...");
+            });
+
+        if show_other || (*item_id != u16::MAX && *item_id as usize >= item_table.items.len()) {
+            ui.end_row();
+            ui.label("   other:");
+            ui.add(egui::DragValue::new(item_id).speed(1.0).range(0..=u16::MAX));
+        }
+    }
+
+    fn show_effect_id_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        effect_id: &mut u16,
+        effect_table: &DataStoreEffectTable,
+    ) {
+        let mut show_other = false;
+        let effect_name = effect_table.names.get(*effect_id as usize).map(|name| name.as_str()).unwrap_or_else(|| {
+            if *effect_id == u16::MAX {
+                "(none)"
+            } else {
+                show_other = true;
+                "other..."
+            }
+        });
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(effect_name)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(effect_id, u16::MAX, "(none)");
+                for (index, name) in effect_table.names.iter().enumerate() {
+                    ui.selectable_value(effect_id, index as u16, name);
+                }
+                ui.selectable_value(effect_id, effect_table.names.len() as u16, "other...");
+            });
+
+        if show_other || (*effect_id != u16::MAX && *effect_id as usize >= effect_table.names.len()) {
+            ui.end_row();
+            ui.label("   other:");
+            ui.add(egui::DragValue::new(effect_id).speed(1.0).range(0..=u16::MAX));
+        }
+    }
+
     fn show_trigger_properties_grid(
         &self,
         ui: &mut egui::Ui,
@@ -440,11 +533,22 @@ impl Editor {
         egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_type", self.asset_id))
             .selected_text(type_sel.text())
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Unknown, RoomTriggerTypeSel::Unknown.text());
-                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::EnemySpawn, RoomTriggerTypeSel::EnemySpawn.text());
-                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Door, RoomTriggerTypeSel::Door.text());
-                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::Trap, RoomTriggerTypeSel::Trap.text());
-                ui.selectable_value(&mut type_sel, RoomTriggerTypeSel::PlayerSpawn, RoomTriggerTypeSel::PlayerSpawn.text());
+                for sel in [
+                    RoomTriggerTypeSel::Unknown,
+                    RoomTriggerTypeSel::Door,
+                    RoomTriggerTypeSel::Trap,
+                    RoomTriggerTypeSel::PlayerSpawn,
+                    RoomTriggerTypeSel::EnemySpawn,
+                    RoomTriggerTypeSel::WallButton,
+                    RoomTriggerTypeSel::FloorButton,
+                    RoomTriggerTypeSel::UnblockEffect,
+                    RoomTriggerTypeSel::DisableAnimationEffect,
+                    RoomTriggerTypeSel::GetUpgrade,
+                    RoomTriggerTypeSel::GetCollectable,
+                    RoomTriggerTypeSel::GetPickup,
+                ] {
+                    ui.selectable_value(&mut type_sel, sel, sel.text());
+                }
             });
         type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
         ui.end_row();
@@ -566,6 +670,84 @@ impl Editor {
                 ui.add(egui::DragValue::new(dest_trigger_id).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
+
+            RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id } => {
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Required:");
+                self.show_item_id_editor(ui, "wall_button_required_collectible_id", required_collectable_id, &assets.tables.collectable);
+                ui.end_row();
+
+                ui.label("Effect:");
+                self.show_effect_id_editor(ui, "wall_button_effect_id", effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::FloorButton { width, height, effect_id } => {
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Effect:");
+                self.show_effect_id_editor(ui, "floor_button_effect_id", effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::UnblockEffect { width, height, effect_id } => {
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Effect:");
+                self.show_effect_id_editor(ui, "unblock_effect_id", effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::DisableAnimationEffect { width, height, effect_id } => {
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Effect:");
+                self.show_effect_id_editor(ui, "disable_animation_effect_id", effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::GetUpgrade { upgrade_id } => {
+                ui.label("Upgrade:");
+                self.show_item_id_editor(ui, "get_upgrade_id", upgrade_id, &assets.tables.upgrade);
+                ui.end_row();
+            }
+
+            RoomTriggerType::GetCollectable { collectable_id } => {
+                ui.label("Collectable:");
+                self.show_item_id_editor(ui, "get_collectable_id", collectable_id, &assets.tables.collectable);
+                ui.end_row();
+            }
+
+            RoomTriggerType::GetPickup { pickup_id } => {
+                ui.label("Pickup:");
+                self.show_item_id_editor(ui, "get_pickup_id", pickup_id, &assets.tables.collectable);
+                ui.end_row();
+            }
         }
     }
 
@@ -581,7 +763,7 @@ impl Editor {
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", self.asset_id));
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true)
             .show_header(ui, |ui| {
-                ui.add(egui::Button::image_and_text(get_trigger_image(trigger), "Trigger").frame(false));
+                ui.add(egui::Button::image_and_text(get_trigger_image(trigger), &trigger.name_id).frame(false));
             }).body(|ui| {
                 egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
                     .num_columns(2)
@@ -833,20 +1015,37 @@ impl Editor {
             ui.allocate_ui(egui::Vec2::new(300.0, want_height), |ui| {
                 egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                     let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
-                    let (add_trigger, sel_trigger, rm_trigger) = self.show_trigger_tree(ui, room);
+                    let trigger_action = self.show_trigger_tree(ui, room);
                     self.room_editor.clear_selected_item_changed();
 
                     if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
-                    if add_trigger { self.add_trigger(room); }
                     if let Some(map_index) = sel_map {
                         self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
                         self.clear_sorted_ids();
                     }
-                    if let Some(trg_index) = sel_trigger {
-                        self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
-                        self.clear_sorted_ids();
+                    match trigger_action {
+                        TriggerTreeAction::Add => { self.add_trigger(room); }
+                        TriggerTreeAction::Select(trg_index) => {
+                            self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
+                            self.clear_sorted_ids();
+                        }
+                        TriggerTreeAction::Remove(trg_index) => {
+                            self.remove_trigger(room, trg_index);
+                        }
+                        TriggerTreeAction::MoveUp(trg_index) => {
+                            if trg_index > 0 {
+                                room.triggers.swap(trg_index-1, trg_index);
+                                self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index-1), true);
+                            }
+                        }
+                        TriggerTreeAction::MoveDown(trg_index) => {
+                            if trg_index+1 < room.triggers.len() {
+                                room.triggers.swap(trg_index, trg_index+1);
+                                self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index+1), true);
+                            }
+                        }
+                        TriggerTreeAction::None => {}
                     }
-                    if let Some(trg_index) = rm_trigger { self.remove_trigger(room, trg_index); }
                 });
             });
             ui.separator();

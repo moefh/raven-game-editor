@@ -366,7 +366,7 @@ impl AssetCollection {
         None
     }
 
-    pub fn asset_has_dependents(&self, id: DataAssetId) -> bool {
+    fn asset_has_dependents(&self, id: DataAssetId) -> bool {
         for map in self.maps.iter() {
             if map.tileset_id == id {
                 return true;
@@ -377,8 +377,8 @@ impl AssetCollection {
                 return true;
             }
         }
-        for anim in self.tile_anims.iter() {
-            if anim.parent_tileset_id == id || anim.anim_tileset_id == id {
+        for tanim in self.tile_anims.iter() {
+            if tanim.parent_tileset_id == id || tanim.anim_tileset_id == id {
                 return true;
             }
         }
@@ -390,7 +390,14 @@ impl AssetCollection {
                 match t.trigger_type {
                     RoomTriggerType::Trap {..} |
                     RoomTriggerType::Unknown {..} |
-                    RoomTriggerType::PlayerSpawn {..} => { false }
+                    RoomTriggerType::PlayerSpawn {..} |
+                    RoomTriggerType::GetUpgrade {..} |
+                    RoomTriggerType::GetCollectable {..} |
+                    RoomTriggerType::GetPickup {..} |
+                    RoomTriggerType::WallButton {..} |
+                    RoomTriggerType::FloorButton {..} |
+                    RoomTriggerType::UnblockEffect {..} |
+                    RoomTriggerType::DisableAnimationEffect {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
                     RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }
@@ -409,7 +416,7 @@ impl AssetCollection {
         false
     }
 
-    pub fn data_size(&self) -> usize {
+    fn data_size(&self) -> usize {
         let sum = self.tilesets.iter().fold(0, |sum, a| sum + a.data_size());
         let sum = self.maps.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.rooms.iter().fold(sum, |sum, a| sum + a.data_size());
@@ -494,6 +501,47 @@ impl DataAssetIdGenerator {
     }
 }
 
+pub struct DataStoreEffectTable {
+    pub names: Vec<String>,
+}
+
+impl DataStoreEffectTable {
+    pub fn new() -> Self {
+        DataStoreEffectTable {
+            names: Vec::new(),
+        }
+    }
+}
+
+pub struct DataStoreItem {
+    pub name: String,
+    pub sprite_id: DataAssetId,
+}
+
+pub struct DataStoreItemTable {
+    pub items: Vec<DataStoreItem>,
+}
+
+impl DataStoreItemTable {
+    pub fn new() -> Self {
+        DataStoreItemTable {
+            items: Vec::new(),
+        }
+    }
+
+    pub fn data_size(&self) -> usize {
+        // ptr<4> * num_items
+        4 * self.items.len()
+    }
+}
+
+pub struct DataStoreTables {
+    pub upgrade: DataStoreItemTable,
+    pub collectable: DataStoreItemTable,
+    pub pickup: DataStoreItemTable,
+    pub effect: DataStoreEffectTable,
+}
+
 pub struct DataAssetStore {
     id_generator: DataAssetIdGenerator,
     pub vga_bits_per_pixel: u8,
@@ -502,6 +550,7 @@ pub struct DataAssetStore {
     pub project_prefix: String,
     pub assets: AssetCollection,
     pub asset_ids: AssetIdCollection,
+    pub tables: DataStoreTables,
 }
 
 impl DataAssetStore {
@@ -517,6 +566,12 @@ impl DataAssetStore {
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),
             asset_ids: AssetIdCollection::new(),
+            tables: DataStoreTables {
+                upgrade: DataStoreItemTable::new(),
+                collectable: DataStoreItemTable::new(),
+                pickup: DataStoreItemTable::new(),
+                effect: DataStoreEffectTable::new(),
+            },
         }
     }
 
@@ -561,6 +616,23 @@ impl DataAssetStore {
             self.assets.mods.store.len() +
             self.assets.fonts.store.len() +
             self.assets.prop_fonts.store.len()
+    }
+
+    pub fn data_size(&self) -> usize {
+        let tables_data_size = self.tables.upgrade.data_size() + self.tables.collectable.data_size() + self.tables.pickup.data_size();
+        let assets_data_size = self.assets.data_size();
+        tables_data_size + assets_data_size
+    }
+
+    pub fn asset_has_dependents(&self, id: DataAssetId) -> bool {
+        for table in [&self.tables.upgrade, &self.tables.collectable, &self.tables.pickup] {
+            for item in &table.items {
+                if item.sprite_id == id {
+                    return true;
+                }
+            }
+        }
+        self.assets.asset_has_dependents(id)
     }
 
     pub fn remove_asset(&mut self, id: DataAssetId) -> Option<DataAsset> {

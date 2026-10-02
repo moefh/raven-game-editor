@@ -427,7 +427,7 @@ impl RavenEditorApp {
     fn request_remove_asset(&mut self, id: DataAssetId) {
         if let Some(editor) = self.editors.get_editor(id) && editor.open {
             self.open_message_box("Editor Open", "This asset is open for editing.\n\nClose the editor to delete it.");
-        } else if self.store.assets.asset_has_dependents(id) {
+        } else if self.store.asset_has_dependents(id) {
             self.open_message_box("Asset Has Dependents", "This asset is being used.");
         } else {
             self.open_confirmation_dialog_for(ConfirmationDialogAction::DeleteAsset(id));
@@ -735,6 +735,10 @@ impl RavenEditorApp {
                         }
                     }
                     ui.separator();
+                    if ui.add(menu_item(IMAGES.table, " Items and Effects")).clicked() {
+                        self.windows.open_data_tables(ui.ctx());
+                    }
+                    ui.separator();
                     if ui.add(menu_item(IMAGES.properties, " Properties")).clicked() {
                         self.windows.open_properties(ui.ctx());
                     }
@@ -846,7 +850,7 @@ impl RavenEditorApp {
 
             ui.horizontal(|ui| {
                 let dirty = if self.editors.is_dirty() { " (modified)" } else { "" };
-                ui.label(format!("{} bytes [{} assets]{}", self.store.assets.data_size(), self.store.num_assets(), dirty));
+                ui.label(format!("{} bytes [{} assets]{}", self.store.data_size(), self.store.num_assets(), dirty));
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {
                         if self.project_filename.is_empty() {
@@ -1014,7 +1018,9 @@ impl RavenEditorApp {
                     &self.store.assets.tile_anims,
                     &self.store.assets.animations,
                     &self.store.assets.sprites,
-                    &self.editors.room_names);
+                    &self.editors.room_names,
+                    &self.store.tables,
+                );
                 editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
             }
         }

@@ -11,8 +11,11 @@ use super::{
     fix_after_sprite_frames_removed,
     fix_after_pal_sprite_frames_added,
     fix_after_pal_sprite_frames_removed,
+    fix_after_data_table_item_removed,
+    fix_after_data_table_items_swapped,
     WindowContext,
     EditorStore,
+    DataTableType,
 };
 use super::super::{
     AppWindows,
@@ -34,6 +37,8 @@ pub enum EditorAction {
     SpriteFramesRemoved { sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
     PalSpriteFramesAdded { pal_sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
     PalSpriteFramesRemoved { pal_sprite_id: DataAssetId, hole_start: u32, hole_size: u32, num_frames_after_hole: u32 },
+    DataTableItemRemoved { table_type: DataTableType, index: usize },
+    DataTableItemsSwapped { table_type: DataTableType, index1: usize, index2: usize },
 }
 
 impl EditorAction {
@@ -184,6 +189,14 @@ impl EditorAction {
 
             EditorAction::PalSpriteFramesRemoved { pal_sprite_id, hole_start, hole_size, num_frames_after_hole } => {
                 fix_after_pal_sprite_frames_removed(wc, store, editors, pal_sprite_id, hole_start, hole_size, num_frames_after_hole);
+            }
+
+            EditorAction::DataTableItemRemoved { table_type, index } => {
+                fix_after_data_table_item_removed(wc, store, editors, table_type, index);
+            }
+
+            EditorAction::DataTableItemsSwapped { table_type, index1, index2 } => {
+                fix_after_data_table_items_swapped(wc, store, editors, table_type, index1, index2);
             }
         }
     }

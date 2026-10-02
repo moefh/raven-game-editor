@@ -166,9 +166,14 @@ impl TriggerRect {
 
     fn from_trigger(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Self {
         match trigger.trigger_type {
-            RoomTriggerType::Trap { width, height, .. } => {
+            RoomTriggerType::Trap { width, height, .. } |
+            RoomTriggerType::WallButton { width, height, .. } |
+            RoomTriggerType::FloorButton { width, height, .. } |
+            RoomTriggerType::UnblockEffect { width, height, .. } |
+            RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
                 TriggerRect::resizable(trigger.x, trigger.y, width, height)
             }
+
             RoomTriggerType::EnemySpawn { animation_id, .. } => {
                 assets.animations.get(&animation_id)
                     .map(|animation| {
@@ -181,9 +186,17 @@ impl TriggerRect {
                     })
                     .unwrap_or_else(|| TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
             }
+
             RoomTriggerType::Door {..} => {
                 TriggerRect::rigid(trigger.x, trigger.y, 16, 64)
             }
+
+            RoomTriggerType::GetUpgrade {..} |
+            RoomTriggerType::GetCollectable {..} |
+            RoomTriggerType::GetPickup {..} => {
+                TriggerRect::rigid(trigger.x, trigger.y, 16, 16)
+            }
+
             RoomTriggerType::PlayerSpawn {..} |
             RoomTriggerType::Unknown {..} => {
                 TriggerRect::rigid(trigger.x, trigger.y, 64, 64)
@@ -211,10 +224,17 @@ impl TriggerRect {
         trigger.x = self.x1.clamp(-256, i16::MAX as i32) as i16;
         trigger.y = self.y1.clamp(-256, i16::MAX as i32) as i16;
         match &mut trigger.trigger_type {
-            RoomTriggerType::Trap { width, height, .. } => {
+            RoomTriggerType::Trap { width, height, .. } |
+            RoomTriggerType::WallButton { width, height, .. } |
+            RoomTriggerType::FloorButton { width, height, .. } |
+            RoomTriggerType::UnblockEffect { width, height, .. } |
+            RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
                 *width = (self.x2 - self.x1).clamp(0, u16::MAX as i32) as u16;
                 *height = (self.y2 - self.y1).clamp(0, u16::MAX as i32) as u16;
             }
+            RoomTriggerType::GetUpgrade {..} |
+            RoomTriggerType::GetCollectable {..} |
+            RoomTriggerType::GetPickup {..} |
             RoomTriggerType::Door {..} |
             RoomTriggerType::EnemySpawn {..} |
             RoomTriggerType::PlayerSpawn {..} |

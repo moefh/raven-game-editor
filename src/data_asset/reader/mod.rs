@@ -35,6 +35,10 @@ use super::{
     DataAssetType,
     DataAssetStore,
     DataAssetIdGenerator,
+    DataStoreTables,
+    DataStoreItem,
+    DataStoreItemTable,
+    DataStoreEffectTable,
     AssetCollection,
     AssetIdCollection,
 };
@@ -47,6 +51,22 @@ pub fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
     Result::Err(err(msg, pos))
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ItemTableType {
+    Upgrades,
+    Collectables,
+    Pickups,
+}
+
+impl ItemTableType {
+    pub fn enum_name(self) -> &'static str {
+        match self {
+            ItemTableType::Upgrades => { "TABLE_UPGRADE" }
+            ItemTableType::Collectables => { "TABLE_COLLECTABLE" }
+            ItemTableType::Pickups => { "TABLE_PICKUP" }
+        }
+    }
+}
 
 // simple numeric arrays
 static ARRAY_DEFS: LazyLock<HashMap<String,ValueDef>> = LazyLock::new(|| {
@@ -110,6 +130,24 @@ static GLOBAL_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::
     struct_defs
 });
 
+// item types by name
+static ITEM_TYPES_BY_ARRAY_NAME: LazyLock<HashMap<String, ItemTableType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("table_upgrades"), ItemTableType::Upgrades),
+        (String::from("table_collectables"), ItemTableType::Collectables),
+        (String::from("table_pickups"), ItemTableType::Pickups),
+    ])
+});
+
+// item structs
+static TABLE_ITEM_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("TABLE_ITEM"), ValueDefStruct::new(vec![
+            (String::from("sprite"), ValueDef::AssetRef),
+        ])),
+    ])
+});
+
 // other custom global structs (e.g. ROOM_SCRIPT)
 const CUSTOM_GLOBAL_STRUCT_READERS: &[fn(&mut ProjectDataReader, &str) -> Result<bool>] = &[
     room::read_custom_global_struct,
@@ -143,6 +181,7 @@ pub struct ProjectData {
     room_names_with_scripts: HashSet<String>,
 
     enums: HashMap<String, Vec<String>>,
+    item_tables: HashMap<ItemTableType, Vec<ValueStruct>>,
     data_arrays: HashMap<String, Value>,
     struct_arrays: HashMap<String, ValueArray<ValueStruct>>,
     assets: HashMap<DataAssetType, Vec<ValueStruct>>,
@@ -165,6 +204,7 @@ impl ProjectData {
             struct_arrays: HashMap::new(),
             assets: HashMap::new(),
             enums: HashMap::new(),
+            item_tables: HashMap::new(),
             asset_ids: HashMap::new(),
         }
     }
@@ -253,6 +293,43 @@ impl ProjectData {
         }
         None
     }
+
+    pub fn get_enum_item_name(&self, index: usize, enum_name: &str) -> Option<String> {
+        let enum_tag_parts = &[ &self.prefix_upper, enum_name, "S" ];
+        let enum_item_prefix = &[ &self.prefix_upper, enum_name, "_" ];
+        let enum_item_prefix_len = enum_item_prefix.iter().fold(0, |len, p| len + p.len());
+        for (name, enum_items) in self.enums.iter() {
+            if Self::check_name_match(name, enum_tag_parts) {
+                return if let Some(item_name) = enum_items.get(index) &&
+                    item_name.len() > enum_item_prefix_len &&
+                    Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
+                        Some(String::from(&item_name[enum_item_prefix_len..]).to_lowercase())
+                    } else {
+                        None
+                    };
+            }
+        }
+        None
+    }
+
+    pub fn get_enum_item_names(&self, enum_name: &str) -> Vec<String> {
+        let enum_tag_parts = &[ &self.prefix_upper, enum_name, "S" ];
+        let enum_item_prefix = &[ &self.prefix_upper, enum_name, "_" ];
+        let enum_item_prefix_len = enum_item_prefix.iter().fold(0, |len, p| len + p.len());
+        for (name, enum_items) in self.enums.iter() {
+            let mut names = Vec::new();
+            if Self::check_name_match(name, enum_tag_parts) {
+                for item_name in enum_items {
+                    if item_name.len() > enum_item_prefix_len &&
+                        Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
+                            names.push(String::from(&item_name[enum_item_prefix_len..]).to_lowercase());
+                        }
+                }
+                return names;
+            }
+        }
+        Vec::new()
+    }
 }
 
 pub struct ProjectDataReader<'a> {
@@ -334,6 +411,15 @@ impl<'a> ProjectDataReader<'a> {
             .and_then(|unprefixed_name| ASSET_TYPES_BY_ARRAY_NAME.get(unprefixed_name).copied())
             .ok_or_else(|| {
                 err(format!("can't find asset type for '{}'", asset_array_name), pos)
+            })
+    }
+
+    fn get_item_type_for_array_name(&self, item_array_name: &str, pos: TokenPosition) -> Result<ItemTableType> {
+        item_array_name
+            .strip_prefix(&self.data.prefix_lower)
+            .and_then(|unprefixed_name| ITEM_TYPES_BY_ARRAY_NAME.get(unprefixed_name).copied())
+            .ok_or_else(|| {
+                err(format!("can't find item type for '{}'", item_array_name), pos)
             })
     }
 
@@ -620,13 +706,38 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
+    fn read_item_array(&mut self, struct_def: &ValueDefStruct) -> Result<()> {
+        let mut name_token = self.expect_any_ident("array name for")?;
+        if let Some(name) = name_token.drain_ident() {
+            self.expect_punct('[')?;
+            self.expect_punct(']')?;
+            self.expect_punct('=')?;
+            self.expect_punct('{')?;
+            let mut values = Vec::new();
+            while let Some(t) = self.read_loop()? {
+                self.unread(t)?;
+                values.push(self.read_struct(struct_def)?);
+            }
+            let table_type = self.get_item_type_for_array_name(&name, name_token.pos)?;
+            self.data.item_tables.insert(table_type, values);
+            self.expect_punct(';')?;
+            Ok(())
+        } else {
+            self.unexpected(&name_token)
+        }
+    }
+
     fn read_global_data(&mut self) -> Result<()> {
         self.expect_ident("struct")?;
         let mut struct_tag_token = self.expect_any_ident("struct tag")?;
         if let Some(struct_tag) = struct_tag_token.drain_ident() {
             if let Some(struct_def) = self.get_struct_def(&struct_tag, &ASSET_STRUCT_DEFS) {
-                // read struct arrays of known assets
+                // read struct array of known assets
                 self.read_asset_array(struct_def)?;
+                return Ok(());
+            } else if let Some(struct_def) = self.get_struct_def(&struct_tag, &TABLE_ITEM_STRUCT_DEFS) {
+                // read struct array of item table
+                self.read_item_array(struct_def)?;
                 return Ok(());
             } else if let Some(prefixless_tag) = struct_tag.strip_prefix(&self.data.prefix_upper) {
                 // read custom structs
@@ -712,8 +823,29 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     // =========================================================
-    // === CONVERT DATA TO ASSETS
+    // === CONVERT DATA TO ASSET STORE
     // =========================================================
+
+    fn create_item_table(&self, item_table_type: ItemTableType) -> Result<DataStoreItemTable> {
+        let mut items = Vec::new();
+        if let Some(values) = self.data.item_tables.get(&item_table_type) {
+            for (index, data) in values.iter().enumerate() {
+                let name = self.data.get_enum_item_name(index, item_table_type.enum_name()).unwrap_or_else(|| {
+                    format!("item_{}", index).to_string()
+                });
+                let sprite_ref = data.get_asset_ref("sprite")?;
+                let sprite_id = sprite_ref.get_asset_id(&self.data)?;
+                items.push(DataStoreItem { name, sprite_id });
+            }
+        }
+        Ok(DataStoreItemTable { items })
+    }
+
+    fn create_effect_table(&self, enum_name: &str) -> DataStoreEffectTable {
+        DataStoreEffectTable {
+            names: self.data.get_enum_item_names(enum_name),
+        }
+    }
 
     fn create_store(mut self) -> Result<DataAssetStore> {
         // generate asset ids
@@ -807,10 +939,20 @@ impl<'a> ProjectDataReader<'a> {
                 }
             }
         }
+
+        // create item tables
+        let tables = DataStoreTables {
+            upgrade: self.create_item_table(ItemTableType::Upgrades)?,
+            collectable: self.create_item_table(ItemTableType::Collectables)?,
+            pickup: self.create_item_table(ItemTableType::Pickups)?,
+            effect: self.create_effect_table("TABLE_EFFECT"),
+        };
+
         Ok(DataAssetStore {
             id_generator,
             assets,
             asset_ids,
+            tables,
             project_prefix: self.data.prefix,
             vga_bits_per_pixel: self.data.vga_bits_per_pixel,
             vga_sync_bits: self.data.vga_sync_bits,

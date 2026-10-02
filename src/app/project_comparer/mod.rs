@@ -97,8 +97,8 @@ impl BaseProjectDiff {
     }
 
     pub fn compare(&mut self, store: &DataAssetStore, other: &DataAssetStore) {
-        self.cur_data_size = store.assets.data_size();
-        self.other_data_size = other.assets.data_size();
+        self.cur_data_size = store.data_size();
+        self.other_data_size = other.data_size();
     }
 }
 

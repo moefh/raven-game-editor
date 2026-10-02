@@ -113,7 +113,12 @@ image_table! {
     header: "../../assets/HeaderIcon.png",
     compare: "../../assets/CompareIcon.png",
     reload: "../../assets/ReloadIcon.png",
+    table: "../../assets/TableIcon.png",
     blank: "../../assets/BlankIcon.png",
+
+    // triggers
+    room_item: "../../assets/RoomItemIcon.png",
+    room_effect: "../../assets/RoomEffectIcon.png",
 
     // window title
     close: "../../assets/Close.png",

@@ -79,6 +79,43 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("height"), ValueDef::U16),
             (String::from("trap_type"), ValueDef::U16),
         ])),
+
+        (String::from("wall_button"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("effect_id"), ValueDef::U16),
+            (String::from("req_collectable_id"), ValueDef::U16),
+        ])),
+
+        (String::from("floor_button"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("unblock_effect"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("disable_animation_effect"), ValueDefStruct::new(vec![
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("get_upgrade"), ValueDefStruct::new(vec![
+            (String::from("upgrade_id"), ValueDef::U16),
+        ])),
+
+        (String::from("get_collectable"), ValueDefStruct::new(vec![
+            (String::from("collectable_id"), ValueDef::U16),
+        ])),
+
+        (String::from("get_pickup"), ValueDefStruct::new(vec![
+            (String::from("pickup_id"), ValueDef::U16),
+        ])),
     ])
 });
 
@@ -184,6 +221,57 @@ fn conv_trigger_trap(data: &ValueStruct, _project_data: &ProjectData) -> Result<
     })
 }
 
+fn conv_trigger_wall_button(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::WallButton {
+        width: data.get_u16("width")?,
+        height: data.get_u16("height")?,
+        effect_id: data.get_u16("effect_id")?,
+        required_collectable_id: data.get_u16("req_collectable_id")?,
+    })
+}
+
+fn conv_trigger_floor_button(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::FloorButton {
+        width: data.get_u16("width")?,
+        height: data.get_u16("height")?,
+        effect_id: data.get_u16("effect_id")?,
+    })
+}
+
+fn conv_trigger_unblock_effect(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::UnblockEffect {
+        width: data.get_u16("width")?,
+        height: data.get_u16("height")?,
+        effect_id: data.get_u16("effect_id")?,
+    })
+}
+
+fn conv_trigger_disable_animation_effect(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::DisableAnimationEffect {
+        width: data.get_u16("width")?,
+        height: data.get_u16("height")?,
+        effect_id: data.get_u16("effect_id")?,
+    })
+}
+
+fn conv_trigger_get_upgrade(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::GetUpgrade {
+        upgrade_id: data.get_u16("upgrade_id")?,
+    })
+}
+
+fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::GetCollectable {
+        collectable_id: data.get_u16("collectable_id")?,
+    })
+}
+
+fn conv_trigger_get_pickup(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::GetPickup {
+        pickup_id: data.get_u16("pickup_id")?,
+    })
+}
+
 fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData) -> Result<RoomTrigger> {
     let trigger_type = trigger.get_identifier("type")?;
     let trigger_id = trigger.get_u16("trigger_id")?;
@@ -202,8 +290,22 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_enemy_spawn(type_data, project_data)?
     } else if RoomTriggerTypeIdent::Trap.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_trap(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::WallButton.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_wall_button(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::FloorButton.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_floor_button(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::UnblockEffect.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_unblock_effect(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::DisableAnimationEffect.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_disable_animation_effect(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::GetUpgrade.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_get_upgrade(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::GetCollectable.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_get_collectable(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::GetPickup.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_get_pickup(type_data, project_data)?
     } else {
-        error(format!("unknown trigger type: {}", trigger_type.name), trigger_type.pos)?
+        error(format!("unknown trigger type ident: {}", trigger_type.name), trigger_type.pos)?
     };
 
     Ok(RoomTrigger {

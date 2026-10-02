@@ -4,6 +4,7 @@ mod log_window;
 mod properties;
 mod check;
 mod project_comparer;
+mod data_tables;
 mod game_runner;
 
 use crate::misc::IMAGES;
@@ -20,6 +21,7 @@ pub use log_window::LogWindow;
 pub use properties::PropertiesWindow;
 pub use check::CheckWindow;
 pub use project_comparer::ProjectComparerWindow;
+pub use data_tables::DataTablesWindow;
 pub use game_runner::GameRunnerWindow;
 
 pub enum AppWindowResize {
@@ -140,6 +142,50 @@ impl AppWindowBase {
         self.open = open;
         action
     }
+
+    pub fn show_dialog_window<T>(
+        wc: &mut WindowContext,
+        id: egui::Id,
+        width: f32,
+        title: &str,
+        show_fn: impl FnOnce(&mut egui::Ui, &mut WindowContext) -> T
+    ) -> egui::ModalResponse<T> {
+        let frame = egui::Frame::popup(&wc.egui.ctx.global_style())
+            .inner_margin(egui::Margin::ZERO)
+            .fill(wc.egui.ctx.global_style().visuals.widgets.open.weak_bg_fill);
+        egui::Modal::new(id).frame(frame).show(wc.egui.ctx, |ui| {
+            wc.sys_dialogs.block_ui(ui);
+            ui.set_width(width);
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                // title bar
+                let title_frame = egui::Frame::new().inner_margin(egui::Margin { left: 5, right: 5, top: 3, bottom: 0 });
+                title_frame.show(ui, |ui| {
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.add_space(3.0);
+                        ui.add(egui::Label::new(title).selectable(false));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
+                                ui.close();
+                            }
+                        });
+                    });
+                });
+                let size = egui::Vec2::new(ui.available_size_before_wrap().x, 1.0);
+                let (rect, _response) = ui.allocate_at_least(size, egui::Sense::hover());
+                ui.painter().hline(
+                    rect.left()..=rect.right(),
+                    rect.bottom() + 2.0,
+                    ui.style().visuals.window_stroke
+                );
+
+                // content
+                egui::Frame::NONE.inner_margin(ui.style().spacing.menu_margin).fill(ui.style().visuals.window_fill).show(ui, |ui| {
+                    show_fn(ui, wc)
+                }).inner
+            }).inner
+        })
+    }
 }
 
 pub struct AppWindowsCollection {
@@ -149,6 +195,7 @@ pub struct AppWindowsCollection {
     pub log_window: LogWindow,
     pub check: CheckWindow,
     pub project_comparer: ProjectComparerWindow,
+    pub data_tables: DataTablesWindow,
     pub game_runner: GameRunnerWindow,
 }
 
@@ -161,6 +208,7 @@ impl AppWindowsCollection {
             log_window: LogWindow::new(AppWindowBase::new("project_log_window")),
             check: CheckWindow::new(AppWindowBase::new("check_window")),
             project_comparer: ProjectComparerWindow::new(AppWindowBase::new("project_comparer_window")),
+            data_tables: DataTablesWindow::new(AppWindowBase::new("data_tables_window")),
             game_runner: GameRunnerWindow::new(AppWindowBase::new("game_runner")),
         }
     }
@@ -172,6 +220,7 @@ impl AppWindowsCollection {
         window_ids.push(self.log_window.base.id);
         window_ids.push(self.check.base.id);
         window_ids.push(self.project_comparer.base.id);
+        window_ids.push(self.data_tables.base.id);
         window_ids.push(self.game_runner.base.id);
     }
 
@@ -182,6 +231,7 @@ impl AppWindowsCollection {
         if window_id == self.log_window.base.id { return Some(&self.log_window.base) }
         if window_id == self.check.base.id { return Some(&self.check.base) }
         if window_id == self.project_comparer.base.id { return Some(&self.project_comparer.base) }
+        if window_id == self.data_tables.base.id { return Some(&self.data_tables.base) }
         if window_id == self.game_runner.base.id { return Some(&self.game_runner.base) }
         None
     }
@@ -193,6 +243,7 @@ impl AppWindowsCollection {
         if window_id == self.log_window.base.id { return Some(&mut self.log_window.base) }
         if window_id == self.check.base.id { return Some(&mut self.check.base) }
         if window_id == self.project_comparer.base.id { return Some(&mut self.project_comparer.base) }
+        if window_id == self.data_tables.base.id { return Some(&mut self.data_tables.base) }
         if window_id == self.game_runner.base.id { return Some(&mut self.game_runner.base) }
         None
     }
@@ -211,6 +262,7 @@ impl AppWindowsCollection {
         Self::add_window_action(&mut actions, self.log_window.show(wc));
         Self::add_window_action(&mut actions, self.check.show(wc, store));
         Self::add_window_action(&mut actions, self.project_comparer.show(wc, store));
+        Self::add_window_action(&mut actions, self.data_tables.show(wc, store));
         Self::add_window_action(&mut actions, self.game_runner.show(wc, store));
         actions
     }
@@ -258,6 +310,7 @@ impl AppWindows {
     pub fn clear_project(&mut self) {
         self.collection.check.clear();
         self.collection.project_comparer.clear();
+        self.collection.data_tables.clear();
         self.collection.game_runner.clear();
     }
 
@@ -271,6 +324,7 @@ impl AppWindows {
     pub fn open_settings(&mut self, ctx: &egui::Context) { self.collection.settings.open(ctx); }
     pub fn open_status(&mut self, ctx: &egui::Context) { self.collection.status.open(ctx); }
     pub fn open_check(&mut self, ctx: &egui::Context) { self.collection.check.open(ctx); }
+    pub fn open_data_tables(&mut self, ctx: &egui::Context) { self.collection.data_tables.open(ctx); }
     pub fn open_project_comparer(&mut self, ctx: &egui::Context) { self.collection.project_comparer.open(ctx); }
 
     pub fn run_check(&mut self, store: &DataAssetStore) {

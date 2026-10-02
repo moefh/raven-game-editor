@@ -32,8 +32,14 @@ impl IdentStore {
         clean
     }
 
+    pub fn upper_cleanup(name: &str) -> String {
+        let mut clean = Self::cleanup(name);
+        clean.make_ascii_uppercase();
+        clean
+    }
+
     pub fn cleanup(name: &str) -> String {
-        let mut clean = String::new();
+        let mut clean = String::with_capacity(name.len());
 
         for ch in name.chars() {
             if matches!(ch, 'A'..='Z' | 'a'..='z' | '0'..='9' | '_') {

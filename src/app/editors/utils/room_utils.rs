@@ -57,6 +57,13 @@ pub enum RoomTriggerTypeSel {
     Trap,
     PlayerSpawn,
     EnemySpawn,
+    WallButton,
+    FloorButton,
+    UnblockEffect,
+    DisableAnimationEffect,
+    GetUpgrade,
+    GetCollectable,
+    GetPickup,
 }
 
 impl RoomTriggerTypeSel {
@@ -67,6 +74,13 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::PlayerSpawn { .. } => RoomTriggerTypeSel::PlayerSpawn,
             RoomTriggerType::EnemySpawn { .. } => RoomTriggerTypeSel::EnemySpawn,
             RoomTriggerType::Trap { .. } => RoomTriggerTypeSel::Trap,
+            RoomTriggerType::WallButton {..} => { RoomTriggerTypeSel::WallButton }
+            RoomTriggerType::FloorButton {..} => { RoomTriggerTypeSel::FloorButton }
+            RoomTriggerType::UnblockEffect {..} => { RoomTriggerTypeSel::UnblockEffect }
+            RoomTriggerType::DisableAnimationEffect {..} => { RoomTriggerTypeSel::DisableAnimationEffect }
+            RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
+            RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeSel::GetCollectable }
+            RoomTriggerType::GetPickup {..} => { RoomTriggerTypeSel::GetPickup }
         }
     }
 
@@ -104,9 +118,58 @@ impl RoomTriggerTypeSel {
                     false
                 }
             }
-            _ => {
-                false
+            RoomTriggerTypeSel::WallButton if ! matches!(trigger_type, RoomTriggerType::WallButton {..}) => {
+                *trigger_type = RoomTriggerType::WallButton {
+                    width: 16,
+                    height: 16,
+                    effect_id: u16::MAX,
+                    required_collectable_id: u16::MAX
+                };
+                true
             }
+            RoomTriggerTypeSel::FloorButton if ! matches!(trigger_type, RoomTriggerType::FloorButton {..}) => {
+                *trigger_type = RoomTriggerType::FloorButton {
+                    width: 16,
+                    height: 16,
+                    effect_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::UnblockEffect if ! matches!(trigger_type, RoomTriggerType::UnblockEffect {..}) => {
+                *trigger_type = RoomTriggerType::UnblockEffect {
+                    width: 64,
+                    height: 64,
+                    effect_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::DisableAnimationEffect if ! matches!(trigger_type, RoomTriggerType::DisableAnimationEffect {..}) => {
+                *trigger_type = RoomTriggerType::DisableAnimationEffect {
+                    width: 64,
+                    height: 64,
+                    effect_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
+                *trigger_type = RoomTriggerType::GetUpgrade {
+                    upgrade_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::GetCollectable if ! matches!(trigger_type, RoomTriggerType::GetCollectable {..}) => {
+                *trigger_type = RoomTriggerType::GetCollectable {
+                    collectable_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::GetPickup if ! matches!(trigger_type, RoomTriggerType::GetPickup {..}) => {
+                *trigger_type = RoomTriggerType::GetPickup {
+                    pickup_id: u16::MAX
+                };
+                true
+            }
+            _ => { false }
         }
     }
 
@@ -117,6 +180,13 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::Trap => "trap",
             RoomTriggerTypeSel::PlayerSpawn => "player spawn",
             RoomTriggerTypeSel::EnemySpawn => "enemy spawn",
+            RoomTriggerTypeSel::WallButton => { "wall button" }
+            RoomTriggerTypeSel::FloorButton => { "floor button" }
+            RoomTriggerTypeSel::UnblockEffect => { "unblock" }
+            RoomTriggerTypeSel::DisableAnimationEffect => { "disable animation" }
+            RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
+            RoomTriggerTypeSel::GetCollectable => { "collectible" }
+            RoomTriggerTypeSel::GetPickup => { "pickup" }
         }
     }
 }
