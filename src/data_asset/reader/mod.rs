@@ -835,6 +835,7 @@ pub fn deserialize_map(
     reader.read_data()?;
 
     reader.data.asset_ids.insert(DataAssetType::Tileset, asset_ids.tilesets.store.clone());
+    reader.data.asset_ids.insert(DataAssetType::TileAnimation, asset_ids.tile_anims.store.clone());
 
     if let Some((_, asset_structs)) = reader.data.assets.iter().next() && let Some(asset_struct) = asset_structs.first() {
         map_data::create(map_id, asset_struct, &reader.data)
