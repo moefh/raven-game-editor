@@ -946,6 +946,7 @@ impl<'a> ProjectDataReader<'a> {
             collectable: self.create_item_table(ItemTableType::Collectables)?,
             pickup: self.create_item_table(ItemTableType::Pickups)?,
             effect: self.create_effect_table("TABLE_EFFECT"),
+            flag: self.create_effect_table("TABLE_FLAG"),
         };
 
         Ok(DataAssetStore {

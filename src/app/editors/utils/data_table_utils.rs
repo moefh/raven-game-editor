@@ -16,20 +16,21 @@ pub enum DataTableType {
     Collectables,
     Pickups,
     Effects,
+    Flags,
 }
 
 impl DataTableType {
     pub fn is_item_table(self) -> bool {
         match self {
             DataTableType::Upgrades | DataTableType::Collectables | DataTableType::Pickups => { true }
-            DataTableType::Effects => { false }
+            DataTableType::Effects | DataTableType::Flags => { false }
         }
     }
 
     pub fn is_effect_table(self) -> bool {
         match self {
             DataTableType::Upgrades | DataTableType::Collectables | DataTableType::Pickups => { false }
-            DataTableType::Effects => { true }
+            DataTableType::Effects | DataTableType::Flags => { true }
         }
     }
 
@@ -38,7 +39,7 @@ impl DataTableType {
             DataTableType::Upgrades => { Some(&store.tables.upgrade) }
             DataTableType::Collectables => { Some(&store.tables.collectable) }
             DataTableType::Pickups => { Some(&store.tables.pickup) }
-            DataTableType::Effects => { None }
+            DataTableType::Effects | DataTableType::Flags => { None }
         }
     }
 
@@ -47,7 +48,7 @@ impl DataTableType {
             DataTableType::Upgrades => { Some(&mut store.tables.upgrade) }
             DataTableType::Collectables => { Some(&mut store.tables.collectable) }
             DataTableType::Pickups => { Some(&mut store.tables.pickup) }
-            DataTableType::Effects => { None }
+            DataTableType::Effects | DataTableType::Flags => { None }
         }
     }
 
@@ -56,7 +57,7 @@ impl DataTableType {
             DataTableType::Upgrades => { store.tables.upgrade.items.get(index) }
             DataTableType::Collectables => { store.tables.collectable.items.get(index) }
             DataTableType::Pickups => { store.tables.pickup.items.get(index) }
-            DataTableType::Effects => { None }
+            DataTableType::Effects | DataTableType::Flags => { None }
         }
     }
 
@@ -65,7 +66,7 @@ impl DataTableType {
             DataTableType::Upgrades => { store.tables.upgrade.items.get_mut(index) }
             DataTableType::Collectables => { store.tables.collectable.items.get_mut(index) }
             DataTableType::Pickups => { store.tables.pickup.items.get_mut(index) }
-            DataTableType::Effects => { None }
+            DataTableType::Effects | DataTableType::Flags => { None }
         }
     }
 
@@ -75,6 +76,7 @@ impl DataTableType {
             DataTableType::Collectables => { None }
             DataTableType::Pickups => { None }
             DataTableType::Effects => { Some(&store.tables.effect) }
+            DataTableType::Flags => { Some(&store.tables.flag) }
         }
     }
 
@@ -84,6 +86,7 @@ impl DataTableType {
             DataTableType::Collectables => { None }
             DataTableType::Pickups => { None }
             DataTableType::Effects => { Some(&mut store.tables.effect) }
+            DataTableType::Flags => { Some(&mut store.tables.flag) }
         }
     }
 
@@ -93,6 +96,7 @@ impl DataTableType {
             DataTableType::Collectables => { None }
             DataTableType::Pickups => { None }
             DataTableType::Effects => { store.tables.effect.names.get(index) }
+            DataTableType::Flags => { store.tables.flag.names.get(index) }
         }
     }
 
@@ -102,6 +106,7 @@ impl DataTableType {
             DataTableType::Collectables => { None }
             DataTableType::Pickups => { None }
             DataTableType::Effects => { store.tables.effect.names.get_mut(index) }
+            DataTableType::Flags => { store.tables.flag.names.get_mut(index) }
         }
     }
 
@@ -111,6 +116,7 @@ impl DataTableType {
             DataTableType::Collectables => { "Collectables" }
             DataTableType::Pickups => { "Pickups" }
             DataTableType::Effects => { "Effects" }
+            DataTableType::Flags => { "Flags" }
         }
     }
 
@@ -120,6 +126,7 @@ impl DataTableType {
             DataTableType::Collectables => { "new_collectable" }
             DataTableType::Pickups => { "new_pickup" }
             DataTableType::Effects => { "new_effect" }
+            DataTableType::Flags => { "new_flag" }
         }
     }
 
@@ -129,6 +136,7 @@ impl DataTableType {
             DataTableType::Collectables => { "Add Collectable" }
             DataTableType::Pickups => { "Add Pickup" }
             DataTableType::Effects => { "Add Effect" }
+            DataTableType::Flags => { "Add Flag" }
         }
     }
 
@@ -138,6 +146,7 @@ impl DataTableType {
             DataTableType::Collectables => { "Edit Collectable" }
             DataTableType::Pickups => { "Edit Pickup" }
             DataTableType::Effects => { "Edit Effect" }
+            DataTableType::Flags => { "Edit Flag" }
         }
     }
 
@@ -147,6 +156,7 @@ impl DataTableType {
             DataTableType::Collectables => { "Remove Collectable" }
             DataTableType::Pickups => { "Remove Pickup" }
             DataTableType::Effects => { "Remove Effect" }
+            DataTableType::Flags => { "Remove Flag" }
         }
     }
 }

@@ -671,7 +671,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id } => {
+            RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -687,9 +687,13 @@ impl Editor {
                 ui.label("Effect:");
                 self.show_effect_id_editor(ui, "wall_button_effect_id", effect_id, &assets.tables.effect);
                 ui.end_row();
+
+                ui.label("Flag:");
+                self.show_effect_id_editor(ui, "wall_button_flag_id", flag_id, &assets.tables.flag);
+                ui.end_row();
             }
 
-            RoomTriggerType::FloorButton { width, height, effect_id } => {
+            RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -700,6 +704,10 @@ impl Editor {
 
                 ui.label("Effect:");
                 self.show_effect_id_editor(ui, "floor_button_effect_id", effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Flag:");
+                self.show_effect_id_editor(ui, "floor_button_flag_id", flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 

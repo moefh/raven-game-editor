@@ -312,6 +312,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_item_table("COLLECTABLE", "collectable", &self.store.tables.collectable)?;
         self.write_item_table("PICKUP", "pickup", &self.store.tables.pickup)?;
         self.write_effect_table("EFFECT", &self.store.tables.effect)?;
+        self.write_effect_table("FLAG", &self.store.tables.flag)?;
 
         Ok(())
     }

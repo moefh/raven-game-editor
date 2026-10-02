@@ -65,11 +65,18 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::Trap { width, height, trap_type } => {
                 writer.write(format!(".trap = {{ {}, {}, {} }}", width, height, trap_type));
             }
-            RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id } => {
-                writer.write(format!(".wall_button = {{ {}, {}, {}, {} }}", width, height, effect_id, required_collectable_id));
+            RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
+                writer.write(format!(
+                    ".wall_button = {{ {}, {}, {}, {}, {} }}",
+                    width,
+                    height,
+                    effect_id,
+                    flag_id,
+                    required_collectable_id
+                ));
             }
-            RoomTriggerType::FloorButton { width, height, effect_id } => {
-                writer.write(format!(".floor_button = {{ {}, {}, {} }}", width, height, effect_id));
+            RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
+                writer.write(format!(".floor_button = {{ {}, {}, {}, {} }}", width, height, effect_id, flag_id));
             }
             RoomTriggerType::UnblockEffect { width, height, effect_id } => {
                 writer.write(format!(".unblock_effect = {{ {}, {}, {} }}", width, height, effect_id));

@@ -84,6 +84,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
             (String::from("effect_id"), ValueDef::U16),
+            (String::from("flag_id"), ValueDef::U16),
             (String::from("req_collectable_id"), ValueDef::U16),
         ])),
 
@@ -91,6 +92,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
             (String::from("effect_id"), ValueDef::U16),
+            (String::from("flag_id"), ValueDef::U16),
         ])),
 
         (String::from("unblock_effect"), ValueDefStruct::new(vec![
@@ -226,6 +228,7 @@ fn conv_trigger_wall_button(data: &ValueStruct, _project_data: &ProjectData) -> 
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
         effect_id: data.get_u16("effect_id")?,
+        flag_id: data.get_u16("flag_id")?,
         required_collectable_id: data.get_u16("req_collectable_id")?,
     })
 }
@@ -235,6 +238,7 @@ fn conv_trigger_floor_button(data: &ValueStruct, _project_data: &ProjectData) ->
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
         effect_id: data.get_u16("effect_id")?,
+        flag_id: data.get_u16("flag_id")?,
     })
 }
 

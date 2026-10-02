@@ -182,10 +182,10 @@ impl DataTablesWindow {
                 let can_move_up = index > 0;
                 let can_move_down = index < table.names.len()-1;
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text(DataTableType::Effects.remove_item_label()).clicked() {
+                    if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text(table_type.remove_item_label()).clicked() {
                         action = TableItemAction::Remove(index);
                     }
-                    if ui.add(egui::Button::image(IMAGES.pen)).on_hover_text(DataTableType::Effects.edit_item_label()).clicked() {
+                    if ui.add(egui::Button::image(IMAGES.pen)).on_hover_text(table_type.edit_item_label()).clicked() {
                         action = TableItemAction::Edit(index);
                     }
                     if ui.add_enabled(can_move_up, egui::Button::image(IMAGES.arrow_up)).on_hover_text("Move Up").clicked() {
@@ -211,15 +211,15 @@ impl DataTablesWindow {
     ) {
         egui::Panel::top("editor_item_table_top").show(ui, |ui| {
             ui.add_space(4.0);
-            ui.label(DataTableType::Effects.title());
+            ui.label(table_type.title());
             ui.add_space(1.0);
         });
         egui::Panel::bottom("editor_tables.effect_bottom").show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new(DataTableType::Effects.add_item_label())).clicked() &&
+                if ui.add(egui::Button::new(table_type.add_item_label())).clicked() &&
                     let Some(table) = table_type.get_store_effect_table_mut(store) {
-                        table.names.push(String::from(DataTableType::Effects.new_item_name()));
+                        table.names.push(String::from(table_type.new_item_name()));
                     }
             });
         });
@@ -295,7 +295,8 @@ impl DataTablesWindow {
                         DataTableType::Upgrades,
                         DataTableType::Collectables,
                         DataTableType::Pickups,
-                        DataTableType::Effects
+                        DataTableType::Effects,
+                        DataTableType::Flags,
                     ] {
                         let button = egui::Button::new(table_type.title())
                             .frame_when_inactive(self.table_type == table_type)

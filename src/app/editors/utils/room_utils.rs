@@ -123,6 +123,7 @@ impl RoomTriggerTypeSel {
                     width: 16,
                     height: 16,
                     effect_id: u16::MAX,
+                    flag_id: u16::MAX,
                     required_collectable_id: u16::MAX
                 };
                 true
@@ -131,7 +132,8 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::FloorButton {
                     width: 16,
                     height: 16,
-                    effect_id: u16::MAX
+                    effect_id: u16::MAX,
+                    flag_id: u16::MAX,
                 };
                 true
             }

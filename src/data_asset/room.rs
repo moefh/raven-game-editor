@@ -72,8 +72,8 @@ pub enum RoomTriggerType {
     EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection },
     Door { dest_room_id: DataAssetId, dest_trigger_id: u16 },
     Trap { width: u16, height: u16, trap_type: u16 },
-    WallButton { width: u16, height: u16, effect_id: u16, required_collectable_id: u16 },
-    FloorButton { width: u16, height: u16, effect_id: u16 },
+    WallButton { width: u16, height: u16, effect_id: u16, flag_id: u16, required_collectable_id: u16 },
+    FloorButton { width: u16, height: u16, effect_id: u16, flag_id: u16 },
     UnblockEffect { width: u16, height: u16, effect_id: u16 },
     DisableAnimationEffect { width: u16, height: u16, effect_id: u16 },
     GetUpgrade { upgrade_id: u16 },
@@ -151,18 +151,20 @@ impl super::DataHashAsset for Room {
                     height.hash(state);
                     trap_type.hash(state);
                 }
-                RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id } => {
+                RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
                     5.hash(state);
                     width.hash(state);
                     height.hash(state);
                     effect_id.hash(state);
+                    flag_id.hash(state);
                     required_collectable_id.hash(state);
                 }
-                RoomTriggerType::FloorButton { width, height, effect_id } => {
+                RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
                     6.hash(state);
                     width.hash(state);
                     height.hash(state);
                     effect_id.hash(state);
+                    flag_id.hash(state);
                 }
                 RoomTriggerType::UnblockEffect { width, height, effect_id } => {
                     7.hash(state);

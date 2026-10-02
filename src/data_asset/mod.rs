@@ -540,6 +540,7 @@ pub struct DataStoreTables {
     pub collectable: DataStoreItemTable,
     pub pickup: DataStoreItemTable,
     pub effect: DataStoreEffectTable,
+    pub flag: DataStoreEffectTable,
 }
 
 pub struct DataAssetStore {
@@ -571,6 +572,7 @@ impl DataAssetStore {
                 collectable: DataStoreItemTable::new(),
                 pickup: DataStoreItemTable::new(),
                 effect: DataStoreEffectTable::new(),
+                flag: DataStoreEffectTable::new(),
             },
         }
     }
