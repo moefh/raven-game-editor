@@ -38,7 +38,7 @@ use super::super::{
     MapLayer,
     RoomSize,
     RectBorder,
-    DrawMapLayerInfo,
+    DrawMapInfo,
 };
 use super::super::room::{
     RoomEditorAssetLists,
@@ -785,7 +785,7 @@ impl RoomEditorWidget {
 
         let mut has_animated_tiles = false;
         let animation_step = get_animation_step(wc);
-        let draw_layer_info = DrawMapLayerInfo {
+        let draw_info = DrawMapInfo {
             zoom: self.zoom,
             pos: to_canvas.to().min,
             screen_rect: canvas_rect,
@@ -794,7 +794,6 @@ impl RoomEditorWidget {
             } else {
                 None
             },
-            collision_disabled: false,
         };
 
         // draw map BG layer
@@ -802,7 +801,7 @@ impl RoomEditorWidget {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    let draw_bg_info = draw_layer_info.add_pos(self.zoom * map_rect.min);
+                    let draw_bg_info = draw_info.add_pos(self.zoom * map_rect.min);
                     if draw_para_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
                         has_animated_tiles = true;
                     }
@@ -823,7 +822,7 @@ impl RoomEditorWidget {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
-                    let draw_fg_info = draw_layer_info.add_pos(self.zoom * map_rect.min);
+                    let draw_fg_info = draw_info.add_pos(self.zoom * map_rect.min);
                     if draw_fg_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_fg_info, None) {
                         has_animated_tiles = true;
                     }

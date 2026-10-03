@@ -20,11 +20,7 @@ pub use data_table_utils::{*};
 pub use image_zoom_option::{*};
 
 use crate::platform::current_time_as_millis;
-use crate::data_asset::{
-    Room,
-    MapData,
-    AssetList,
-};
+
 use super::WindowContext;
 
 #[allow(dead_code)]
@@ -48,37 +44,6 @@ impl RectBorder {
             RectBorder::TopLeft | RectBorder::BottomRight => egui::CursorIcon::ResizeNwSe,
             RectBorder::TopRight | RectBorder::BottomLeft => egui::CursorIcon::ResizeNeSw,
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct RoomSize {
-    pub width: u32,
-    pub height: u32,
-}
-
-impl RoomSize {
-    pub const ZERO: Self = RoomSize { width: 0, height: 0 };
-
-    pub fn new(width: u32, height: u32) -> Self {
-        RoomSize {
-            width,
-            height,
-        }
-    }
-
-    pub fn from_room(room: &Room, maps: &AssetList<MapData>) -> Self {
-        room.maps.iter().fold(Self::ZERO, |max, room_map| {
-            match maps.get(&room_map.map_id) {
-                Some(map) => {
-                    RoomSize::new(
-                        max.width.max(room_map.x as u32 + map.width),
-                        max.height.max(room_map.y as u32 + map.height),
-                    )
-                }
-                None => { max }
-            }
-        })
     }
 }
 

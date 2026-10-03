@@ -681,7 +681,7 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("Required:");
-                self.show_item_id_editor(ui, "wall_button_required_collectible_id", required_collectable_id, &assets.tables.collectable);
+                self.show_item_id_editor(ui, "wall_button_required_collectable_id", required_collectable_id, &assets.tables.collectable);
                 ui.end_row();
 
                 ui.label("Effect:");

@@ -40,7 +40,7 @@ use super::super::{
     MapLayerFragment,
     MapRect,
     MapLayer,
-    DrawMapLayerInfo,
+    DrawMapInfo,
 };
 
 const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2 { x: 1.0, y: 1.0 } };
@@ -913,7 +913,7 @@ impl MapEditorWidget {
 
         let mut has_animated_tiles = false;
         let animation_step = get_animation_step(wc);
-        let draw_layer_info = DrawMapLayerInfo {
+        let draw_info = DrawMapInfo {
             zoom: self.zoom,
             pos: canvas_rect.min + self.scroll,
             screen_rect: map_area_rect,
@@ -922,7 +922,6 @@ impl MapEditorWidget {
             } else {
                 None
             },
-            collision_disabled: false,
         };
 
         if let Some(tileset) = tilesets.get(&map_data.tileset_id) {
@@ -933,7 +932,7 @@ impl MapEditorWidget {
                 } else {
                     None
                 };
-                if draw_para_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, para_tint) {
+                if draw_para_layer(ui, wc, map_data, tilesets, tile_anims, &draw_info, para_tint) {
                     has_animated_tiles = true;
                 }
 
@@ -947,7 +946,7 @@ impl MapEditorWidget {
                     MapLayer::Parallax => { Some(Self::HEAVY_LAYER_TINT) }
                     _ => { None }
                 };
-                if draw_bg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, bg_tint) {
+                if draw_bg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_info, bg_tint) {
                     has_animated_tiles = true;
                 }
                 self.paint_floating_selection_for_layer(ui, MapLayer::Background, wc, tileset, TextureSlot::Opaque, canvas_rect);
@@ -960,7 +959,7 @@ impl MapEditorWidget {
                     MapLayer::Parallax => { Some(Self::HEAVY_LAYER_TINT) }
                     _ => { None }
                 };
-                if draw_fg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_layer_info, fg_tint) {
+                if draw_fg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_info, fg_tint) {
                     has_animated_tiles = true;
                 }
                 self.paint_floating_selection_for_layer(ui, MapLayer::Foreground, wc, tileset, TextureSlot::Opaque, canvas_rect);

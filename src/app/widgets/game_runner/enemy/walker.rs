@@ -9,6 +9,7 @@ use super::{
     EnemyInfo,
     EnemyAnimLoop,
 };
+use super::super::GameRunnerState;
 
 pub struct Walker {}
 
@@ -21,12 +22,12 @@ impl Walker {
     pub fn update(
         &mut self,
         enemy: &mut EnemyInfo,
-        room: &Room,
+        _room: &Room,
         _player: &Player,
+        game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        store: &DataAssetStore,
-        collision_disabled: bool
+        _store: &DataAssetStore,
     ) {
-        enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store, collision_disabled);
+        enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, game_state, anim);
     }
 }

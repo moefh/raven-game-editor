@@ -9,6 +9,7 @@ use super::{
     EnemyInfo,
     EnemyAnimLoop,
 };
+use super::super::GameRunnerState;
 
 pub enum State {
     Walk,
@@ -50,11 +51,11 @@ impl Chiller {
     pub fn update(
         &mut self,
         enemy: &mut EnemyInfo,
-        room: &Room,
+        _room: &Room,
         _player: &Player,
+        game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        store: &DataAssetStore,
-        collision_disabled: bool
+        _store: &DataAssetStore,
     ) {
         match self.state {
             State::Look => {
@@ -64,7 +65,7 @@ impl Chiller {
             }
             State::Walk => {
                 self.wait -= 1;
-                if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, room, anim, store, collision_disabled) {
+                if self.wait <= 0 || enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, game_state, anim) {
                     self.go_state(State::Blink, enemy, 0);
                 }
             }

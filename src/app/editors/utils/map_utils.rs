@@ -507,33 +507,28 @@ pub fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -
     }
 }
 
-pub fn get_map_animation_tile(map_data: &MapData, x: u32, y: u32, collision_disabled: bool) -> u8 {
+pub fn get_map_animation_tile(map_data: &MapData, x: u32, y: u32) -> u8 {
     if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
 
     let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
     if anim == 0x0f {
         MapData::NO_TILE
     } else if anim > 0x8 {
-        if collision_disabled {
-            MapData::NO_TILE
-        } else {
-            anim - 0x8
-        }
+        anim - 0x8
     } else {
         anim
     }
 }
 
 #[derive(Clone)]
-pub struct DrawMapLayerInfo {
+pub struct DrawMapInfo {
     pub zoom: f32,
     pub pos: egui::Pos2,
     pub screen_rect: egui::Rect,
     pub animation_step: Option<u32>,
-    pub collision_disabled: bool,
 }
 
-impl DrawMapLayerInfo {
+impl DrawMapInfo {
     #[must_use = "this function doesn't change the `DrawLayerInfo`, it returns a new one with the new position"]
     pub fn add_pos(&self, add_pos: egui::Pos2) -> Self {
         let mut new_info = self.clone();
@@ -548,7 +543,7 @@ pub fn draw_para_layer(
     map_data: &MapData,
     tilesets: &AssetList<Tileset>,
     tile_anims: &AssetList<TileAnimation>,
-    draw: &DrawMapLayerInfo,
+    draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
     let tileset = match tilesets.get(&map_data.tileset_id) {
@@ -577,7 +572,7 @@ pub fn draw_para_layer(
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Parallax,
-                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
+                get_map_animation_tile(map_data, x, y),
                 tile_anim,
                 animation_step
             ) {
@@ -618,7 +613,7 @@ pub fn draw_bg_layer(
     map_data: &MapData,
     tilesets: &AssetList<Tileset>,
     tile_anims: &AssetList<TileAnimation>,
-    draw: &DrawMapLayerInfo,
+    draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
     let tileset = match tilesets.get(&map_data.tileset_id) {
@@ -647,7 +642,7 @@ pub fn draw_bg_layer(
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Background,
-                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
+                get_map_animation_tile(map_data, x, y),
                 tile_anim,
                 animation_step
             ) {
@@ -693,7 +688,7 @@ pub fn draw_fg_layer(
     map_data: &MapData,
     tilesets: &AssetList<Tileset>,
     tile_anims: &AssetList<TileAnimation>,
-    draw: &DrawMapLayerInfo,
+    draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
     let tileset = match tilesets.get(&map_data.tileset_id) {
@@ -722,7 +717,7 @@ pub fn draw_fg_layer(
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
                 MapLayer::Foreground,
-                get_map_animation_tile(map_data, x, y, draw.collision_disabled),
+                get_map_animation_tile(map_data, x, y),
                 tile_anim,
                 animation_step
             ) {
@@ -746,6 +741,136 @@ pub fn draw_fg_layer(
                 draw.pos + draw.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
             );
             if tile_rect.intersects(draw.screen_rect) {
+                let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
+                match layer_tint {
+                    Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
+                    None => { image.paint_at(ui, tile_rect) }
+                }
+            }
+        }
+    }
+    has_animated_tiles
+}
+
+pub struct DrawMapLayerData<'a> {
+    pub tileset: &'a Tileset,
+    pub anim_tileset: Option<&'a Tileset>,
+    pub tile_anim: Option<&'a TileAnimation>,
+    pub layer: MapLayer,
+    pub width: u32,
+    pub height: u32,
+    pub stride: u32,
+    pub tiles: &'a [u8],
+    pub fx_width: u32,
+    pub fx_height: u32,
+    pub fx_stride: u32,
+    pub fx_tiles: &'a [u8],
+}
+
+impl<'a> DrawMapLayerData<'a> {
+    /*
+    fn from_map_layer(
+        map_data: &'a MapData,
+        layer: MapLayer,
+        tilesets: &'a AssetList<Tileset>,
+        tile_anims: &'a AssetList<TileAnimation>
+    ) -> Option<Self> {
+        let tileset = tilesets.get(&map_data.tileset_id)?;
+        let (tile_anim, anim_tileset) = if
+            let Some(tile_anim) = map_data.tile_anim_id.and_then(|tile_anim_id| tile_anims.get(&tile_anim_id)) &&
+            let Some(anim_tileset) = tilesets.get(&tile_anim.anim_tileset_id) {
+                (Some(tile_anim), Some(anim_tileset))
+            } else {
+                (None, None)
+            };
+
+        let (width, height, tiles, fx_width, fx_height, fx_tiles) = match layer {
+            MapLayer::Foreground => {
+                (map_data.width, map_data.height, &map_data.fg_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
+            }
+            MapLayer::Background => {
+                (map_data.width, map_data.height, &map_data.bg_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
+            }
+            MapLayer::Parallax => {
+                (map_data.para_width, map_data.para_height, &map_data.para_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
+            }
+            _ => { return None; }
+        };
+
+        Some(DrawMapLayerData {
+            tileset,
+            anim_tileset,
+            tile_anim,
+            layer,
+            width,
+            height,
+            stride: width,
+            tiles,
+            fx_width,
+            fx_height,
+            fx_stride: fx_width,
+            fx_tiles,
+        })
+    }
+    */
+
+    fn get_animation_tile(&self, x: u32, y: u32) -> u8 {
+        if x >= self.fx_width || y >= self.fx_height { return MapData::NO_TILE; }
+
+        let anim = self.fx_tiles[(y * self.fx_stride + x) as usize] >> 4;
+        if anim == 0x0f {
+            MapData::NO_TILE
+        } else {
+            anim
+        }
+    }
+}
+
+pub fn draw_layer<'a>(
+    ui: &mut egui::Ui,
+    wc: &mut WindowContext,
+    info: &DrawMapInfo,
+    layer: &DrawMapLayerData<'a>,
+    layer_tint: Option<egui::Color32>
+) -> bool {
+    let (animation_step, animate) = if let Some(step) = info.animation_step {
+        (step, true)
+    } else {
+        (0, false)
+    };
+
+    let mut has_animated_tiles = false;
+    for y in 0..layer.height {
+        for x in 0..layer.width {
+            let tile = layer.tiles[(y * layer.stride + x) as usize];
+            let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
+                tile,
+                layer.layer,
+                layer.get_animation_tile(x, y),
+                layer.tile_anim,
+                animation_step
+            ) {
+                has_animated_tiles = true;
+                if let Some(anim_tileset) = layer.anim_tileset {
+                    (new_tile, anim_tileset)
+                } else {
+                    (new_tile, layer.tileset)
+                }
+            } else {
+                (tile, layer.tileset)
+            };
+            if tile == MapData::NO_TILE { continue; }
+            let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
+                (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+            } else {
+                let slot = if layer.layer == MapLayer::Parallax { TextureSlot::Opaque } else { TextureSlot::Transparent };
+                (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
+            };
+            let tile_rect = egui::Rect::from_min_max(
+                info.pos + info.zoom * TILE_SIZE * egui::Vec2::new(x as f32, y as f32),
+                info.pos + info.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
+            );
+            if tile_rect.intersects(info.screen_rect) {
                 let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
                 match layer_tint {
                     Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }

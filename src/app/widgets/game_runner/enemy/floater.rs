@@ -9,6 +9,7 @@ use super::{
     EnemyInfo,
     EnemyAnimLoop,
 };
+use super::super::GameRunnerState;
 
 pub struct Floater {
     pub initial_y: i32,
@@ -31,9 +32,9 @@ impl Floater {
         enemy: &mut EnemyInfo,
         _room: &Room,
         _player: &Player,
+        _game_dtate: &GameRunnerState,
         _anim: &SpriteAnimation,
-        _store: &DataAssetStore,
-        _collision_disabled: bool
+        _store: &DataAssetStore
     ) {
         self.float_frame += 16;
         if (self.float_frame >> 8) >= Self::FLOAT_DY.len() {
