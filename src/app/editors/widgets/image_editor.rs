@@ -22,12 +22,16 @@ use crate::image::{
 };
 use crate::data_asset;
 
-use super::WidgetZoom;
+use super::{
+    WidgetZoom,
+};
 use super::super::{
     AssetIdHolder,
     ImageClipboardData,
     WindowContext,
     KeyboardPressed,
+    RectBorder,
+    CollisionRect,
 };
 
 pub enum ImageEditorAction {
@@ -158,12 +162,14 @@ pub struct ImageEditorWidget<ImageAsset> {
     drop_selection_next_show: bool,
     drag_mouse_origin: Pos2,
     drag_frag_origin: Pos2,
+    drag_collision_border: Option<RectBorder>,
     tool_mouse_down: bool,
     _marker: std::marker::PhantomData<ImageAsset>,
 }
 
 impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection + AssetIdHolder {
     const MAX_UNDO_TARGETS: usize = 32;
+    const DRAG_BORDER_FUDGE_SIZE: f32 = 8.0;
 
     pub fn new() -> Self {
         ImageEditorWidget {
@@ -180,6 +186,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             pick_right_color: None,
             drag_mouse_origin: Pos2::ZERO,
             drag_frag_origin: Pos2::ZERO,
+            drag_collision_border: None,
             undo_targets: HashMap::new(),
             redo_targets: HashMap::new(),
             selection_enabled: true,
@@ -524,33 +531,91 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
+    fn get_rect_border(rect: Rect, pos: Pos2, fudge: f32) -> Option<RectBorder> {
+        let corner_size = Vec2::splat(fudge);
+        let horizontal_size = Vec2::new(rect.width(), fudge);
+        let vertical_size = Vec2::new(fudge, rect.height());
+
+        if Rect::from_center_size(rect.left_top(), corner_size).contains(pos) { return Some(RectBorder::TopLeft); }
+        if Rect::from_center_size(rect.right_top(), corner_size).contains(pos) { return Some(RectBorder::TopRight); }
+        if Rect::from_center_size(rect.right_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomRight); }
+        if Rect::from_center_size(rect.left_bottom(), corner_size).contains(pos) { return Some(RectBorder::BottomLeft); }
+
+        if Rect::from_center_size(rect.center_top(), horizontal_size).contains(pos) { return Some(RectBorder::Top); }
+        if Rect::from_center_size(rect.center_bottom(), horizontal_size).contains(pos) { return Some(RectBorder::Bottom); }
+        if Rect::from_center_size(rect.left_center(), vertical_size).contains(pos) { return Some(RectBorder::Left); }
+        if Rect::from_center_size(rect.right_center(), vertical_size).contains(pos) { return Some(RectBorder::Right); }
+
+        None
+    }
+
     fn handle_collision_mouse(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
-        // collision editing is NOT disabled on read-only mode, to
+        // Collision editing is NOT disabled on read-only mode. To
         // disable it either hide it or set the editing tool to
         // anything other than collision
 
-        if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's not shown
+        if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's hidden
 
-        let make_rect = || { data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32) };
+        // crate a collision rect for the full image if none exists
+        let collision_rect = self.collision_rect.get_or_insert_with(|| {
+            data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32)
+        });
 
-        let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos);
-        let mouse_pos = (mouse_pos.x.round() as i32, mouse_pos.y.round() as i32);
-        let rect = self.collision_rect.get_or_insert_with(make_rect);
-        if resp.dragged_by(egui::PointerButton::Primary) {
-            // set top-left
-            let dx = mouse_pos.0 - rect.x;
-            let dy = mouse_pos.1 - rect.y;
-            rect.x += dx;
-            rect.y += dy;
-            rect.w -= dx;
-            rect.h -= dy;
-            if rect.w < 0 { rect.x += rect.w; rect.w = 0; }
-            if rect.h < 0 { rect.y += rect.h; rect.h = 0; }
+        let cmd_held = resp.ctx.input(|i| i.modifiers.command);
+        let alt_held = resp.ctx.input(|i| i.modifiers.alt);
+        let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos.round());
+
+        if resp.drag_started() && resp.dragged_by(egui::PointerButton::Primary) && ! cmd_held && ! alt_held {
+            let rect = Rect::from_min_size(
+                Pos2::new(collision_rect.x as f32, collision_rect.y as f32),
+                Vec2::new(collision_rect.w as f32, collision_rect.h as f32),
+            );
+            if let Some(border) = Self::get_rect_border(rect, mouse_pos, Self::DRAG_BORDER_FUDGE_SIZE / self.last_zoom_level) {
+                resp.ctx.set_cursor_icon(border.cursor());
+                self.drag_mouse_origin = mouse_pos;
+                self.drag_collision_border = Some(border);
+            }
+        } else if let Some(border) = self.drag_collision_border {
+            resp.ctx.set_cursor_icon(border.cursor());
+            let mut rect = CollisionRect::from_data(*collision_rect);
+            let x = mouse_pos.x as i32;
+            let y = mouse_pos.y as i32;
+            match border {
+                RectBorder::Top         => { rect.set_top_border(y);    }
+                RectBorder::Left        => { rect.set_left_border(x);   }
+                RectBorder::Bottom      => { rect.set_bottom_border(y); }
+                RectBorder::Right       => { rect.set_right_border(x);  }
+                RectBorder::TopLeft     => { rect.set_top_border(y);    rect.set_left_border(x);  }
+                RectBorder::TopRight    => { rect.set_top_border(y);    rect.set_right_border(x); }
+                RectBorder::BottomRight => { rect.set_bottom_border(y); rect.set_right_border(x); }
+                RectBorder::BottomLeft  => { rect.set_bottom_border(y); rect.set_left_border(x);  }
+            }
+            rect.apply_to_data(collision_rect);
         }
-        if resp.dragged_by(egui::PointerButton::Secondary) {
-            // set bottom-right
-            rect.w = (mouse_pos.0 - rect.x).max(0);
-            rect.h = (mouse_pos.1 - rect.y).max(0);
+    }
+
+    fn handle_collision_mouse_hover(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
+        if ! self.display.has_bits(ImageDisplay::COLLISION) { return; } // don't edit collision while it's hidden
+
+        // crate a collision rect for the full image if none exists
+        let collision_rect = self.collision_rect.get_or_insert_with(|| {
+            data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32)
+        });
+
+        let cmd_held = resp.ctx.input(|i| i.modifiers.command);
+        let alt_held = resp.ctx.input(|i| i.modifiers.alt);
+
+        if ! cmd_held && ! alt_held {
+            let mouse_pos = Rect::from_min_size(Pos2::ZERO, image.get_item_size()).clamp(mouse_pos.round());
+            let rect = Rect::from_min_size(
+                Pos2::new(collision_rect.x as f32, collision_rect.y as f32),
+                Vec2::new(collision_rect.w as f32, collision_rect.h as f32),
+            );
+            if let Some(border) = Self::get_rect_border(rect, mouse_pos, Self::DRAG_BORDER_FUDGE_SIZE / self.last_zoom_level) {
+                resp.ctx.set_cursor_icon(border.cursor());
+            } else {
+                //resp.ctx.set_cursor_icon(egui::CursorIcon::Default);
+            }
         }
     }
 
@@ -612,6 +677,12 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             ImageDrawingTool::Collision => {
                 self.handle_collision_mouse(mouse_pos, image, resp);
             }
+        }
+    }
+
+    fn handle_mouse_hover(&mut self, mouse_pos: Pos2, image: &mut ImageAsset, resp: &egui::Response) {
+        if self.tool == ImageDrawingTool::Collision {
+            self.handle_collision_mouse_hover(mouse_pos, image, resp);
         }
     }
 
@@ -962,6 +1033,10 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 self.handle_mouse(image_pos, image, &resp, colors);
             }
         }
+        if ! self.tool_mouse_down && let Some(hover_pos) = resp.hover_pos() {
+            let image_pos = canvas_to_image * hover_pos;
+            self.handle_mouse_hover(image_pos, image, &resp);
+        }
 
         // draw selection rectangle
         if let Some(sel_rect) = self.selection.get_rect() && (sel_rect.width() > 0.0 || sel_rect.height() > 0.0) {
@@ -981,7 +1056,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
                 Vec2::new(col_rect.w as f32, col_rect.h as f32)
             );
             let paint_col_rect = image_to_canvas.transform_rect(col_rect);
-            super::paint_ants(&painter, paint_col_rect, wc.settings, 0);
+            let stroke_out = egui::Stroke::new(3.0, egui::Color32::BLACK);
+            let stroke_in = egui::Stroke::new(3.0, egui::Color32::WHITE);
+            painter.rect_stroke(paint_col_rect.expand(1.0), egui::CornerRadius::ZERO, stroke_out, egui::StrokeKind::Outside);
+            painter.rect_stroke(paint_col_rect, egui::CornerRadius::ZERO, stroke_in, egui::StrokeKind::Outside);
+            painter.rect_stroke(paint_col_rect, egui::CornerRadius::ZERO, stroke_out, egui::StrokeKind::Middle);
         }
     }
 }
