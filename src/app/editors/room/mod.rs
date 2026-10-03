@@ -554,7 +554,6 @@ impl Editor {
         ui.end_row();
 
         ui.label("Name:");
-        //ui.text_edit_singleline(&mut trigger.name_id).desired_width(200.0);
         ui.add(egui::TextEdit::singleline(&mut trigger.name_id).desired_width(150.0));
         ui.end_row();
 
@@ -753,7 +752,7 @@ impl Editor {
 
             RoomTriggerType::GetPickup { pickup_id } => {
                 ui.label("Pickup:");
-                self.show_item_id_editor(ui, "get_pickup_id", pickup_id, &assets.tables.collectable);
+                self.show_item_id_editor(ui, "get_pickup_id", pickup_id, &assets.tables.pickup);
                 ui.end_row();
             }
         }

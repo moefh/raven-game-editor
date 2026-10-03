@@ -187,7 +187,7 @@ impl RoomTriggerTypeSel {
                 };
                 true
             }
-            RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
+            RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::GetUpgrade {..}) => {
                 *trigger_type = RoomTriggerType::GetUpgrade {
                     upgrade_id: u16::MAX
                 };

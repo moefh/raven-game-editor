@@ -168,6 +168,60 @@ impl Player {
         }
     }
 
+    fn collect_items(
+        &mut self,
+        room: &Room,
+        player_anim: &SpriteAnimation,
+        store: &DataAssetStore,
+        pad: &Controller,
+        game_state: &mut GameRunnerState,
+    ) {
+        for trigger in &room.triggers {
+            match trigger.trigger_type {
+                RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id, .. } => {
+                    let has_requirements = required_collectable_id == u16::MAX ||
+                        game_state.acquired_collectable_ids.contains(&required_collectable_id);
+                    if has_requirements && pad.pressed(INTERACT_BUTTON) {
+                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                        if player_rect.intersects_rect(&trigger_rect) {
+                            game_state.activate_effect(effect_id, room, store);
+                        }
+                    }
+                }
+                RoomTriggerType::FloorButton { width, height, effect_id, .. } => {
+                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                    if player_rect.intersects_rect(&trigger_rect) {
+                        game_state.activate_effect(effect_id, room, store);
+                    }
+                }
+                RoomTriggerType::GetUpgrade { upgrade_id } => {
+                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
+                    if player_rect.intersects_rect(&trigger_rect) {
+                        game_state.get_upgrade(upgrade_id, room, store);
+                    }
+                }
+                RoomTriggerType::GetCollectable { collectable_id } if pad.pressed(INTERACT_BUTTON) => {
+                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
+                    if player_rect.intersects_rect(&trigger_rect) {
+                        game_state.get_collectable(collectable_id, room, store);
+                    }
+                }
+                RoomTriggerType::GetPickup { pickup_id } => {
+                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
+                    if player_rect.intersects_rect(&trigger_rect) {
+                        game_state.get_pickup(pickup_id, room, store);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub fn tick_engine(
         &mut self,
         room: &Room,
@@ -208,40 +262,13 @@ impl Player {
             rect.y = save_y;
         }
 
-        for trigger in &room.triggers {
-            match trigger.trigger_type {
-                RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id, .. }
-                    if game_state.acquired_collectable_ids.contains(&required_collectable_id) && pad.pressed(INTERACT_BUTTON) => {
-                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
-                        if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.activate_effect(effect_id, room, store);
-                        }
-                    }
-                RoomTriggerType::FloorButton { width, height, effect_id, .. } => {
-                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
-                    if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.activate_effect(effect_id, room, store);
-                    }
-                }
-                RoomTriggerType::GetCollectable { collectable_id } => {
-                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
-                    if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.get_collectable(collectable_id, room, store);
-                    }
-                }
-                _ => {}
-            }
-        }
-
         self.x = rect.x;
         self.y = rect.y;
         self.anim_loop = self.state.get_anim_loop();
         if let Some(cur_loop) = player_anim.loops.get(self.anim_loop) {
             self.anim_frame += cur_loop.frame_speed as u32;
         }
+        self.collect_items(room, player_anim, store, pad, game_state);
     }
 
     pub fn draw(

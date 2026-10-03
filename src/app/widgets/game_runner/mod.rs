@@ -153,7 +153,9 @@ pub struct GameRunnerState {
     pub room_x: i32,
     pub room_y: i32,
     pub room: GameRunnerRoomState,
+    pub acquired_upgrade_ids: HashSet<u16>,
     pub acquired_collectable_ids: HashSet<u16>,
+    pub acquired_pickup_ids: HashSet<u16>,
 }
 
 impl GameRunnerState {
@@ -161,7 +163,9 @@ impl GameRunnerState {
         GameRunnerState {
             room_x: 0,
             room_y: 0,
+            acquired_upgrade_ids: HashSet::new(),
             acquired_collectable_ids: HashSet::new(),
+            acquired_pickup_ids: HashSet::new(),
             room: GameRunnerRoomState {
                 width: 0,
                 height: 0,
@@ -173,8 +177,16 @@ impl GameRunnerState {
         }
     }
 
+    pub fn get_upgrade(&mut self, upgrade_id: u16, _room: &Room, _store: &DataAssetStore) {
+        self.acquired_upgrade_ids.insert(upgrade_id);
+    }
+
     pub fn get_collectable(&mut self, collectable_id: u16, _room: &Room, _store: &DataAssetStore) {
         self.acquired_collectable_ids.insert(collectable_id);
+    }
+
+    pub fn get_pickup(&mut self, pickup_id: u16, _room: &Room, _store: &DataAssetStore) {
+        self.acquired_pickup_ids.insert(pickup_id);
     }
 
     pub fn activate_effect(&mut self, activate_effect_id: u16, room: &Room, _store: &DataAssetStore) {
@@ -347,7 +359,9 @@ impl GameRunnerWidget {
         self.room_id = Some(room.asset.id);
         self.enemies.clear();
         self.spawn_enemies(room, store);
+        self.state.acquired_upgrade_ids.clear();
         self.state.acquired_collectable_ids.clear();
+        self.state.acquired_pickup_ids.clear();
         self.state.room_x = 0;
         self.state.room_y = 0;
         self.state.room.load_room(room, store);
@@ -415,10 +429,24 @@ impl GameRunnerWidget {
     ) {
         for trigger in &room.triggers {
             match trigger.trigger_type {
+                RoomTriggerType::GetUpgrade { upgrade_id } => {
+                    if ! self.state.acquired_upgrade_ids.contains(&upgrade_id) &&
+                        let Some(item) = store.tables.upgrade.items.get(upgrade_id as usize) &&
+                        let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
+                            self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
+                        }
+                }
                 RoomTriggerType::GetCollectable { collectable_id } => {
                     if ! self.state.acquired_collectable_ids.contains(&collectable_id) &&
-                        let Some(collectable_item) = store.tables.collectable.items.get(collectable_id as usize) &&
-                        let Some(sprite) = store.assets.sprites.get(&collectable_item.sprite_id) {
+                        let Some(item) = store.tables.collectable.items.get(collectable_id as usize) &&
+                        let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
+                            self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
+                        }
+                }
+                RoomTriggerType::GetPickup { pickup_id } => {
+                    if ! self.state.acquired_pickup_ids.contains(&pickup_id) &&
+                        let Some(item) = store.tables.pickup.items.get(pickup_id as usize) &&
+                        let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
                         }
                 }
