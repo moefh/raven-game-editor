@@ -120,13 +120,16 @@ impl DataTablesWindow {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 let new_sprite_id = store.asset_ids.sprites.iter().next().copied();
-                if let Some(new_sprite_id) = new_sprite_id &&
-                    ui.add(egui::Button::new(table_type.add_item_label())).clicked() &&
+                if ui.add(egui::Button::new(table_type.add_item_label())).clicked() &&
                     let Some(table) = table_type.get_store_item_table_mut(store) {
-                        table.items.push(DataStoreItem {
-                            name: String::from(table_type.new_item_name()),
-                            sprite_id: new_sprite_id,
-                        });
+                        if let Some(new_sprite_id) = new_sprite_id {
+                            table.items.push(DataStoreItem {
+                                name: String::from(table_type.new_item_name()),
+                                sprite_id: new_sprite_id,
+                            });
+                        } else {
+                            wc.open_message_box("No Sprite Available", "You must create a sprite first!");
+                        }
                     }
             });
         });
@@ -275,7 +278,7 @@ impl DataTablesWindow {
                 ui.add_space(2.0);
                 ui.horizontal(|ui| {
                     ui.label(format!(
-                        "[{} bytes] - {} upgrade{} / {} collectable{} / {} pickup{} / {} effect{}",
+                        "[{} bytes] - {} upgrade{} / {} collectable{} / {} pickup{} / {} effect{} / {} flag{}",
                         data_size,
                         store.tables.upgrade.items.len(),
                         if store.tables.upgrade.items.len() != 1 { "s" } else { "" },
@@ -285,6 +288,8 @@ impl DataTablesWindow {
                         if store.tables.pickup.items.len() != 1 { "s" } else { "" },
                         store.tables.effect.names.len(),
                         if store.tables.effect.names.len() != 1 { "s" } else { "" },
+                        store.tables.flag.names.len(),
+                        if store.tables.flag.names.len() != 1 { "s" } else { "" },
                     ));
                 });
             });
