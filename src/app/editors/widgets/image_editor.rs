@@ -1023,6 +1023,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         // check click
         if resp.drag_stopped() {
             self.tool_mouse_down = false;
+            self.drag_collision_border = None;
         }
         if let Some(pointer_pos) = resp.interact_pointer_pos() && ! keys_pressed.alt {
             if resp.drag_started() {
