@@ -62,6 +62,13 @@ fn check_room_size(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<Asse
             height: room_size.1,
         });
     }
+
+    if 4 * room_size.0 * room_size.1 > 0x10000 {
+        errors.push(AssetError::RoomTooBig {
+            width: room_size.0,
+            height: room_size.1,
+        });
+    }
 }
 
 fn check_room_trigger_ids(room: &Room, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {

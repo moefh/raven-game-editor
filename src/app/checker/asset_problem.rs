@@ -62,6 +62,7 @@ pub enum AssetError {
     PalSpriteColorOutOfPalette { frame_num: u32, num_pixels: u64 },
     RoomWithNoMaps,
     RoomTooSmall { width: u32, height: u32 },
+    RoomTooBig { width: u32, height: u32 },
     RoomInvalidMapId { map_id: DataAssetId },
     RoomMapInvalidXLocation { x: u32, map_id: DataAssetId },
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
@@ -146,6 +147,16 @@ impl AssetError {
                     height,
                     super::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
                     super::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
+                ));
+            }
+
+            AssetError::RoomTooBig { width, height } => {
+                ui.label(format!(
+                    "  -> room is too big: {}x{} (area must be <= {}, currently is {})",
+                    width,
+                    height,
+                    0x10000 / 4,
+                    width * height
                 ));
             }
 
