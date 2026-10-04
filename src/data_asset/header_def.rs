@@ -151,6 +151,13 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAYER_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_TRAP,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_WALL_BUTTON,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_FLOOR_BUTTON,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_DISABLE_ANIMATION_EFFECT,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_GET_UPGRADE,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_GET_COLLECTABLE,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_GET_PICKUP,
 };
 
 struct $<PREFIX>_ROOM_MAP_INFO {
@@ -188,6 +195,38 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t height;
             uint16_t type;
         } trap;
+        struct {
+            uint16_t width;
+            uint16_t height;
+            uint16_t effect_id;
+            uint16_t flag_id;
+            uint16_t req_collectable_id;
+        } wall_button;
+        struct {
+            uint16_t width;
+            uint16_t height;
+            uint16_t effect_id;
+            uint16_t flag_id;
+        } floor_button;
+        struct {
+            uint16_t width;
+            uint16_t height;
+            uint16_t effect_id;
+        } unblock_effect;
+        struct {
+            uint16_t width;
+            uint16_t height;
+            uint16_t effect_id;
+        } disable_animation_effect;
+        struct {
+            uint16_t upgrade_id;
+        } get_upgrade;
+        struct {
+            uint16_t collectable_id;
+        } get_collectable;
+        struct {
+            uint16_t pickup_id;
+        } get_pickup;
     };
 };
 
@@ -234,6 +273,14 @@ struct $<PREFIX>_TILE_ANIMATION {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_TILE_ANIMATION */
 
+#ifndef $<PREFIX>_SKIP_STRUCTS_DATA_TABLES
+
+struct $<PREFIX>_TABLE_ITEM {
+    const struct $<PREFIX>_IMAGE *sprite;
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_DATA_TABLES */
+
 #ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
 
 struct $<PREFIX>_STATE;
@@ -257,6 +304,9 @@ extern const struct $<PREFIX>_MAP $<prefix>_maps[];
 extern const struct $<PREFIX>_SPRITE_ANIMATION $<prefix>_sprite_animations[];
 extern const struct $<PREFIX>_TILE_ANIMATION $<prefix>_tile_animations[];
 extern const struct $<PREFIX>_ROOM $<prefix>_rooms[];
+extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_upgrades[];
+extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_collectables[];
+extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_pickups[];
 
 #if $<PREFIX>_ADD_ROOM_SCRIPTS
 extern const struct $<PREFIX>_ROOM_SCRIPT *$<prefix>_room_script_table[];
