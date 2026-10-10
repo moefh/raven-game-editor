@@ -771,7 +771,8 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         // delete selection
         let del = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete);
-        if ui.input_mut(|i| i.consume_shortcut(&del)) {
+        let backspace = egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Backspace);
+        if ui.input_mut(|i| i.consume_shortcut(&del)) || ui.input_mut(|i| i.consume_shortcut(&backspace)) {
             self.delete_selection(image, fill_color);
             return ImageEditorAction::None;
         }
