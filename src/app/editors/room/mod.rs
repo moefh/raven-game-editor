@@ -33,10 +33,16 @@ use super::{
     RoomTriggerTypeSel,
     RoomEnemyTypeSel,
     EditorAction,
+    MapTileFixer,
 };
 use super::widgets::{
     RoomDisplay,
     RoomEditorWidget,
+    RoomParallaxEditorWidget,
+    RoomParallaxDisplay,
+    RoomParallaxTool,
+    ImagePickerWidget,
+    TilePickerPopupWidget,
 };
 use super::super::menu_item;
 
@@ -44,6 +50,11 @@ use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
+
+enum EditorTab {
+    Maps,
+    Parallax,
+}
 
 enum TriggerTreeAction {
     None,
@@ -187,12 +198,18 @@ impl RoomEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        self.dialogs.show(wc, &mut self.editor, room, assets);
+        self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
 
         self.base.show_window(wc, room, [600.0, 300.0], [700.0, 400.0], |ui, wc, room, base| {
             Self::show_footer(ui, wc, room, assets.maps, base);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
+    }
+}
+
+impl MapTileFixer for RoomEditor {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        self.editor.para_editor.get_tile_planes()
     }
 }
 
@@ -228,9 +245,16 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, room: &mut Room, assets: &RoomEditorAssetLists) {
+    fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        editor: &mut Editor,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
         if self.properties_dialog.open {
-            self.properties_dialog.show(wc, room);
+            self.properties_dialog.show(wc, room, asset_ids, assets.tilesets);
         }
         let selected_map_id = Self::get_selected_map_id(editor, room);
         if self.map_selection_dialog.open && self.map_selection_dialog.show(wc, room, assets.maps, assets.tilesets) {
@@ -242,9 +266,13 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
+    selected_tab: EditorTab,
     room_editor: RoomEditorWidget,
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_room_ids: Vec<DataAssetId>,
+    tile_picker: ImagePickerWidget,
+    tile_picker_popup: TilePickerPopupWidget,
+    para_editor: RoomParallaxEditorWidget,
 }
 
 impl Editor {
@@ -252,9 +280,133 @@ impl Editor {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
+            selected_tab: EditorTab::Maps,
             room_editor: RoomEditorWidget::new(),
             sorted_animation_ids: Vec::new(),
             sorted_room_ids: Vec::new(),
+            tile_picker: ImagePickerWidget::new().use_as_palette(true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
+            para_editor: RoomParallaxEditorWidget::new(),
+        }
+    }
+
+    fn tile_to_image_selection(tile: u8) -> Option<u32> {
+        if tile == MapData::NO_TILE {
+            None
+        } else {
+            Some(tile as u32)
+        }
+    }
+
+    fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
+        if let Some(image_selection) = image_selection {
+            (image_selection & 0xff) as u8
+        } else {
+            MapData::NO_TILE
+        }
+    }
+
+    fn show_menubar(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        _asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Room", |ui| {
+                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
+                        wc.sys_dialogs.open_file(
+                            Some(wc.egui.window),
+                            self.import_sys_dlg_id.clone(),
+                            "sfx",
+                            "Import Room file",
+                            &[
+                                ("Raven Room files (*.ravroom)", &["ravroom"]),
+                                ("All files (*.*)", &["*"]),
+                            ]
+                        );
+                    }
+
+                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
+                        wc.add_editor_action(EditorAction::ExportRoom { room_id: self.asset_id });
+                    }
+
+                    ui.separator();
+
+                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                        dialogs.properties_dialog.set_open(
+                            wc,
+                            room,
+                            assets.maps,
+                            Self::image_selection_to_tile(self.tile_picker.get_selected_image_r())
+                        );
+                    }
+                });
+
+                match self.selected_tab {
+                    EditorTab::Maps => {
+                        ui.menu_button("Edit", |ui| {
+                            if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
+                                dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
+                            }
+                            if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
+                                self.add_trigger(room);
+                            }
+                        });
+                    }
+                    EditorTab::Parallax => {
+                        if room.parallax.tileset_id.is_some() {
+                            ui.menu_button("Edit", |ui| {
+                                if ui.add_enabled(self.para_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
+                                    self.para_editor.undo(room);
+                                }
+                                if ui.add_enabled(self.para_editor.can_redo(), menu_item(IMAGES.redo, " Redo")).clicked() {
+                                    self.para_editor.redo(room);
+                                }
+
+                                ui.separator();
+
+                                let has_selection = ! self.para_editor.selection.is_empty();
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
+                                    self.para_editor.cut(wc, room);
+                                }
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
+                                    self.para_editor.copy(wc, room);
+                                }
+                                if ui.add_enabled(! wc.map_clipboard.is_none(), menu_item(IMAGES.paste, " Paste")).clicked() {
+                                    self.para_editor.paste(wc, room);
+                                }
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
+                                    self.para_editor.delete_selection(room);
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    fn import_room(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, room: &mut Room, asset_ids: &AssetIdCollection) {
+        let result = file.read_string().and_then(|content| {
+            data_asset::deserialize_room(&content, self.asset_id, asset_ids, wc.logger)
+        });
+        match result {
+            Ok(mut new_room) => {
+                // replace everything except the name:
+                new_room.asset.name.replace_range(.., &room.asset.name);
+                std::mem::swap(room, &mut new_room)
+            }
+
+            Err(e) => {
+                wc.logger.log(format!("ERROR reading room file from {}:", file.filename()));
+                wc.logger.log(format!("{}", e));
+                wc.open_message_box("Error importing Room", "Error importing room file.\n\nConsult the log window for more information.");
+            }
         }
     }
 
@@ -790,8 +942,8 @@ impl Editor {
         }
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room) {
-        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
+    fn show_maps_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room) {
+        egui::Panel::top(format!("editor_panel_{}_maps_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 let spacing = ui.spacing().item_spacing;
@@ -845,6 +997,18 @@ impl Editor {
                             .on_hover_text("Show effects").clicked() {
                                 self.room_editor.display.toggle(RoomDisplay::EFFECTS);
                             }
+                        if ui.add(egui::Button::image(IMAGES.layer_para)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::PARALLAX))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::PARALLAX)))
+                            .on_hover_text("Show parallax").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::PARALLAX);
+                            }
+                        if ui.add(egui::Button::image(IMAGES.layer_bb)
+                            .selected(self.room_editor.display.has_bits(RoomDisplay::BACK_BACKGROUND))
+                            .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::BACK_BACKGROUND)))
+                            .on_hover_text("Show 2nd background").clicked() {
+                                self.room_editor.display.toggle(RoomDisplay::BACK_BACKGROUND);
+                            }
                         if ui.add(egui::Button::image(IMAGES.layer_bg)
                             .selected(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND))
                             .frame_when_inactive(self.room_editor.display.has_bits(RoomDisplay::BACKGROUND)))
@@ -897,108 +1061,7 @@ impl Editor {
         });
     }
 
-    fn show_header(
-        &mut self,
-        ui: &mut egui::Ui,
-        wc: &mut WindowContext,
-        dialogs: &mut Dialogs,
-        room: &mut Room,
-        _asset_ids: &AssetIdCollection,
-        assets: &RoomEditorAssetLists
-    ) {
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
-            egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button("Room", |ui| {
-                    if ui.add(menu_item(IMAGES.import, " Import...")).clicked() {
-                        wc.sys_dialogs.open_file(
-                            Some(wc.egui.window),
-                            self.import_sys_dlg_id.clone(),
-                            "sfx",
-                            "Import Room file",
-                            &[
-                                ("Raven Room files (*.ravroom)", &["ravroom"]),
-                                ("All files (*.*)", &["*"]),
-                            ]
-                        );
-                    }
-
-                    if ui.add(menu_item(IMAGES.export, " Export...")).clicked() {
-                        wc.add_editor_action(EditorAction::ExportRoom { room_id: self.asset_id });
-                    }
-
-                    ui.separator();
-
-                    if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
-                        dialogs.properties_dialog.set_open(wc, room);
-                    }
-                });
-
-                ui.menu_button("Edit", |ui| {
-                    if ui.add(menu_item(IMAGES.map_data, " Select maps...")).clicked() {
-                        dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
-                    }
-                    if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
-                        self.add_trigger(room);
-                    }
-                });
-            });
-        });
-    }
-
-    fn import_room(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, room: &mut Room, asset_ids: &AssetIdCollection) {
-        let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_room(&content, self.asset_id, asset_ids, wc.logger)
-        });
-        match result {
-            Ok(mut new_room) => {
-                // replace everything except the name:
-                new_room.asset.name.replace_range(.., &room.asset.name);
-                std::mem::swap(room, &mut new_room)
-            }
-
-            Err(e) => {
-                wc.logger.log(format!("ERROR reading room file from {}:", file.filename()));
-                wc.logger.log(format!("{}", e));
-                wc.open_message_box("Error importing Room", "Error importing room file.\n\nConsult the log window for more information.");
-            }
-        }
-    }
-
-    fn clear_sorted_ids(&mut self) {
-        self.sorted_room_ids.clear();
-        self.sorted_animation_ids.clear();
-    }
-
-    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
-            self.clear_sorted_ids();
-        }
-
-        if self.sorted_animation_ids.is_empty() {
-            asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
-        }
-        if self.sorted_room_ids.is_empty() {
-            asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
-            self.sorted_room_ids.sort_by(|x, y| {
-                if let Some(name_x) = assets.room_names.get(x) {
-                    if let Some(name_y) = assets.room_names.get(y) {
-                        name_x.cmp(name_y)
-                    } else {
-                        std::cmp::Ordering::Greater
-                    }
-                } else {
-                    if assets.room_names.get(y).is_some() {
-                        std::cmp::Ordering::Less
-                    } else {
-                        x.cmp(y)
-                    }
-                }
-            });
-        }
-    }
-
-    pub fn show(
+    fn show_maps_tab(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -1007,13 +1070,7 @@ impl Editor {
         asset_ids: &AssetIdCollection,
         assets: &RoomEditorAssetLists
     ) {
-        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
-            self.import_room(wc, file, room, asset_ids);
-        }
-        self.sort_ids(asset_ids, assets);
-
-        self.show_header(ui, wc, dialogs, room, asset_ids, assets);
-        self.show_toolbar(ui, wc, room);
+        self.show_maps_toolbar(ui, wc, room);
 
         // properties panel:
         egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {
@@ -1065,5 +1122,197 @@ impl Editor {
         egui::CentralPanel::default().show(ui, |ui| {
             self.room_editor.show(ui, wc, room, assets);
         });
+    }
+
+    fn show_parallax_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_maps_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.label("Tool:");
+                ui.add_space(2.0);
+
+                if ui.add(egui::Button::image(IMAGES.pen)
+                          .selected(self.para_editor.tool == RoomParallaxTool::Pencil)
+                          .frame_when_inactive(self.para_editor.tool == RoomParallaxTool::Pencil))
+                    .on_hover_text("Pencil (A)").clicked() {
+                        self.para_editor.set_tool(RoomParallaxTool::Pencil);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.select)
+                          .selected(self.para_editor.tool == RoomParallaxTool::Select)
+                          .frame_when_inactive(self.para_editor.tool == RoomParallaxTool::Select))
+                    .on_hover_text("Select (D)").clicked() {
+                        self.para_editor.set_tool(RoomParallaxTool::Select);
+                    }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                            .selected(self.para_editor.display.has_bits(RoomParallaxDisplay::GRID))
+                            .frame_when_inactive(self.para_editor.display.has_bits(RoomParallaxDisplay::GRID)))
+                            .on_hover_text("Show grid").clicked() {
+                                self.para_editor.display.toggle(RoomParallaxDisplay::GRID);
+                            }
+                        ui.label("Display:");
+
+                        ui.add_space(2.0);
+                        ui.separator();
+                        ui.add_space(2.0);
+
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.para_editor.zoom) {
+                            &format!("{:3.2}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("room_editor_{}_para_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.para_editor.zoom, *zoom, format!("{:3.2}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
+                ui.spacing_mut().item_spacing = spacing;
+            });
+
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_parallax_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        _dialogs: &mut Dialogs,
+        room: &mut Room,
+        _asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        self.show_parallax_toolbar(ui);
+
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            if let Some(tileset) = room.parallax.tileset_id.and_then(|tileset_id| assets.tilesets.get(&tileset_id)) {
+                if let Some(tile) = self.tile_picker_popup.show_anchor(
+                    ui,
+                    wc,
+                    "Select...",
+                    tileset,
+                    self.tile_picker.get_selected_image_l()
+                ) {
+                    self.tile_picker.set_selected_image_l(Some(tile));
+                }
+
+                if self.tile_picker.selection_set != 0 {
+                    self.tile_picker.selection_set = 0;
+                    self.tile_picker.force_selection_into_visibility();
+                }
+                self.tile_picker.show(ui, wc, tileset);
+            }
+            self.para_editor.left_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_l());
+            self.para_editor.right_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_r());
+        });
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            self.para_editor.show(ui, wc, room, assets.tilesets);
+            if self.para_editor.left_draw_tile_changed {
+                self.para_editor.left_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_l(Self::tile_to_image_selection(self.para_editor.left_draw_tile));
+            }
+            if self.para_editor.right_draw_tile_changed {
+                self.para_editor.right_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_r(Self::tile_to_image_selection(self.para_editor.right_draw_tile));
+            }
+        });
+
+        if room.parallax.tileset_id.is_some() && wc.is_editor_on_top(self.asset_id) {
+            self.para_editor.handle_keyboard(ui, wc, room);
+        }
+    }
+
+    fn show_tabs_toolbar(&mut self, ui: &mut egui::Ui, room: &Room) {
+        egui::Panel::top(format!("editor_panel_{}_tabs_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.add_enabled(
+                    true,
+                    egui::Button::selectable(matches!(self.selected_tab, EditorTab::Maps), "Maps")
+                ).clicked() {
+                    self.selected_tab = EditorTab::Maps;
+                }
+                if ui.add_enabled(
+                    room.parallax.tileset_id.is_some(),
+                    egui::Button::selectable(matches!(self.selected_tab, EditorTab::Parallax), "Parallax")
+                ).clicked() {
+                    self.selected_tab = EditorTab::Parallax;
+                }
+            });
+        });
+    }
+
+    fn clear_sorted_ids(&mut self) {
+        self.sorted_room_ids.clear();
+        self.sorted_animation_ids.clear();
+    }
+
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
+            self.clear_sorted_ids();
+        }
+
+        if self.sorted_animation_ids.is_empty() {
+            asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+        }
+        if self.sorted_room_ids.is_empty() {
+            asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
+            self.sorted_room_ids.sort_by(|x, y| {
+                if let Some(name_x) = assets.room_names.get(x) {
+                    if let Some(name_y) = assets.room_names.get(y) {
+                        name_x.cmp(name_y)
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                } else {
+                    if assets.room_names.get(y).is_some() {
+                        std::cmp::Ordering::Less
+                    } else {
+                        x.cmp(y)
+                    }
+                }
+            });
+        }
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_room(wc, file, room, asset_ids);
+        }
+        self.sort_ids(asset_ids, assets);
+        if room.parallax.tileset_id.is_none() && matches!(self.selected_tab, EditorTab::Parallax) {
+            self.selected_tab = EditorTab::Maps;
+        }
+
+        self.show_menubar(ui, wc, dialogs, room, asset_ids, assets);
+        self.show_tabs_toolbar(ui, room);
+
+        match self.selected_tab {
+            EditorTab::Maps => { self.show_maps_tab(ui, wc, dialogs, room, asset_ids, assets); }
+            EditorTab::Parallax => { self.show_parallax_tab(ui, wc, dialogs, room, asset_ids, assets); }
+        }
     }
 }

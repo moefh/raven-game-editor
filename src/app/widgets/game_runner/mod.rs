@@ -38,10 +38,13 @@ use super::super::editors::{
     get_animation_step,
     get_game_runner_step,
     draw_layer,
+    draw_room_layer,
     RoomSize,
     MapLayer,
     DrawMapInfo,
     DrawMapLayerData,
+    DrawRoomLayerInfo,
+    DrawRoomLayerData,
 };
 
 use controller::{*};
@@ -61,7 +64,7 @@ pub struct GameRunnerRoomState {
     pub width: u32,
     pub height: u32,
     pub fx: Vec<u8>,
-    pub para: Vec<u8>,
+    pub bb: Vec<u8>,
     pub bg: Vec<u8>,
     pub fg: Vec<u8>,
 }
@@ -73,11 +76,11 @@ impl GameRunnerRoomState {
         self.width = room_size.width;
         self.height = room_size.height;
         self.fx.clear();
-        self.para.clear();
+        self.bb.clear();
         self.bg.clear();
         self.fg.clear();
         self.fx.resize(layer_len, 0xff);
-        self.para.resize(layer_len, 0xff);
+        self.bb.resize(layer_len, 0xff);
         self.bg.resize(layer_len, 0xff);
         self.fg.resize(layer_len, 0xff);
         for room_map in &room.maps {
@@ -90,13 +93,9 @@ impl GameRunnerRoomState {
                     self.fx[dest_start..dest_end].copy_from_slice(&map.fx_tiles[src_start..src_end]);
                     self.bg[dest_start..dest_end].copy_from_slice(&map.bg_tiles[src_start..src_end]);
                     self.fg[dest_start..dest_end].copy_from_slice(&map.fg_tiles[src_start..src_end]);
-                }
-                for y in 0..map.para_height {
-                    let dest_start = ((y + room_map.y as u32) * room_size.width + room_map.x as u32) as usize;
-                    let dest_end = dest_start + map.para_width as usize;
-                    let src_start = (y * map.para_width) as usize;
-                    let src_end = src_start + map.para_width as usize;
-                    self.para[dest_start..dest_end].copy_from_slice(&map.para_tiles[src_start..src_end]);
+                    if map.has_bb {
+                        self.bb[dest_start..dest_end].copy_from_slice(&map.bb_tiles[src_start..src_end]);
+                    }
                 }
             }
         }
@@ -126,8 +125,8 @@ impl GameRunnerRoomState {
             MapLayer::Background => {
                 (map_data.width, map_data.height, &self.bg[start..])
             }
-            MapLayer::Parallax => {
-                (map_data.para_width, map_data.para_height, &self.para[start..])
+            MapLayer::BackBackground => {
+                (map_data.width, map_data.height, &self.bb[start..])
             }
             _ => { return None; }
         };
@@ -170,7 +169,7 @@ impl GameRunnerState {
                 width: 0,
                 height: 0,
                 fx: Vec::new(),
-                para: Vec::new(),
+                bb: Vec::new(),
                 bg: Vec::new(),
                 fg: Vec::new(),
             },
@@ -461,13 +460,26 @@ impl GameRunnerWidget {
         wc: &mut WindowContext,
         room: &Room,
         store: &DataAssetStore,
-        draw_map_info: &DrawMapInfo
+        draw_map_info: &DrawMapInfo,
+        draw_room_info: &DrawRoomLayerInfo
     ) {
+        if let Some(tileset_id) = room.parallax.tileset_id && let Some(tileset) = store.assets.tilesets.get(&tileset_id) {
+            let draw_room_layer_data = DrawRoomLayerData {
+                tileset,
+                slot: TextureSlot::Opaque,
+                width: room.parallax.width,
+                height: room.parallax.height,
+                stride: room.parallax.width,
+                tiles: &room.parallax.tiles,
+            };
+            draw_room_layer(ui, wc, &draw_room_info, &draw_room_layer_data, None);
+        }
+
         for room_map in room.maps.iter() {
             if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
                 let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
                 let draw_info = draw_map_info.add_pos(map_pos);
-                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Parallax, store) {
+                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::BackBackground, store) {
                     draw_layer(ui, wc, &draw_info, &draw_layer_data, None);
                 }
                 if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Background, store) {
@@ -494,6 +506,21 @@ impl GameRunnerWidget {
                 }
             }
         }
+    }
+
+    fn calc_parallax_pos(&self, room_x: i32, room_y: i32, room_size: RoomSize, room: &Room) -> egui::Vec2 {
+        if room.parallax.width == 0 || room.parallax.height == 0 {
+            return egui::Vec2::ZERO;
+        }
+        let room_w = room_size.width as i32 - Self::WIDTH;
+        let room_h = room_size.height as i32 - Self::HEIGHT;
+        let para_x = if room_w <= 0 { 0 } else {
+            room_x * (room.parallax.width as i32 * Tileset::TILE_SIZE as i32 - Self::WIDTH) / room_w
+        };
+        let para_y = if room_h <= 0 { 0 } else {
+            room_y * (room.parallax.height as i32 * Tileset::TILE_SIZE as i32 - Self::HEIGHT) / room_h
+        };
+        egui::Vec2::new(para_x as f32, para_y as f32)
     }
 
     fn draw_screen(
@@ -525,8 +552,13 @@ impl GameRunnerWidget {
             screen_rect,
             animation_step: Some(self.map_animation_step),
         };
+        let draw_room_info = DrawRoomLayerInfo {
+            zoom,
+            pos: screen_pos - zoom * self.calc_parallax_pos(self.state.room_x, self.state.room_y, room_size, room),
+            screen_rect,
+        };
 
-        self.draw_room_bg(ui, wc, room, store, &draw_map_info);
+        self.draw_room_bg(ui, wc, room, store, &draw_map_info, &draw_room_info);
         self.draw_room_triggers(ui, wc, room, store, draw_map_info.pos, zoom);
         self.player.draw(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
         for enemy in self.enemies.iter_mut() {

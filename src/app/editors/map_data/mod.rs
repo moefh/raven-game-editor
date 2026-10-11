@@ -94,12 +94,11 @@ impl MapDataEditor {
         egui::Panel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(format!(
-                    "{} bytes [size: {}x{}, parallax: {}x{}]{}",
+                    "{} bytes [size: {}x{}, {} 2nd bg]{}",
                     map_data.data_size(),
                     map_data.width,
                     map_data.height,
-                    map_data.para_width,
-                    map_data.para_height,
+                    if map_data.has_bb { "has" } else { "no" },
                     dirty
                 )).truncate());
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
@@ -358,12 +357,12 @@ impl Editor {
                 }
 
                 if ui.add_enabled(
-                    map_data.para_width != 0 && map_data.para_height != 0,
-                    egui::Button::image(IMAGES.layer_para)
-                        .selected(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
-                        .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::PARALLAX))
-                ).on_hover_text("Show Parallax layer (3)").clicked() {
-                    self.map_editor.display.toggle(MapDisplay::PARALLAX);
+                    map_data.has_bb,
+                    egui::Button::image(IMAGES.layer_bb)
+                        .selected(self.map_editor.display.has_bits(MapDisplay::BACK_BACKGROUND))
+                        .frame_when_inactive(self.map_editor.display.has_bits(MapDisplay::BACK_BACKGROUND))
+                ).on_hover_text("Show 2nd Background layer (3)").clicked() {
+                    self.map_editor.display.toggle(MapDisplay::BACK_BACKGROUND);
                 }
 
                 if ui.add(
@@ -455,13 +454,13 @@ impl Editor {
 
                         let mut fg_tile_buf = NumBuffer::new();
                         let mut bg_tile_buf = NumBuffer::new();
-                        let mut para_tile_buf = NumBuffer::new();
+                        let mut bb_tile_buf = NumBuffer::new();
                         let mut fx_tile_buf = NumBuffer::new();
                         let mut an_tile_buf = NumBuffer::new();
 
                         let fg_tile = Self::get_map_tile_name(self.map_editor.hover_tile_fg, &mut fg_tile_buf);
                         let bg_tile = Self::get_map_tile_name(self.map_editor.hover_tile_bg, &mut bg_tile_buf);
-                        let para_tile = Self::get_map_tile_name(self.map_editor.hover_tile_para, &mut para_tile_buf);
+                        let bb_tile = Self::get_map_tile_name(self.map_editor.hover_tile_bb, &mut bb_tile_buf);
                         let fx_tile = Self::get_map_tile_name(self.map_editor.hover_tile_fx, &mut fx_tile_buf);
                         let an_tile = Self::get_map_tile_name(self.map_editor.hover_tile_an, &mut an_tile_buf);
 
@@ -469,7 +468,7 @@ impl Editor {
                             "[tile {}/{}/{}/{}/{}]",
                             fg_tile,
                             bg_tile,
-                            para_tile,
+                            bb_tile,
                             fx_tile,
                             an_tile
                         ));
@@ -513,13 +512,13 @@ impl Editor {
                 }
 
                 if ui.add_enabled(
-                    map_data.para_width != 0 && map_data.para_height != 0,
+                    map_data.has_bb,
                     egui::Button::image(IMAGES.pencil_para)
-                        .selected(self.map_editor.edit_layer == MapLayer::Parallax)
-                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Parallax)
-                ).on_hover_text("Edit Parallax layer (E)").clicked() {
-                    self.map_editor.set_edit_layer(MapLayer::Parallax);
-                    self.map_editor.display.set(MapDisplay::PARALLAX);
+                        .selected(self.map_editor.edit_layer == MapLayer::BackBackground)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::BackBackground)
+                ).on_hover_text("Edit 2nd Background layer (E)").clicked() {
+                    self.map_editor.set_edit_layer(MapLayer::BackBackground);
+                    self.map_editor.display.set(MapDisplay::BACK_BACKGROUND);
                 }
 
                 if ui.add(
@@ -577,21 +576,11 @@ impl Editor {
                 if ui.add_enabled(
                     tools_enabled,
                     egui::Button::image(IMAGES.select)
-                        .selected(self.map_editor.tool == MapTool::SelectFullLayers)
-                        .frame_when_inactive(self.map_editor.tool == MapTool::SelectFullLayers)
-                ).on_hover_text("Select normal layers").clicked() {
-                        self.map_editor.set_tool(MapTool::SelectFullLayers);
-                    }
-
-                if map_data.width == map_data.para_width && map_data.height == map_data.para_height &&
-                    ui.add_enabled(
-                        tools_enabled,
-                        egui::Button::image(IMAGES.select)
-                            .selected(self.map_editor.tool == MapTool::SelectAllLayers)
-                            .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers)
-                    ).on_hover_text("Select all layers").clicked() {
-                        self.map_editor.set_tool(MapTool::SelectAllLayers);
-                    }
+                        .selected(self.map_editor.tool == MapTool::SelectAllLayers)
+                        .frame_when_inactive(self.map_editor.tool == MapTool::SelectAllLayers)
+                ).on_hover_text("Select all layers").clicked() {
+                    self.map_editor.set_tool(MapTool::SelectAllLayers);
+                }
 
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                     ui.horizontal(|ui| {

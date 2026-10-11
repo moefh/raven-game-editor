@@ -13,16 +13,19 @@ use super::super::{
     WindowContext,
 };
 
-fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_para_w: u32, new_para_h: u32, new_tile: u8) {
+fn resize_map(map_data: &mut MapData, new_w: u32, new_h: u32, new_has_bb: bool, new_tile: u8) {
     resize_map_tiles(&mut map_data.fg_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
     resize_map_tiles(&mut map_data.bg_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
     resize_map_tiles(&mut map_data.fx_tiles, map_data.width, map_data.height, new_w, new_h, new_tile);
+    if new_has_bb {
+        let (old_w, old_h) = if map_data.has_bb { (map_data.width, map_data.height) } else { (0, 0) };
+        resize_map_tiles(&mut map_data.bb_tiles, old_w, old_h, new_w, new_h, new_tile);
+    } else {
+        map_data.bb_tiles.clear();
+    }
     map_data.width = new_w;
     map_data.height = new_h;
-
-    resize_map_tiles(&mut map_data.para_tiles, map_data.para_width, map_data.para_height, new_para_w, new_para_h, new_tile);
-    map_data.para_width = new_para_w;
-    map_data.para_height = new_para_h;
+    map_data.has_bb = new_has_bb;
 }
 
 pub struct PropertiesDialog {
@@ -33,8 +36,7 @@ pub struct PropertiesDialog {
     pub tile_anim_id: Option<DataAssetId>,
     pub width: u32,
     pub height: u32,
-    pub para_width: u32,
-    pub para_height: u32,
+    pub has_bb: bool,
     pub new_tile: u8,
     pub resized: bool,
     pub changed_tileset: bool,
@@ -52,8 +54,7 @@ impl PropertiesDialog {
             tile_anim_id: None,
             width: 0,
             height: 0,
-            para_width: 0,
-            para_height: 0,
+            has_bb: false,
             new_tile: 0,
             resized: false,
             changed_tileset: false,
@@ -73,8 +74,7 @@ impl PropertiesDialog {
         self.tile_anim_id = map_data.tile_anim_id;
         self.width = map_data.width;
         self.height = map_data.height;
-        self.para_width = map_data.para_width;
-        self.para_height = map_data.para_height;
+        self.has_bb = map_data.has_bb;
         self.new_tile = new_tile;
         self.resized = false;
         self.changed_tileset = false;
@@ -84,26 +84,15 @@ impl PropertiesDialog {
         wc.set_dialog_open(self.dlg_id, self.open);
     }
 
-    fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
-        if self.width < self.para_width || self.height < self.para_height {
-            wc.open_message_box("Invalid Size", "The parallax must be smaller or the same size as the foreground.");
-            self.resized = false;
-            return false;
-        }
-
-        map_data.asset.name.clear();
-        map_data.asset.name.push_str(&self.name);
+    fn confirm(&mut self, _wc: &mut WindowContext, map_data: &mut MapData) -> bool {
+        map_data.asset.name.replace_range(.., &self.name);
 
         self.changed_tileset = map_data.tileset_id != self.tileset_id;
         map_data.tileset_id = self.tileset_id;
         map_data.tile_anim_id = self.tile_anim_id;
 
-        let width = self.width;
-        let height = self.height;
-        let para_width = self.para_width;
-        let para_height = self.para_height;
-        if width != map_data.width || height != map_data.height || para_width != map_data.para_width || para_height != map_data.para_height {
-            resize_map(map_data, width, height, para_width, para_height, self.new_tile);
+        if self.width != map_data.width || self.height != map_data.height || self.has_bb != map_data.has_bb {
+            resize_map(map_data, self.width, self.height, self.has_bb, self.new_tile);
             self.resized = true;
         } else {
             self.resized = false;
@@ -186,12 +175,8 @@ impl PropertiesDialog {
                         ui.add(egui::Slider::new(&mut self.height, 1..=512).step_by(1.0));
                         ui.end_row();
 
-                        ui.label("Parallax Width:");
-                        ui.add(egui::Slider::new(&mut self.para_width, 0..=512).step_by(1.0));
-                        ui.end_row();
-
-                        ui.label("Parallax Height:");
-                        ui.add(egui::Slider::new(&mut self.para_height, 0..=512).step_by(1.0));
+                        ui.label("2nd background:");
+                        ui.checkbox(&mut self.has_bb, "");
                         ui.end_row();
                     });
             });

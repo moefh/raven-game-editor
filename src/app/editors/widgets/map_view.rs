@@ -48,15 +48,19 @@ impl MapViewWidget {
         let map_rect = egui::Rect::from_min_size(canvas_rect.min, zoom * map_size);
         painter.rect_filled(map_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0,0,0));
 
-        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
-                let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+        if map_data.has_bb {
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+            for y in 0..map_data.height {
+                for x in 0..map_data.width {
+                    let tile = get_map_layer_tile(map_data, MapLayer::BackBackground, x, y);
+                    if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                    let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                }
             }
         }
+
+        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, if map_data.has_bb { TextureSlot::Transparent } else { TextureSlot::Opaque });
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);

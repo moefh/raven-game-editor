@@ -86,8 +86,7 @@ struct $<PREFIX>_PAL_SPRITE {
 struct $<PREFIX>_MAP {
     int16_t w;
     int16_t h;
-    int16_t para_w;
-    int16_t para_h;
+    uint8_t has_bb_layer;
     const struct $<PREFIX>_IMAGE *tileset;
     const struct $<PREFIX>_TILE_ANIMATION *animation;
     const uint8_t *tiles;
@@ -230,11 +229,19 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
     };
 };
 
+struct $<PREFIX>_ROOM_PARALLAX {
+    const struct $<PREFIX>_IMAGE *tileset;
+    uint16_t width;
+    uint16_t height;
+    const uint8_t *tiles;
+};
+
 struct $<PREFIX>_ROOM {
     uint16_t num_maps;
     uint16_t num_triggers;
     const struct $<PREFIX>_ROOM_MAP_INFO *maps;
     const struct $<PREFIX>_ROOM_TRIGGER_INFO *triggers;
+    struct $<PREFIX>_ROOM_PARALLAX parallax;
 };
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_ROOM */

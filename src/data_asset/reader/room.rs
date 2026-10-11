@@ -18,6 +18,7 @@ use super::super::{
     Room,
     RoomMap,
     RoomTrigger,
+    RoomParallax,
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomEntityDirection,
@@ -29,6 +30,12 @@ pub fn get_asset_def() -> ValueDefStruct {
         (String::from("num_triggers"), ValueDef::U16),
         (String::from("maps"), ValueDef::ArrayRef),      // ROOM_MAP_INFO
         (String::from("triggers"), ValueDef::ArrayRef),  // ROOM_TRIGGER_INFO
+        (String::from("parallax"), ValueDef::Struct(ValueDefStruct::new(vec![
+            (String::from("tileset_id"), ValueDef::AssetRef),
+            (String::from("width"), ValueDef::U16),
+            (String::from("height"), ValueDef::U16),
+            (String::from("tiles"), ValueDef::ArrayRef),
+        ]))),
     ])
 }
 
@@ -321,11 +328,47 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
     })
 }
 
+fn conv_parallax(para_struct: &ValueStruct, project_data: &ProjectData) -> Result<RoomParallax> {
+    let tileset_ref = para_struct.get_asset_ref("tileset_id")?;
+    let width = para_struct.get_u16("width")?;
+    let height = para_struct.get_u16("height")?;
+    let tiles_array = para_struct.get_array_ref("tiles")?;
+    let tileset_id = tileset_ref.get_asset_id_or_none(project_data)?;
+    let width = width as u32;
+    let height = height as u32;
+    if tileset_id.is_none() && ! tiles_array.is_null() {
+        return error("parallax tiles must be NULL when tileset is NULL", tiles_array.pos);
+    } else if tileset_id.is_some() && tiles_array.is_null() {
+        return error("parallax tiles must no be NULL when tileset is not NULL", tiles_array.pos);
+    }
+    let tiles = if tiles_array.is_null() {
+        Vec::new()
+    } else {
+        let tiles = tiles_array.get_u8_array(project_data)?;
+        let want_size = width as usize * height as usize;
+        if tiles.len() != want_size {
+            return error(
+                format!("invalid parallax tiles size: expected {}, got {}", want_size, tiles.len()),
+                tiles_array.pos
+            );
+        }
+        tiles.to_vec()
+    };
+
+    Ok(RoomParallax {
+        tileset_id,
+        width,
+        height,
+        tiles,
+    })
+}
+
 pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &ProjectData) -> Result<Room> {
     let num_maps = asset_struct.get_u16("num_maps")?;
     let num_triggers = asset_struct.get_u16("num_triggers")?;
     let maps_array = asset_struct.get_array_ref("maps")?;
     let triggers_array = asset_struct.get_array_ref("triggers")?;
+    let parallax = asset_struct.get_struct("parallax")?;
 
     let name = project_data.extract_asset_name("room_maps_", maps_array)?;
     let maps = maps_array.get_struct_array(project_data)?;
@@ -353,10 +396,12 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     }
     let has_script = project_data.room_names_with_scripts.contains(name);
 
+
     Ok(Room {
         asset: DataAsset::new(DataAssetType::Room, asset_id, DataAsset::identifier_to_name(name)),
         maps,
         triggers,
         has_script,
+        parallax: conv_parallax(parallax, project_data)?,
     })
 }

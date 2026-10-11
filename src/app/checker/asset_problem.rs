@@ -7,7 +7,7 @@ use crate::data_asset::{
 pub enum MapLayer {
     Foreground,
     Background,
-    Parallax,
+    BackBackground,
 }
 
 impl MapLayer {
@@ -15,7 +15,7 @@ impl MapLayer {
         match self {
             MapLayer::Foreground => "foreground",
             MapLayer::Background => "background",
-            MapLayer::Parallax   => "parallax",
+            MapLayer::BackBackground   => "2nd background",
         }
     }
 }
@@ -53,8 +53,6 @@ impl AssetWarning {
 pub enum AssetError {
     TilesetTooBig { num_tiles: u32 },
     MapTilesetInvalid { tileset_id: DataAssetId },
-    MapParallaxTooSmall { para_width: u32, para_height: u32 },
-    MapParallaxTooBig { width: u32, height: u32, para_width: u32, para_height: u32 },
     MapInvalidTile { tile_x: u32, tile_y: u32, tile: u8, layer: MapLayer },
     MapTransparentTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
     SpriteTooBig { num_frames: u32 },
@@ -82,26 +80,6 @@ impl AssetError {
 
             AssetError::MapTilesetInvalid { tileset_id } => {
                 ui.label(format!("  -> map references an invalid tileset: {}", tileset_id));
-            }
-
-            AssetError::MapParallaxTooSmall { para_width, para_height } => {
-                ui.label(format!(
-                    "  -> map parallax is too small: {}x{} (min is {}x{})",
-                    para_width,
-                    para_height,
-                    super::SCREEN_WIDTH.div_ceil(Tileset::TILE_SIZE),
-                    super::SCREEN_HEIGHT.div_ceil(Tileset::TILE_SIZE)
-                ));
-            }
-
-            AssetError::MapParallaxTooBig { width, height, para_width, para_height } => {
-                ui.label(format!(
-                    "  -> map parallax is too big: {}x{} (max is map size, which is {}x{})",
-                    para_width,
-                    para_height,
-                    width,
-                    height
-                ));
             }
 
             AssetError::MapInvalidTile { tile_x, tile_y, tile, layer } => {

@@ -90,12 +90,21 @@ pub struct RoomTrigger {
     pub trigger_type: RoomTriggerType,
 }
 
+#[derive(Clone, std::hash::Hash)]
+pub struct RoomParallax {
+    pub tileset_id: Option<DataAssetId>,
+    pub width: u32,
+    pub height: u32,
+    pub tiles: Vec<u8>,
+}
+
 #[derive(std::hash::Hash)]
 pub struct Room {
     pub asset: super::DataAsset,
     pub maps: Vec<RoomMap>,
     pub triggers: Vec<RoomTrigger>,
     pub has_script: bool,
+    pub parallax: RoomParallax,
 }
 
 impl Room {
@@ -105,6 +114,12 @@ impl Room {
             maps: Vec::new(),
             triggers: Vec::new(),
             has_script: false,
+            parallax: RoomParallax {
+                tileset_id: None,
+                width: 0,
+                height: 0,
+                tiles: Vec::new(),
+            },
         }
     }
 }
@@ -115,6 +130,14 @@ impl super::DataHashAsset for Room {
 
         self.asset.asset_type.hash(state);
         self.asset.name.hash(state);
+        if self.parallax.tileset_id.is_none() {
+            0.hash(state);
+        } else {
+            1.hash(state);
+            self.parallax.width.hash(state);
+            self.parallax.height.hash(state);
+            self.parallax.tiles.hash(state);
+        }
         for map in &self.maps {
             map.x.hash(state);
             map.y.hash(state);
@@ -203,6 +226,7 @@ impl super::DuplicableAsset<Room> for Room {
             maps: self.maps.clone(),
             triggers: self.triggers.clone(),
             has_script: self.has_script,
+            parallax: self.parallax.clone(),
         }
     }
 }

@@ -312,6 +312,14 @@ pub fn fix_after_tileset_tiles_added(
             }
         }
     }
+    for room_id in store.asset_ids.rooms.iter() {
+        if let Some(room) = store.assets.rooms.get_mut(room_id) && room.parallax.tileset_id.is_some_and(|id| id == tileset_id) {
+            room.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            if let Some(room_editor) = editors.rooms.get_mut(room_id) {
+                room_editor.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
+        }
+    }
     for tile_anim_id in store.asset_ids.tile_anims.iter() {
         if let Some(tile_anim) = store.assets.tile_anims.get_mut(tile_anim_id) &&
             (tile_anim.parent_tileset_id == tileset_id || tile_anim.anim_tileset_id == tileset_id) {
@@ -348,6 +356,14 @@ pub fn fix_after_tileset_tiles_removed(
             }
         }
     }
+    for room_id in store.asset_ids.rooms.iter() {
+        if let Some(room) = store.assets.rooms.get_mut(room_id) && room.parallax.tileset_id.is_some_and(|id| id == tileset_id) {
+            room.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            if let Some(room_editor) = editors.rooms.get_mut(room_id) {
+                room_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
+        }
+    }
     for tile_anim_id in store.asset_ids.tile_anims.iter() {
         if let Some(tile_anim) = store.assets.tile_anims.get_mut(tile_anim_id) &&
             (tile_anim.parent_tileset_id == tileset_id || tile_anim.anim_tileset_id == tileset_id) {
@@ -379,6 +395,14 @@ pub fn fix_after_tileset_tiles_shuffled(
             map_data.shuffle_tiles(&shuffle);
             if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.shuffle_tiles(&shuffle);
+            }
+        }
+    }
+    for room_id in store.asset_ids.rooms.iter() {
+        if let Some(room) = store.assets.rooms.get_mut(room_id) && room.parallax.tileset_id.is_some_and(|id| id == tileset_id) {
+            room.shuffle_tiles(&shuffle);
+            if let Some(room_editor) = editors.rooms.get_mut(room_id) {
+                room_editor.shuffle_tiles(&shuffle);
             }
         }
     }

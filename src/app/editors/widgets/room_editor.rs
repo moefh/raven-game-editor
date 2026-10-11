@@ -30,7 +30,8 @@ use super::{
     SCREEN_SIZE,
 };
 use super::super::{
-    draw_para_layer,
+    draw_room_layer,
+    draw_bb_layer,
     draw_bg_layer,
     draw_fg_layer,
     get_animation_step,
@@ -40,6 +41,8 @@ use super::super::{
     RoomSize,
     RectBorder,
     DrawMapInfo,
+    DrawRoomLayerInfo,
+    DrawRoomLayerData,
 };
 use super::super::room::{
     RoomEditorAssetLists,
@@ -56,15 +59,16 @@ pub struct RoomDisplay {
 
 #[allow(unused)]
 impl RoomDisplay {
-    pub const FOREGROUND: u32     = 1 << 0;
-    pub const BACKGROUND: u32     = 1 << 1;
-    pub const EFFECTS: u32        = 1 << 2;
-    pub const PARALLAX: u32       = 1 << 3;
-    pub const GRID: u32           = 1 << 4;
-    pub const ENEMY_TRIGGERS: u32 = 1 << 5;
-    pub const OTHER_TRIGGERS: u32 = 1 << 6;
-    pub const SCREEN: u32         = 1 << 7;
-    pub const ANIMATE_TILES: u32  = 1 << 8;
+    pub const FOREGROUND: u32      = 1 << 0;
+    pub const BACKGROUND: u32      = 1 << 1;
+    pub const BACK_BACKGROUND: u32 = 1 << 2;
+    pub const EFFECTS: u32         = 1 << 3;
+    pub const PARALLAX: u32        = 1 << 4;
+    pub const GRID: u32            = 1 << 5;
+    pub const ENEMY_TRIGGERS: u32  = 1 << 6;
+    pub const OTHER_TRIGGERS: u32  = 1 << 7;
+    pub const SCREEN: u32          = 1 << 8;
+    pub const ANIMATE_TILES: u32   = 1 << 9;
 
     pub fn new(bits: u32) -> Self {
         RoomDisplay {
@@ -284,6 +288,7 @@ pub struct RoomEditorWidget {
 impl RoomEditorWidget {
     const DEFAULT_ROOM_DISPLAY: u32 = RoomDisplay::FOREGROUND |
         RoomDisplay::BACKGROUND |
+        RoomDisplay::BACK_BACKGROUND |
         RoomDisplay::ENEMY_TRIGGERS |
         RoomDisplay::OTHER_TRIGGERS;
 
@@ -676,66 +681,78 @@ impl RoomEditorWidget {
         to_canvas: &RectTransform,
         trigger: &RoomTrigger,
         assets: &RoomEditorAssetLists
-    ) {
+    ) -> bool {
         if ! self.display.has_bits(RoomDisplay::ENEMY_TRIGGERS) {
-            return;
+            return true;
         }
 
-        if let RoomTriggerType::EnemySpawn { animation_id, direction, .. } = trigger.trigger_type &&
-            let Some(animation) = assets.animations.get(&animation_id) &&
-            let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-                let sprite_frame = animation.loops.first()
-                    .and_then(|aloop| aloop.frame_indices.first())
-                    .and_then(|frame| frame.head_index)
-                    .unwrap_or(0);
-                let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
-                    animation.clip_rect.x as f32
-                } else {
-                    sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
-                };
-                let y = trigger.y as f32 - animation.clip_rect.y as f32;
-                let sprite_rect = Rect::from_min_size(
-                    Pos2::new(x, y),
-                    Vec2::new(sprite.width as f32, sprite.height as f32)
-                );
-                let draw_rect = to_canvas.transform_rect(sprite_rect);
-                let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-                let frame_uv = sprite.get_item_uv(sprite_frame as u32);
-                let uv = match direction {
-                    RoomEntityDirection::Right => {
-                        frame_uv
+        match trigger.trigger_type {
+            RoomTriggerType::EnemySpawn { animation_id, direction, .. } => {
+                if let Some(animation) = assets.animations.get(&animation_id) &&
+                    let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                        let sprite_frame = animation.loops.first()
+                            .and_then(|aloop| aloop.frame_indices.first())
+                            .and_then(|frame| frame.head_index)
+                            .unwrap_or(0);
+                        let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
+                            animation.clip_rect.x as f32
+                        } else {
+                            sprite.width as f32 - (animation.clip_rect.x + animation.clip_rect.w) as f32
+                        };
+                        let y = trigger.y as f32 - animation.clip_rect.y as f32;
+                        let sprite_rect = Rect::from_min_size(
+                            Pos2::new(x, y),
+                            Vec2::new(sprite.width as f32, sprite.height as f32)
+                        );
+                        let draw_rect = to_canvas.transform_rect(sprite_rect);
+                        let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        let frame_uv = sprite.get_item_uv(sprite_frame as u32);
+                        let uv = match direction {
+                            RoomEntityDirection::Right => {
+                                frame_uv
+                            }
+                            RoomEntityDirection::Left => {
+                                Rect::from_min_max(
+                                    Pos2::new(frame_uv.max.x, frame_uv.min.y),
+                                    Pos2::new(frame_uv.min.x, frame_uv.max.y)
+                                )
+                            }
+                        };
+                        Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
+                        return true;
                     }
-                    RoomEntityDirection::Left => {
-                        Rect::from_min_max(
-                            Pos2::new(frame_uv.max.x, frame_uv.min.y),
-                            Pos2::new(frame_uv.min.x, frame_uv.max.y)
-                        )
+            }
+
+            RoomTriggerType::GetUpgrade { upgrade_id } => {
+                if let Some(item) = assets.tables.upgrade.items.get(upgrade_id as usize) &&
+                    let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                        draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                        return true;
                     }
-                };
-                Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
-                return;
             }
 
-        if let RoomTriggerType::GetUpgrade { upgrade_id } = trigger.trigger_type &&
-            let Some(item) = assets.tables.upgrade.items.get(upgrade_id as usize) &&
-            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
-                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
-                return;
+            RoomTriggerType::GetCollectable { collectable_id } => {
+                if let Some(item) = assets.tables.collectable.items.get(collectable_id as usize) &&
+                    let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                        draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                        return true;
+                    }
             }
 
-        if let RoomTriggerType::GetCollectable { collectable_id } = trigger.trigger_type &&
-            let Some(item) = assets.tables.collectable.items.get(collectable_id as usize) &&
-            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
-                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
-                return;
+            RoomTriggerType::GetPickup { pickup_id } => {
+                if let Some(item) = assets.tables.pickup.items.get(pickup_id as usize) &&
+                    let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                        draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                        return true;
+                    }
             }
 
-        if let RoomTriggerType::GetPickup { pickup_id } = trigger.trigger_type &&
-            let Some(item) = assets.tables.pickup.items.get(pickup_id as usize) &&
-            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
-                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
-                return;
+            _ => {
+                return true;
             }
+        }
+
+        false
     }
 
     fn draw_trigger_outline(&self, painter: &egui::Painter, to_canvas: &RectTransform, trigger: &RoomTrigger, assets: &RoomEditorAssetLists) {
@@ -817,6 +834,26 @@ impl RoomEditorWidget {
             return; // nothing to do!
         }
 
+        // draw room parallax layer
+        if self.display.has_bits(RoomDisplay::PARALLAX) &&
+            let Some(tileset_id) = room.parallax.tileset_id &&
+            let Some(tileset) = assets.tilesets.get(&tileset_id) {
+                let draw_room_info = DrawRoomLayerInfo {
+                    zoom: self.zoom,
+                    pos: to_canvas.to().min,
+                    screen_rect: canvas_rect,
+                };
+                let draw_room_data = DrawRoomLayerData {
+                    tileset,
+                    slot: TextureSlot::Opaque,
+                    width: room.parallax.width,
+                    height: room.parallax.height,
+                    stride: room.parallax.width,
+                    tiles: &room.parallax.tiles,
+                };
+                draw_room_layer(ui, wc, &draw_room_info, &draw_room_data, None);
+            }
+
         let mut has_animated_tiles = false;
         let animation_step = get_animation_step(wc);
         let draw_info = DrawMapInfo {
@@ -830,15 +867,25 @@ impl RoomEditorWidget {
             },
         };
 
+        // draw map BB layer
+        if self.display.has_bits(RoomDisplay::BACK_BACKGROUND) {
+            for room_map in room.maps.iter() {
+                if let Some(map_data) = assets.maps.get(&room_map.map_id) {
+                    let map_rect = Self::get_map_rect(room_map, map_data);
+                    let draw_bg_info = draw_info.add_pos(self.zoom * map_rect.min);
+                    if draw_bb_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
+                        has_animated_tiles = true;
+                    }
+                }
+            }
+        }
+
         // draw map BG layer
         if self.display.has_bits(RoomDisplay::BACKGROUND) {
             for room_map in room.maps.iter() {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
                     let draw_bg_info = draw_info.add_pos(self.zoom * map_rect.min);
-                    if draw_para_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
-                        has_animated_tiles = true;
-                    }
                     if draw_bg_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
                         has_animated_tiles = true;
                     }

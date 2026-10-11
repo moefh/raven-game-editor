@@ -280,7 +280,12 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("\n");
 
         // sprites
-        self.write(format!("const struct {}_TABLE_ITEM raven_table_{}s[] = {{\n", self.ident.prefix_upper, table_name_lower));
+        self.write(format!(
+            "const struct {}_TABLE_ITEM {}_table_{}s[] = {{\n",
+            self.ident.prefix_upper,
+            self.ident.prefix_lower,
+            table_name_lower
+        ));
         for item in &table.items {
             let sprite_index = self.ident.get_asset_index(DataAssetType::Sprite, item.sprite_id)?;
             self.write(format!("  {{ &{}_sprites[{}] }},\n", self.ident.prefix_lower, sprite_index));

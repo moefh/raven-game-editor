@@ -27,8 +27,12 @@ fn write_room_maps(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Re
 }
 
 fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Result<()> {
-    writer.write(format!("static const struct {}_ROOM_TRIGGER_INFO {}_room_triggers_{}[] = {{\n",
-        writer.ident.prefix_upper, writer.ident.prefix_lower, name_id));
+    writer.write(format!(
+        "static const struct {}_ROOM_TRIGGER_INFO {}_room_triggers_{}[] = {{\n",
+        writer.ident.prefix_upper,
+        writer.ident.prefix_lower,
+        name_id
+    ));
     for trg in room.triggers.iter() {
         let enum_type_ident = RoomTriggerTypeIdent::from_trigger_type(&trg.trigger_type).enum_ident();
 
@@ -102,6 +106,24 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
     Ok(())
 }
 
+fn write_room_parallax_tiles(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Result<()> {
+    if room.parallax.tileset_id.is_none() { return Ok(()); }
+
+    writer.write(format!(
+        "static const uint8_t {}_room_parallax_tiles_{}[] = {{",
+        writer.ident.prefix_lower,
+        name_id
+    ));
+    for (index, tile) in room.parallax.tiles.iter().enumerate() {
+        if index.is_multiple_of(16) { writer.write("\n  "); }
+        writer.write(format!("{:#04x},", tile))
+    }
+    writer.write("\n};\n");
+    writer.write("\n");
+
+    Ok(())
+}
+
 pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Result<()> {
     writer.write("// ================================================================\n");
     writer.write("// === ROOMS\n");
@@ -113,6 +135,7 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
             write_room_maps(writer, room, name_id)?;
             write_room_triggers(writer, room, name_id)?;
+            write_room_parallax_tiles(writer, room, name_id)?;
         }
     }
 
@@ -125,8 +148,9 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
     for id in room_ids.iter() {
         if let Some(room) = writer.store.assets.rooms.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
+            writer.write("  {\n");
             writer.write(format!(
-                "  {{ {}, {}, {}_room_maps_{}, {}_room_triggers_{} }},\n",
+                "    {}, {}, {}_room_maps_{}, {}_room_triggers_{},\n",
                 room.maps.len(),
                 room.triggers.len(),
                 writer.ident.prefix_lower,
@@ -134,6 +158,21 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
                 writer.ident.prefix_lower,
                 name_id
             ));
+            if let Some(tileset_id) = room.parallax.tileset_id && room.parallax.width != 0 && room.parallax.height != 0 {
+                let tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, tileset_id)?;
+                writer.write(format!(
+                    "    {{ &{}_tilesets[{}], {}, {}, {}_room_parallax_tiles_{} }}\n",
+                    writer.ident.prefix_lower,
+                    tileset_index,
+                    room.parallax.width,
+                    room.parallax.height,
+                    writer.ident.prefix_lower,
+                    name_id,
+                ));
+            } else {
+                writer.write("    { NULL, 0, 0, NULL }\n");
+            }
+            writer.write("  },\n");
         }
     }
     writer.write("};\n");

@@ -1,12 +1,36 @@
+use crate::misc::{
+    STATIC_IMAGES,
+};
 use crate::data_asset::{
     AssetList,
     AssetIdCollection,
+    Tileset,
     MapData,
     Room,
+    RoomParallax,
     RoomEnemyType,
     RoomTriggerType,
     RoomEntityDirection,
 };
+use crate::image::{
+    TextureSlot,
+    ImageCollection,
+};
+
+use super::{
+    WindowContext,
+    MapTileFixer,
+};
+use super::super::widgets::{
+    TILE_SIZE,
+    FULL_UV,
+};
+
+impl MapTileFixer for Room {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        vec![ &mut self.parallax.tiles ]
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct RoomSize {
@@ -223,6 +247,112 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }
             RoomTriggerTypeSel::GetPickup => { "pickup" }
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct RoomParallaxRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl RoomParallaxRect {
+    pub fn from_rect(rect: egui::Rect, para: &RoomParallax) -> Option<Self> {
+        let rect = rect.intersect(egui::Rect::from_min_max(
+            egui::Pos2::ZERO,
+            egui::Pos2::new(para.width as f32, para.height as f32)
+        ));
+        Some(RoomParallaxRect {
+            x: rect.min.x as u32,
+            y: rect.min.y as u32,
+            width: rect.width().max(0.0) as u32,
+            height: rect.height().max(0.0) as u32,
+        })
+    }
+}
+
+pub struct RoomParallaxUndoData {
+    pub width: u32,
+    pub height: u32,
+    pub tiles: Vec<u8>,
+}
+
+impl RoomParallaxUndoData {
+    pub fn from_parallax(para: &RoomParallax) -> Self {
+        let num_tiles = (para.width * para.height) as usize;
+        let mut tiles = Vec::with_capacity(num_tiles);
+        for y in 0..para.height {
+            for x in 0..para.width {
+                let tile_index = (para.width * y + x) as usize;
+                tiles.push(para.tiles[tile_index]);
+            }
+        }
+        RoomParallaxUndoData {
+            width: para.width,
+            height: para.height,
+            tiles,
+        }
+    }
+
+    pub fn to_parallax(&self, para: &mut RoomParallax) -> bool {
+        if self.width != para.width || self.height != para.height  {
+            return false;
+        }
+        let width = para.width as usize;
+        for y in 0..para.height as usize {
+            let tile_index = width * y;
+            para.tiles[tile_index..tile_index+width].copy_from_slice(&self.tiles[tile_index..tile_index+width]);
+        }
+        true
+    }
+}
+
+#[derive(Clone)]
+pub struct DrawRoomLayerInfo {
+    pub zoom: f32,
+    pub pos: egui::Pos2,
+    pub screen_rect: egui::Rect,
+}
+
+pub struct DrawRoomLayerData<'a> {
+    pub tileset: &'a Tileset,
+    pub slot: TextureSlot,
+    pub width: u32,
+    pub height: u32,
+    pub stride: u32,
+    pub tiles: &'a [u8],
+}
+
+pub fn draw_room_layer<'a>(
+    ui: &mut egui::Ui,
+    wc: &mut WindowContext,
+    info: &DrawRoomLayerInfo,
+    layer: &DrawRoomLayerData<'a>,
+    layer_tint: Option<egui::Color32>
+) {
+    for y in 0..layer.height {
+        for x in 0..layer.width {
+            let tile = layer.tiles[(y * layer.stride + x) as usize];
+            if tile == MapData::NO_TILE { continue; }
+            let (uv, texture) = if tile as u32 >= layer.tileset.num_tiles {
+                (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
+            } else {
+                (layer.tileset.get_item_uv(tile as u32), layer.tileset.texture(wc.tex_man, wc.egui.ctx, layer.slot))
+            };
+            let tile_rect = egui::Rect::from_min_max(
+                info.pos + info.zoom * TILE_SIZE * egui::Vec2::new(x as f32, y as f32),
+                info.pos + info.zoom * TILE_SIZE * egui::Vec2::new((x+1) as f32, (y+1) as f32)
+            );
+            if tile_rect.intersects(info.screen_rect) {
+                let image = egui::Image::from_texture((texture.id(), egui::Vec2::splat(TILE_SIZE))).uv(uv);
+                match layer_tint {
+                    Some(tint) => { image.tint(tint).paint_at(ui, tile_rect) }
+                    None => { image.paint_at(ui, tile_rect) }
+                }
+            }
         }
     }
 }
