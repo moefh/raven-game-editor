@@ -46,15 +46,27 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
 
     let want_len = 3 * width * height + para_width * para_height;
     if tiles.len() as u32 != want_len {
-        error(format!("unexpected tiles data length: got {}, expected {} = 3*{}*{} + {}*{}",
-            tiles.len(), want_len, width, height, para_width, para_height), array.pos)?;
+        error(
+            format!(
+                "unexpected tiles data length: got {}, expected {} = 3*{}*{} + {}*{}",
+                tiles.len(), want_len, width, height, para_width, para_height
+            ),
+            array.pos
+        )?;
     }
 
     let fg_size = (width * height) as usize;
     let fg_tiles = Vec::from(&tiles[0..fg_size]);
     let bg_tiles = Vec::from(&tiles[fg_size..2*fg_size]);
     let fx_tiles = Vec::from(&tiles[2*fg_size..3*fg_size]);
-    let para_tiles = Vec::from(&tiles[3*fg_size..]);
+    let bb_tiles = Vec::from(&tiles[3*fg_size..]);
+
+    if para_width != 0 && para_height != 0 && (para_width != width || para_height != height) {
+        error(
+            "invalid back-background layer size: must be 0 or same as other layers",
+            array.pos
+        )?;
+    }
 
     Ok(MapData {
         asset: DataAsset::new(DataAssetType::MapData, asset_id, DataAsset::identifier_to_name(name)),
@@ -62,11 +74,10 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
         tile_anim_id: tile_anim_ref.get_asset_id_or_none(project_data)?,
         width,
         height,
-        para_width,
-        para_height,
+        has_bb: para_width != 0 && para_height != 0,
         fg_tiles,
         bg_tiles,
         fx_tiles,
-        para_tiles,
+        bb_tiles,
     })
 }

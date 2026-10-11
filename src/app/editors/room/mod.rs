@@ -37,6 +37,9 @@ use super::{
 use super::widgets::{
     RoomDisplay,
     RoomEditorWidget,
+    RoomParallaxEditorWidget,
+    ImagePickerWidget,
+    TilePickerPopupWidget,
 };
 use super::super::menu_item;
 
@@ -44,6 +47,11 @@ use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
+
+enum EditorTab {
+    Maps,
+    Parallax,
+}
 
 enum TriggerTreeAction {
     None,
@@ -187,7 +195,7 @@ impl RoomEditor {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        self.dialogs.show(wc, &mut self.editor, room, assets);
+        self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
 
         self.base.show_window(wc, room, [600.0, 300.0], [700.0, 400.0], |ui, wc, room, base| {
             Self::show_footer(ui, wc, room, assets.maps, base);
@@ -228,9 +236,16 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, room: &mut Room, assets: &RoomEditorAssetLists) {
+    fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        editor: &mut Editor,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
         if self.properties_dialog.open {
-            self.properties_dialog.show(wc, room);
+            self.properties_dialog.show(wc, room, asset_ids, assets.tilesets);
         }
         let selected_map_id = Self::get_selected_map_id(editor, room);
         if self.map_selection_dialog.open && self.map_selection_dialog.show(wc, room, assets.maps, assets.tilesets) {
@@ -242,9 +257,13 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
+    selected_tab: EditorTab,
     room_editor: RoomEditorWidget,
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_room_ids: Vec<DataAssetId>,
+    tile_picker: ImagePickerWidget,
+    tile_picker_popup: TilePickerPopupWidget,
+    para_editor: RoomParallaxEditorWidget,
 }
 
 impl Editor {
@@ -252,9 +271,29 @@ impl Editor {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
+            selected_tab: EditorTab::Maps,
             room_editor: RoomEditorWidget::new(),
             sorted_animation_ids: Vec::new(),
             sorted_room_ids: Vec::new(),
+            tile_picker: ImagePickerWidget::new().use_as_palette(true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
+            para_editor: RoomParallaxEditorWidget::new(),
+        }
+    }
+
+    fn tile_to_image_selection(tile: u8) -> Option<u32> {
+        if tile == MapData::NO_TILE {
+            None
+        } else {
+            Some(tile as u32)
+        }
+    }
+
+    fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
+        if let Some(image_selection) = image_selection {
+            (image_selection & 0xff) as u8
+        } else {
+            MapData::NO_TILE
         }
     }
 
@@ -790,8 +829,8 @@ impl Editor {
         }
     }
 
-    fn show_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room) {
-        egui::Panel::top(format!("editor_panel_{}_toolbar", self.asset_id)).show(ui, |ui| {
+    fn show_maps_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room) {
+        egui::Panel::top(format!("editor_panel_{}_maps_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 let spacing = ui.spacing().item_spacing;
@@ -897,7 +936,7 @@ impl Editor {
         });
     }
 
-    fn show_header(
+    fn show_menubar(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -929,7 +968,12 @@ impl Editor {
                     ui.separator();
 
                     if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
-                        dialogs.properties_dialog.set_open(wc, room);
+                        dialogs.properties_dialog.set_open(
+                            wc,
+                            room,
+                            assets.maps,
+                            Self::image_selection_to_tile(self.tile_picker.get_selected_image_r())
+                        );
                     }
                 });
 
@@ -964,41 +1008,7 @@ impl Editor {
         }
     }
 
-    fn clear_sorted_ids(&mut self) {
-        self.sorted_room_ids.clear();
-        self.sorted_animation_ids.clear();
-    }
-
-    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
-            self.clear_sorted_ids();
-        }
-
-        if self.sorted_animation_ids.is_empty() {
-            asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
-        }
-        if self.sorted_room_ids.is_empty() {
-            asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
-            self.sorted_room_ids.sort_by(|x, y| {
-                if let Some(name_x) = assets.room_names.get(x) {
-                    if let Some(name_y) = assets.room_names.get(y) {
-                        name_x.cmp(name_y)
-                    } else {
-                        std::cmp::Ordering::Greater
-                    }
-                } else {
-                    if assets.room_names.get(y).is_some() {
-                        std::cmp::Ordering::Less
-                    } else {
-                        x.cmp(y)
-                    }
-                }
-            });
-        }
-    }
-
-    pub fn show(
+    fn show_maps_tab(
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -1007,13 +1017,7 @@ impl Editor {
         asset_ids: &AssetIdCollection,
         assets: &RoomEditorAssetLists
     ) {
-        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
-            self.import_room(wc, file, room, asset_ids);
-        }
-        self.sort_ids(asset_ids, assets);
-
-        self.show_header(ui, wc, dialogs, room, asset_ids, assets);
-        self.show_toolbar(ui, wc, room);
+        self.show_maps_toolbar(ui, wc, room);
 
         // properties panel:
         egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {
@@ -1065,5 +1069,155 @@ impl Editor {
         egui::CentralPanel::default().show(ui, |ui| {
             self.room_editor.show(ui, wc, room, assets);
         });
+    }
+
+    fn show_parallax_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_maps_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.horizontal(|ui| {
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.para_editor.zoom) {
+                            &format!("{:3.2}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("room_editor_{}_para_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.para_editor.zoom, *zoom, format!("{:3.2}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
+                ui.spacing_mut().item_spacing = spacing;
+            });
+
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_parallax_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        _dialogs: &mut Dialogs,
+        room: &mut Room,
+        _asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        self.show_parallax_toolbar(ui);
+
+        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            if let Some(tileset) = room.parallax.tileset_id.and_then(|tileset_id| assets.tilesets.get(&tileset_id)) {
+                if let Some(tile) = self.tile_picker_popup.show_anchor(
+                    ui,
+                    wc,
+                    "Select...",
+                    tileset,
+                    self.tile_picker.get_selected_image_l()
+                ) {
+                    self.tile_picker.set_selected_image_l(Some(tile));
+                }
+
+                if self.tile_picker.selection_set != 0 {
+                    self.tile_picker.selection_set = 0;
+                    self.tile_picker.force_selection_into_visibility();
+                }
+                self.tile_picker.show(ui, wc, tileset);
+            }
+            self.para_editor.left_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_l());
+            self.para_editor.right_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_r());
+        });
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            self.para_editor.show(ui, wc, room, assets.tilesets);
+            if self.para_editor.left_draw_tile_changed {
+                self.para_editor.left_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_l(Self::tile_to_image_selection(self.para_editor.left_draw_tile));
+            }
+            if self.para_editor.right_draw_tile_changed {
+                self.para_editor.right_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_r(Self::tile_to_image_selection(self.para_editor.right_draw_tile));
+            }
+        });
+    }
+
+    fn show_tabs_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_tabs_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.selectable_label(matches!(self.selected_tab, EditorTab::Maps), "Maps").clicked() {
+                    self.selected_tab = EditorTab::Maps;
+                }
+                if ui.selectable_label(matches!(self.selected_tab, EditorTab::Parallax), "Parallax").clicked() {
+                    self.selected_tab = EditorTab::Parallax;
+                }
+            });
+        });
+    }
+
+    fn clear_sorted_ids(&mut self) {
+        self.sorted_room_ids.clear();
+        self.sorted_animation_ids.clear();
+    }
+
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
+        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
+            self.clear_sorted_ids();
+        }
+
+        if self.sorted_animation_ids.is_empty() {
+            asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
+            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+        }
+        if self.sorted_room_ids.is_empty() {
+            asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
+            self.sorted_room_ids.sort_by(|x, y| {
+                if let Some(name_x) = assets.room_names.get(x) {
+                    if let Some(name_y) = assets.room_names.get(y) {
+                        name_x.cmp(name_y)
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                } else {
+                    if assets.room_names.get(y).is_some() {
+                        std::cmp::Ordering::Less
+                    } else {
+                        x.cmp(y)
+                    }
+                }
+            });
+        }
+    }
+
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
+            self.import_room(wc, file, room, asset_ids);
+        }
+        self.sort_ids(asset_ids, assets);
+
+        self.show_menubar(ui, wc, dialogs, room, asset_ids, assets);
+        self.show_tabs_toolbar(ui);
+
+        match self.selected_tab {
+            EditorTab::Maps => { self.show_maps_tab(ui, wc, dialogs, room, asset_ids, assets); }
+            EditorTab::Parallax => { self.show_parallax_tab(ui, wc, dialogs, room, asset_ids, assets); }
+        }
     }
 }

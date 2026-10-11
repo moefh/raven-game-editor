@@ -48,15 +48,19 @@ impl RoomViewWidget {
     }
 
     fn draw_map(ui: &mut egui::Ui, wc: &mut WindowContext, map_data: &MapData, map_pos: Pos2, zoom: f32, tileset: &Tileset) {
-        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
-                if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
-                let tile_rect = Self::get_tile_rect(x, y, zoom, map_pos);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+        if map_data.has_bb {
+            let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+            for y in 0..map_data.height {
+                for x in 0..map_data.width {
+                    let tile = get_map_layer_tile(map_data, MapLayer::BackBackground, x, y);
+                    if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
+                    let tile_rect = Self::get_tile_rect(x, y, zoom, map_pos);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                }
             }
         }
+
+        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, if map_data.has_bb { TextureSlot::Transparent } else { TextureSlot::Opaque });
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);

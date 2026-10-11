@@ -61,7 +61,7 @@ pub struct GameRunnerRoomState {
     pub width: u32,
     pub height: u32,
     pub fx: Vec<u8>,
-    pub para: Vec<u8>,
+    pub bb: Vec<u8>,
     pub bg: Vec<u8>,
     pub fg: Vec<u8>,
 }
@@ -73,11 +73,11 @@ impl GameRunnerRoomState {
         self.width = room_size.width;
         self.height = room_size.height;
         self.fx.clear();
-        self.para.clear();
+        self.bb.clear();
         self.bg.clear();
         self.fg.clear();
         self.fx.resize(layer_len, 0xff);
-        self.para.resize(layer_len, 0xff);
+        self.bb.resize(layer_len, 0xff);
         self.bg.resize(layer_len, 0xff);
         self.fg.resize(layer_len, 0xff);
         for room_map in &room.maps {
@@ -90,13 +90,9 @@ impl GameRunnerRoomState {
                     self.fx[dest_start..dest_end].copy_from_slice(&map.fx_tiles[src_start..src_end]);
                     self.bg[dest_start..dest_end].copy_from_slice(&map.bg_tiles[src_start..src_end]);
                     self.fg[dest_start..dest_end].copy_from_slice(&map.fg_tiles[src_start..src_end]);
-                }
-                for y in 0..map.para_height {
-                    let dest_start = ((y + room_map.y as u32) * room_size.width + room_map.x as u32) as usize;
-                    let dest_end = dest_start + map.para_width as usize;
-                    let src_start = (y * map.para_width) as usize;
-                    let src_end = src_start + map.para_width as usize;
-                    self.para[dest_start..dest_end].copy_from_slice(&map.para_tiles[src_start..src_end]);
+                    if map.has_bb {
+                        self.bb[dest_start..dest_end].copy_from_slice(&map.bb_tiles[src_start..src_end]);
+                    }
                 }
             }
         }
@@ -126,8 +122,8 @@ impl GameRunnerRoomState {
             MapLayer::Background => {
                 (map_data.width, map_data.height, &self.bg[start..])
             }
-            MapLayer::Parallax => {
-                (map_data.para_width, map_data.para_height, &self.para[start..])
+            MapLayer::BackBackground => {
+                (map_data.width, map_data.height, &self.bb[start..])
             }
             _ => { return None; }
         };
@@ -170,7 +166,7 @@ impl GameRunnerState {
                 width: 0,
                 height: 0,
                 fx: Vec::new(),
-                para: Vec::new(),
+                bb: Vec::new(),
                 bg: Vec::new(),
                 fg: Vec::new(),
             },
@@ -467,7 +463,7 @@ impl GameRunnerWidget {
             if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
                 let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
                 let draw_info = draw_map_info.add_pos(map_pos);
-                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Parallax, store) {
+                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::BackBackground, store) {
                     draw_layer(ui, wc, &draw_info, &draw_layer_data, None);
                 }
                 if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Background, store) {

@@ -38,6 +38,7 @@ pub use room::{
     Room,
     RoomMap,
     RoomTrigger,
+    RoomParallax,
     RoomEnemyType,
     RoomTriggerType,
     RoomTriggerTypeIdent,

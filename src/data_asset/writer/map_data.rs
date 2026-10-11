@@ -22,8 +22,8 @@ fn write_map_data(writer: &ProjectDataWriter, map_data: &MapData, name_id: &str)
     write_map_tiles(writer, &map_data.bg_tiles);
     writer.write("\n  // effects");
     write_map_tiles(writer, &map_data.fx_tiles);
-    writer.write("\n  // parallax");
-    write_map_tiles(writer, &map_data.para_tiles);
+    writer.write("\n  // back-background");
+    write_map_tiles(writer, &map_data.bb_tiles);
     writer.write("\n};\n");
     writer.write("\n");
 }
@@ -53,8 +53,8 @@ pub fn write_maps(writer: &ProjectDataWriter, map_ids: &[DataAssetId]) -> Result
                 "    {}, {}, {}, {},\n",
                 map_data.width,
                 map_data.height,
-                map_data.para_width,
-                map_data.para_height
+                if map_data.has_bb { map_data.width } else { 0 },
+                if map_data.has_bb { map_data.height } else { 0 }
             ));
 
             // tileset

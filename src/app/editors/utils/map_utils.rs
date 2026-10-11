@@ -5,6 +5,7 @@ use crate::data_asset::{
     AssetList,
     Tileset,
     MapData,
+    RoomParallax,
     TileAnimation,
 };
 use crate::image::{
@@ -14,6 +15,7 @@ use crate::image::{
 
 use super::{
     WindowContext,
+    RoomParallaxRect,
 };
 use super::super::widgets::{
     TILE_SIZE,
@@ -26,14 +28,14 @@ pub enum MapLayer {
     Background,
     Effects,
     Animation,
-    Parallax,
+    BackBackground,
     Screen,
 }
 
 impl MapLayer {
     pub fn is_for_tileset(&self) -> bool {
         match self {
-            MapLayer::Foreground | MapLayer::Background | MapLayer::Parallax => { true }
+            MapLayer::Foreground | MapLayer::Background | MapLayer::BackBackground => { true }
             MapLayer::Animation | MapLayer::Effects | MapLayer::Screen => { false }
         }
     }
@@ -49,13 +51,10 @@ pub struct MapRect {
 
 impl MapRect {
     pub fn from_rect(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
-        let (map_width, map_height) = match layer {
-            MapLayer::Parallax => {
-                (map_data.para_width, map_data.para_height)
-            }
-            _ => {
-                (map_data.width, map_data.height)
-            }
+        let (map_width, map_height) = if matches!(layer, MapLayer::BackBackground) && ! map_data.has_bb {
+            (0, 0)
+        } else {
+            (map_data.width, map_data.height)
         };
         let rect = rect.intersect(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::new(map_width as f32, map_height as f32)));
         Some(MapRect {
@@ -82,10 +81,12 @@ impl MapLayerFragment {
 
     pub fn copy_map(map_data: &mut MapData, layer: MapLayer, rect: MapRect) -> Option<MapLayerFragment> {
         let (map_width, map_height, map_data) = match layer {
-            MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles),
-            MapLayer::Background => (map_data.width, map_data.height, &mut map_data.bg_tiles),
-            MapLayer::Effects    => (map_data.width, map_data.height, &mut map_data.fx_tiles),
-            MapLayer::Parallax   => (map_data.para_width, map_data.para_height, &mut map_data.para_tiles),
+            MapLayer::Foreground  => (map_data.width, map_data.height, &mut map_data.fg_tiles),
+            MapLayer::Background  => (map_data.width, map_data.height, &mut map_data.bg_tiles),
+            MapLayer::Effects     => (map_data.width, map_data.height, &mut map_data.fx_tiles),
+            MapLayer::BackBackground if map_data.has_bb => {
+                (map_data.width, map_data.height, &mut map_data.bb_tiles)
+            }
             _ => { return None; }
         };
         if rect.width == 0 || rect.height == 0 || rect.x + rect.width > map_width || rect.y + rect.height > map_height { return None; }
@@ -111,7 +112,9 @@ impl MapLayerFragment {
                 MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles),
                 MapLayer::Background => (map_data.width, map_data.height, &mut map_data.bg_tiles),
                 MapLayer::Effects    => (map_data.width, map_data.height, &mut map_data.fx_tiles),
-                MapLayer::Parallax   => (map_data.para_width, map_data.para_height, &mut map_data.para_tiles),
+                MapLayer::BackBackground if map_data.has_bb => {
+                    (map_data.width, map_data.height, &mut map_data.bb_tiles)
+                }
                 _ => { return None; }
             };
             if rect.width > 0 && rect.height > 0 && rect.x + rect.width <= map_width && rect.y + rect.height <= map_height {
@@ -130,7 +133,9 @@ impl MapLayerFragment {
             MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles, true),
             MapLayer::Background => (map_data.width, map_data.height, &mut map_data.bg_tiles, true),
             MapLayer::Effects    => (map_data.width, map_data.height, &mut map_data.fx_tiles, true),
-            MapLayer::Parallax   => (map_data.para_width, map_data.para_height, &mut map_data.para_tiles, false),
+            MapLayer::BackBackground if map_data.has_bb => {
+                (map_data.width, map_data.height, &mut map_data.bb_tiles, false)
+            }
             _ => { return; }
         };
 
@@ -166,6 +171,68 @@ impl MapLayerFragment {
         }
     }
 
+    pub fn copy_room_parallax(para: &RoomParallax, rect: RoomParallaxRect) -> Option<MapLayerFragment> {
+        if rect.width == 0 ||
+            rect.height == 0 ||
+            rect.x + rect.width > para.width ||
+            rect.y + rect.height > para.height {
+                return None;
+            }
+
+        let mut data = Vec::with_capacity((rect.width * rect.height) as usize);
+        for y in 0..rect.height {
+            for x in 0..rect.width {
+                data.push(para.tiles[((rect.y + y) * para.width + rect.x + x) as usize]);
+            }
+        }
+        Some(MapLayerFragment {
+            width: rect.width,
+            height: rect.height,
+            layer: MapLayer::BackBackground,
+            data,
+        })
+    }
+
+    pub fn cut_room_parallax(para: &mut RoomParallax, rect: RoomParallaxRect, fill_tile: u8) -> Option<MapLayerFragment> {
+        let frag = Self::copy_room_parallax(para, rect);
+        if frag.is_some() &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.x + rect.width <= para.width &&
+            rect.y + rect.height <= para.height {
+                for y in 0..rect.height {
+                    for x in 0..rect.width {
+                        para.tiles[((rect.y + y) * para.width + rect.x + x) as usize] = fill_tile;
+                    }
+                }
+            }
+        frag
+    }
+
+    pub fn paste_in_room_parallax(&self, x: i32, y: i32, para: &mut RoomParallax) {
+        if (x > 0 &&   x  as u32 >= para.width) || (y > 0 &&   y  as u32 >= para.height) { return; }
+        if (x < 0 && (-x) as u32 >= para.width) || (y < 0 && (-y) as u32 >= para.height) { return; }
+
+        let mut src_x = 0;
+        let mut src_y = 0;
+        let mut width = self.width;
+        let mut height = self.height;
+        let mut x = x;
+        let mut y = y;
+        if x < 0 { src_x = (-x) as u32; width -= src_x; x = 0; }
+        if y < 0 { src_y = (-y) as u32; height -= src_y; y = 0; }
+        let x = x as u32;
+        let y = y as u32;
+        if width > para.width - x { width = para.width - x; }
+        if height > para.height - y { height = para.height - y; }
+
+        for iy in 0..height {
+            let src = ((iy + src_y) * self.width + src_x) as usize;
+            let dest = ((iy + y) * para.width + x) as usize;
+            para.tiles[dest .. dest + width as usize].clone_from_slice(&self.data[src .. src + width as usize]);
+        }
+    }
+
     pub fn get_tile(&self, x: u32, y: u32) -> u8 {
         if x > self.width || y > self.height { return MapData::NO_TILE; }
         self.data[(y * self.width + x) as usize]
@@ -175,64 +242,53 @@ impl MapLayerFragment {
 pub struct MapUndoData {
     pub width: u32,
     pub height: u32,
-    pub para_width: u32,
-    pub para_height: u32,
     pub fg_tiles: Vec<u8>,
     pub bg_tiles: Vec<u8>,
     pub fx_tiles: Vec<u8>,
-    pub para_tiles: Vec<u8>,
+    pub bb_tiles: Vec<u8>,
 }
 
 impl MapUndoData {
     pub fn from_map(map_data: &MapData) -> Self {
-        let num_full_tiles = (map_data.width * map_data.height) as usize;
-        let mut fg_tiles = Vec::with_capacity(num_full_tiles);
-        let mut bg_tiles = Vec::with_capacity(num_full_tiles);
-        let mut fx_tiles = Vec::with_capacity(num_full_tiles);
+        let num_tiles = (map_data.width * map_data.height) as usize;
+        let mut fg_tiles = Vec::with_capacity(num_tiles);
+        let mut bg_tiles = Vec::with_capacity(num_tiles);
+        let mut fx_tiles = Vec::with_capacity(num_tiles);
+        let mut bb_tiles = Vec::with_capacity(if map_data.has_bb { num_tiles } else { 0 });
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile_index = (map_data.width * y + x) as usize;
                 fg_tiles.push(map_data.fg_tiles[tile_index]);
                 bg_tiles.push(map_data.bg_tiles[tile_index]);
                 fx_tiles.push(map_data.fx_tiles[tile_index]);
-            }
-        }
-        let num_para_tiles = (map_data.para_width * map_data.para_height) as usize;
-        let mut para_tiles = Vec::with_capacity(num_para_tiles);
-        for y in 0..map_data.para_height {
-            for x in 0..map_data.para_width {
-                let tile_index = (map_data.para_width * y + x) as usize;
-                para_tiles.push(map_data.para_tiles[tile_index]);
+                if map_data.has_bb {
+                    bb_tiles.push(map_data.bb_tiles[tile_index]);
+                }
             }
         }
         MapUndoData {
             width: map_data.width,
             height: map_data.height,
-            para_width: map_data.para_width,
-            para_height: map_data.para_height,
             fg_tiles,
             bg_tiles,
             fx_tiles,
-            para_tiles,
+            bb_tiles,
         }
     }
 
     pub fn to_map(&self, map_data: &mut MapData) -> bool {
-        if self.width != map_data.width || self.height != map_data.height ||
-            self.para_width != map_data.para_width || self.para_height != map_data.para_height {
-                return false;
-            }
+        if self.width != map_data.width || self.height != map_data.height {
+            return false;
+        }
         let map_width = map_data.width as usize;
         for y in 0..map_data.height {
             let tile_index = (map_data.width * y) as usize;
             map_data.fg_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.fg_tiles[tile_index..tile_index+map_width]);
             map_data.bg_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.bg_tiles[tile_index..tile_index+map_width]);
             map_data.fx_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.fx_tiles[tile_index..tile_index+map_width]);
-        }
-        let map_para_width = map_data.para_width as usize;
-        for y in 0..map_data.para_height {
-            let tile_index = (map_data.para_width * y) as usize;
-            map_data.para_tiles[tile_index..tile_index+map_para_width].copy_from_slice(&self.para_tiles[tile_index..tile_index+map_para_width]);
+            if map_data.has_bb && ! self.bb_tiles.is_empty() {
+                map_data.bb_tiles[tile_index..tile_index+map_width].copy_from_slice(&self.bb_tiles[tile_index..tile_index+map_width]);
+            }
         }
         true
     }
@@ -245,7 +301,7 @@ pub struct MapWholeFragment {
     pub fg_data: Vec<u8>,
     pub bg_data: Vec<u8>,
     pub fx_data: Vec<u8>,
-    pub para_data: Vec<u8>,
+    pub bb_data: Vec<u8>,
 }
 
 impl MapWholeFragment {
@@ -253,26 +309,24 @@ impl MapWholeFragment {
         egui::Vec2::new(self.width as f32, self.height as f32)
     }
 
-    pub fn copy_map(map_data: &MapData, rect: MapRect, include_para: bool) -> Option<MapWholeFragment> {
+    pub fn copy_map(map_data: &MapData, rect: MapRect) -> Option<MapWholeFragment> {
         let map_width = map_data.width;
         let map_height = map_data.height;
         if rect.width == 0 || rect.height == 0 || rect.x + rect.width > map_width || rect.y + rect.height > map_height { return None; }
-
-        let copy_para = include_para && map_data.para_width == map_data.width && map_data.para_height == map_data.height;
 
         let num_tiles = (rect.width * rect.height) as usize;
         let mut fg_data = Vec::with_capacity(num_tiles);
         let mut bg_data = Vec::with_capacity(num_tiles);
         let mut fx_data = Vec::with_capacity(num_tiles);
-        let mut para_data = if copy_para { Vec::with_capacity(num_tiles) } else { Vec::new() };
+        let mut bb_data = if map_data.has_bb { Vec::with_capacity(num_tiles) } else { Vec::new() };
         for y in 0..rect.height {
             for x in 0..rect.width {
                 let tile_index = ((rect.y + y) * map_width + rect.x + x) as usize;
                 fg_data.push(map_data.fg_tiles[tile_index]);
                 bg_data.push(map_data.bg_tiles[tile_index]);
                 fx_data.push(map_data.fx_tiles[tile_index]);
-                if copy_para {
-                    para_data.push(map_data.para_tiles[tile_index]);
+                if map_data.has_bb {
+                    bb_data.push(map_data.bb_tiles[tile_index]);
                 }
             }
         }
@@ -282,25 +336,24 @@ impl MapWholeFragment {
             fg_data,
             bg_data,
             fx_data,
-            para_data,
+            bb_data,
         })
     }
 
-    pub fn cut_map(map_data: &mut MapData, rect: MapRect, fill_tile: u8, include_para: bool) -> Option<MapWholeFragment> {
-        let frag = Self::copy_map(map_data, rect, include_para);
+    pub fn cut_map(map_data: &mut MapData, rect: MapRect, fill_tile: u8) -> Option<MapWholeFragment> {
+        let frag = Self::copy_map(map_data, rect);
         if frag.is_some() {
             let map_width = map_data.width;
             let map_height = map_data.height;
             if rect.width > 0 && rect.height > 0 && rect.x + rect.width <= map_width && rect.y + rect.height <= map_height {
-                let erase_para = include_para && map_data.para_width == map_data.width && map_data.para_height == map_data.height;
                 for y in 0..rect.height {
                     for x in 0..rect.width {
                         let tile_index = ((rect.y + y) * map_width + rect.x + x) as usize;
                         map_data.fg_tiles[tile_index] = MapData::NO_TILE;
-                        map_data.bg_tiles[tile_index] = fill_tile;
+                        map_data.bg_tiles[tile_index] = if map_data.has_bb { MapData::NO_TILE } else { fill_tile };
                         map_data.fx_tiles[tile_index] = MapData::NO_TILE;
-                        if erase_para {
-                            map_data.para_tiles[tile_index] = fill_tile;
+                        if map_data.has_bb {
+                            map_data.bb_tiles[tile_index] = fill_tile;
                         }
                     }
                 }
@@ -315,7 +368,7 @@ impl MapWholeFragment {
         if (x > 0 &&   x  as u32 >= map_width) || (y > 0 &&   y  as u32 >= map_height) { return; }
         if (x < 0 && (-x) as u32 >= map_width) || (y < 0 && (-y) as u32 >= map_height) { return; }
 
-        let paste_para = ! self.para_data.is_empty() && map_data.para_width == map_data.width && map_data.para_height == map_data.height;
+        let paste_bb = ! self.bb_data.is_empty() && map_data.has_bb;
 
         let mut src_x = 0;
         let mut src_y = 0;
@@ -334,11 +387,14 @@ impl MapWholeFragment {
             let src = ((iy + src_y) * self.width + src_x) as usize;
             let dest = ((iy + y) * map_width + x) as usize;
             for ix in 0..width as usize {
-                let fg_tile = self.fg_data[src+ix]; if fg_tile != MapData::NO_TILE { map_data.fg_tiles[dest+ix] = fg_tile; }
-                let bg_tile = self.bg_data[src+ix]; if bg_tile != MapData::NO_TILE { map_data.bg_tiles[dest+ix] = bg_tile; }
-                let fx_tile = self.fx_data[src+ix]; if fx_tile != MapData::NO_TILE { map_data.fx_tiles[dest+ix] = fx_tile; }
-                if paste_para {
-                    map_data.para_tiles[dest+ix] = self.para_data[src+ix];
+                let fg_tile = self.fg_data[src+ix];
+                if fg_tile != MapData::NO_TILE { map_data.fg_tiles[dest+ix] = fg_tile; }
+                let bg_tile = self.bg_data[src+ix];
+                if bg_tile != MapData::NO_TILE || ! paste_bb { map_data.bg_tiles[dest+ix] = bg_tile; }
+                let fx_tile = self.fx_data[src+ix];
+                if fx_tile != MapData::NO_TILE { map_data.fx_tiles[dest+ix] = fx_tile; }
+                if paste_bb {
+                    map_data.bb_tiles[dest+ix] = self.bb_data[src+ix];
                 }
             }
         }
@@ -350,9 +406,9 @@ impl MapWholeFragment {
             MapLayer::Foreground => { self.fg_data[(y * self.width + x) as usize] }
             MapLayer::Background => { self.bg_data[(y * self.width + x) as usize] }
             MapLayer::Effects    => { self.fx_data[(y * self.width + x) as usize] }
-            MapLayer::Parallax => {
-                if self.para_data.is_empty() { return MapData::NO_TILE; }
-                self.para_data[(y * self.width + x) as usize]
+            MapLayer::BackBackground => {
+                if self.bb_data.is_empty() { return MapData::NO_TILE; }
+                self.bb_data[(y * self.width + x) as usize]
             }
             _ => MapData::NO_TILE
         }
@@ -422,7 +478,7 @@ pub trait MapTileFixer {
 
 impl MapTileFixer for MapData {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
-        vec![ &mut self.fg_tiles, &mut self.bg_tiles, &mut self.para_tiles ]
+        vec![ &mut self.fg_tiles, &mut self.bg_tiles, &mut self.bb_tiles ]
     }
 }
 
@@ -459,7 +515,7 @@ pub fn get_animated_tile(
     let loop_len = tile_anim.loops[map_tile as usize].len as u32;
     if loop_len == 0 { return None; }
     match layer {
-        MapLayer::Parallax => {
+        MapLayer::BackBackground => {
             match anim_tile {
                 1 => { Some(new_tile.saturating_add((animation_step % loop_len) as u8)) }
                 2 => { Some(new_tile.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8)) }
@@ -488,22 +544,30 @@ pub fn get_animated_tile(
 }
 
 pub fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u8 {
-    if matches!(layer, MapLayer::Parallax) && (x >= map_data.para_width || y >= map_data.para_height) { return MapData::NO_TILE; }
+    if matches!(layer, MapLayer::BackBackground) && ! map_data.has_bb { return MapData::NO_TILE; }
     if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
 
     match layer {
-        MapLayer::Foreground => { map_data.fg_tiles[(map_data.width * y + x) as usize] }
-        MapLayer::Background => { map_data.bg_tiles[(map_data.width * y + x) as usize] }
-        MapLayer::Effects    => {
+        MapLayer::Foreground     => { map_data.fg_tiles[(map_data.width * y + x) as usize] }
+        MapLayer::Background     => { map_data.bg_tiles[(map_data.width * y + x) as usize] }
+        MapLayer::Effects        => {
             let fx = map_data.fx_tiles[(map_data.width * y + x) as usize] & 0x0f;
             if fx == 0x0f { MapData::NO_TILE } else { fx }
         }
-        MapLayer::Animation  => {
+        MapLayer::Animation      => {
             let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
             if anim == 0x0f { MapData::NO_TILE } else { anim }
         }
-        MapLayer::Parallax   => {map_data.para_tiles[(map_data.para_width * y + x) as usize] }
-        MapLayer::Screen     => { MapData::NO_TILE }
+        MapLayer::BackBackground => {
+            if map_data.has_bb {
+                map_data.bb_tiles[(map_data.width * y + x) as usize]
+            } else {
+                MapData::NO_TILE
+            }
+        }
+        MapLayer::Screen         => {
+            MapData::NO_TILE
+        }
     }
 }
 
@@ -537,7 +601,7 @@ impl DrawMapInfo {
     }
 }
 
-pub fn draw_para_layer(
+pub fn draw_bb_layer(
     ui: &mut egui::Ui,
     wc: &mut WindowContext,
     map_data: &MapData,
@@ -546,6 +610,7 @@ pub fn draw_para_layer(
     draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
+    if ! map_data.has_bb { return false; }
     let tileset = match tilesets.get(&map_data.tileset_id) {
         Some(tileset) => { tileset }
         None => { return false; }
@@ -566,12 +631,12 @@ pub fn draw_para_layer(
         };
 
     let mut has_animated_tiles = false;
-    for y in 0..map_data.para_height {
-        for x in 0..map_data.para_width {
-            let tile = get_map_layer_tile(map_data, MapLayer::Parallax, x, y);
+    for y in 0..map_data.height {
+        for x in 0..map_data.width {
+            let tile = get_map_layer_tile(map_data, MapLayer::BackBackground, x, y);
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
-                MapLayer::Parallax,
+                MapLayer::BackBackground,
                 get_map_animation_tile(map_data, x, y),
                 tile_anim,
                 animation_step
@@ -659,10 +724,10 @@ pub fn draw_bg_layer(
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {
-                let slot = if map_data.para_width == 0 || map_data.para_height == 0 {
-                    TextureSlot::Opaque
-                } else {
+                let slot = if map_data.has_bb {
                     TextureSlot::Transparent
+                } else {
+                    TextureSlot::Opaque
                 };
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
             };
@@ -791,8 +856,12 @@ impl<'a> DrawMapLayerData<'a> {
             MapLayer::Background => {
                 (map_data.width, map_data.height, &map_data.bg_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
             }
-            MapLayer::Parallax => {
-                (map_data.para_width, map_data.para_height, &map_data.para_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
+            MapLayer::BackBackground => {
+                if map_data.has_bb {
+                    (map_data.bb_width, map_data.bb_height, &map_data.bb_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
+                } else {
+                    return None;
+                }
             }
             _ => { return None; }
         };
@@ -863,7 +932,7 @@ pub fn draw_layer<'a>(
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {
-                let slot = if layer.layer == MapLayer::Parallax { TextureSlot::Opaque } else { TextureSlot::Transparent };
+                let slot = if layer.layer == MapLayer::BackBackground { TextureSlot::Opaque } else { TextureSlot::Transparent };
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
             };
             let tile_rect = egui::Rect::from_min_max(

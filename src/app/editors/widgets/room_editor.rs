@@ -29,7 +29,7 @@ use super::{
     SCREEN_SIZE,
 };
 use super::super::{
-    draw_para_layer,
+    draw_bb_layer,
     draw_bg_layer,
     draw_fg_layer,
     get_animation_step,
@@ -55,15 +55,15 @@ pub struct RoomDisplay {
 
 #[allow(unused)]
 impl RoomDisplay {
-    pub const FOREGROUND: u32     = 1 << 0;
-    pub const BACKGROUND: u32     = 1 << 1;
-    pub const EFFECTS: u32        = 1 << 2;
-    pub const PARALLAX: u32       = 1 << 3;
-    pub const GRID: u32           = 1 << 4;
-    pub const ENEMY_TRIGGERS: u32 = 1 << 5;
-    pub const OTHER_TRIGGERS: u32 = 1 << 6;
-    pub const SCREEN: u32         = 1 << 7;
-    pub const ANIMATE_TILES: u32  = 1 << 8;
+    pub const FOREGROUND: u32      = 1 << 0;
+    pub const BACKGROUND: u32      = 1 << 1;
+    pub const EFFECTS: u32         = 1 << 2;
+    pub const BACK_BACKGROUND: u32 = 1 << 3;
+    pub const GRID: u32            = 1 << 4;
+    pub const ENEMY_TRIGGERS: u32  = 1 << 5;
+    pub const OTHER_TRIGGERS: u32  = 1 << 6;
+    pub const SCREEN: u32          = 1 << 7;
+    pub const ANIMATE_TILES: u32   = 1 << 8;
 
     pub fn new(bits: u32) -> Self {
         RoomDisplay {
@@ -802,7 +802,7 @@ impl RoomEditorWidget {
                 if let Some(map_data) = assets.maps.get(&room_map.map_id) {
                     let map_rect = Self::get_map_rect(room_map, map_data);
                     let draw_bg_info = draw_info.add_pos(self.zoom * map_rect.min);
-                    if draw_para_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
+                    if draw_bb_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {
                         has_animated_tiles = true;
                     }
                     if draw_bg_layer(ui, wc, map_data, assets.tilesets, assets.tile_anims, &draw_bg_info, None) {

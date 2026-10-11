@@ -18,6 +18,7 @@ use super::super::{
     Room,
     RoomMap,
     RoomTrigger,
+    RoomParallax,
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomEntityDirection,
@@ -358,5 +359,11 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
         maps,
         triggers,
         has_script,
+        parallax: RoomParallax { // TODO
+            tileset_id: None,
+            width: 0,
+            height: 0,
+            tiles: Vec::new(),
+        },
     })
 }
