@@ -16,6 +16,7 @@ use crate::data_asset::{
     RoomEntityDirection,
     MapData,
     Tileset,
+    Sprite,
 };
 use crate::image::{
     ImageCollection,
@@ -250,6 +251,17 @@ impl TriggerRect {
             max: Pos2::new(self.x2 as f32, self.y2 as f32),
         }
     }
+}
+
+fn draw_trigger_sprite(ui: &mut egui::Ui, wc: &mut WindowContext, to_canvas: &RectTransform, trigger: &RoomTrigger, sprite: &Sprite) {
+    let sprite_rect = Rect::from_min_size(
+        Pos2::new(trigger.x as f32, trigger.y as f32),
+        Vec2::new(sprite.width as f32, sprite.height as f32)
+    );
+    let draw_rect = to_canvas.transform_rect(sprite_rect);
+    let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+    let uv = sprite.get_item_uv(0);
+    Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
 }
 
 pub struct RoomEditorWidget {
@@ -657,7 +669,7 @@ impl RoomEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
-    fn draw_trigger_sprite(
+    fn draw_trigger_image(
         &self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
@@ -701,6 +713,28 @@ impl RoomEditorWidget {
                     }
                 };
                 Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
+                return;
+            }
+
+        if let RoomTriggerType::GetUpgrade { upgrade_id } = trigger.trigger_type &&
+            let Some(item) = assets.tables.upgrade.items.get(upgrade_id as usize) &&
+            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                return;
+            }
+
+        if let RoomTriggerType::GetCollectable { collectable_id } = trigger.trigger_type &&
+            let Some(item) = assets.tables.collectable.items.get(collectable_id as usize) &&
+            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                return;
+            }
+
+        if let RoomTriggerType::GetPickup { pickup_id } = trigger.trigger_type &&
+            let Some(item) = assets.tables.pickup.items.get(pickup_id as usize) &&
+            let Some(sprite) = assets.sprites.get(&item.sprite_id) {
+                draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
+                return;
             }
     }
 
@@ -812,9 +846,9 @@ impl RoomEditorWidget {
             }
         }
 
-        // draw trigger sprites
+        // draw trigger images
         for trigger in room.triggers.iter() {
-            self.draw_trigger_sprite(ui, wc, &to_canvas, trigger, assets);
+            self.draw_trigger_image(ui, wc, &to_canvas, trigger, assets);
         }
 
         // draw map FG layer
