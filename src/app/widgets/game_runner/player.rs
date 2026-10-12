@@ -32,6 +32,7 @@ pub enum PlayerState {
     Walk,
     Jump,
     Fall,
+    Fall2,
     Crouch,
 }
 
@@ -42,7 +43,8 @@ impl PlayerState {
             PlayerState::Walk   => { 1 }
             PlayerState::Jump   => { 2 }
             PlayerState::Fall   => { 3 }
-            PlayerState::Crouch => { 4 }
+            PlayerState::Fall2  => { 4 }
+            PlayerState::Crouch => { 5 }
         }
     }
 }
@@ -267,6 +269,11 @@ impl Player {
         self.anim_loop = self.state.get_anim_loop();
         if let Some(cur_loop) = player_anim.loops.get(self.anim_loop) {
             self.anim_frame += cur_loop.frame_speed as u32;
+            // reaching end of animation in the "Fall" state moves to the "Fall2" state
+            if self.state == PlayerState::Fall && (self.anim_frame >> 8) as usize >= cur_loop.frame_indices.len() {
+                self.state = PlayerState::Fall2;
+                self.anim_frame = 0;
+            }
         }
         self.collect_items(room, player_anim, store, pad, game_state);
     }
