@@ -28,7 +28,7 @@ impl MapData {
             fg_tiles: vec![Self::NO_TILE; (width * height) as usize],
             bg_tiles: vec![0; (width * height) as usize],
             fx_tiles: vec![Self::NO_TILE; (width * height) as usize],
-            bb_tiles: vec![Self::NO_TILE; (width * height) as usize],
+            bb_tiles: Vec::new(),
         }
     }
 }

@@ -22,8 +22,10 @@ fn write_map_data(writer: &ProjectDataWriter, map_data: &MapData, name_id: &str)
     write_map_tiles(writer, &map_data.bg_tiles);
     writer.write("\n  // effects");
     write_map_tiles(writer, &map_data.fx_tiles);
-    writer.write("\n  // back-background");
-    write_map_tiles(writer, &map_data.bb_tiles);
+    if map_data.has_bb {
+        writer.write("\n  // back-background");
+        write_map_tiles(writer, &map_data.bb_tiles);
+    }
     writer.write("\n};\n");
     writer.write("\n");
 }
