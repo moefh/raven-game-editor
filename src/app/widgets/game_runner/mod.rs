@@ -401,8 +401,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         sprite: &Sprite,
-        sprite_x: i16,
-        sprite_y: i16,
+        sprite_pos: Vec2,
         screen_pos: Pos2,
         zoom: f32
     ) {
@@ -410,7 +409,7 @@ impl GameRunnerWidget {
         let sprite_uv = sprite.get_item_uv(0);
 
         let draw_rect = egui::Rect::from_min_size(
-            screen_pos + zoom * egui::Vec2::new(sprite_x as f32, sprite_y as f32),
+            screen_pos + zoom * sprite_pos,
             zoom * sprite_size
         );
         let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
@@ -427,26 +426,27 @@ impl GameRunnerWidget {
         zoom: f32
     ) {
         for trigger in &room.triggers {
+            let trigger_pos = Vec2::new(trigger.x as f32, trigger.y as f32);
             match trigger.trigger_type {
                 RoomTriggerType::GetUpgrade { upgrade_id } => {
                     if ! self.state.acquired_upgrade_ids.contains(&upgrade_id) &&
                         let Some(item) = store.tables.upgrade.items.get(upgrade_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
-                            self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
+                            self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
                 RoomTriggerType::GetCollectable { collectable_id } => {
                     if ! self.state.acquired_collectable_ids.contains(&collectable_id) &&
                         let Some(item) = store.tables.collectable.items.get(collectable_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
-                            self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
+                            self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
                 RoomTriggerType::GetPickup { pickup_id } => {
                     if ! self.state.acquired_pickup_ids.contains(&pickup_id) &&
                         let Some(item) = store.tables.pickup.items.get(pickup_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
-                            self.draw_sprite(ui, wc, sprite, trigger.x, trigger.y, screen_pos, zoom);
+                            self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
                 _ => {}
@@ -472,7 +472,7 @@ impl GameRunnerWidget {
                 stride: room.parallax.width,
                 tiles: &room.parallax.tiles,
             };
-            draw_room_layer(ui, wc, &draw_room_info, &draw_room_layer_data, None);
+            draw_room_layer(ui, wc, draw_room_info, &draw_room_layer_data, None);
         }
 
         for room_map in room.maps.iter() {
