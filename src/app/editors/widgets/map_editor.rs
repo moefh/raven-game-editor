@@ -999,12 +999,11 @@ impl MapEditorWidget {
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) {
-            let editing_unseen_screen = self.edit_layer == MapLayer::Screen && !self.display.has_bits(MapDisplay::SCREEN);
-            if response.dragged() && (keys_pressed.alt || editing_unseen_screen) {
-                self.scroll += response.drag_delta();
-                self.clip_scroll(canvas_rect.size(), map_size);
-            }
+        let middle_dragging = response.dragged_by(egui::PointerButton::Middle);
+        let editing_unseen_screen = self.edit_layer == MapLayer::Screen && !self.display.has_bits(MapDisplay::SCREEN);
+        if middle_dragging || (response.dragged() && (keys_pressed.alt || editing_unseen_screen)) {
+            self.scroll += response.drag_delta();
+            self.clip_scroll(canvas_rect.size(), map_size);
         }
 
         // check click
