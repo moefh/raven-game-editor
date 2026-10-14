@@ -38,10 +38,15 @@ impl CollisionRect {
     }
 
     pub fn intersects_rect(&self, other: &CollisionRect) -> bool {
-        self.contains_point(other.x, other.y) ||
-            self.contains_point(other.x + other.w - 1, other.y) ||
-            self.contains_point(other.x, other.y + other.h - 1) ||
-            self.contains_point(other.x + other.w - 1, other.y + other.h - 1)
+        let s1_x = self.x;
+        let s2_x = self.x + self.w - 1;
+        let s1_y = self.y;
+        let s2_y = self.y + self.h - 1;
+        let o1_x = other.x;
+        let o2_x = other.x + other.w - 1;
+        let o1_y = other.y;
+        let o2_y = other.y + other.h - 1;
+        return s1_x <= o2_x && o1_x <= s2_x && s1_y <= o2_y && o1_y <= s2_y;
     }
 }
 
