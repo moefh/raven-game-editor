@@ -46,7 +46,7 @@ impl CollisionRect {
         let o2_x = other.x + other.w - 1;
         let o1_y = other.y;
         let o2_y = other.y + other.h - 1;
-        return s1_x <= o2_x && o1_x <= s2_x && s1_y <= o2_y && o1_y <= s2_y;
+        s1_x <= o2_x && o1_x <= s2_x && s1_y <= o2_y && o1_y <= s2_y
     }
 }
 
