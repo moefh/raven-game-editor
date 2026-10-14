@@ -440,7 +440,15 @@ impl Editor {
         if let Some(anim_tileset) = tilesets.get_mut(&tanim.anim_tileset_id) {
             egui::Panel::bottom(self.anim_tile_picker_panel_id).show(ui, |ui| {
                 ui.add_space(5.0);
-                ui.label(format!("Loop start: {}", self.anim_tile_view.selected_frame));
+                if let Some(tloop) = tanim.loops.get(selected_tile as usize) && tloop.len != 0{
+                    if tloop.start as usize == self.anim_tile_view.selected_frame {
+                        ui.label(format!("Loop start: {}", tloop.start));
+                    } else {
+                        ui.label(format!("Loop start: {} (selected: {})", tloop.start, self.anim_tile_view.selected_frame));
+                    }
+                } else {
+                    ui.label(format!("Loop start: - (selected: {})", self.anim_tile_view.selected_frame));
+                }
                 self.anim_tile_view.show(
                     ui,
                     wc,
