@@ -125,7 +125,7 @@ impl GameRunnerRoomState {
             MapLayer::Background => {
                 (map_data.width, map_data.height, &self.bg[start..])
             }
-            MapLayer::BackBackground => {
+            MapLayer::Background2 => {
                 (map_data.width, map_data.height, &self.bb[start..])
             }
             _ => { return None; }
@@ -479,11 +479,11 @@ impl GameRunnerWidget {
             if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
                 let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
                 let draw_info = draw_map_info.add_pos(map_pos);
-                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::BackBackground, store) {
-                    draw_layer(ui, wc, &draw_info, &draw_layer_data, None);
+                if let Some(draw_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Background2, store) {
+                    draw_layer(ui, wc, &draw_info, &draw_data, None);
                 }
-                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Background, store) {
-                    draw_layer(ui, wc, &draw_info, &draw_layer_data, None);
+                if let Some(draw_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Background, store) {
+                    draw_layer(ui, wc, &draw_info, &draw_data, None);
                 }
             }
         }
@@ -501,8 +501,8 @@ impl GameRunnerWidget {
             if let Some(map_data) = store.assets.maps.get(&room_map.map_id) {
                 let map_pos = draw_map_info.zoom * TILE_SIZE * Pos2::new(room_map.x as f32, room_map.y as f32);
                 let draw_info = draw_map_info.add_pos(map_pos);
-                if let Some(draw_layer_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Foreground, store) {
-                    draw_layer(ui, wc, &draw_info, &draw_layer_data, None);
+                if let Some(draw_data) = self.state.room.get_draw_layer_data(room_map, map_data, MapLayer::Foreground, store) {
+                    draw_layer(ui, wc, &draw_info, &draw_data, None);
                 }
             }
         }

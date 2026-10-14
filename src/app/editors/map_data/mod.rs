@@ -514,10 +514,10 @@ impl Editor {
                 if ui.add_enabled(
                     map_data.has_bb,
                     egui::Button::image(IMAGES.pencil_para)
-                        .selected(self.map_editor.edit_layer == MapLayer::BackBackground)
-                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::BackBackground)
+                        .selected(self.map_editor.edit_layer == MapLayer::Background2)
+                        .frame_when_inactive(self.map_editor.edit_layer == MapLayer::Background2)
                 ).on_hover_text("Edit 2nd Background layer (E)").clicked() {
-                    self.map_editor.set_edit_layer(MapLayer::BackBackground);
+                    self.map_editor.set_edit_layer(MapLayer::Background2);
                     self.map_editor.display.set(MapDisplay::BACK_BACKGROUND);
                 }
 

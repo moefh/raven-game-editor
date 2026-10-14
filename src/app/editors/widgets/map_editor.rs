@@ -120,7 +120,7 @@ impl MapSelection {
             MapSelection::LayerFragment(_, frag) => {
                 match frag.layer {
                     MapLayer::Effects | MapLayer::Animation | MapLayer::Screen => {}
-                    MapLayer::Foreground | MapLayer::Background | MapLayer::BackBackground => {
+                    MapLayer::Foreground | MapLayer::Background | MapLayer::Background2 => {
                         planes.push(&mut frag.data)
                     }
                 }
@@ -366,7 +366,7 @@ impl MapEditorWidget {
     fn get_fill_tile_for_layer(&self) -> u8 {
         match self.edit_layer {
             MapLayer::Foreground | MapLayer::Effects => MapData::NO_TILE,
-            MapLayer::Background | MapLayer::BackBackground => self.right_draw_tile,
+            MapLayer::Background | MapLayer::Background2 => self.right_draw_tile,
             _ => MapData::NO_TILE,
         }
     }
@@ -401,7 +401,7 @@ impl MapEditorWidget {
         }
 
         if let MapSelection::WholeFragment(pos, frag) = &self.selection {
-            let tint = layer == MapLayer::Background || layer == MapLayer::BackBackground;
+            let tint = layer == MapLayer::Background || layer == MapLayer::Background2;
             let frag_x = pos.x as i32;
             let frag_y = pos.y as i32;
             for y in 0..frag.height {
@@ -429,7 +429,7 @@ impl MapEditorWidget {
         map_data: &mut MapData,
         canvas_to_map: &emath::RectTransform
     ) {
-        if self.edit_layer == MapLayer::BackBackground && ! map_data.has_bb { return; }
+        if self.edit_layer == MapLayer::Background2 && ! map_data.has_bb { return; }
         let mouse_pos = canvas_to_map * pointer_pos;
         let map_size = canvas_to_map.to().size();
         if ! resp.dragged_by(egui::PointerButton::Primary) {
@@ -493,7 +493,7 @@ impl MapEditorWidget {
                 map_data.fx_tiles[(map_data.width * y + x) as usize] &= 0x0f;
                 map_data.fx_tiles[(map_data.width * y + x) as usize] |= (tile & 0x0f) << 4;
             }
-            MapLayer::BackBackground if map_data.has_bb => {
+            MapLayer::Background2 if map_data.has_bb => {
                 map_data.bb_tiles[(map_data.width * y + x) as usize] = tile;
             }
             _ => {}
@@ -516,7 +516,7 @@ impl MapEditorWidget {
                 let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
                 if anim != 0x0f { Some(anim) } else { Some(0xff) }
             }
-            MapLayer::BackBackground if map_data.has_bb => {
+            MapLayer::Background2 if map_data.has_bb => {
                 Some(map_data.bb_tiles[(map_data.width * y + x) as usize])
             }
             _ => { None }
@@ -554,7 +554,7 @@ impl MapEditorWidget {
                     let pick_tile = match self.edit_layer {
                         MapLayer::Foreground | MapLayer::Background |
                         MapLayer::Effects | MapLayer::Animation |
-                        MapLayer::BackBackground => {
+                        MapLayer::Background2 => {
                             self.get_layer_tile(self.edit_layer, canvas_to_map * pointer_pos, map_data)
                         }
                         MapLayer::Screen => {
@@ -570,7 +570,7 @@ impl MapEditorWidget {
                             if response.drag_started() { self.set_undo_target(map_data); }
                             self.set_layer_tile(self.edit_layer, canvas_to_map * pointer_pos, tile, map_data);
                         }
-                        MapLayer::BackBackground => {
+                        MapLayer::Background2 => {
                             if map_data.has_bb {
                                 if response.drag_started() { self.set_undo_target(map_data); }
                                 self.set_layer_tile(self.edit_layer, canvas_to_map * pointer_pos, tile, map_data);
@@ -753,7 +753,7 @@ impl MapEditorWidget {
             self.display.set(MapDisplay::BACKGROUND);
         }
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::E))) && map_data.has_bb {
-            self.set_edit_layer(MapLayer::BackBackground);
+            self.set_edit_layer(MapLayer::Background2);
             self.display.set(MapDisplay::BACK_BACKGROUND);
         }
         if ui.input_mut(|i| i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::R))) {
@@ -862,14 +862,14 @@ impl MapEditorWidget {
                     has_animated_tiles = true;
                 }
 
-                self.paint_floating_selection_for_layer(ui, MapLayer::BackBackground, wc, tileset, TextureSlot::Opaque, canvas_rect);
+                self.paint_floating_selection_for_layer(ui, MapLayer::Background2, wc, tileset, TextureSlot::Opaque, canvas_rect);
             }
 
             // background
             if self.display.has_bits(MapDisplay::BACKGROUND) {
                 let bg_tint = match self.edit_layer {
                     MapLayer::Foreground => { Some(Self::LIGHT_LAYER_TINT) }
-                    MapLayer::BackBackground => { Some(Self::HEAVY_LAYER_TINT) }
+                    MapLayer::Background2 => { Some(Self::HEAVY_LAYER_TINT) }
                     _ => { None }
                 };
                 if draw_bg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_info, bg_tint) {
@@ -882,7 +882,7 @@ impl MapEditorWidget {
             if self.display.has_bits(MapDisplay::FOREGROUND) {
                 let fg_tint = match self.edit_layer {
                     MapLayer::Background => { Some(Self::LIGHT_LAYER_TINT) }
-                    MapLayer::BackBackground => { Some(Self::HEAVY_LAYER_TINT) }
+                    MapLayer::Background2 => { Some(Self::HEAVY_LAYER_TINT) }
                     _ => { None }
                 };
                 if draw_fg_layer(ui, wc, map_data, tilesets, tile_anims, &draw_info, fg_tint) {
@@ -993,17 +993,19 @@ impl MapEditorWidget {
             self.hover_pos = ((hover_pos - canvas_rect.min - self.scroll) / self.zoom / TILE_SIZE).max(Vec2::ZERO);
             self.hover_tile_fg = self.get_layer_tile(MapLayer::Foreground, self.hover_pos.to_pos2(), map_data);
             self.hover_tile_bg = self.get_layer_tile(MapLayer::Background, self.hover_pos.to_pos2(), map_data);
-            self.hover_tile_bb = self.get_layer_tile(MapLayer::BackBackground, self.hover_pos.to_pos2(), map_data);
+            self.hover_tile_bb = self.get_layer_tile(MapLayer::Background2, self.hover_pos.to_pos2(), map_data);
             self.hover_tile_fx = self.get_layer_tile(MapLayer::Effects, self.hover_pos.to_pos2(), map_data);
             self.hover_tile_an = self.get_layer_tile(MapLayer::Animation, self.hover_pos.to_pos2(), map_data);
         }
 
         // check pan
-        if response.dragged_by(egui::PointerButton::Middle) ||
-            (response.dragged() && (keys_pressed.alt || (self.edit_layer == MapLayer::Screen && !self.display.has_bits(MapDisplay::SCREEN)))) {
+        if response.dragged_by(egui::PointerButton::Middle) {
+            let editing_unseen_screen = self.edit_layer == MapLayer::Screen && !self.display.has_bits(MapDisplay::SCREEN);
+            if response.dragged() && (keys_pressed.alt || editing_unseen_screen) {
                 self.scroll += response.drag_delta();
                 self.clip_scroll(canvas_rect.size(), map_size);
             }
+        }
 
         // check click
         if response.drag_stopped() {

@@ -52,22 +52,27 @@ impl MapViewWidget {
             let texture = tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
             for y in 0..map_data.height {
                 for x in 0..map_data.width {
-                    let tile = get_map_layer_tile(map_data, MapLayer::BackBackground, x, y);
+                    let tile = get_map_layer_tile(map_data, MapLayer::Background2, x, y);
                     if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
                     let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                    Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE)))
+                        .uv(tileset.get_item_uv(tile as u32))
+                        .paint_at(ui, tile_rect);
                 }
             }
         }
 
-        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, if map_data.has_bb { TextureSlot::Transparent } else { TextureSlot::Opaque });
+        let bg_slot = if map_data.has_bb { TextureSlot::Transparent } else { TextureSlot::Opaque };
+        let texture = tileset.texture(wc.tex_man, wc.egui.ctx, bg_slot);
         for y in 0..map_data.height {
             for x in 0..map_data.width {
                 let tile = get_map_layer_tile(map_data, MapLayer::Background, x, y);
                 if tile == MapData::NO_TILE { continue; }
                 if tile as u32 >= tileset.num_tiles { continue; }
                 let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE)))
+                    .uv(tileset.get_item_uv(tile as u32))
+                    .paint_at(ui, tile_rect);
             }
         }
 
@@ -77,7 +82,9 @@ impl MapViewWidget {
                 let tile = get_map_layer_tile(map_data, MapLayer::Foreground, x, y);
                 if tile == MapData::NO_TILE || tile as u32 >= tileset.num_tiles { continue; }
                 let tile_rect = Self::get_tile_rect(x, y, zoom, map_rect.min);
-                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE))).uv(tileset.get_item_uv(tile as u32)).paint_at(ui, tile_rect);
+                Image::from_texture((texture.id(), Vec2::splat(TILE_SIZE)))
+                    .uv(tileset.get_item_uv(tile as u32))
+                    .paint_at(ui, tile_rect);
             }
         }
     }

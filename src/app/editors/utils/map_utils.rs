@@ -28,14 +28,14 @@ pub enum MapLayer {
     Background,
     Effects,
     Animation,
-    BackBackground,
+    Background2,
     Screen,
 }
 
 impl MapLayer {
     pub fn is_for_tileset(&self) -> bool {
         match self {
-            MapLayer::Foreground | MapLayer::Background | MapLayer::BackBackground => { true }
+            MapLayer::Foreground | MapLayer::Background | MapLayer::Background2 => { true }
             MapLayer::Animation | MapLayer::Effects | MapLayer::Screen => { false }
         }
     }
@@ -51,7 +51,7 @@ pub struct MapRect {
 
 impl MapRect {
     pub fn from_rect(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
-        let (map_width, map_height) = if matches!(layer, MapLayer::BackBackground) && ! map_data.has_bb {
+        let (map_width, map_height) = if matches!(layer, MapLayer::Background2) && ! map_data.has_bb {
             (0, 0)
         } else {
             (map_data.width, map_data.height)
@@ -84,7 +84,7 @@ impl MapLayerFragment {
             MapLayer::Foreground  => (map_data.width, map_data.height, &mut map_data.fg_tiles),
             MapLayer::Background  => (map_data.width, map_data.height, &mut map_data.bg_tiles),
             MapLayer::Effects     => (map_data.width, map_data.height, &mut map_data.fx_tiles),
-            MapLayer::BackBackground if map_data.has_bb => {
+            MapLayer::Background2 if map_data.has_bb => {
                 (map_data.width, map_data.height, &mut map_data.bb_tiles)
             }
             _ => { return None; }
@@ -112,7 +112,7 @@ impl MapLayerFragment {
                 MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles),
                 MapLayer::Background => (map_data.width, map_data.height, &mut map_data.bg_tiles),
                 MapLayer::Effects    => (map_data.width, map_data.height, &mut map_data.fx_tiles),
-                MapLayer::BackBackground if map_data.has_bb => {
+                MapLayer::Background2 if map_data.has_bb => {
                     (map_data.width, map_data.height, &mut map_data.bb_tiles)
                 }
                 _ => { return None; }
@@ -133,7 +133,7 @@ impl MapLayerFragment {
             MapLayer::Foreground => (map_data.width, map_data.height, &mut map_data.fg_tiles, true),
             MapLayer::Background => (map_data.width, map_data.height, &mut map_data.bg_tiles, true),
             MapLayer::Effects    => (map_data.width, map_data.height, &mut map_data.fx_tiles, true),
-            MapLayer::BackBackground if map_data.has_bb => {
+            MapLayer::Background2 if map_data.has_bb => {
                 (map_data.width, map_data.height, &mut map_data.bb_tiles, false)
             }
             _ => { return; }
@@ -188,7 +188,7 @@ impl MapLayerFragment {
         Some(MapLayerFragment {
             width: rect.width,
             height: rect.height,
-            layer: MapLayer::BackBackground,
+            layer: MapLayer::Background2,
             data,
         })
     }
@@ -406,7 +406,7 @@ impl MapWholeFragment {
             MapLayer::Foreground => { self.fg_data[(y * self.width + x) as usize] }
             MapLayer::Background => { self.bg_data[(y * self.width + x) as usize] }
             MapLayer::Effects    => { self.fx_data[(y * self.width + x) as usize] }
-            MapLayer::BackBackground => {
+            MapLayer::Background2 => {
                 if self.bb_data.is_empty() { return MapData::NO_TILE; }
                 self.bb_data[(y * self.width + x) as usize]
             }
@@ -515,7 +515,7 @@ pub fn get_animated_tile(
     let loop_len = tile_anim.loops[map_tile as usize].len as u32;
     if loop_len == 0 { return None; }
     match layer {
-        MapLayer::BackBackground => {
+        MapLayer::Background2 => {
             match anim_tile {
                 1 => { Some(new_tile.saturating_add((animation_step % loop_len) as u8)) }
                 2 => { Some(new_tile.saturating_add((loop_len - 1 - (animation_step + 1) % loop_len) as u8)) }
@@ -544,7 +544,7 @@ pub fn get_animated_tile(
 }
 
 pub fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -> u8 {
-    if matches!(layer, MapLayer::BackBackground) && ! map_data.has_bb { return MapData::NO_TILE; }
+    if matches!(layer, MapLayer::Background2) && ! map_data.has_bb { return MapData::NO_TILE; }
     if x >= map_data.width || y >= map_data.height { return MapData::NO_TILE; }
 
     match layer {
@@ -558,7 +558,7 @@ pub fn get_map_layer_tile(map_data: &MapData, layer: MapLayer, x: u32, y: u32) -
             let anim = map_data.fx_tiles[(map_data.width * y + x) as usize] >> 4;
             if anim == 0x0f { MapData::NO_TILE } else { anim }
         }
-        MapLayer::BackBackground => {
+        MapLayer::Background2 => {
             if map_data.has_bb {
                 map_data.bb_tiles[(map_data.width * y + x) as usize]
             } else {
@@ -633,10 +633,10 @@ pub fn draw_bb_layer(
     let mut has_animated_tiles = false;
     for y in 0..map_data.height {
         for x in 0..map_data.width {
-            let tile = get_map_layer_tile(map_data, MapLayer::BackBackground, x, y);
+            let tile = get_map_layer_tile(map_data, MapLayer::Background2, x, y);
             let (tile, use_tileset) = if animate && let Some(new_tile) = get_animated_tile(
                 tile,
-                MapLayer::BackBackground,
+                MapLayer::Background2,
                 get_map_animation_tile(map_data, x, y),
                 tile_anim,
                 animation_step
@@ -856,7 +856,7 @@ impl<'a> DrawMapLayerData<'a> {
             MapLayer::Background => {
                 (map_data.width, map_data.height, &map_data.bg_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
             }
-            MapLayer::BackBackground => {
+            MapLayer::Background2 => {
                 if map_data.has_bb {
                     (map_data.bb_width, map_data.bb_height, &map_data.bb_tiles, map_data.width, map_data.height, &map_data.fx_tiles)
                 } else {
@@ -932,7 +932,7 @@ pub fn draw_layer<'a>(
             let (uv, texture) = if tile as u32 >= use_tileset.num_tiles {
                 (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
             } else {
-                let slot = if layer.layer == MapLayer::BackBackground { TextureSlot::Opaque } else { TextureSlot::Transparent };
+                let slot = if layer.layer == MapLayer::Background2 { TextureSlot::Opaque } else { TextureSlot::Transparent };
                 (use_tileset.get_item_uv(tile as u32), use_tileset.texture(wc.tex_man, wc.egui.ctx, slot))
             };
             let tile_rect = egui::Rect::from_min_max(

@@ -7,7 +7,7 @@ use crate::data_asset::{
 pub enum MapLayer {
     Foreground,
     Background,
-    BackBackground,
+    Background2,
 }
 
 impl MapLayer {
@@ -15,7 +15,7 @@ impl MapLayer {
         match self {
             MapLayer::Foreground => "foreground",
             MapLayer::Background => "background",
-            MapLayer::BackBackground   => "2nd background",
+            MapLayer::Background2   => "2nd background",
         }
     }
 }

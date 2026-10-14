@@ -160,7 +160,7 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, errors: &mut Vec<Asset
                         tile_x: x,
                         tile_y: y,
                         tile,
-                        layer: MapLayer::BackBackground,
+                        layer: MapLayer::Background2,
                     });
                 }
             }
