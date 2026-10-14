@@ -3,7 +3,6 @@ mod export;
 
 use std::io::Error;
 
-use crate::sound::SoundPlayer;
 use crate::misc::{
     IMAGES,
     wav_utils,
@@ -62,12 +61,12 @@ impl SfxEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
-        self.dialogs.show(wc, &mut self.editor, sfx, sound_player);
+    pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx) {
+        self.dialogs.show(wc, &mut self.editor, sfx);
 
         self.base.show_window(wc, sfx, [400.0, 250.0], [500.0, 250.0], |ui, wc, sfx, base| {
             Self::show_footer(ui, wc, sfx, base);
-            self.editor.show(ui, wc, &mut self.dialogs, sfx, sound_player);
+            self.editor.show(ui, wc, &mut self.dialogs, sfx);
         });
     }
 }
@@ -85,7 +84,7 @@ impl Dialogs {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, sfx: &mut Sfx, _sound_player: &mut SoundPlayer) {
+    pub fn show(&mut self, wc: &mut WindowContext, _editor: &mut Editor, sfx: &mut Sfx) {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, sfx);
         }
@@ -133,7 +132,7 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sfx: &mut Sfx, sound_player: &mut SoundPlayer) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sfx: &mut Sfx) {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.import_wav(wc, file, sfx);
         }
@@ -198,14 +197,14 @@ impl Editor {
                     ui.end_row();
                 });
             });
-            egui::CollapsingHeader::new("Test").default_open(sound_player.is_available()).show(ui, |ui| {
-                if sound_player.is_available() {
+            egui::CollapsingHeader::new("Test").default_open(wc.sound_player.is_available()).show(ui, |ui| {
+                if wc.sound_player.is_available() {
                     ui.horizontal(|ui| {
                         ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(8000.0..=44100.0));
                         ui.label("Hz");
                         ui.add_space(5.0);
                         if ui.button("▶ Play ").clicked() {
-                            sound_player.play_s16(&sfx.samples, self.play_freq, self.play_volume);
+                            wc.sound_player.play_s16(&sfx.samples, self.play_freq, self.play_volume);
                         }
                     });
                     ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=2.0)).on_hover_ui(|ui| {

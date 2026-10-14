@@ -13,7 +13,6 @@ use crate::misc::{
     mod_utils,
     wav_utils,
 };
-use crate::sound::SoundPlayer;
 use crate::data_asset::{
     ModData,
     ModSample,
@@ -85,12 +84,12 @@ impl ModDataEditor {
         });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+    pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) {
         self.dialogs.show(wc, &mut self.editor, mod_data);
 
         self.base.show_window(wc, mod_data, [610.0, 380.0], [610.0, 400.0], |ui, wc, mod_data, base| {
             Self::show_footer(ui, wc, mod_data, base);
-            self.editor.show(ui, wc, &mut self.dialogs, mod_data, sound_player);
+            self.editor.show(ui, wc, &mut self.dialogs, mod_data);
         });
     }
 }
@@ -189,7 +188,6 @@ impl Editor {
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         mod_data: &mut ModData,
-        sound_player: &mut SoundPlayer
     ) {
         egui::Panel::left(format!("editor_panel_{}_samples_left", self.asset_id)).resizable(false).max_size(160.0).show(ui, |ui| {
             let mut sample_name = String::new();
@@ -292,14 +290,14 @@ impl Editor {
                     });
 
                     // playback
-                    egui::CollapsingHeader::new("Test").default_open(sound_player.is_available()).show(ui, |ui| {
-                        if sound_player.is_available() {
+                    egui::CollapsingHeader::new("Test").default_open(wc.sound_player.is_available()).show(ui, |ui| {
+                        if wc.sound_player.is_available() {
                             ui.horizontal(|ui| {
                                 ui.add(egui::DragValue::new(&mut self.play_freq).speed(25.0).range(2000.0..=44100.0));
                                 ui.label("Hz");
                                 ui.add_space(5.0);
                                 if ui.button("▶ Play ").clicked() {
-                                    sound_player.play_s16(sample_data, self.play_freq, self.play_volume);
+                                    wc.sound_player.play_s16(sample_data, self.play_freq, self.play_volume);
                                 }
                             });
                             ui.add(egui::Slider::new(&mut self.play_volume, 0.0..=2.0)).on_hover_ui(|ui| {
@@ -353,7 +351,7 @@ impl Editor {
         });
     }
 
-    fn patterns_tab(&mut self, ui: &mut egui::Ui, _wc: &WindowContext, mod_data: &mut ModData, sound_player: &mut SoundPlayer) {
+    fn patterns_tab(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, mod_data: &mut ModData) {
         egui::CentralPanel::default().show(ui, |ui| {
             let cur_song_position = mod_data.song_positions.get(self.selected_song_position).map_or_else(|| {
                 mod_data.song_positions.first().map_or(0, |&v| v)
@@ -426,12 +424,12 @@ impl Editor {
                                 if cell.period != 0 {
                                     let (note, octave) = ModData::get_period_note(cell.period);
                                     if note >= 0 {
-                                        if sound_player.is_available() {
+                                        if wc.sound_player.is_available() {
                                             if ui.button(format!("{:2}{}", mod_utils::get_note_name(note), octave)).clicked() &&
                                                 let Some(freq) = mod_utils::get_period_sample_rate(cell.period) &&
                                                 let Some(sample_index) = Self::get_pattern_sample_to_play(cell_index, mod_data) &&
                                                 let Some(sample_data) = &mod_data.samples[sample_index].data {
-                                                    sound_player.play_s16(sample_data, freq, self.play_volume);
+                                                    wc.sound_player.play_s16(sample_data, freq, self.play_volume);
                                                     self.play_freq = freq.round();
                                                     self.select_sample(sample_index);
                                                 }
@@ -533,7 +531,6 @@ impl Editor {
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         mod_data: &mut ModData,
-        sound_player: &mut SoundPlayer
     ) {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sample_sys_dlg_id) {
             self.import_sample(wc, file, mod_data);
@@ -600,8 +597,8 @@ impl Editor {
         });
 
         match self.selected_tab {
-            EditorTabs::Samples => { self.samples_tab(ui, wc, dialogs, mod_data, sound_player) }
-            EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data, sound_player); }
+            EditorTabs::Samples => { self.samples_tab(ui, wc, dialogs, mod_data) }
+            EditorTabs::Patterns => { self.patterns_tab(ui, wc, mod_data); }
         };
     }
 }

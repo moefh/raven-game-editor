@@ -10,6 +10,18 @@ use super::gamepad;
 use super::gamepad_buttons::{*};
 use super::KeyboardPressed;
 
+cfg_select! {
+    any(feature="no_sound", not(feature = "cpal_sound")) => {
+        mod no_sound;
+        pub use no_sound::SoundPlayerImpl;
+    }
+
+    all(feature = "cpal_sound", not(feature="no_sound")) => {
+        mod cpal_sound;
+        pub use cpal_sound::SoundPlayerImpl;
+    }
+}
+
 const APP_ID: &str = "raven-game-editor";
 
 static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(|| {

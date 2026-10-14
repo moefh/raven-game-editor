@@ -14,6 +14,7 @@ use super::{
     AppDialogs,
     SysDialogs,
     AppSettings,
+    SoundPlayer,
 };
 use super::editors::{
     MapClipboardData,
@@ -178,6 +179,7 @@ pub struct WindowContext<'a> {
     pub sys_dialogs: &'a mut SysDialogs,
     pub logger: &'a mut StringLogger,
     pub settings: &'a mut AppSettings,
+    pub sound_player: &'a mut SoundPlayer,
     pub window_tracker: &'a mut AppWindowTracker,
     pub gamepad_manager: &'a mut GamepadManager,
     pub image_clipboard: ImageClipboardData,

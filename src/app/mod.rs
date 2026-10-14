@@ -27,7 +27,6 @@ use crate::misc::asset_defs::{
 };
 use crate::misc::IMAGES;
 use crate::image::TextureManager;
-use crate::sound::SoundPlayer;
 
 use widgets::{
     menu_item,
@@ -69,6 +68,7 @@ pub use asset_exporter::AssetExporter;
 pub use crate::platform::{
     KeyboardPressed,
     GamepadManager,
+    SoundPlayer,
 };
 
 enum ConfirmationDialogAction {
@@ -972,6 +972,7 @@ impl RavenEditorApp {
             dialogs: &mut self.dialogs,
             logger: &mut self.logger,
             settings: &mut self.settings,
+            sound_player: &mut self.sound_player,
             window_tracker: &mut self.window_tracker,
             gamepad_manager: &mut self.gamepad_manager,
             map_clipboard: self.map_clipboard.take(),
@@ -1057,12 +1058,12 @@ impl RavenEditorApp {
         }
         for sfx in self.store.assets.sfxs.iter_mut() {
             if let Some(editor) = self.editors.sfxs.get_mut(&sfx.asset.id) {
-                editor.show(&mut win_ctx, sfx, &mut self.sound_player);
+                editor.show(&mut win_ctx, sfx);
             }
         }
         for mod_data in self.store.assets.mods.iter_mut() {
             if let Some(editor) = self.editors.mods.get_mut(&mod_data.asset.id) {
-                editor.show(&mut win_ctx, mod_data, &mut self.sound_player);
+                editor.show(&mut win_ctx, mod_data);
             }
         }
         for font in self.store.assets.fonts.iter_mut() {

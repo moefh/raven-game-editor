@@ -2,7 +2,6 @@
 
 mod misc;
 mod image;
-mod sound;
 mod data_asset;
 mod app;
 mod platform;
