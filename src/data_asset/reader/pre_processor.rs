@@ -57,8 +57,14 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
             match parse_number(value) {
                 Some(file_version) => {
                     if file_version > DataAssetStore::VERSION as u64 {
-                        return error(format!("refusing to parse unknown file version {} (max supported: {})",
-                                             file_version, DataAssetStore::VERSION), pos);
+                        return error(
+                            format!(
+                                "refusing to parse unknown file version {} (max supported: {})",
+                                file_version,
+                                DataAssetStore::VERSION
+                            ),
+                            pos
+                        );
                     }
                     logger.log(format!("-> got file version {}", file_version));
                     return Ok(());
@@ -90,8 +96,13 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
             match parse_number(value) {
                 Some(vga_bits_per_pixel) => {
                     if vga_bits_per_pixel != 6 && vga_bits_per_pixel != 8 {
-                        return error(format!("bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
-                                             vga_bits_per_pixel), pos);
+                        return error(
+                            format!(
+                                "bad vga_bits_per_pixel value: {} (only 8 and 6 are supported)",
+                                vga_bits_per_pixel
+                            ),
+                            pos
+                        );
                     }
                     logger.log(format!("-> got vga_bits_per_pixel {}", vga_bits_per_pixel));
                     data.vga_bits_per_pixel = vga_bits_per_pixel as u8;
@@ -107,8 +118,13 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
             match parse_number(value) {
                 Some(tiles_per_world_block) => {
                     if ! (8..=32).contains(&tiles_per_world_block) {
-                        return error(format!("bad tiles_per_world_block value: {} (must be between 8 and 32)",
-                                             tiles_per_world_block), pos);
+                        return error(
+                            format!(
+                                "bad tiles_per_world_block value: {} (must be between 8 and 32)",
+                                tiles_per_world_block
+                            ),
+                            pos
+                        );
                     }
                     logger.log(format!("-> got tiles_per_world_block {}", tiles_per_world_block));
                     data.tiles_per_world_block = tiles_per_world_block as u32;

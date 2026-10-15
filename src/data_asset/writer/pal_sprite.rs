@@ -62,15 +62,23 @@ pub fn write_pal_sprites(writer: &ProjectDataWriter, pal_sprite_ids: &[DataAsset
         if let Some(pal_sprite) = writer.store.assets.pal_sprites.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::PalSprite, *id)?;
             writer.write("  {\n");
-            writer.write(format!("    {}, {}, {}, {},\n",  pal_sprite.width, pal_sprite.height,
-                pal_sprite.num_frames, pal_sprite.depth.bits_per_pixel()));
+            writer.write(format!(
+                "    {}, {}, {}, {},\n",
+                pal_sprite.width,
+                pal_sprite.height,
+                pal_sprite.num_frames,
+                pal_sprite.depth.bits_per_pixel()
+            ));
             writer.write("    { ");
             for color in &pal_sprite.palette {
                 writer.write(format!("{:#04x},", color));
             }
             writer.write(" },\n");
-            writer.write(format!("    {}_pal_sprite_data_{}\n",
-                writer.ident.prefix_lower, name_id));
+            writer.write(format!(
+                "    {}_pal_sprite_data_{}\n",
+                writer.ident.prefix_lower,
+                name_id
+            ));
             writer.write("  },\n");
         }
     }

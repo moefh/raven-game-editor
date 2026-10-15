@@ -60,14 +60,14 @@ pub fn write_maps(writer: &ProjectDataWriter, map_ids: &[DataAssetId]) -> Result
 
             // tileset
             let tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, map_data.tileset_id)?;
-            writer.write(format!("    &{}_tilesets[{}], // tileset\n", writer.ident.prefix_lower, tileset_index));
+            writer.write(format!("    &{}_tilesets[{}],\n", writer.ident.prefix_lower, tileset_index));
 
             // tile animation
             if let Some(tile_anim_id) = map_data.tile_anim_id {
                 let tile_anim_index = writer.ident.get_asset_index(DataAssetType::TileAnimation, tile_anim_id)?;
-                writer.write(format!("    &{}_tile_animations[{}], // tile animation\n", writer.ident.prefix_lower, tile_anim_index));
+                writer.write(format!("    &{}_tile_animations[{}],\n", writer.ident.prefix_lower, tile_anim_index));
             } else {
-                writer.write("    NULL,  // tile animation\n");
+                writer.write("    NULL, // tile animation\n");
             }
 
             // tiles

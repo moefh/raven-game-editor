@@ -37,7 +37,13 @@ pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
     ]
 }
 
-fn conv_blocks(width: u8, height: u8, block_bitmap: &[u32], blocks: &[u8], block_pos: super::TokenPosition) -> Result<Vec<Option<u8>>> {
+fn conv_blocks(
+    width: u8,
+    height: u8,
+    block_bitmap: &[u32],
+    blocks: &[u8],
+    block_pos: super::TokenPosition
+) -> Result<Vec<Option<u8>>> {
     let mut ret_blocks = vec![None; WorldRegion::MAX_HEIGHT as usize * WorldRegion::BLOCK_STRIDE];
     let mut block_bitmap_index = 0;
     let mut block_index = 0;
@@ -48,8 +54,14 @@ fn conv_blocks(width: u8, height: u8, block_bitmap: &[u32], blocks: &[u8], block
                 if block.is_some() {
                     ret_blocks[y * WorldRegion::BLOCK_STRIDE + x] = block;
                 } else {
-                    return error(format!("region block is too small: {} <= {}",
-                                         blocks.len(), block_index), block_pos);
+                    return error(
+                        format!(
+                            "region block is too small: {} <= {}",
+                            blocks.len(),
+                            block_index
+                        ),
+                        block_pos
+                    );
                 }
                 block_index += 1;
             }

@@ -148,9 +148,11 @@ pub fn write_worlds(writer: &ProjectDataWriter, world_ids: &[DataAssetId]) -> Re
     for id in world_ids.iter() {
         if let Some(world) = writer.store.assets.worlds.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::World, *id)?;
-            writer.write(format!("  {{ {}, {}_world_regions_{} }},\n",
+            writer.write(format!(
+                "  {{ {}, {}_world_regions_{} }},\n",
                 world.regions.len(),
-                writer.ident.prefix_lower, name_id));
+                writer.ident.prefix_lower, name_id
+            ));
         }
     }
     writer.write("};\n");
@@ -169,7 +171,12 @@ fn write_world_region_names(writer: &ProjectDataWriter, world: &World, name_id_u
         let reg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
             Error::other(format!("error reading name of region {} world {}", index, world.asset.id))
         })?;
-        writer.write(format!("  {}_WORLD_{}_REGION_{},\n", writer.ident.prefix_upper, name_id_upper, reg_name_id.to_ascii_uppercase()));
+        writer.write(format!(
+            "  {}_WORLD_{}_REGION_{},\n",
+            writer.ident.prefix_upper,
+            name_id_upper,
+            reg_name_id.to_ascii_uppercase()
+        ));
     }
     writer.write("};\n");
     writer.write("\n");

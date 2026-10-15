@@ -93,7 +93,14 @@ impl ImageConverter {
         pixels
     }
 
-    pub fn pal_image_to_pixels(data: &[u8], palette: &[u8], width: u32, height: u32, num_items: u32, bits_per_pixel: u32) -> Vec<u8> {
+    pub fn pal_image_to_pixels(
+        data: &[u8],
+        palette: &[u8],
+        width: u32,
+        height: u32,
+        num_items: u32,
+        bits_per_pixel: u32
+    ) -> Vec<u8> {
         let width = width as usize;
         let height = height as usize;
         let num_items = num_items as usize;

@@ -761,7 +761,12 @@ impl DataAssetStore {
         Some(id)
     }
 
-    pub fn add_tile_anim(&mut self, name: String, parent_tileset_id: DataAssetId, anim_tileset_id: DataAssetId) -> Option<DataAssetId> {
+    pub fn add_tile_anim(
+        &mut self,
+        name: String,
+        parent_tileset_id: DataAssetId,
+        anim_tileset_id: DataAssetId
+    ) -> Option<DataAssetId> {
         if ! self.assets.tilesets.contains(&parent_tileset_id) || ! self.assets.tilesets.contains(&anim_tileset_id) {
             return None;
         }

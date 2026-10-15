@@ -49,7 +49,11 @@ pub fn create(
         error(
             format!(
                 "unexpected tileset data length: got {}, expected {} = {}*{}*{}",
-                data.len(), want_len, stride, height, num_tiles
+                data.len(),
+                want_len,
+                stride,
+                height,
+                num_tiles
             ),
             asset_struct.pos
         )?;

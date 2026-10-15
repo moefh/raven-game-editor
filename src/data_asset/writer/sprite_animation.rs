@@ -89,7 +89,13 @@ pub fn write_sprite_animations(writer: &ProjectDataWriter, anim_ids: &[DataAsset
             writer.write("  {\n");
             writer.write(format!("    {}_sprite_animation_frames_{},\n", writer.ident.prefix_lower, name_id));
             writer.write(format!("    &{}_sprites[{}],\n", writer.ident.prefix_lower, sprite_index));
-            writer.write(format!("    {{ {}, {}, {}, {} }},\n", anim.clip_rect.x, anim.clip_rect.y, anim.clip_rect.w, anim.clip_rect.h));
+            writer.write(format!(
+                "    {{ {}, {}, {}, {} }},\n",
+                anim.clip_rect.x,
+                anim.clip_rect.y,
+                anim.clip_rect.w,
+                anim.clip_rect.h
+            ));
             writer.write(format!("    {},\n", if info.add_foot { 1 } else { 0 }));
             writer.write(format!("    {},\n", anim.foot_overlap));
             writer.write("    {\n");
@@ -158,7 +164,12 @@ pub fn write_animation_names(
                     Error::other(format!("error reading name for loop {} of animation {}", loop_index, id))
                 })?;
                 let loop_name_id_upper = loop_name_id.to_ascii_uppercase();
-                writer.write(format!("  {}_SPRITE_ANIMATION_{}_LOOP_{},\n", writer.ident.prefix_upper, name_id_upper, loop_name_id_upper));
+                writer.write(format!(
+                    "  {}_SPRITE_ANIMATION_{}_LOOP_{},\n",
+                    writer.ident.prefix_upper,
+                    name_id_upper,
+                    loop_name_id_upper
+                ));
             }
             writer.write("};\n");
             writer.write("\n");

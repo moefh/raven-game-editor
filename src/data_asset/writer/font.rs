@@ -53,7 +53,13 @@ pub fn write_fonts(writer: &ProjectDataWriter, font_ids: &[DataAssetId]) -> Resu
     for id in font_ids.iter() {
         if let Some(font) = writer.store.assets.fonts.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Font, *id)?;
-            writer.write(format!("  {{ {}, {}, {}_font_data_{} }},\n", font.width, font.height, writer.ident.prefix_lower, name_id));
+            writer.write(format!(
+                "  {{ {}, {}, {}_font_data_{} }},\n",
+                font.width,
+                font.height,
+                writer.ident.prefix_lower,
+                name_id
+            ));
         }
     }
     writer.write("};\n");

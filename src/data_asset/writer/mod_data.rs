@@ -38,8 +38,13 @@ fn get_mod_sample_refs(writer: &ProjectDataWriter) -> (usize, HashMap<DataAssetI
                         for (sample2_index, sample2) in mod2_data.samples.iter().enumerate() {
                             if sample2.len == 0 || sample2.data.is_none() { continue; }
                             if ModData::are_mod_samples_equal(sample1, sample2) {
-                                writer.log(format!("-> merging mod samples: (mod{}:sample{}) to (mod{}:sample{})",
-                                    mod2_index+1, sample2_index+1, mod1_index+1, sample1_index+1));
+                                writer.log(format!(
+                                    "-> merging mod samples: (mod{}:sample{}) to (mod{}:sample{})",
+                                    mod2_index+1,
+                                    sample2_index+1,
+                                    mod1_index+1,
+                                    sample1_index+1
+                                ));
                                 if let Some(mod2_samples) = all_samples.get_mut(mod2_id) {
                                     mod2_samples[sample2_index] = ModSampleRef {
                                         mod_id: *mod1_id,
@@ -65,8 +70,13 @@ fn write_mod_samples_data(writer: &ProjectDataWriter, mod_data: &ModData, name_i
                 continue;  // skip this sample; it's been merged with another
             }
             if let Some(data) = &sample.data {
-                writer.write(format!("static const int{}_t {}_mod_samples_{}_sample{:02}[] = {{",
-                    sample.bits_per_sample, writer.ident.prefix_lower, name_id, index+1));
+                writer.write(format!(
+                    "static const int{}_t {}_mod_samples_{}_sample{:02}[] = {{",
+                    sample.bits_per_sample,
+                    writer.ident.prefix_lower,
+                    name_id,
+                    index+1
+                ));
                 for (i, spl) in data.iter().enumerate() {
                     if i.is_multiple_of(16) { writer.write("\n  "); }
                     if sample.bits_per_sample == 16 {
@@ -116,19 +126,28 @@ fn write_mod_pattern(writer: &ProjectDataWriter, mod_data: &ModData, name_id: &s
 
 fn write_mod_samples(writer: &ProjectDataWriter, mod_data: &ModData, sample_refs: &[ModSampleRef]) -> Result<()> {
     for (index, sample) in mod_data.samples.iter().enumerate() {
-        writer.write(format!("      {{{:>6},{:>6},{:>6}, {:#04x}, {:>2}, {:>2},",
-            sample.len, sample.loop_start, sample.loop_len,
+        writer.write(format!(
+            "      {{{:>6},{:>6},{:>6}, {:#04x}, {:>2}, {:>2},",
+            sample.len,
+            sample.loop_start,
+            sample.loop_len,
             if sample.finetune < 0 { sample.finetune + 16 } else { sample.finetune },
-            sample.volume, sample.bits_per_sample));
+            sample.volume,
+            sample.bits_per_sample
+        ));
         if sample.len == 0 || sample.data.is_none() {
             writer.write(" { .data = NULL }, },\n");
             continue;
         }
         if let Some(sample_ref) = sample_refs.get(index) {
             let sample_ref_mod_name_id = writer.ident.get_asset_name_id(DataAssetType::ModData, sample_ref.mod_id)?;
-            writer.write(format!(" {{ .data{} = {}_mod_samples_{}_sample{:02} }}, }},\n",
-                sample.bits_per_sample, writer.ident.prefix_lower,
-                sample_ref_mod_name_id, sample_ref.sample_index+1));
+            writer.write(format!(
+                " {{ .data{} = {}_mod_samples_{}_sample{:02} }}, }},\n",
+                sample.bits_per_sample,
+                writer.ident.prefix_lower,
+                sample_ref_mod_name_id,
+                sample_ref.sample_index+1
+            ));
         }
     }
     Ok(())
@@ -184,9 +203,12 @@ pub fn write_mods(writer: &ProjectDataWriter, mod_ids: &[DataAssetId]) -> Result
             writer.write("\n");
             writer.write("    },\n");
             writer.write("    // pattern:\n");
-            writer.write(format!("    {}, {}_mod_pattern_{},\n",
+            writer.write(format!(
+                "    {}, {}_mod_pattern_{},\n",
                 mod_data.pattern.len().div_ceil(64*mod_data.num_channels as usize),
-                writer.ident.prefix_lower, name_id));
+                writer.ident.prefix_lower,
+                name_id
+            ));
             writer.write("  },\n");
         }
     }

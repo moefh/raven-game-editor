@@ -174,31 +174,66 @@ impl ValueStruct {
 
     pub fn get_struct_array(&self, name: &str) -> Result<&ValueArray<ValueStruct>> {
         self.get_value(name).and_then(|value| { value.get_struct_array().ok_or_else(|| {
-            err(format!("invalid value in struct member '{}': expected 'struct[]', found '{:?}'", name, value.get_type_name()), self.pos)
+            err(
+                format!(
+                    "invalid value in struct member '{}': expected 'struct[]', found '{:?}'",
+                    name,
+                    value.get_type_name()
+                ),
+                self.pos
+            )
         })})
     }
 
     pub fn get_identifier(&self, name: &str) -> Result<&ValueName> {
         self.get_value(name).and_then(|value| { value.get_identifier().ok_or_else(|| {
-            err(format!("invalid value in struct member '{}': expected 'identifier', found '{:?}'", name, value.get_type_name()), self.pos)
+            err(
+                format!(
+                    "invalid value in struct member '{}': expected 'identifier', found '{:?}'",
+                    name,
+                    value.get_type_name()
+                ),
+                self.pos
+            )
         })})
     }
 
     pub fn get_array_ref(&self, name: &str) -> Result<&ValueName> {
         self.get_value(name).and_then(|value| { value.get_array_ref().ok_or_else(|| {
-            err(format!("invalid value in struct member '{}': expected 'array', found '{:?}'", name, value.get_type_name()), self.pos)
+            err(
+                format!(
+                    "invalid value in struct member '{}': expected 'array', found '{:?}'",
+                    name,
+                    value.get_type_name()
+                ),
+                self.pos
+            )
         })})
     }
 
     pub fn get_asset_ref(&self, name: &str) -> Result<&ValueAssetRef> {
         self.get_value(name).and_then(|value| { value.get_asset_ref().ok_or_else(|| {
-            err(format!("invalid value in struct member '{}': expected 'asset', found '{:?}'", name, value.get_type_name()), self.pos)
+            err(
+                format!(
+                    "invalid value in struct member '{}': expected 'asset', found '{:?}'",
+                    name,
+                    value.get_type_name()
+                ),
+                self.pos
+            )
         })})
     }
 
     pub fn get_struct(&self, name: &str) -> Result<&ValueStruct> {
         self.get_value(name).and_then(|value| { value.get_struct().ok_or_else(|| {
-            err(format!("invalid value in struct member '{}': expected 'struct', found '{:?}'", name, value.get_type_name()), self.pos)
+            err(
+                format!(
+                    "invalid value in struct member '{}': expected 'struct', found '{:?}'",
+                    name,
+                    value.get_type_name()
+                ),
+                self.pos
+            )
         })})
     }
 }

@@ -47,9 +47,15 @@ pub fn write_sprites(writer: &ProjectDataWriter, sprite_ids: &[DataAssetId]) -> 
     for id in sprite_ids.iter() {
         if let Some(sprite) = writer.store.assets.sprites.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
-            writer.write(format!("  {{ {}, {}, {}, {}, {}_sprite_data_{} }},\n",
-                sprite.width, sprite.height, sprite.width.div_ceil(4), sprite.num_frames * mult_mirrors,
-                writer.ident.prefix_lower, name_id));
+            writer.write(format!(
+                "  {{ {}, {}, {}, {}, {}_sprite_data_{} }},\n",
+                sprite.width,
+                sprite.height,
+                sprite.width.div_ceil(4),
+                sprite.num_frames * mult_mirrors,
+                writer.ident.prefix_lower,
+                name_id
+            ));
         }
     }
     writer.write("};\n");
