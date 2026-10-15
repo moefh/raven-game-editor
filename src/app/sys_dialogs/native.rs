@@ -230,6 +230,8 @@ impl SysDialogs {
     ) -> bool {
         if self.request.is_some() { return false; }
 
+        let suggest_filename = if suggest_filename.is_empty() { "new" } else { suggest_filename };
+
         let mut file_dialog = rfd::FileDialog::new().set_title(title);
         if let Some(dir) = self.get_path_for_id(path_id) {
             file_dialog = file_dialog.set_directory(dir);

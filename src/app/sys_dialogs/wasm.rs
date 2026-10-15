@@ -219,6 +219,8 @@ impl SysDialogs {
     ) -> bool {
         if self.request.is_some() { return false; }
 
+        let suggest_filename = if suggest_filename.is_empty() { "new" } else { suggest_filename };
+
         let mut file_dialog = rfd::AsyncFileDialog::new().set_title(title);
         for filter in filters.iter() {
             file_dialog = file_dialog.add_filter(filter.0, filter.1);
