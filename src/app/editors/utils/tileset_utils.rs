@@ -2,8 +2,10 @@ use std::collections::HashSet;
 
 use crate::image::colors;
 use crate::data_asset::{
+    calc_asset_hash,
     DataAssetId,
     DataAssetStore,
+    DataAssetHash,
     Tileset,
     MapData,
     TileAnimation,
@@ -31,7 +33,7 @@ pub struct TileGrid {
     fg_tiles: Vec<u8>,
     buf_tiles: Vec<u8>,
     buf_set: HashSet<u8>,
-    tileset_hash: u64,
+    tileset_hash: DataAssetHash,
     image: TileGridImage,
 }
 
@@ -45,25 +47,18 @@ impl TileGrid {
             fg_tiles: vec![MapData::NO_TILE; (width * height) as usize],
             buf_tiles: vec![0; (width * height) as usize],
             buf_set: HashSet::new(),
-            tileset_hash: 0,
+            tileset_hash: DataAssetHash::EMPTY,
             image: TileGridImage::new(tileset_id, width, height),
         }
     }
 
-    fn calc_tileset_hash(tileset: &Tileset) -> u64 {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::hash::DefaultHasher::new();
-        tileset.hash(&mut hasher);
-        hasher.finish()
-    }
-
     pub fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
-        self.tileset_hash = 0;  // force re-creation of image next time it's used
+        self.tileset_hash = DataAssetHash::EMPTY;  // force re-creation of image next time it's used
         vec![ &mut self.fg_tiles ]
     }
 
     pub fn get_image<'a>(&'a mut self, tileset: &Tileset) -> &'a TileGridImage {
-        let tileset_hash = Self::calc_tileset_hash(tileset);
+        let tileset_hash = calc_asset_hash(tileset);
         if self.tileset_hash != tileset_hash {
             self.tileset_hash = tileset_hash;
             self.tileset_to_image(tileset);
@@ -72,7 +67,7 @@ impl TileGrid {
     }
 
     pub fn get_image_mut<'a>(&'a mut self, tileset: &Tileset) -> &'a mut TileGridImage {
-        let tileset_hash = Self::calc_tileset_hash(tileset);
+        let tileset_hash = calc_asset_hash(tileset);
         if self.tileset_hash != tileset_hash {
             self.tileset_hash = tileset_hash;
             self.tileset_to_image(tileset);
@@ -153,8 +148,12 @@ impl TileGrid {
                 } else {
                     if self.buf_set.contains(&fg_tile) { has_repeated_tiles = true; }
                     self.buf_set.insert(fg_tile);
-                    if Self::tiles_are_different(&tileset.data[size*size * (fg_tile as usize)..], size,
-                                                 &self.image.pixels.data[img_pos..], img_width) {
+                    if Self::tiles_are_different(
+                        &tileset.data[size*size * (fg_tile as usize)..],
+                        size,
+                        &self.image.pixels.data[img_pos..],
+                        img_width
+                    ) {
                         self.buf_tiles[num_tiles_x * y + x] = 1;
                     }
                 }
@@ -167,12 +166,16 @@ impl TileGrid {
                 let fg_tile = self.fg_tiles[num_tiles_x * y + x];
                 if fg_tile != MapData::NO_TILE && self.buf_tiles[num_tiles_x * y + x] != 0 {
                     let img_pos = (img_width * y + x) * size;
-                    Self::copy_tile(&mut tileset.data[size*size * (fg_tile as usize)..], size,
-                                    &self.image.pixels.data[img_pos..], img_width);
+                    Self::copy_tile(
+                        &mut tileset.data[size*size * (fg_tile as usize)..],
+                        size,
+                        &self.image.pixels.data[img_pos..],
+                        img_width
+                    );
                 }
             }
         }
-        self.tileset_hash = Self::calc_tileset_hash(tileset);
+        self.tileset_hash = calc_asset_hash(tileset);
         if has_repeated_tiles {
             self.tileset_to_image(tileset);
         }
@@ -197,8 +200,12 @@ impl TileGrid {
                 let fg_tile = self.fg_tiles[num_tiles_x * y + x];
                 if fg_tile != MapData::NO_TILE {
                     let img_pos = (img_width * y + x) * size;
-                    Self::copy_tile(&mut self.image.pixels.data[img_pos..], img_width,
-                                    &tileset.data[size*size * (fg_tile as usize)..], size);
+                    Self::copy_tile(
+                        &mut self.image.pixels.data[img_pos..],
+                        img_width,
+                        &tileset.data[size*size * (fg_tile as usize)..],
+                        size
+                    );
                 }
             }
         }

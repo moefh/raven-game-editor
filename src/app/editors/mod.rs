@@ -48,14 +48,16 @@ pub use widgets::ColorPickerPopupWidget;
 
 use crate::include_ref_image;
 use crate::misc::{
-    calc_hash,
     get_asset_type_image,
     IMAGES,
 };
 use crate::data_asset::{
+    calc_asset_hash,
     AssetList,
     DataAssetId,
     GenericAsset,
+    DataAssetHash,
+    HashedDataAsset,
 };
 use crate::image::{
     ImageCollection,
@@ -101,8 +103,8 @@ pub struct AssetEditorBase {
     title: String,
     maximized_state: MaximizedState,
     window_rect: egui::Rect,
-    saved_hash: u64,
-    cur_hash: u64,
+    saved_hash: DataAssetHash,
+    cur_hash: DataAssetHash,
 }
 
 impl AssetEditorBase {
@@ -116,8 +118,8 @@ impl AssetEditorBase {
             footer_panel_id: egui::Id::new(format!("editor_{}_footer_panel", id)),
             maximized_state: MaximizedState::Normal,
             window_rect: egui::Rect::ZERO,
-            saved_hash: 0,
-            cur_hash: 0,
+            saved_hash: DataAssetHash::EMPTY,
+            cur_hash: DataAssetHash::EMPTY,
         }
     }
 
@@ -125,13 +127,13 @@ impl AssetEditorBase {
         self.cur_hash != self.saved_hash
     }
 
-    pub fn clear_dirty_flag(&mut self, asset: &impl std::hash::Hash) {
-        self.cur_hash = calc_hash(asset);
+    pub fn clear_dirty_flag(&mut self, asset: &impl HashedDataAsset) {
+        self.cur_hash = calc_asset_hash(asset);
         self.saved_hash = self.cur_hash;
     }
 
-    pub fn update_dirty_flag(&mut self, asset: &impl std::hash::Hash) {
-        self.cur_hash = calc_hash(asset);
+    pub fn update_dirty_flag(&mut self, asset: &impl HashedDataAsset) {
+        self.cur_hash = calc_asset_hash(asset);
     }
 
     fn calc_image_editor_window_size(image: &impl ImageCollection) -> (egui::Vec2, egui::Vec2) {

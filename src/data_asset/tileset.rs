@@ -1,4 +1,3 @@
-#[derive(std::hash::Hash)]
 pub struct Tileset {
     pub asset: super::DataAsset,
     pub width: u32,
@@ -22,17 +21,13 @@ impl Tileset {
     }
 }
 
-impl super::DataHashAsset for Tileset {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-
-        self.width.hash(state);
-        self.height.hash(state);
-        self.num_tiles.hash(state);
-        self.data.hash(state);
+impl super::HashedDataAsset for Tileset {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_u32(self.width);
+        hasher.add_u32(self.height);
+        hasher.add_u32(self.num_tiles);
+        hasher.add_bytes(&self.data);
     }
 }
 

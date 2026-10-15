@@ -1,12 +1,31 @@
 use super::DataAssetId;
 
-#[derive(Copy, Clone, PartialEq, std::hash::Hash)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum RoomEntityDirection {
     Right,
     Left,
 }
 
-#[derive(Copy, Clone, PartialEq, std::hash::Hash)]
+impl RoomEntityDirection {
+    pub fn value(self) -> u8 {
+        match self {
+            RoomEntityDirection::Right => { 0 }
+            RoomEntityDirection::Left => { 1 }
+        }
+    }
+}
+
+impl From<u8> for RoomEntityDirection {
+    fn from(value: u8) -> Self {
+        if value == 0 {
+            RoomEntityDirection::Right
+        } else {
+            RoomEntityDirection::Left
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
 pub enum RoomEnemyType {
     Walker,
     Chiller,
@@ -39,33 +58,14 @@ impl From<u16> for RoomEnemyType {
     }
 }
 
-impl RoomEntityDirection {
-    pub fn value(self) -> u8 {
-        match self {
-            RoomEntityDirection::Right => { 0 }
-            RoomEntityDirection::Left => { 1 }
-        }
-    }
-}
-
-impl From<u8> for RoomEntityDirection {
-    fn from(value: u8) -> Self {
-        if value == 0 {
-            RoomEntityDirection::Right
-        } else {
-            RoomEntityDirection::Left
-        }
-    }
-}
-
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct RoomMap {
     pub x: u16,
     pub y: u16,
     pub map_id: DataAssetId,
 }
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
     PlayerSpawn { direction: RoomEntityDirection },
@@ -81,7 +81,7 @@ pub enum RoomTriggerType {
     GetPickup { pickup_id: u16 },
 }
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct RoomTrigger {
     pub trigger_id: u16,
     pub name_id: String,
@@ -90,7 +90,7 @@ pub struct RoomTrigger {
     pub trigger_type: RoomTriggerType,
 }
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct RoomParallax {
     pub tileset_id: Option<DataAssetId>,
     pub width: u32,
@@ -98,7 +98,6 @@ pub struct RoomParallax {
     pub tiles: Vec<u8>,
 }
 
-#[derive(std::hash::Hash)]
 pub struct Room {
     pub asset: super::DataAsset,
     pub maps: Vec<RoomMap>,
@@ -124,98 +123,99 @@ impl Room {
     }
 }
 
-impl super::DataHashAsset for Room {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-        if self.parallax.tileset_id.is_none() {
-            0.hash(state);
+impl super::HashedDataAsset for Room {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        if let Some(tileset_id) = self.parallax.tileset_id {
+            hasher.add_u8(1);
+            hasher.add_asset_id(tileset_id);
+            hasher.add_u32(self.parallax.width);
+            hasher.add_u32(self.parallax.height);
+            hasher.add_bytes(&self.parallax.tiles);
         } else {
-            1.hash(state);
-            self.parallax.width.hash(state);
-            self.parallax.height.hash(state);
-            self.parallax.tiles.hash(state);
+            hasher.add_u8(0);
         }
         for map in &self.maps {
-            map.x.hash(state);
-            map.y.hash(state);
+            hasher.add_asset_id(map.map_id);
+            hasher.add_u16(map.x);
+            hasher.add_u16(map.y);
         }
         for trigger in &self.triggers {
-            trigger.trigger_id.hash(state);
-            trigger.name_id.hash(state);
-            trigger.x.hash(state);
-            trigger.y.hash(state);
+            hasher.add_u16(trigger.trigger_id);
+            hasher.add_str(&trigger.name_id);
+            hasher.add_i16(trigger.x);
+            hasher.add_i16(trigger.y);
             match trigger.trigger_type {
                 RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
-                    0.hash(state);
-                    data0.hash(state);
-                    data1.hash(state);
-                    data2.hash(state);
-                    data3.hash(state);
+                    hasher.add_u8(0);
+                    hasher.add_u16(data0);
+                    hasher.add_u16(data1);
+                    hasher.add_u16(data2);
+                    hasher.add_u16(data3);
                 }
                 RoomTriggerType::PlayerSpawn { direction } => {
-                    1.hash(state);
-                    direction.hash(state);
+                    hasher.add_u8(1);
+                    hasher.add_u8(direction.value());
                 }
-                RoomTriggerType::EnemySpawn { enemy_type, direction, .. } => {
-                    2.hash(state);
-                    enemy_type.hash(state);
-                    direction.hash(state);
+                RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
+                    hasher.add_u8(2);
+                    hasher.add_asset_id(animation_id);
+                    hasher.add_u16(enemy_type.value());
+                    hasher.add_u8(direction.value());
                 }
-                RoomTriggerType::Door { dest_trigger_id, .. } => {
-                    3.hash(state);
-                    dest_trigger_id.hash(state);
+                RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+                    hasher.add_u8(3);
+                    hasher.add_asset_id(dest_room_id);
+                    hasher.add_u16(dest_trigger_id);
                 }
                 RoomTriggerType::Trap { width, height, trap_type } => {
-                    4.hash(state);
-                    width.hash(state);
-                    height.hash(state);
-                    trap_type.hash(state);
+                    hasher.add_u8(4);
+                    hasher.add_u16(width);
+                    hasher.add_u16(height);
+                    hasher.add_u16(trap_type);
                 }
                 RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
-                    5.hash(state);
-                    width.hash(state);
-                    height.hash(state);
-                    effect_id.hash(state);
-                    flag_id.hash(state);
-                    required_collectable_id.hash(state);
+                    hasher.add_u8(5);
+                    hasher.add_u16(width);
+                    hasher.add_u16(height);
+                    hasher.add_u16(effect_id);
+                    hasher.add_u16(flag_id);
+                    hasher.add_u16(required_collectable_id);
                 }
                 RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
-                    6.hash(state);
-                    width.hash(state);
-                    height.hash(state);
-                    effect_id.hash(state);
-                    flag_id.hash(state);
+                    hasher.add_u8(6);
+                    hasher.add_u16(width);
+                    hasher.add_u16(height);
+                    hasher.add_u16(effect_id);
+                    hasher.add_u16(flag_id);
                 }
                 RoomTriggerType::UnblockEffect { width, height, effect_id } => {
-                    7.hash(state);
-                    width.hash(state);
-                    height.hash(state);
-                    effect_id.hash(state);
+                    hasher.add_u8(7);
+                    hasher.add_u16(width);
+                    hasher.add_u16(height);
+                    hasher.add_u16(effect_id);
                 }
                 RoomTriggerType::DisableAnimationEffect { width, height, effect_id } => {
-                    8.hash(state);
-                    width.hash(state);
-                    height.hash(state);
-                    effect_id.hash(state);
+                    hasher.add_u8(8);
+                    hasher.add_u16(width);
+                    hasher.add_u16(height);
+                    hasher.add_u16(effect_id);
                 }
                 RoomTriggerType::GetUpgrade { upgrade_id } => {
-                    9.hash(state);
-                    upgrade_id.hash(state);
+                    hasher.add_u8(9);
+                    hasher.add_u16(upgrade_id);
                 }
                 RoomTriggerType::GetCollectable { collectable_id } => {
-                    10.hash(state);
-                    collectable_id.hash(state);
+                    hasher.add_u8(10);
+                    hasher.add_u16(collectable_id);
                 }
                 RoomTriggerType::GetPickup { pickup_id } => {
-                    11.hash(state);
-                    pickup_id.hash(state);
+                    hasher.add_u8(11);
+                    hasher.add_u16(pickup_id);
                 }
             }
         }
-        self.has_script.hash(state);
+        hasher.add_bool(self.has_script);
     }
 }
 

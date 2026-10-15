@@ -1,4 +1,3 @@
-#[derive(std::hash::Hash)]
 pub struct Sfx {
     pub asset: super::DataAsset,
     pub len: u32,
@@ -37,17 +36,14 @@ impl Sfx {
 
 }
 
-impl super::DataHashAsset for Sfx {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-        self.len.hash(state);
-        self.loop_start.hash(state);
-        self.loop_len.hash(state);
-        self.bits_per_sample.hash(state);
-        self.samples.hash(state);
+impl super::HashedDataAsset for Sfx {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_u32(self.len);
+        hasher.add_u32(self.loop_start);
+        hasher.add_u32(self.loop_len);
+        hasher.add_u16(self.bits_per_sample);
+        hasher.add_i16_slice(&self.samples);
     }
 }
 

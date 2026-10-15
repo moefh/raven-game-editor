@@ -1,4 +1,3 @@
-#[derive(std::hash::Hash)]
 pub struct PropFont {
     pub asset: super::DataAsset,
     pub max_width: u32,
@@ -26,17 +25,13 @@ impl PropFont {
     }
 }
 
-impl super::DataHashAsset for PropFont {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-
-        self.max_width.hash(state);
-        self.height.hash(state);
-        self.data.hash(state);
-        self.char_widths.hash(state);
+impl super::HashedDataAsset for PropFont {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_u32(self.max_width);
+        hasher.add_u32(self.height);
+        hasher.add_bytes(&self.data);
+        hasher.add_bytes(&self.char_widths);
     }
 }
 

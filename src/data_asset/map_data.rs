@@ -1,4 +1,3 @@
-#[derive(std::hash::Hash)]
 pub struct MapData {
     pub asset: super::DataAsset,
     pub tileset_id: super::DataAssetId,
@@ -33,19 +32,21 @@ impl MapData {
     }
 }
 
-impl super::DataHashAsset for MapData {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-        self.width.hash(state);
-        self.height.hash(state);
-        self.has_bb.hash(state);
-        self.fg_tiles.hash(state);
-        self.bg_tiles.hash(state);
-        self.fx_tiles.hash(state);
-        self.bb_tiles.hash(state);
+impl super::HashedDataAsset for MapData {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_asset_id(self.tileset_id);
+        match self.tile_anim_id {
+            Some(id) => { hasher.add_u8(1); hasher.add_asset_id(id); }
+            None => { hasher.add_u8(0); }
+        }
+        hasher.add_u32(self.width);
+        hasher.add_u32(self.height);
+        hasher.add_bool(self.has_bb);
+        hasher.add_bytes(&self.fg_tiles);
+        hasher.add_bytes(&self.bg_tiles);
+        hasher.add_bytes(&self.fx_tiles);
+        hasher.add_bytes(&self.bb_tiles);
     }
 }
 

@@ -1,6 +1,6 @@
 use super::DataAssetId;
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct WorldRegion {
     pub name: String,
     pub rooms: Vec<DataAssetId>,
@@ -29,7 +29,6 @@ impl WorldRegion {
     }
 }
 
-#[derive(std::hash::Hash)]
 pub struct World {
     pub asset: super::DataAsset,
     pub regions: Vec<WorldRegion>,
@@ -44,20 +43,21 @@ impl World {
     }
 }
 
-impl super::DataHashAsset for World {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-
+impl super::HashedDataAsset for World {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
         for region in &self.regions {
-            region.name.hash(state);
-            region.x.hash(state);
-            region.y.hash(state);
-            region.width.hash(state);
-            region.height.hash(state);
-            region.blocks.hash(state);
+            hasher.add_str(&region.name);
+            hasher.add_u8(region.x);
+            hasher.add_u8(region.y);
+            hasher.add_u8(region.width);
+            hasher.add_u8(region.height);
+            for block in &region.blocks {
+                match block {
+                    Some(n) => { hasher.add_u16(*n as u16); }
+                    None    => { hasher.add_u16(0xff00); }
+                }
+            }
         }
     }
 }

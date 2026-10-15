@@ -8,7 +8,7 @@ pub const MOD_PERIOD_TABLE : &[u16] = &[
     53,50,47,45,42,40,37,35,33,31,30,28,
 ];
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct ModSample {
     pub len: u32,
     pub loop_start: u32,
@@ -19,14 +19,13 @@ pub struct ModSample {
     pub data: Option<Vec<i16>>,
 }
 
-#[derive(Copy, Clone, std::hash::Hash)]
+#[derive(Copy, Clone)]
 pub struct ModCell {
     pub sample: u8,
     pub period: u16,
     pub effect: u16,
 }
 
-#[derive(std::hash::Hash)]
 pub struct ModData {
     pub asset: super::DataAsset,
     pub samples: Vec<ModSample>,
@@ -124,17 +123,33 @@ impl ModData {
     }
 }
 
-impl super::DataHashAsset for ModData {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-
-        self.samples.hash(state);
-        self.pattern.hash(state);
-        self.song_positions.hash(state);
-        self.num_channels.hash(state);
+impl super::HashedDataAsset for ModData {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        for sample in &self.samples {
+            hasher.add_u32(sample.len);
+            hasher.add_u32(sample.loop_start);
+            hasher.add_u32(sample.loop_len);
+            hasher.add_i8(sample.finetune);
+            hasher.add_u8(sample.volume);
+            hasher.add_u16(sample.bits_per_sample);
+            match &sample.data {
+                Some(data) => {
+                    hasher.add_u32(data.len() as u32);
+                    hasher.add_i16_slice(data);
+                }
+                None => {
+                    hasher.add_u32(0);
+                }
+            }
+        }
+        for cell in &self.pattern {
+            hasher.add_u8(cell.sample);
+            hasher.add_u16(cell.period);
+            hasher.add_u16(cell.effect);
+        }
+        hasher.add_bytes(&self.song_positions);
+        hasher.add_u8(self.num_channels);
     }
 }
 

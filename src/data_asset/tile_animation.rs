@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct TileAnimationLoop {
     pub start: u8,
     pub len: u8,
@@ -8,7 +8,6 @@ impl TileAnimationLoop {
     pub const EMPTY: Self = TileAnimationLoop { start: 0, len: 0 };
 }
 
-#[derive(std::hash::Hash)]
 pub struct TileAnimation {
     pub asset: super::DataAsset,
     pub parent_tileset_id: super::DataAssetId,
@@ -29,13 +28,15 @@ impl TileAnimation {
     }
 }
 
-impl super::DataHashAsset for TileAnimation {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-        self.loops.hash(state);
+impl super::HashedDataAsset for TileAnimation {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_asset_id(self.parent_tileset_id);
+        hasher.add_asset_id(self.anim_tileset_id);
+        for aloop in &self.loops {
+            hasher.add_u8(aloop.start);
+            hasher.add_u8(aloop.len);
+        }
     }
 }
 

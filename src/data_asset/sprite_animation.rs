@@ -1,10 +1,10 @@
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct SpriteAnimationFrame {
     pub head_index: Option<u8>,
     pub foot_index: Option<u8>,
 }
 
-#[derive(Clone, std::hash::Hash)]
+#[derive(Clone)]
 pub struct SpriteAnimationLoop {
     pub name_id: String,
     pub frame_indices: Vec<SpriteAnimationFrame>,
@@ -12,7 +12,6 @@ pub struct SpriteAnimationLoop {
     pub frame_speed: u16, // 1-256
 }
 
-#[derive(std::hash::Hash)]
 pub struct SpriteAnimation {
     pub asset: super::DataAsset,
     pub sprite_id: super::DataAssetId,
@@ -60,16 +59,30 @@ impl SpriteAnimation {
     }
 }
 
-impl super::DataHashAsset for SpriteAnimation {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use std::hash::Hash;
-
-        self.asset.asset_type.hash(state);
-        self.asset.name.hash(state);
-
-        self.clip_rect.hash(state);
-        self.foot_overlap.hash(state);
-        self.loops.hash(state);
+impl super::HashedDataAsset for SpriteAnimation {
+    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+        hasher.add_data_asset(&self.asset);
+        hasher.add_asset_id(self.sprite_id);
+        hasher.add_i32(self.clip_rect.x);
+        hasher.add_i32(self.clip_rect.y);
+        hasher.add_i32(self.clip_rect.w);
+        hasher.add_i32(self.clip_rect.h);
+        hasher.add_i8(self.foot_overlap);
+        for aloop in &self.loops {
+            hasher.add_str(&aloop.name_id);
+            for frame in &aloop.frame_indices {
+                match frame.head_index {
+                    Some(n) => { hasher.add_u16(n as u16); }
+                    None    => { hasher.add_u16(0xff00); }
+                }
+                match frame.foot_index {
+                    Some(n) => { hasher.add_u16(n as u16); }
+                    None    => { hasher.add_u16(0xff00); }
+                }
+            }
+            hasher.add_bool(aloop.dont_loop);
+            hasher.add_u16(aloop.frame_speed);
+        }
     }
 }
 

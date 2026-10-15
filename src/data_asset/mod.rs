@@ -13,11 +13,19 @@ mod prop_font;
 mod reader;
 mod writer;
 mod header_def;
+mod hash;
 pub mod utils;
 
 use std::{fmt, io};
 use std::collections::HashMap;
 
+pub use hash::{
+    calc_asset_hash,
+    calc_asset_data_hash,
+    DataAssetHash,
+    DataAssetHasher,
+    HashedDataAsset,
+};
 pub use reader::{
     deserialize_project,
     deserialize_map,
@@ -99,7 +107,7 @@ impl StringLogger {
     }
 }
 
-#[derive(Clone, Copy, Debug, std::hash::Hash)]
+#[derive(Clone, Copy, Debug)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,
@@ -159,7 +167,6 @@ impl DataAssetType {
     }
 }
 
-#[derive(std::hash::Hash)]
 pub struct DataAsset {
     pub asset_type: DataAssetType,
     pub id: DataAssetId,
@@ -197,10 +204,6 @@ impl DataAsset {
 
 pub(crate) trait DuplicableAsset<T> {
     fn duplicate(&self, dup_id: DataAssetId, dup_name: String) -> T;
-}
-
-pub trait DataHashAsset {
-    fn data_hash<H: std::hash::Hasher>(&self, state: &mut H);
 }
 
 pub trait GenericAsset {
@@ -803,12 +806,4 @@ impl DataAssetStore {
         self.assets.prop_fonts.insert(id, PropFont::new(id, name));
         Some(id)
     }
-}
-
-pub fn calc_asset_data_hash<A: DataHashAsset>(asset: &A) -> u64 {
-    use std::hash::Hasher;
-
-    let mut hasher = std::hash::DefaultHasher::new();
-    asset.data_hash(&mut hasher);
-    hasher.finish()
 }

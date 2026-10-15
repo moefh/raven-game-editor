@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::data_asset::{
+    HashedDataAsset,
     DataAssetId,
+    DataAssetHash,
+    DataAssetHasher,
     AssetList,
     World,
     WorldRegion,
@@ -263,7 +266,7 @@ impl Grid {
 }
 
 pub struct WorldGridStore {
-    state_hash: u64,
+    state_hash: DataAssetHash,
     pub world_grid: Grid,
     pub region_grids: Vec<Grid>,
     pub doors: Vec<Door>,
@@ -272,7 +275,7 @@ pub struct WorldGridStore {
 impl WorldGridStore {
     pub fn new() -> Self {
         WorldGridStore {
-            state_hash: 0,
+            state_hash: DataAssetHash::EMPTY,
             world_grid: Grid::new(),
             region_grids: Vec::new(),
             doors: Vec::new(),
@@ -280,13 +283,11 @@ impl WorldGridStore {
     }
 
     pub fn update(&mut self, world: &World, rooms: &AssetList<Room>, maps: &AssetList<MapData>) {
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = std::hash::DefaultHasher::new();
-        world.hash(&mut hasher);
-        for room in rooms.iter() { room.hash(&mut hasher); }
-        for map in maps.iter() { map.hash(&mut hasher); }
-        let hash = hasher.finish();
+        let mut hasher = DataAssetHasher::new();
+        world.data_hash(&mut hasher);
+        for room in rooms.iter() { room.data_hash(&mut hasher); }
+        for map in maps.iter() { map.data_hash(&mut hasher); }
+        let hash = hasher.finalize();
 
         if self.state_hash != hash {
             self.state_hash = hash;
