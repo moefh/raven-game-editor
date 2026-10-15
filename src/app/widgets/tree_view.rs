@@ -143,7 +143,7 @@ impl TreeViewFolder {
                 self.insert_item(item_id, item_name, item_name);
             } else {
                 let name_parts: Vec<&str> = item_name.split(TreeView::PATH_SEPARATOR).collect();
-                self.insert(item_id, &item_name, &name_parts, id_generator);
+                self.insert(item_id, item_name, &name_parts, id_generator);
             }
         }
     }
