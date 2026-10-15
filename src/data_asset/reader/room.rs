@@ -320,7 +320,7 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
     };
 
     Ok(RoomTrigger {
-        name_id: name,
+        name_id: name.replace("__", "/"),
         trigger_id,
         x,
         y,

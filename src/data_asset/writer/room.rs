@@ -186,7 +186,7 @@ fn write_room_trigger_names(writer: &ProjectDataWriter, room: &Room, name_id_upp
 
     writer.write(format!("enum {}_ROOM_{}_TRG_NAMES {{\n", writer.ident.prefix_upper, name_id_upper));
     for (index, trg) in room.triggers.iter().enumerate() {
-        let use_name_id = if trg.name_id == "names" { "names0" } else { &trg.name_id };
+        let use_name_id = if trg.name_id == "names" { "names0" } else { &trg.name_id.replace("/", "__") };
         IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
         let trg_name_id = index_to_name_id.get(&index).ok_or_else(|| {
             Error::other(format!("error reading name of trigger {} room {}", index, room.asset.id))
