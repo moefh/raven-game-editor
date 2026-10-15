@@ -9,6 +9,7 @@ use crate::data_asset::{
     Room,
     RoomParallax,
     RoomEnemyType,
+    RoomTrigger,
     RoomTriggerType,
     RoomEntityDirection,
 };
@@ -25,6 +26,15 @@ use super::super::widgets::{
     TILE_SIZE,
     FULL_UV,
 };
+use super::super::super::widgets::{
+    TreeViewItemTrait,
+};
+
+impl TreeViewItemTrait for RoomTrigger {
+    fn name(&self) -> &str {
+        &self.name_id
+    }
+}
 
 impl MapTileFixer for Room {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {

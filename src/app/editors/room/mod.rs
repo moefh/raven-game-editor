@@ -45,6 +45,12 @@ use super::widgets::{
     TilePickerPopupWidget,
 };
 use super::super::menu_item;
+use super::super::widgets::{
+    TreeView,
+    TreeViewItem,
+    TreeViewFolder,
+    TreeViewFolderId,
+};
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
@@ -58,11 +64,9 @@ enum EditorTab {
 
 enum TriggerTreeAction {
     None,
-    Add,
+    Add(Option<TreeViewFolderId>),
     Select(usize),
     Remove(usize),
-    MoveUp(usize),
-    MoveDown(usize),
 }
 
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
@@ -268,11 +272,12 @@ struct Editor {
     import_sys_dlg_id: String,
     selected_tab: EditorTab,
     room_editor: RoomEditorWidget,
-    sorted_animation_ids: Vec<DataAssetId>,
-    sorted_room_ids: Vec<DataAssetId>,
+    trigger_tree: TreeView,
     tile_picker: ImagePickerWidget,
     tile_picker_popup: TilePickerPopupWidget,
     para_editor: RoomParallaxEditorWidget,
+    sorted_animation_ids: Vec<DataAssetId>,
+    sorted_room_ids: Vec<DataAssetId>,
 }
 
 impl Editor {
@@ -287,6 +292,7 @@ impl Editor {
             tile_picker: ImagePickerWidget::new().use_as_palette(true),
             tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
             para_editor: RoomParallaxEditorWidget::new(),
+            trigger_tree: TreeView::new(format!("editor_{}_trigger_tree", asset_id), "Triggers"),
         }
     }
 
@@ -354,7 +360,7 @@ impl Editor {
                                 dialogs.map_selection_dialog.set_open(wc, room, assets.maps);
                             }
                             if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
-                                self.add_trigger(room);
+                                self.add_trigger(room, None);
                             }
                         });
                     }
@@ -416,8 +422,7 @@ impl Editor {
         let mut num: usize = 1;
         let mut new_name_id = String::new();
         loop {
-            new_name_id.clear();
-            new_name_id.push_str(base);
+            new_name_id.replace_range(.., base);
             if write!(new_name_id, "{}", num).is_err() { break; }
             if ! triggers.iter().any(|tr| tr.name_id == new_name_id) { break; }
             num += 1;
@@ -434,9 +439,14 @@ impl Editor {
         new_id
     }
 
-    fn add_trigger(&mut self, room: &mut Room) {
+    fn add_trigger(&mut self, room: &mut Room, folder_id: Option<TreeViewFolderId>) {
         let trigger_id = Self::get_new_trigger_id(&room.triggers);
-        let name_id = Self::get_new_trigger_name_id(&room.triggers, "trigger");
+        let def_name = if let Some(folder_name) = folder_id.and_then(|folder_id| self.trigger_tree.get_node_name(folder_id)) {
+            &format!("{}/trigger", folder_name)
+        } else {
+            "trigger"
+        };
+        let name_id = Self::get_new_trigger_name_id(&room.triggers, def_name);
         let pos = if self.room_editor.zoom <= 0.0 { egui::Vec2::ZERO } else { self.room_editor.scroll / -self.room_editor.zoom };
         let new_trigger_index = room.triggers.len();
         room.triggers.push(RoomTrigger {
@@ -506,54 +516,52 @@ impl Editor {
     }
 
     fn show_trigger_tree(&mut self, ui: &mut egui::Ui, room: &Room) -> TriggerTreeAction {
-        let mut action = TriggerTreeAction::None;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_tree", room.asset.id));
-        let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
-        let mut toggle_node_open = false;
-        let mut node_resp = node.show_header(ui, |ui| {
-            let resp = ui.add(egui::Label::new("Triggers").selectable(false).sense(egui::Sense::click()));
+        self.trigger_tree.update_items(&room.triggers);
+
+        let is_folder_open = |folder: &TreeViewFolder| { folder.level == 0 };
+        let mut folder_action = TriggerTreeAction::None;
+        let mut show_folder = |ui: &mut egui::Ui, folder: &TreeViewFolder| -> egui::Response {
+            let resp = ui.add(egui::Label::new(&folder.display_name).selectable(false).sense(egui::Sense::click()));
             egui::Popup::context_menu(&resp).show(|ui| {
                 if ui.add(menu_item(IMAGES.info, " Add trigger")).clicked() {
-                    action = TriggerTreeAction::Add;
+                    folder_action = TriggerTreeAction::Add(Some(folder.node_id));
                 }
             });
-            toggle_node_open = resp.clicked();
-        });
-        if toggle_node_open {
-            node_resp.toggle();
-        }
-        node_resp.body(|ui| {
-            for (trg_index, trg) in room.triggers.iter().enumerate() {
-                let mut selected = self.room_editor.get_selected_item().is_the_trigger(trg_index);
-                let button = egui::Button::image_and_text(get_trigger_image(trg), &trg.name_id)
+            resp
+        };
+        let mut clear_sorted_ids = false;
+        let mut item_action = TriggerTreeAction::None;
+        let mut show_item = |ui: &mut egui::Ui, _folder: &TreeViewFolder, item: &TreeViewItem| {
+            if let Some(trg) = room.triggers.get(item.item_id) {
+                let mut selected = self.room_editor.get_selected_item().is_the_trigger(item.item_id);
+                let button = egui::Button::image_and_text(get_trigger_image(trg), &item.display_name)
                     .frame_when_inactive(selected)
                     .frame(true);
                 let resp = ui.add(button);
                 if resp.clicked() {
                     selected = ! selected;
-                    action = TriggerTreeAction::Select(trg_index);
+                    item_action = TriggerTreeAction::Select(item.item_id);
                 }
                 egui::Popup::context_menu(&resp).show(|ui| {
-                    let can_move_up = trg_index > 0;
-                    let can_move_down = trg_index+1 < room.triggers.len();
-                    if ui.add_enabled(can_move_up, menu_item(IMAGES.arrow_up, " Move Up")).clicked() {
-                        action = TriggerTreeAction::MoveUp(trg_index);
-                    }
-                    if ui.add_enabled(can_move_down, menu_item(IMAGES.arrow_down, " Move Down")).clicked() {
-                        action = TriggerTreeAction::MoveDown(trg_index);
-                    }
-                    ui.separator();
                     if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
-                        action = TriggerTreeAction::Remove(trg_index);
+                        item_action = TriggerTreeAction::Remove(item.item_id);
                     }
                 });
                 if selected && self.room_editor.has_selected_item_changed() {
-                    self.clear_sorted_ids();
+                    clear_sorted_ids = true;
                     resp.scroll_to_me(None);
                 }
             }
-        });
-        action
+        };
+        self.trigger_tree.show(ui, &is_folder_open, &mut show_folder, &mut show_item);
+        if clear_sorted_ids {
+            self.clear_sorted_ids();
+        }
+        if ! matches!(item_action, TriggerTreeAction::None) {
+            item_action
+        } else {
+            folder_action
+        }
     }
 
     fn show_map_properties(
@@ -1088,25 +1096,13 @@ impl Editor {
                         self.clear_sorted_ids();
                     }
                     match trigger_action {
-                        TriggerTreeAction::Add => { self.add_trigger(room); }
+                        TriggerTreeAction::Add(folder_id) => { self.add_trigger(room, folder_id); }
                         TriggerTreeAction::Select(trg_index) => {
                             self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
                             self.clear_sorted_ids();
                         }
                         TriggerTreeAction::Remove(trg_index) => {
                             self.remove_trigger(room, trg_index);
-                        }
-                        TriggerTreeAction::MoveUp(trg_index) => {
-                            if trg_index > 0 {
-                                room.triggers.swap(trg_index-1, trg_index);
-                                self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index-1), true);
-                            }
-                        }
-                        TriggerTreeAction::MoveDown(trg_index) => {
-                            if trg_index+1 < room.triggers.len() {
-                                room.triggers.swap(trg_index, trg_index+1);
-                                self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index+1), true);
-                            }
                         }
                         TriggerTreeAction::None => {}
                     }
