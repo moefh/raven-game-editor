@@ -139,7 +139,7 @@ pub fn write_worlds(writer: &ProjectDataWriter, world_ids: &[DataAssetId]) -> Re
         }
     }
 
-    writer.log(format!("-> writing {} worlds", writer.store.asset_ids.rooms.len()));
+    writer.log(format!("-> writing {} worlds", writer.store.asset_ids.worlds.len()));
     writer.write(format!(
         "const struct {}_WORLD {}_worlds[] = {{\n",
         writer.ident.prefix_upper,
