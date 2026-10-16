@@ -10,6 +10,7 @@ mod mod_data;
 mod sfx;
 mod font;
 mod prop_font;
+mod base;
 
 use crate::include_ref_image;
 use crate::misc::IMAGES;
@@ -33,21 +34,30 @@ use super::super::{
     SysDialogResponse,
     SysDialogOpenFile,
 };
-use super::super::project_comparer::ProjectComparer;
+use super::super::project_comparer::{
+    ProjectComparer,
+    ItemTableDiff,
+    EffectTableDiff,
+};
 
 struct DiffState {
     has_differences: bool,
     open_editor: Option<DataAssetId>,
+    open_tables: bool,
 }
 
 impl DiffState {
-    const EMPTY:   Self = DiffState { has_differences: false, open_editor: None };
-    const CHANGED: Self = DiffState { has_differences: true, open_editor: None};
+    const EMPTY:   Self = DiffState { has_differences: false, open_editor: None, open_tables: false };
+    const CHANGED: Self = DiffState { has_differences: true, open_editor: None, open_tables: false };
 
     fn merge_open_editor(&mut self, asset_id: DataAssetId) {
         if self.open_editor.is_none() {
             self.open_editor = Some(asset_id);
         }
+    }
+
+    fn open_tables(&mut self) {
+        self.open_tables = true;
     }
 }
 
@@ -155,16 +165,11 @@ impl ProjectComparerDisplay {
     fn show_project_diff(
         &self,
         ui: &mut egui::Ui,
-        _wc: &mut WindowContext,
-        _store: &DataAssetStore,
-        _other_store: &DataAssetStore
+        wc: &mut WindowContext,
+        store: &DataAssetStore,
+        other_store: &DataAssetStore
     ) -> AppWindowAction {
-        if self.comparer.base_project.cur_data_size != self.comparer.base_project.other_data_size {
-            ui.label(format!("Current project size: {}", self.comparer.base_project.cur_data_size));
-            ui.label(format!("Other project size:   {}", self.comparer.base_project.other_data_size));
-        } else {
-            ui.label("Projects have the same size");
-        }
+        base::show_base(ui, wc, &self.comparer, store, other_store);
 
         if ! self.comparer.has_any_asset_differences() {
             ui.add_space(20.0);

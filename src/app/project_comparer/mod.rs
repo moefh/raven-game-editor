@@ -10,6 +10,7 @@ mod mod_data;
 mod sfx;
 mod font;
 mod prop_font;
+mod base;
 
 pub use tileset::{*};
 pub use tile_animation::{*};
@@ -23,6 +24,7 @@ pub use mod_data::{*};
 pub use sfx::{*};
 pub use font::{*};
 pub use prop_font::{*};
+pub use base::{*};
 
 use crate::data_asset::{
     DataAssetStore,
@@ -76,30 +78,6 @@ pub fn get_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a
 }
 pub fn get_prop_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a PropFont> {
     store.assets.prop_fonts.iter().find(|asset| asset.asset.name == name)
-}
-
-pub struct BaseProjectDiff {
-    pub cur_data_size: usize,
-    pub other_data_size: usize,
-}
-
-impl BaseProjectDiff {
-    fn new() -> Self {
-        BaseProjectDiff {
-            cur_data_size: 0,
-            other_data_size: 0,
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.cur_data_size = 0;
-        self.other_data_size = 0;
-    }
-
-    pub fn compare(&mut self, store: &DataAssetStore, other: &DataAssetStore) {
-        self.cur_data_size = store.data_size();
-        self.other_data_size = other.data_size();
-    }
 }
 
 pub struct ProjectComparer {
