@@ -827,7 +827,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+            RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -840,20 +840,20 @@ impl Editor {
                 self.show_effect_id_editor(ui, "wall_button_req_flag_id", req_flag_id, &assets.tables.flag);
                 ui.end_row();
 
-                ui.label("Req Col:");
+                ui.label("Req Item:");
                 self.show_item_id_editor(ui, "wall_button_req_collectable_id", req_collectable_id, &assets.tables.collectable);
                 ui.end_row();
 
-                ui.label("Effect:");
-                self.show_effect_id_editor(ui, "wall_button_effect_id", effect_id, &assets.tables.effect);
+                ui.label("Set Effect:");
+                self.show_effect_id_editor(ui, "wall_button_effect_id", set_effect_id, &assets.tables.effect);
                 ui.end_row();
 
-                ui.label("Flag:");
-                self.show_effect_id_editor(ui, "wall_button_flag_id", flag_id, &assets.tables.flag);
+                ui.label("Set Flag:");
+                self.show_effect_id_editor(ui, "wall_button_flag_id", set_flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 
-            RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+            RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -866,20 +866,20 @@ impl Editor {
                 self.show_effect_id_editor(ui, "detector_button_req_flag_id", req_flag_id, &assets.tables.flag);
                 ui.end_row();
 
-                ui.label("Req Col:");
+                ui.label("Req Item:");
                 self.show_item_id_editor(ui, "detector_button_req_collectable_id", req_collectable_id, &assets.tables.collectable);
                 ui.end_row();
 
-                ui.label("Effect:");
-                self.show_effect_id_editor(ui, "detector_button_effect_id", effect_id, &assets.tables.effect);
+                ui.label("Set Effect:");
+                self.show_effect_id_editor(ui, "detector_button_effect_id", set_effect_id, &assets.tables.effect);
                 ui.end_row();
 
-                ui.label("Flag:");
-                self.show_effect_id_editor(ui, "detector_button_flag_id", flag_id, &assets.tables.flag);
+                ui.label("Set Flag:");
+                self.show_effect_id_editor(ui, "detector_button_flag_id", set_flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 
-            RoomTriggerType::UnblockEffect { width, height, effect_id } => {
+            RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -888,12 +888,12 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Effect:");
-                self.show_effect_id_editor(ui, "unblock_effect_id", effect_id, &assets.tables.effect);
+                ui.label("Req Effect:");
+                self.show_effect_id_editor(ui, "unblock_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 
-            RoomTriggerType::DisableAnimationEffect { width, height, effect_id } => {
+            RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -902,26 +902,26 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Effect:");
-                self.show_effect_id_editor(ui, "disable_animation_effect_id", effect_id, &assets.tables.effect);
+                ui.label("Req Effect:");
+                self.show_effect_id_editor(ui, "disable_animation_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 
-            RoomTriggerType::GetUpgrade { upgrade_id } => {
+            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                 ui.label("Upgrade:");
-                self.show_item_id_editor(ui, "get_upgrade_id", upgrade_id, &assets.tables.upgrade);
+                self.show_item_id_editor(ui, "get_upgrade_id", get_upgrade_id, &assets.tables.upgrade);
                 ui.end_row();
             }
 
-            RoomTriggerType::GetCollectable { collectable_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id } => {
                 ui.label("Collectable:");
-                self.show_item_id_editor(ui, "get_collectable_id", collectable_id, &assets.tables.collectable);
+                self.show_item_id_editor(ui, "get_collectable_id", get_collectable_id, &assets.tables.collectable);
                 ui.end_row();
             }
 
-            RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
+            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
                 ui.label("Pickup:");
-                self.show_item_id_editor(ui, "get_pickup_id", pickup_id, &assets.tables.pickup);
+                self.show_item_id_editor(ui, "get_pickup_id", get_pickup_id, &assets.tables.pickup);
                 ui.end_row();
 
                 ui.label("Respawn:");

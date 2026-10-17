@@ -71,13 +71,13 @@ pub enum RoomTriggerType {
     PlayerSpawn { direction: RoomEntityDirection },
     EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection, req_flag_id: u16 },
     Door { dest_room_id: DataAssetId, dest_trigger_id: u16, req_flag_id: u16 },
-    WallButton { width: u16, height: u16, effect_id: u16, flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
-    DetectorButton { width: u16, height: u16, effect_id: u16, flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
-    UnblockEffect { width: u16, height: u16, effect_id: u16 },
-    DisableAnimationEffect { width: u16, height: u16, effect_id: u16 },
-    GetUpgrade { upgrade_id: u16 },
-    GetCollectable { collectable_id: u16 },
-    GetPickup { pickup_id: u16, respawn_delay: u16 },
+    WallButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
+    DetectorButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
+    UnblockEffect { width: u16, height: u16, on_effect_id: u16 },
+    DisableAnimationEffect { width: u16, height: u16, on_effect_id: u16 },
+    GetUpgrade { get_upgrade_id: u16 },
+    GetCollectable { get_collectable_id: u16 },
+    GetPickup { get_pickup_id: u16, respawn_delay: u16 },
 }
 
 #[derive(Clone)]
@@ -171,47 +171,47 @@ impl super::HashedDataAsset for Room {
                     hasher.add_u16(dest_trigger_id);
                     hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+                RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                     hasher.add_u8(5);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
-                    hasher.add_u16(effect_id);
-                    hasher.add_u16(flag_id);
+                    hasher.add_u16(set_effect_id);
+                    hasher.add_u16(set_flag_id);
                     hasher.add_u16(req_flag_id);
                     hasher.add_u16(req_collectable_id);
                 }
-                RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+                RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                     hasher.add_u8(6);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
-                    hasher.add_u16(effect_id);
-                    hasher.add_u16(flag_id);
+                    hasher.add_u16(set_effect_id);
+                    hasher.add_u16(set_flag_id);
                     hasher.add_u16(req_flag_id);
                     hasher.add_u16(req_collectable_id);
                 }
-                RoomTriggerType::UnblockEffect { width, height, effect_id } => {
+                RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
                     hasher.add_u8(7);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
-                    hasher.add_u16(effect_id);
+                    hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::DisableAnimationEffect { width, height, effect_id } => {
+                RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
                     hasher.add_u8(8);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
-                    hasher.add_u16(effect_id);
+                    hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::GetUpgrade { upgrade_id } => {
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                     hasher.add_u8(9);
-                    hasher.add_u16(upgrade_id);
+                    hasher.add_u16(get_upgrade_id);
                 }
-                RoomTriggerType::GetCollectable { collectable_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id } => {
                     hasher.add_u8(10);
-                    hasher.add_u16(collectable_id);
+                    hasher.add_u16(get_collectable_id);
                 }
-                RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
+                RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
                     hasher.add_u8(11);
-                    hasher.add_u16(pickup_id);
+                    hasher.add_u16(get_pickup_id);
                     hasher.add_u16(respawn_delay);
                 }
             }

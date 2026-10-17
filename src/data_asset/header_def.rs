@@ -151,7 +151,6 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_DOOR,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAYER_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_TRAP,
    $<PREFIX>_ROOM_TRIGGER_TYPE_WALL_BUTTON,
    $<PREFIX>_ROOM_TRIGGER_TYPE_DETECTOR_BUTTON,
    $<PREFIX>_ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT,
@@ -198,37 +197,37 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         struct {
             uint16_t width;
             uint16_t height;
-            uint16_t effect_id;
-            uint16_t flag_id;
+            uint16_t set_effect_id;
+            uint16_t set_flag_id;
             uint16_t req_flag_id;
             uint16_t req_collectable_id;
         } wall_button;
         struct {
             uint16_t width;
             uint16_t height;
-            uint16_t effect_id;
-            uint16_t flag_id;
+            uint16_t set_effect_id;
+            uint16_t set_flag_id;
             uint16_t req_flag_id;
             uint16_t req_collectable_id;
         } detector_button;
         struct {
             uint16_t width;
             uint16_t height;
-            uint16_t effect_id;
+            uint16_t on_effect_id;
         } unblock_effect;
         struct {
             uint16_t width;
             uint16_t height;
-            uint16_t effect_id;
+            uint16_t on_effect_id;
         } disable_animation_effect;
         struct {
-            uint16_t upgrade_id;
+            uint16_t get_upgrade_id;
         } get_upgrade;
         struct {
-            uint16_t collectable_id;
+            uint16_t get_collectable_id;
         } get_collectable;
         struct {
-            uint16_t pickup_id;
+            uint16_t get_pickup_id;
             uint16_t respawn_delay;
         } get_pickup;
     };

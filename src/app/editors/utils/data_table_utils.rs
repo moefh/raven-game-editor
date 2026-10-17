@@ -206,30 +206,32 @@ pub fn fix_after_data_table_item_removed(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { effect_id, req_flag_id, req_collectable_id, .. } => {
-                    fix_removed_effect(effect_id, table_type, index);
+                RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                    fix_removed_effect(set_effect_id, table_type, index);
+                    fix_removed_flag(set_flag_id, table_type, index);
                     fix_removed_flag(req_flag_id, table_type, index);
                     fix_removed_collectable(req_collectable_id, table_type, index);
                 }
-                RoomTriggerType::DetectorButton { effect_id, req_flag_id, req_collectable_id, .. } => {
-                    fix_removed_effect(effect_id, table_type, index);
+                RoomTriggerType::DetectorButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                    fix_removed_effect(set_effect_id, table_type, index);
+                    fix_removed_flag(set_flag_id, table_type, index);
                     fix_removed_flag(req_flag_id, table_type, index);
                     fix_removed_collectable(req_collectable_id, table_type, index);
                 }
-                RoomTriggerType::UnblockEffect { effect_id, .. } => {
-                    fix_removed_effect(effect_id, table_type, index);
+                RoomTriggerType::UnblockEffect { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, table_type, index);
                 }
-                RoomTriggerType::DisableAnimationEffect { effect_id, .. } => {
-                    fix_removed_effect(effect_id, table_type, index);
+                RoomTriggerType::DisableAnimationEffect { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, table_type, index);
                 }
-                RoomTriggerType::GetUpgrade { upgrade_id } => {
-                    fix_removed_upgrade(upgrade_id, table_type, index);
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                    fix_removed_upgrade(get_upgrade_id, table_type, index);
                 }
-                RoomTriggerType::GetCollectable { collectable_id } => {
-                    fix_removed_collectable(collectable_id, table_type, index);
+                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                    fix_removed_collectable(get_collectable_id, table_type, index);
                 }
-                RoomTriggerType::GetPickup { pickup_id, .. } => {
-                    fix_removed_pickup(pickup_id, table_type, index);
+                RoomTriggerType::GetPickup { get_pickup_id, .. } => {
+                    fix_removed_pickup(get_pickup_id, table_type, index);
                 }
                 RoomTriggerType::Door { req_flag_id, .. } => {
                     fix_removed_flag(req_flag_id, table_type, index);
@@ -291,30 +293,32 @@ pub fn fix_after_data_table_items_swapped(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { effect_id, req_flag_id, req_collectable_id, .. } => {
-                    fix_swapped_effect(effect_id, table_type, index1, index2);
+                RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                    fix_swapped_effect(set_effect_id, table_type, index1, index2);
+                    fix_swapped_flag(set_flag_id, table_type, index1, index2);
                     fix_swapped_flag(req_flag_id, table_type, index1, index2);
                     fix_swapped_collectable(req_collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::DetectorButton { effect_id, req_flag_id, req_collectable_id, .. } => {
-                    fix_swapped_effect(effect_id, table_type, index1, index2);
+                RoomTriggerType::DetectorButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                    fix_swapped_effect(set_effect_id, table_type, index1, index2);
+                    fix_swapped_flag(set_flag_id, table_type, index1, index2);
                     fix_swapped_flag(req_flag_id, table_type, index1, index2);
                     fix_swapped_collectable(req_collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::UnblockEffect { effect_id, .. } => {
-                    fix_swapped_effect(effect_id, table_type, index1, index2);
+                RoomTriggerType::UnblockEffect { on_effect_id, .. } => {
+                    fix_swapped_effect(on_effect_id, table_type, index1, index2);
                 }
-                RoomTriggerType::DisableAnimationEffect { effect_id, .. } => {
-                    fix_swapped_effect(effect_id, table_type, index1, index2);
+                RoomTriggerType::DisableAnimationEffect { on_effect_id, .. } => {
+                    fix_swapped_effect(on_effect_id, table_type, index1, index2);
                 }
-                RoomTriggerType::GetUpgrade { upgrade_id } => {
-                    fix_swapped_upgrade(upgrade_id, table_type, index1, index2);
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                    fix_swapped_upgrade(get_upgrade_id, table_type, index1, index2);
                 }
-                RoomTriggerType::GetCollectable { collectable_id } => {
-                    fix_swapped_collectable(collectable_id, table_type, index1, index2);
+                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                    fix_swapped_collectable(get_collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::GetPickup { pickup_id, .. } => {
-                    fix_swapped_pickup(pickup_id, table_type, index1, index2);
+                RoomTriggerType::GetPickup { get_pickup_id, .. } => {
+                    fix_swapped_pickup(get_pickup_id, table_type, index1, index2);
                 }
                 RoomTriggerType::Door { req_flag_id, ..} => {
                     fix_swapped_flag(req_flag_id, table_type, index1, index2);

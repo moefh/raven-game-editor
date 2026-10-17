@@ -70,42 +70,42 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                     )
                 );
             }
-            RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+            RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 writer.write(format!(
                     ".wall_button = {{ {}, {}, {}, {}, {}, {} }}",
                     width,
                     height,
-                    effect_id,
-                    flag_id,
+                    set_effect_id,
+                    set_flag_id,
                     req_flag_id,
                     req_collectable_id
                 ));
             }
-            RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+            RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 writer.write(format!(
                     ".detector_button = {{ {}, {}, {}, {}, {}, {} }}",
                     width,
                     height,
-                    effect_id,
-                    flag_id,
+                    set_effect_id,
+                    set_flag_id,
                     req_flag_id,
                     req_collectable_id
                 ));
             }
-            RoomTriggerType::UnblockEffect { width, height, effect_id } => {
-                writer.write(format!(".unblock_effect = {{ {}, {}, {} }}", width, height, effect_id));
+            RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
+                writer.write(format!(".unblock_effect = {{ {}, {}, {} }}", width, height, on_effect_id));
             }
-            RoomTriggerType::DisableAnimationEffect { width, height, effect_id } => {
-                writer.write(format!(".disable_animation_effect = {{ {}, {}, {} }}", width, height, effect_id));
+            RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
+                writer.write(format!(".disable_animation_effect = {{ {}, {}, {} }}", width, height, on_effect_id));
             }
-            RoomTriggerType::GetUpgrade { upgrade_id } => {
-                writer.write(format!(".get_upgrade = {{ {} }}", upgrade_id));
+            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                writer.write(format!(".get_upgrade = {{ {} }}", get_upgrade_id));
             }
-            RoomTriggerType::GetCollectable { collectable_id } => {
-                writer.write(format!(".get_collectable = {{ {} }}", collectable_id));
+            RoomTriggerType::GetCollectable { get_collectable_id } => {
+                writer.write(format!(".get_collectable = {{ {} }}", get_collectable_id));
             }
-            RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
-                writer.write(format!(".get_pickup = {{ {}, {} }}", pickup_id, respawn_delay));
+            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
+                writer.write(format!(".get_pickup = {{ {}, {} }}", get_pickup_id, respawn_delay));
             }
         }
         writer.write(" },\n");

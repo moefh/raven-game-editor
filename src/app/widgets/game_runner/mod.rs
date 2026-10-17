@@ -196,8 +196,8 @@ impl GameRunnerState {
         }
     }
 
-    pub fn activate_effect(&mut self, activate_effect_id: u16, room: &Room, _store: &DataAssetStore) {
-        if activate_effect_id == u16::MAX { return; }
+    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, _store: &DataAssetStore) {
+        if effect_id == u16::MAX { return; }
 
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
         let room_width = self.room.width as i32;
@@ -205,7 +205,7 @@ impl GameRunnerState {
 
         for trigger in &room.triggers {
             match trigger.trigger_type {
-                RoomTriggerType::UnblockEffect { width, height, effect_id } if effect_id == activate_effect_id => {
+                RoomTriggerType::UnblockEffect { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
                     let x_end = ((trigger.x as i32 + width as i32 - 1) / TILE_SIZE).clamp(0, room_width);
                     let y_start = (trigger.y as i32 / TILE_SIZE).clamp(0, room_height);
@@ -217,7 +217,7 @@ impl GameRunnerState {
                         }
                     }
                 }
-                RoomTriggerType::DisableAnimationEffect { width, height, effect_id } if effect_id == activate_effect_id => {
+                RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
                     let x_end = ((trigger.x as i32 + width as i32 - 1) / TILE_SIZE).clamp(0, room_width);
                     let y_start = (trigger.y as i32 / TILE_SIZE).clamp(0, room_height);
@@ -443,23 +443,23 @@ impl GameRunnerWidget {
         for trigger in &room.triggers {
             let trigger_pos = Vec2::new(trigger.x as f32, trigger.y as f32);
             match trigger.trigger_type {
-                RoomTriggerType::GetUpgrade { upgrade_id } => {
-                    if ! self.state.acquired_upgrade_ids.contains(&upgrade_id) &&
-                        let Some(item) = store.tables.upgrade.items.get(upgrade_id as usize) &&
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                    if ! self.state.acquired_upgrade_ids.contains(&get_upgrade_id) &&
+                        let Some(item) = store.tables.upgrade.items.get(get_upgrade_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
-                RoomTriggerType::GetCollectable { collectable_id } => {
-                    if ! self.state.acquired_collectable_ids.contains(&collectable_id) &&
-                        let Some(item) = store.tables.collectable.items.get(collectable_id as usize) &&
+                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                    if ! self.state.acquired_collectable_ids.contains(&get_collectable_id) &&
+                        let Some(item) = store.tables.collectable.items.get(get_collectable_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
-                RoomTriggerType::GetPickup { pickup_id, .. } => {
-                    if ! self.state.acquired_pickup_ids.contains(&pickup_id) &&
-                        let Some(item) = store.tables.pickup.items.get(pickup_id as usize) &&
+                RoomTriggerType::GetPickup { get_pickup_id, .. } => {
+                    if ! self.state.acquired_pickup_ids.contains(&get_pickup_id) &&
+                        let Some(item) = store.tables.pickup.items.get(get_pickup_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }

@@ -88,8 +88,8 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("wall_button"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
-            (String::from("effect_id"), ValueDef::U16),
-            (String::from("flag_id"), ValueDef::U16),
+            (String::from("set_effect_id"), ValueDef::U16),
+            (String::from("set_flag_id"), ValueDef::U16),
             (String::from("req_flag_id"), ValueDef::U16),
             (String::from("req_collectable_id"), ValueDef::U16),
         ])),
@@ -97,8 +97,8 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("detector_button"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
-            (String::from("effect_id"), ValueDef::U16),
-            (String::from("flag_id"), ValueDef::U16),
+            (String::from("set_effect_id"), ValueDef::U16),
+            (String::from("set_flag_id"), ValueDef::U16),
             (String::from("req_flag_id"), ValueDef::U16),
             (String::from("req_collectable_id"), ValueDef::U16),
         ])),
@@ -106,25 +106,25 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("unblock_effect"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
-            (String::from("effect_id"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
         (String::from("disable_animation_effect"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
-            (String::from("effect_id"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
         (String::from("get_upgrade"), ValueDefStruct::new(vec![
-            (String::from("upgrade_id"), ValueDef::U16),
+            (String::from("get_upgrade_id"), ValueDef::U16),
         ])),
 
         (String::from("get_collectable"), ValueDefStruct::new(vec![
-            (String::from("collectable_id"), ValueDef::U16),
+            (String::from("get_collectable_id"), ValueDef::U16),
         ])),
 
         (String::from("get_pickup"), ValueDefStruct::new(vec![
-            (String::from("pickup_id"), ValueDef::U16),
+            (String::from("get_pickup_id"), ValueDef::U16),
             (String::from("respawn_delay"), ValueDef::U16),
         ])),
     ])
@@ -235,8 +235,8 @@ fn conv_trigger_wall_button(data: &ValueStruct, _project_data: &ProjectData) -> 
     Ok(RoomTriggerType::WallButton {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
-        effect_id: data.get_u16("effect_id")?,
-        flag_id: data.get_u16("flag_id")?,
+        set_effect_id: data.get_u16("set_effect_id")?,
+        set_flag_id: data.get_u16("set_flag_id")?,
         req_flag_id: data.get_u16("req_flag_id")?,
         req_collectable_id: data.get_u16("req_collectable_id")?,
     })
@@ -246,8 +246,8 @@ fn conv_trigger_detector_button(data: &ValueStruct, _project_data: &ProjectData)
     Ok(RoomTriggerType::DetectorButton {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
-        effect_id: data.get_u16("effect_id")?,
-        flag_id: data.get_u16("flag_id")?,
+        set_effect_id: data.get_u16("set_effect_id")?,
+        set_flag_id: data.get_u16("set_flag_id")?,
         req_flag_id: data.get_u16("req_flag_id")?,
         req_collectable_id: data.get_u16("req_collectable_id")?,
     })
@@ -257,7 +257,7 @@ fn conv_trigger_unblock_effect(data: &ValueStruct, _project_data: &ProjectData) 
     Ok(RoomTriggerType::UnblockEffect {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
-        effect_id: data.get_u16("effect_id")?,
+        on_effect_id: data.get_u16("on_effect_id")?,
     })
 }
 
@@ -265,25 +265,25 @@ fn conv_trigger_disable_animation_effect(data: &ValueStruct, _project_data: &Pro
     Ok(RoomTriggerType::DisableAnimationEffect {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
-        effect_id: data.get_u16("effect_id")?,
+        on_effect_id: data.get_u16("on_effect_id")?,
     })
 }
 
 fn conv_trigger_get_upgrade(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetUpgrade {
-        upgrade_id: data.get_u16("upgrade_id")?,
+        get_upgrade_id: data.get_u16("get_upgrade_id")?,
     })
 }
 
 fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetCollectable {
-        collectable_id: data.get_u16("collectable_id")?,
+        get_collectable_id: data.get_u16("get_collectable_id")?,
     })
 }
 
 fn conv_trigger_get_pickup(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetPickup {
-        pickup_id: data.get_u16("pickup_id")?,
+        get_pickup_id: data.get_u16("get_pickup_id")?,
         respawn_delay: data.get_u16("respawn_delay")?,
     })
 }

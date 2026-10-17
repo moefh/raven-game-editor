@@ -179,8 +179,8 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::WallButton {
                     width: 16,
                     height: 16,
-                    effect_id: u16::MAX,
-                    flag_id: u16::MAX,
+                    set_effect_id: u16::MAX,
+                    set_flag_id: u16::MAX,
                     req_flag_id: u16::MAX,
                     req_collectable_id: u16::MAX,
                 };
@@ -190,8 +190,8 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::DetectorButton {
                     width: 16,
                     height: 16,
-                    effect_id: u16::MAX,
-                    flag_id: u16::MAX,
+                    set_effect_id: u16::MAX,
+                    set_flag_id: u16::MAX,
                     req_flag_id: u16::MAX,
                     req_collectable_id: u16::MAX,
                 };
@@ -201,7 +201,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::UnblockEffect {
                     width: 64,
                     height: 64,
-                    effect_id: u16::MAX
+                    on_effect_id: u16::MAX
                 };
                 true
             }
@@ -209,25 +209,25 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::DisableAnimationEffect {
                     width: 64,
                     height: 64,
-                    effect_id: u16::MAX
+                    on_effect_id: u16::MAX
                 };
                 true
             }
             RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::GetUpgrade {..}) => {
                 *trigger_type = RoomTriggerType::GetUpgrade {
-                    upgrade_id: u16::MAX
+                    get_upgrade_id: u16::MAX
                 };
                 true
             }
             RoomTriggerTypeSel::GetCollectable if ! matches!(trigger_type, RoomTriggerType::GetCollectable {..}) => {
                 *trigger_type = RoomTriggerType::GetCollectable {
-                    collectable_id: u16::MAX
+                    get_collectable_id: u16::MAX
                 };
                 true
             }
             RoomTriggerTypeSel::GetPickup if ! matches!(trigger_type, RoomTriggerType::GetPickup {..}) => {
                 *trigger_type = RoomTriggerType::GetPickup {
-                    pickup_id: u16::MAX,
+                    get_pickup_id: u16::MAX,
                     respawn_delay: 0,
                 };
                 true
