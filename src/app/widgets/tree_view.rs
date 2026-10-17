@@ -1,5 +1,6 @@
 pub trait TreeViewItemTrait {
     fn name(&self) -> &str;
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>;
 }
 
 pub struct TreeViewItem {
@@ -68,11 +69,28 @@ impl TreeViewFolder {
         }
     }
 
-    fn sort(&mut self) {
-        self.items.sort_by(|a, b| { a.display_name.cmp(&b.display_name) });
+    fn sort(&mut self, items: &[impl TreeViewItemTrait]) {
+        self.items.sort_by(|a, b| {
+            let item_a = items.get(a.item_id);
+            let item_b = items.get(b.item_id);
+            if let Some(item_a) = item_a && let Some(item_b) = item_b {
+                item_a.partial_cmp(item_b).unwrap_or_else(|| a.item_id.cmp(&b.item_id))
+            } else if item_a.is_some() {
+                std::cmp::Ordering::Greater
+            } else if item_b.is_some() {
+                std::cmp::Ordering::Less
+            } else {
+                let cmp = a.display_name.cmp(&b.display_name);
+                if cmp != std::cmp::Ordering::Equal {
+                    cmp
+                } else {
+                    a.item_id.cmp(&b.item_id)
+                }
+            }
+        });
         self.folders.sort_by(|a, b| { a.display_name.cmp(&b.display_name) });
         for folder in &mut self.folders {
-            folder.sort();
+            folder.sort(items);
         }
     }
 
@@ -225,7 +243,7 @@ impl TreeView {
         self.root.mark_tree_used(false);
         self.root.update_tree(items, &mut self.id_generator);
         self.root.remove_unused();
-        self.root.sort();
+        self.root.sort(items);
     }
 
     pub fn show(

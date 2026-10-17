@@ -392,14 +392,13 @@ impl AssetCollection {
             }
             if room.triggers.iter().any(|t| {
                 match t.trigger_type {
-                    RoomTriggerType::Trap {..} |
                     RoomTriggerType::Unknown {..} |
                     RoomTriggerType::PlayerSpawn {..} |
                     RoomTriggerType::GetUpgrade {..} |
                     RoomTriggerType::GetCollectable {..} |
                     RoomTriggerType::GetPickup {..} |
                     RoomTriggerType::WallButton {..} |
-                    RoomTriggerType::FloorButton {..} |
+                    RoomTriggerType::DetectorButton {..} |
                     RoomTriggerType::UnblockEffect {..} |
                     RoomTriggerType::DisableAnimationEffect {..} => { false }
 

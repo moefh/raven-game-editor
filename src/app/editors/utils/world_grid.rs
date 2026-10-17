@@ -349,7 +349,7 @@ impl WorldGridStore {
             for room in region.rooms.iter().filter_map(|room_id| rooms.get(room_id)) {
                 let room_info = RoomInfo::calculate(region, room, maps);
                 for (trigger_index, trigger) in room.triggers.iter().enumerate() {
-                    if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = trigger.trigger_type &&
+                    if let RoomTriggerType::Door { dest_room_id, dest_trigger_id, .. } = trigger.trigger_type &&
                         let Some(door) = self.doors.get_mut(door_index) {
                             door.region_index = Some(region_index);
                             door.room_id = Some(room.asset.id);
@@ -389,6 +389,7 @@ impl WorldGridStore {
                 trigger.trigger_type = RoomTriggerType::Door {
                     dest_room_id,
                     dest_trigger_id,
+                    req_flag_id: u16::MAX,
                 };
                 true
             } else {

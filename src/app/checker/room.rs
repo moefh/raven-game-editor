@@ -106,9 +106,9 @@ fn is_valid_door(room_id: DataAssetId, trigger_id: u16, rooms: &AssetList<Room>)
         }
 }
 
-fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {
+fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
-        if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = trigger.trigger_type &&
+        if let RoomTriggerType::Door { dest_room_id, dest_trigger_id, .. } = trigger.trigger_type &&
             ! is_valid_door(dest_room_id, dest_trigger_id, rooms) {
                 errors.push(AssetError::RoomDoorWithInvalidDestination { trigger_index });
             }

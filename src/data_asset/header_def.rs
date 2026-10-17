@@ -153,7 +153,7 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_TRAP,
    $<PREFIX>_ROOM_TRIGGER_TYPE_WALL_BUTTON,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_FLOOR_BUTTON,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_DETECTOR_BUTTON,
    $<PREFIX>_ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT,
    $<PREFIX>_ROOM_TRIGGER_TYPE_DISABLE_ANIMATION_EFFECT,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_UPGRADE,
@@ -178,6 +178,8 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t data1;
             uint16_t data2;
             uint16_t data3;
+            uint16_t data4;
+            uint16_t data5;
         } any;
         struct {
             uint8_t direction;
@@ -185,22 +187,20 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         struct {
             const struct $<PREFIX>_ROOM *dest_room;
             uint16_t dest_trigger_id;
+            uint16_t req_flag_id;
         } door;
         struct {
             const struct $<PREFIX>_SPRITE_ANIMATION *animation;
             uint16_t enemy_type;
             uint8_t direction;
+            uint16_t req_flag_id;
         } enemy_spawn;
-        struct {
-            uint16_t width;
-            uint16_t height;
-            uint16_t type;
-        } trap;
         struct {
             uint16_t width;
             uint16_t height;
             uint16_t effect_id;
             uint16_t flag_id;
+            uint16_t req_flag_id;
             uint16_t req_collectable_id;
         } wall_button;
         struct {
@@ -208,7 +208,9 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t height;
             uint16_t effect_id;
             uint16_t flag_id;
-        } floor_button;
+            uint16_t req_flag_id;
+            uint16_t req_collectable_id;
+        } detector_button;
         struct {
             uint16_t width;
             uint16_t height;
@@ -227,6 +229,7 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         } get_collectable;
         struct {
             uint16_t pickup_id;
+            uint16_t respawn_delay;
         } get_pickup;
     };
 };

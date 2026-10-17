@@ -171,9 +171,8 @@ impl TriggerRect {
 
     fn from_trigger(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Self {
         match trigger.trigger_type {
-            RoomTriggerType::Trap { width, height, .. } |
             RoomTriggerType::WallButton { width, height, .. } |
-            RoomTriggerType::FloorButton { width, height, .. } |
+            RoomTriggerType::DetectorButton { width, height, .. } |
             RoomTriggerType::UnblockEffect { width, height, .. } |
             RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
                 TriggerRect::resizable(trigger.x, trigger.y, width, height)
@@ -229,9 +228,8 @@ impl TriggerRect {
         trigger.x = self.x1.clamp(-256, i16::MAX as i32) as i16;
         trigger.y = self.y1.clamp(-256, i16::MAX as i32) as i16;
         match &mut trigger.trigger_type {
-            RoomTriggerType::Trap { width, height, .. } |
             RoomTriggerType::WallButton { width, height, .. } |
-            RoomTriggerType::FloorButton { width, height, .. } |
+            RoomTriggerType::DetectorButton { width, height, .. } |
             RoomTriggerType::UnblockEffect { width, height, .. } |
             RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
                 *width = (self.x2 - self.x1).clamp(0, u16::MAX as i32) as u16;
@@ -739,7 +737,7 @@ impl RoomEditorWidget {
                     }
             }
 
-            RoomTriggerType::GetPickup { pickup_id } => {
+            RoomTriggerType::GetPickup { pickup_id, .. } => {
                 if let Some(item) = assets.tables.pickup.items.get(pickup_id as usize) &&
                     let Some(sprite) = assets.sprites.get(&item.sprite_id) {
                         draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);

@@ -39,48 +39,58 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
         writer.write("  {  ");
         writer.write(format!("{}_{}, {}, {}, {}, ", writer.ident.prefix_upper, enum_type_ident, trg.trigger_id, trg.x, trg.y));
         match trg.trigger_type {
-            RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
-                writer.write(format!(".any = {{ {}, {}, {}, {} }}", data0, data1, data2, data3));
+            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
+                writer.write(format!(".any = {{ {}, {}, {}, {}, {}, {} }}", data0, data1, data2, data3, data4, data5));
             }
-            RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+            RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
                 let dest_room_index = writer.ident.get_asset_index(DataAssetType::Room, dest_room_id)?;
                 writer.write(
                     format!(
-                        ".door = {{ &{}_rooms[{}], {} }}",
-                        writer.ident.prefix_lower, dest_room_index, dest_trigger_id
+                        ".door = {{ &{}_rooms[{}], {}, {} }}",
+                        writer.ident.prefix_lower,
+                        dest_room_index,
+                        dest_trigger_id,
+                        req_flag_id
                     )
                 );
             }
             RoomTriggerType::PlayerSpawn { direction } => {
                 writer.write(format!(".player_spawn = {{ {} }}", direction.value()));
             }
-            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
+            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
                 let animation_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
                 writer.write(
                     format!(
-                        ".enemy_spawn = {{ &{}_sprite_animations[{}], {}, {} }}",
+                        ".enemy_spawn = {{ &{}_sprite_animations[{}], {}, {}, {} }}",
                         writer.ident.prefix_lower,
                         animation_index,
                         enemy_type.value(),
-                        direction.value()
+                        direction.value(),
+                        req_flag_id,
                     )
                 );
             }
-            RoomTriggerType::Trap { width, height, trap_type } => {
-                writer.write(format!(".trap = {{ {}, {}, {} }}", width, height, trap_type));
-            }
-            RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
+            RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
                 writer.write(format!(
-                    ".wall_button = {{ {}, {}, {}, {}, {} }}",
+                    ".wall_button = {{ {}, {}, {}, {}, {}, {} }}",
                     width,
                     height,
                     effect_id,
                     flag_id,
-                    required_collectable_id
+                    req_flag_id,
+                    req_collectable_id
                 ));
             }
-            RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
-                writer.write(format!(".floor_button = {{ {}, {}, {}, {} }}", width, height, effect_id, flag_id));
+            RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+                writer.write(format!(
+                    ".detector_button = {{ {}, {}, {}, {}, {}, {} }}",
+                    width,
+                    height,
+                    effect_id,
+                    flag_id,
+                    req_flag_id,
+                    req_collectable_id
+                ));
             }
             RoomTriggerType::UnblockEffect { width, height, effect_id } => {
                 writer.write(format!(".unblock_effect = {{ {}, {}, {} }}", width, height, effect_id));
@@ -94,8 +104,8 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::GetCollectable { collectable_id } => {
                 writer.write(format!(".get_collectable = {{ {} }}", collectable_id));
             }
-            RoomTriggerType::GetPickup { pickup_id } => {
-                writer.write(format!(".get_pickup = {{ {} }}", pickup_id));
+            RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
+                writer.write(format!(".get_pickup = {{ {}, {} }}", pickup_id, respawn_delay));
             }
         }
         writer.write(" },\n");

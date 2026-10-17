@@ -168,6 +168,13 @@ fn fix_removed_effect(effect_id: &mut u16, table_type: DataTableType, index: usi
     }
 }
 
+fn fix_removed_flag(flag_id: &mut u16, table_type: DataTableType, index: usize) {
+    if table_type == DataTableType::Flags {
+        if *flag_id > index as u16 { *flag_id -= 1; }
+        else if *flag_id == index as u16 { *flag_id = u16::MAX; }
+    }
+}
+
 fn fix_removed_upgrade(upgrade_id: &mut u16, table_type: DataTableType, index: usize) {
     if table_type == DataTableType::Upgrades {
         if *upgrade_id > index as u16 { *upgrade_id -= 1; }
@@ -199,12 +206,15 @@ pub fn fix_after_data_table_item_removed(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { effect_id, required_collectable_id, .. } => {
+                RoomTriggerType::WallButton { effect_id, req_flag_id, req_collectable_id, .. } => {
                     fix_removed_effect(effect_id, table_type, index);
-                    fix_removed_collectable(required_collectable_id, table_type, index);
+                    fix_removed_flag(req_flag_id, table_type, index);
+                    fix_removed_collectable(req_collectable_id, table_type, index);
                 }
-                RoomTriggerType::FloorButton { effect_id, .. } => {
+                RoomTriggerType::DetectorButton { effect_id, req_flag_id, req_collectable_id, .. } => {
                     fix_removed_effect(effect_id, table_type, index);
+                    fix_removed_flag(req_flag_id, table_type, index);
+                    fix_removed_collectable(req_collectable_id, table_type, index);
                 }
                 RoomTriggerType::UnblockEffect { effect_id, .. } => {
                     fix_removed_effect(effect_id, table_type, index);
@@ -218,14 +228,16 @@ pub fn fix_after_data_table_item_removed(
                 RoomTriggerType::GetCollectable { collectable_id } => {
                     fix_removed_collectable(collectable_id, table_type, index);
                 }
-                RoomTriggerType::GetPickup { pickup_id } => {
+                RoomTriggerType::GetPickup { pickup_id, .. } => {
                     fix_removed_pickup(pickup_id, table_type, index);
                 }
-                RoomTriggerType::Unknown {..} |
-                RoomTriggerType::Door {..} |
-                RoomTriggerType::Trap {..} |
-                RoomTriggerType::PlayerSpawn {..} |
-                RoomTriggerType::EnemySpawn {..} => {
+                RoomTriggerType::Door { req_flag_id, .. } => {
+                    fix_removed_flag(req_flag_id, table_type, index);
+                }
+                RoomTriggerType::EnemySpawn { req_flag_id, .. } => {
+                    fix_removed_flag(req_flag_id, table_type, index);
+                }
+                RoomTriggerType::Unknown {..} | RoomTriggerType::PlayerSpawn {..} => {
                     // nothing to fix
                 }
             }
@@ -237,6 +249,13 @@ fn fix_swapped_effect(effect_id: &mut u16, table_type: DataTableType, index1: us
     if table_type == DataTableType::Effects {
         if *effect_id == index1 as u16 { *effect_id = index2 as u16; }
         else if *effect_id == index2 as u16 { *effect_id = index1 as u16; }
+    }
+}
+
+fn fix_swapped_flag(flag_id: &mut u16, table_type: DataTableType, index1: usize, index2: usize) {
+    if table_type == DataTableType::Flags {
+        if *flag_id == index1 as u16 { *flag_id = index2 as u16; }
+        else if *flag_id == index2 as u16 { *flag_id = index1 as u16; }
     }
 }
 
@@ -272,12 +291,15 @@ pub fn fix_after_data_table_items_swapped(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { effect_id, required_collectable_id, .. } => {
+                RoomTriggerType::WallButton { effect_id, req_flag_id, req_collectable_id, .. } => {
                     fix_swapped_effect(effect_id, table_type, index1, index2);
-                    fix_swapped_collectable(required_collectable_id, table_type, index1, index2);
+                    fix_swapped_flag(req_flag_id, table_type, index1, index2);
+                    fix_swapped_collectable(req_collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::FloorButton { effect_id, .. } => {
+                RoomTriggerType::DetectorButton { effect_id, req_flag_id, req_collectable_id, .. } => {
                     fix_swapped_effect(effect_id, table_type, index1, index2);
+                    fix_swapped_flag(req_flag_id, table_type, index1, index2);
+                    fix_swapped_collectable(req_collectable_id, table_type, index1, index2);
                 }
                 RoomTriggerType::UnblockEffect { effect_id, .. } => {
                     fix_swapped_effect(effect_id, table_type, index1, index2);
@@ -291,14 +313,16 @@ pub fn fix_after_data_table_items_swapped(
                 RoomTriggerType::GetCollectable { collectable_id } => {
                     fix_swapped_collectable(collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::GetPickup { pickup_id } => {
+                RoomTriggerType::GetPickup { pickup_id, .. } => {
                     fix_swapped_pickup(pickup_id, table_type, index1, index2);
                 }
-                RoomTriggerType::Unknown {..} |
-                RoomTriggerType::Door {..} |
-                RoomTriggerType::Trap {..} |
-                RoomTriggerType::PlayerSpawn {..} |
-                RoomTriggerType::EnemySpawn {..} => {
+                RoomTriggerType::Door { req_flag_id, ..} => {
+                    fix_swapped_flag(req_flag_id, table_type, index1, index2);
+                }
+                RoomTriggerType::EnemySpawn { req_flag_id, ..} => {
+                    fix_swapped_flag(req_flag_id, table_type, index1, index2);
+                }
+                RoomTriggerType::Unknown {..} | RoomTriggerType::PlayerSpawn {..} => {
                     // nothing to fix
                 }
             }

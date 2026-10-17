@@ -180,22 +180,32 @@ impl Player {
     ) {
         for trigger in &room.triggers {
             match trigger.trigger_type {
-                RoomTriggerType::WallButton { width, height, effect_id, required_collectable_id, .. } => {
-                    let has_requirements = required_collectable_id == u16::MAX ||
-                        game_state.acquired_collectable_ids.contains(&required_collectable_id);
-                    if has_requirements && pad.pressed(INTERACT_BUTTON) {
+                RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+                    let has_col_requirements = req_collectable_id == u16::MAX ||
+                        game_state.acquired_collectable_ids.contains(&req_collectable_id);
+                    let has_flag_requirements = req_flag_id == u16::MAX ||
+                        game_state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_col_requirements && has_flag_requirements && pad.pressed(INTERACT_BUTTON) {
                         let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
                         if player_rect.intersects_rect(&trigger_rect) {
                             game_state.activate_effect(effect_id, room, store);
+                            game_state.set_flag(flag_id, room, store);
                         }
                     }
                 }
-                RoomTriggerType::FloorButton { width, height, effect_id, .. } => {
-                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
-                    if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.activate_effect(effect_id, room, store);
+                RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
+                    let has_col_requirements = req_collectable_id == u16::MAX ||
+                        game_state.acquired_collectable_ids.contains(&req_collectable_id);
+                    let has_flag_requirements = req_flag_id == u16::MAX ||
+                        game_state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_col_requirements && has_flag_requirements {
+                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                        if player_rect.intersects_rect(&trigger_rect) {
+                            game_state.activate_effect(effect_id, room, store);
+                            game_state.set_flag(flag_id, room, store);
+                        }
                     }
                 }
                 RoomTriggerType::GetUpgrade { upgrade_id } => {
@@ -212,7 +222,7 @@ impl Player {
                         game_state.get_collectable(collectable_id, room, store);
                     }
                 }
-                RoomTriggerType::GetPickup { pickup_id } => {
+                RoomTriggerType::GetPickup { pickup_id, .. } => {
                     let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                     let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
                     if player_rect.intersects_rect(&trigger_rect) {

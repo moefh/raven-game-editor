@@ -30,12 +30,6 @@ use super::super::super::widgets::{
     TreeViewItemTrait,
 };
 
-impl TreeViewItemTrait for RoomTrigger {
-    fn name(&self) -> &str {
-        &self.name_id
-    }
-}
-
 impl MapTileFixer for Room {
     fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
         vec![ &mut self.parallax.tiles ]
@@ -118,15 +112,14 @@ impl From<RoomEnemyTypeSel> for RoomEnemyType {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RoomTriggerTypeSel {
     Unknown,
     Door,
-    Trap,
     PlayerSpawn,
     EnemySpawn,
     WallButton,
-    FloorButton,
+    DetectorButton,
     UnblockEffect,
     DisableAnimationEffect,
     GetUpgrade,
@@ -141,9 +134,8 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::Door { .. } => RoomTriggerTypeSel::Door,
             RoomTriggerType::PlayerSpawn { .. } => RoomTriggerTypeSel::PlayerSpawn,
             RoomTriggerType::EnemySpawn { .. } => RoomTriggerTypeSel::EnemySpawn,
-            RoomTriggerType::Trap { .. } => RoomTriggerTypeSel::Trap,
             RoomTriggerType::WallButton {..} => { RoomTriggerTypeSel::WallButton }
-            RoomTriggerType::FloorButton {..} => { RoomTriggerTypeSel::FloorButton }
+            RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeSel::DetectorButton }
             RoomTriggerType::UnblockEffect {..} => { RoomTriggerTypeSel::UnblockEffect }
             RoomTriggerType::DisableAnimationEffect {..} => { RoomTriggerTypeSel::DisableAnimationEffect }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
@@ -155,11 +147,7 @@ impl RoomTriggerTypeSel {
     pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, asset_ids: &AssetIdCollection) -> bool {
         match self {
             RoomTriggerTypeSel::Unknown if ! matches!(trigger_type, RoomTriggerType::Unknown {..}) => {
-                *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 };
-                true
-            }
-            RoomTriggerTypeSel::Trap if ! matches!(trigger_type, RoomTriggerType::Trap {..}) => {
-                *trigger_type = RoomTriggerType::Trap { width: 64, height: 64, trap_type: 0 };
+                *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0, data4: 0, data5: 0 };
                 true
             }
             RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
@@ -172,6 +160,7 @@ impl RoomTriggerTypeSel {
                         animation_id,
                         enemy_type: RoomEnemyType::Walker,
                         direction: RoomEntityDirection::Right,
+                        req_flag_id: u16::MAX,
                     };
                     true
                 } else {
@@ -180,7 +169,7 @@ impl RoomTriggerTypeSel {
             }
             RoomTriggerTypeSel::Door if ! matches!(trigger_type, RoomTriggerType::Door {..}) => {
                 if let Some(room_id) = asset_ids.rooms.get_first() {
-                    *trigger_type = RoomTriggerType::Door { dest_room_id: room_id, dest_trigger_id: 0 };
+                    *trigger_type = RoomTriggerType::Door { dest_room_id: room_id, dest_trigger_id: 0, req_flag_id: u16::MAX };
                     true
                 } else {
                     false
@@ -192,16 +181,19 @@ impl RoomTriggerTypeSel {
                     height: 16,
                     effect_id: u16::MAX,
                     flag_id: u16::MAX,
-                    required_collectable_id: u16::MAX
+                    req_flag_id: u16::MAX,
+                    req_collectable_id: u16::MAX,
                 };
                 true
             }
-            RoomTriggerTypeSel::FloorButton if ! matches!(trigger_type, RoomTriggerType::FloorButton {..}) => {
-                *trigger_type = RoomTriggerType::FloorButton {
+            RoomTriggerTypeSel::DetectorButton if ! matches!(trigger_type, RoomTriggerType::DetectorButton {..}) => {
+                *trigger_type = RoomTriggerType::DetectorButton {
                     width: 16,
                     height: 16,
                     effect_id: u16::MAX,
                     flag_id: u16::MAX,
+                    req_flag_id: u16::MAX,
+                    req_collectable_id: u16::MAX,
                 };
                 true
             }
@@ -235,7 +227,8 @@ impl RoomTriggerTypeSel {
             }
             RoomTriggerTypeSel::GetPickup if ! matches!(trigger_type, RoomTriggerType::GetPickup {..}) => {
                 *trigger_type = RoomTriggerType::GetPickup {
-                    pickup_id: u16::MAX
+                    pickup_id: u16::MAX,
+                    respawn_delay: 0,
                 };
                 true
             }
@@ -247,16 +240,32 @@ impl RoomTriggerTypeSel {
         match self {
             RoomTriggerTypeSel::Unknown => "any",
             RoomTriggerTypeSel::Door => "door",
-            RoomTriggerTypeSel::Trap => "trap",
             RoomTriggerTypeSel::PlayerSpawn => "player spawn",
             RoomTriggerTypeSel::EnemySpawn => "enemy spawn",
             RoomTriggerTypeSel::WallButton => { "wall button" }
-            RoomTriggerTypeSel::FloorButton => { "floor button" }
+            RoomTriggerTypeSel::DetectorButton => { "detector button" }
             RoomTriggerTypeSel::UnblockEffect => { "unblock" }
             RoomTriggerTypeSel::DisableAnimationEffect => { "disable animation" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }
             RoomTriggerTypeSel::GetPickup => { "pickup" }
+        }
+    }
+}
+
+impl TreeViewItemTrait for RoomTrigger {
+    fn name(&self) -> &str {
+        &self.name_id
+    }
+
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let self_trigger_type = RoomTriggerTypeSel::from_trigger_type(&self.trigger_type);
+        let other_trigger_type = RoomTriggerTypeSel::from_trigger_type(&other.trigger_type);
+        let cmp = self_trigger_type.cmp(&other_trigger_type);
+        if cmp == std::cmp::Ordering::Equal {
+            Some(self.name_id.cmp(&other.name_id))
+        } else {
+            Some(cmp)
         }
     }
 }

@@ -155,6 +155,7 @@ pub struct GameRunnerState {
     pub acquired_upgrade_ids: HashSet<u16>,
     pub acquired_collectable_ids: HashSet<u16>,
     pub acquired_pickup_ids: HashSet<u16>,
+    pub acquired_flag_ids: HashSet<u16>,
 }
 
 impl GameRunnerState {
@@ -165,6 +166,7 @@ impl GameRunnerState {
             acquired_upgrade_ids: HashSet::new(),
             acquired_collectable_ids: HashSet::new(),
             acquired_pickup_ids: HashSet::new(),
+            acquired_flag_ids: HashSet::new(),
             room: GameRunnerRoomState {
                 width: 0,
                 height: 0,
@@ -188,7 +190,15 @@ impl GameRunnerState {
         self.acquired_pickup_ids.insert(pickup_id);
     }
 
+    pub fn set_flag(&mut self, flag_id: u16, _room: &Room, _store: &DataAssetStore) {
+        if flag_id != u16::MAX {
+            self.acquired_flag_ids.insert(flag_id);
+        }
+    }
+
     pub fn activate_effect(&mut self, activate_effect_id: u16, room: &Room, _store: &DataAssetStore) {
+        if activate_effect_id == u16::MAX { return; }
+
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
         let room_width = self.room.width as i32;
         let room_height = self.room.height as i32;
@@ -294,12 +304,14 @@ impl GameRunnerWidget {
 
     fn process_room_triggers(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore) -> bool {
         for door in &room.triggers {
-            if let RoomTriggerType::Door { dest_room_id, dest_trigger_id } = door.trigger_type {
+            if let RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } = door.trigger_type {
+                let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
                 let rect = CollisionRect::new(door.x as i32, door.y as i32, Tileset::TILE_SIZE as i32, 4*Tileset::TILE_SIZE as i32);
                 let px = self.player.x + player_anim.clip_rect.w/2;
                 let py1 = self.player.y + 8;
                 let py2 = self.player.y + player_anim.clip_rect.h - 9;
-                if (rect.contains_point(px, py1) || rect.contains_point(px, py2)) &&
+                if has_flag_requirements &&
+                    (rect.contains_point(px, py1) || rect.contains_point(px, py2)) &&
                     let Some(dest_room) = store.assets.rooms.get(&dest_room_id) &&
                     let Some(dest_trigger) = dest_room.triggers.iter().find(|tr| tr.trigger_id == dest_trigger_id) {
                         self.load_room(dest_room, store);
@@ -368,8 +380,11 @@ impl GameRunnerWidget {
 
     fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
         for trigger in &room.triggers {
-            if let RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } =  trigger.trigger_type {
-                self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction, room, store));
+            if let RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } = trigger.trigger_type {
+                let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
+                if has_flag_requirements {
+                    self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction, room, store));
+                }
             }
         }
     }
@@ -442,7 +457,7 @@ impl GameRunnerWidget {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
-                RoomTriggerType::GetPickup { pickup_id } => {
+                RoomTriggerType::GetPickup { pickup_id, .. } => {
                     if ! self.state.acquired_pickup_ids.contains(&pickup_id) &&
                         let Some(item) = store.tables.pickup.items.get(pickup_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {

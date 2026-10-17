@@ -64,11 +64,14 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("data1"), ValueDef::U32),
             (String::from("data2"), ValueDef::U32),
             (String::from("data3"), ValueDef::U32),
+            (String::from("data4"), ValueDef::U32),
+            (String::from("data5"), ValueDef::U32),
         ])),
 
         (String::from("door"), ValueDefStruct::new(vec![
             (String::from("dest_room"), ValueDef::AssetRef),
             (String::from("dest_trigger_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
         ])),
 
         (String::from("player_spawn"), ValueDefStruct::new(vec![
@@ -79,12 +82,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("animation"), ValueDef::AssetRef),
             (String::from("enemy_type"), ValueDef::U16),
             (String::from("direction"), ValueDef::U8),
-        ])),
-
-        (String::from("trap"), ValueDefStruct::new(vec![
-            (String::from("width"), ValueDef::U16),
-            (String::from("height"), ValueDef::U16),
-            (String::from("trap_type"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
         ])),
 
         (String::from("wall_button"), ValueDefStruct::new(vec![
@@ -92,14 +90,17 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("height"), ValueDef::U16),
             (String::from("effect_id"), ValueDef::U16),
             (String::from("flag_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
             (String::from("req_collectable_id"), ValueDef::U16),
         ])),
 
-        (String::from("floor_button"), ValueDefStruct::new(vec![
+        (String::from("detector_button"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
             (String::from("effect_id"), ValueDef::U16),
             (String::from("flag_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
+            (String::from("req_collectable_id"), ValueDef::U16),
         ])),
 
         (String::from("unblock_effect"), ValueDefStruct::new(vec![
@@ -124,6 +125,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("get_pickup"), ValueDefStruct::new(vec![
             (String::from("pickup_id"), ValueDef::U16),
+            (String::from("respawn_delay"), ValueDef::U16),
         ])),
     ])
 });
@@ -193,21 +195,26 @@ fn conv_trigger_any(data: &ValueStruct, _project_data: &ProjectData) -> Result<R
         data1: data.get_u16("data1")?,
         data2: data.get_u16("data2")?,
         data3: data.get_u16("data3")?,
+        data4: data.get_u16("data4")?,
+        data5: data.get_u16("data5")?,
     })
 }
 
 fn conv_trigger_door(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
     let dest_room_ref = data.get_asset_ref("dest_room")?;
     let dest_trigger_id = data.get_u16("dest_trigger_id")?;
+    let req_flag_id = data.get_u16("req_flag_id")?;
     Ok(RoomTriggerType::Door {
         dest_room_id: dest_room_ref.get_asset_id(project_data)?,
         dest_trigger_id,
+        req_flag_id,
     })
 }
 
 fn conv_trigger_player_spawn(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let direction = data.get_u8("direction")?;
     Ok(RoomTriggerType::PlayerSpawn {
-        direction: RoomEntityDirection::from(data.get_u8("direction")?),
+        direction: RoomEntityDirection::from(direction),
     })
 }
 
@@ -215,18 +222,12 @@ fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> R
     let animation_ref = data.get_asset_ref("animation")?;
     let enemy_type = data.get_u16("enemy_type")?;
     let direction = data.get_u8("direction")?;
+    let req_flag_id = data.get_u16("req_flag_id")?;
     Ok(RoomTriggerType::EnemySpawn {
         animation_id: animation_ref.get_asset_id(project_data)?,
         enemy_type: enemy_type.into(),
         direction: RoomEntityDirection::from(direction),
-    })
-}
-
-fn conv_trigger_trap(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
-    Ok(RoomTriggerType::Trap {
-        width: data.get_u16("width")?,
-        height: data.get_u16("height")?,
-        trap_type: data.get_u16("trap_type")?,
+        req_flag_id,
     })
 }
 
@@ -236,16 +237,19 @@ fn conv_trigger_wall_button(data: &ValueStruct, _project_data: &ProjectData) -> 
         height: data.get_u16("height")?,
         effect_id: data.get_u16("effect_id")?,
         flag_id: data.get_u16("flag_id")?,
-        required_collectable_id: data.get_u16("req_collectable_id")?,
+        req_flag_id: data.get_u16("req_flag_id")?,
+        req_collectable_id: data.get_u16("req_collectable_id")?,
     })
 }
 
-fn conv_trigger_floor_button(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
-    Ok(RoomTriggerType::FloorButton {
+fn conv_trigger_detector_button(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::DetectorButton {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
         effect_id: data.get_u16("effect_id")?,
         flag_id: data.get_u16("flag_id")?,
+        req_flag_id: data.get_u16("req_flag_id")?,
+        req_collectable_id: data.get_u16("req_collectable_id")?,
     })
 }
 
@@ -280,6 +284,7 @@ fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData)
 fn conv_trigger_get_pickup(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetPickup {
         pickup_id: data.get_u16("pickup_id")?,
+        respawn_delay: data.get_u16("respawn_delay")?,
     })
 }
 
@@ -299,12 +304,10 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_player_spawn(type_data, project_data)?
     } else if RoomTriggerTypeIdent::EnemySpawn.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_enemy_spawn(type_data, project_data)?
-    } else if RoomTriggerTypeIdent::Trap.matches_enum_ident(&trigger_type.name, prefix) {
-        conv_trigger_trap(type_data, project_data)?
     } else if RoomTriggerTypeIdent::WallButton.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_wall_button(type_data, project_data)?
-    } else if RoomTriggerTypeIdent::FloorButton.matches_enum_ident(&trigger_type.name, prefix) {
-        conv_trigger_floor_button(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::DetectorButton.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_detector_button(type_data, project_data)?
     } else if RoomTriggerTypeIdent::UnblockEffect.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_unblock_effect(type_data, project_data)?
     } else if RoomTriggerTypeIdent::DisableAnimationEffect.matches_enum_ident(&trigger_type.name, prefix) {

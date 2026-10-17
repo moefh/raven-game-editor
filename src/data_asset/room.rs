@@ -67,18 +67,17 @@ pub struct RoomMap {
 
 #[derive(Clone)]
 pub enum RoomTriggerType {
-    Unknown { data0: u16, data1: u16, data2: u16, data3: u16 },
+    Unknown { data0: u16, data1: u16, data2: u16, data3: u16, data4: u16, data5: u16 },
     PlayerSpawn { direction: RoomEntityDirection },
-    EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection },
-    Door { dest_room_id: DataAssetId, dest_trigger_id: u16 },
-    Trap { width: u16, height: u16, trap_type: u16 },
-    WallButton { width: u16, height: u16, effect_id: u16, flag_id: u16, required_collectable_id: u16 },
-    FloorButton { width: u16, height: u16, effect_id: u16, flag_id: u16 },
+    EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection, req_flag_id: u16 },
+    Door { dest_room_id: DataAssetId, dest_trigger_id: u16, req_flag_id: u16 },
+    WallButton { width: u16, height: u16, effect_id: u16, flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
+    DetectorButton { width: u16, height: u16, effect_id: u16, flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
     UnblockEffect { width: u16, height: u16, effect_id: u16 },
     DisableAnimationEffect { width: u16, height: u16, effect_id: u16 },
     GetUpgrade { upgrade_id: u16 },
     GetCollectable { collectable_id: u16 },
-    GetPickup { pickup_id: u16 },
+    GetPickup { pickup_id: u16, respawn_delay: u16 },
 }
 
 #[derive(Clone)]
@@ -146,48 +145,49 @@ impl super::HashedDataAsset for Room {
             hasher.add_i16(trigger.x);
             hasher.add_i16(trigger.y);
             match trigger.trigger_type {
-                RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
+                RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
                     hasher.add_u8(0);
                     hasher.add_u16(data0);
                     hasher.add_u16(data1);
                     hasher.add_u16(data2);
                     hasher.add_u16(data3);
+                    hasher.add_u16(data4);
+                    hasher.add_u16(data5);
                 }
                 RoomTriggerType::PlayerSpawn { direction } => {
                     hasher.add_u8(1);
                     hasher.add_u8(direction.value());
                 }
-                RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
+                RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
                     hasher.add_u8(2);
                     hasher.add_asset_id(animation_id);
                     hasher.add_u16(enemy_type.value());
                     hasher.add_u8(direction.value());
+                    hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+                RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
                     hasher.add_u8(3);
                     hasher.add_asset_id(dest_room_id);
                     hasher.add_u16(dest_trigger_id);
+                    hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::Trap { width, height, trap_type } => {
-                    hasher.add_u8(4);
-                    hasher.add_u16(width);
-                    hasher.add_u16(height);
-                    hasher.add_u16(trap_type);
-                }
-                RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
+                RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
                     hasher.add_u8(5);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
                     hasher.add_u16(effect_id);
                     hasher.add_u16(flag_id);
-                    hasher.add_u16(required_collectable_id);
+                    hasher.add_u16(req_flag_id);
+                    hasher.add_u16(req_collectable_id);
                 }
-                RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
+                RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
                     hasher.add_u8(6);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
                     hasher.add_u16(effect_id);
                     hasher.add_u16(flag_id);
+                    hasher.add_u16(req_flag_id);
+                    hasher.add_u16(req_collectable_id);
                 }
                 RoomTriggerType::UnblockEffect { width, height, effect_id } => {
                     hasher.add_u8(7);
@@ -209,9 +209,10 @@ impl super::HashedDataAsset for Room {
                     hasher.add_u8(10);
                     hasher.add_u16(collectable_id);
                 }
-                RoomTriggerType::GetPickup { pickup_id } => {
+                RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
                     hasher.add_u8(11);
                     hasher.add_u16(pickup_id);
+                    hasher.add_u16(respawn_delay);
                 }
             }
         }
@@ -257,9 +258,8 @@ pub enum RoomTriggerTypeIdent {
     PlayerSpawn,
     EnemySpawn,
     Door,
-    Trap,
     WallButton,
-    FloorButton,
+    DetectorButton,
     UnblockEffect,
     DisableAnimationEffect,
     GetUpgrade,
@@ -274,9 +274,8 @@ impl RoomTriggerTypeIdent {
             RoomTriggerType::Door{..} => { RoomTriggerTypeIdent::Door }
             RoomTriggerType::PlayerSpawn{..} => { RoomTriggerTypeIdent::PlayerSpawn }
             RoomTriggerType::EnemySpawn{..} => { RoomTriggerTypeIdent::EnemySpawn }
-            RoomTriggerType::Trap {..} => { RoomTriggerTypeIdent::Trap }
             RoomTriggerType::WallButton {..} => { RoomTriggerTypeIdent::WallButton }
-            RoomTriggerType::FloorButton {..} => { RoomTriggerTypeIdent::FloorButton }
+            RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeIdent::DetectorButton }
             RoomTriggerType::UnblockEffect {..} => { RoomTriggerTypeIdent::UnblockEffect }
             RoomTriggerType::DisableAnimationEffect {..} => { RoomTriggerTypeIdent::DisableAnimationEffect }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeIdent::GetUpgrade }
@@ -291,9 +290,8 @@ impl RoomTriggerTypeIdent {
             RoomTriggerTypeIdent::Door => { "ROOM_TRIGGER_TYPE_DOOR" }
             RoomTriggerTypeIdent::PlayerSpawn => { "ROOM_TRIGGER_TYPE_PLAYER_SPAWN" }
             RoomTriggerTypeIdent::EnemySpawn => { "ROOM_TRIGGER_TYPE_ENEMY_SPAWN" }
-            RoomTriggerTypeIdent::Trap => { "ROOM_TRIGGER_TYPE_TRAP" }
             RoomTriggerTypeIdent::WallButton => { "ROOM_TRIGGER_TYPE_WALL_BUTTON" }
-            RoomTriggerTypeIdent::FloorButton => { "ROOM_TRIGGER_TYPE_FLOOR_BUTTON" }
+            RoomTriggerTypeIdent::DetectorButton => { "ROOM_TRIGGER_TYPE_DETECTOR_BUTTON" }
             RoomTriggerTypeIdent::UnblockEffect => { "ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT" }
             RoomTriggerTypeIdent::DisableAnimationEffect => { "ROOM_TRIGGER_TYPE_DISABLE_ANIMATION_EFFECT" }
             RoomTriggerTypeIdent::GetUpgrade => { "ROOM_TRIGGER_TYPE_GET_UPGRADE" }

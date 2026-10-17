@@ -71,12 +71,11 @@ enum TriggerTreeAction {
 
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {
-        RoomTriggerType::Trap {..} => { IMAGES.info }
         RoomTriggerType::Door {..} => { IMAGES.room }
         RoomTriggerType::PlayerSpawn {..} => { IMAGES.info }
         RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
         RoomTriggerType::WallButton {..} => { IMAGES.log }
-        RoomTriggerType::FloorButton {..} => { IMAGES.log }
+        RoomTriggerType::DetectorButton {..} => { IMAGES.log }
         RoomTriggerType::UnblockEffect {..} => { IMAGES.room_effect }
         RoomTriggerType::DisableAnimationEffect {..} => { IMAGES.room_effect }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
@@ -411,7 +410,10 @@ impl Editor {
             Err(e) => {
                 wc.logger.log(format!("ERROR reading room file from {}:", file.filename()));
                 wc.logger.log(format!("{}", e));
-                wc.open_message_box("Error importing Room", "Error importing room file.\n\nConsult the log window for more information.");
+                wc.open_message_box(
+                    "Error importing Room",
+                    "Error importing room file.\n\nConsult the log window for more information."
+                );
             }
         }
     }
@@ -454,7 +456,7 @@ impl Editor {
             name_id,
             x: pos.x.floor().clamp(0.0, i16::MAX as f32) as i16,
             y: pos.y.floor().clamp(0.0, i16::MAX as f32) as i16,
-            trigger_type: RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0 },
+            trigger_type: RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0, data4: 0, data5: 0 },
         });
         self.room_editor.set_selected_item(RoomItemRef::Trigger(new_trigger_index), true);
     }
@@ -696,11 +698,10 @@ impl Editor {
                 for sel in [
                     RoomTriggerTypeSel::Unknown,
                     RoomTriggerTypeSel::Door,
-                    RoomTriggerTypeSel::Trap,
                     RoomTriggerTypeSel::PlayerSpawn,
                     RoomTriggerTypeSel::EnemySpawn,
                     RoomTriggerTypeSel::WallButton,
-                    RoomTriggerTypeSel::FloorButton,
+                    RoomTriggerTypeSel::DetectorButton,
                     RoomTriggerTypeSel::UnblockEffect,
                     RoomTriggerTypeSel::DisableAnimationEffect,
                     RoomTriggerTypeSel::GetUpgrade,
@@ -721,25 +722,13 @@ impl Editor {
         ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
 
         match &mut trigger.trigger_type {
-            RoomTriggerType::Unknown { data0, data1, data2, data3 } => {
+            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
                 ui.label("Data0:"); ui.add(egui::DragValue::new(data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data1:"); ui.add(egui::DragValue::new(data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data2:"); ui.add(egui::DragValue::new(data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data3:"); ui.add(egui::DragValue::new(data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
-            }
-
-            RoomTriggerType::Trap { width, height, trap_type } => {
-                ui.label("Width:");
-                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
-                ui.label("Height:");
-                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
-                ui.label("Trap type:");
-                ui.add(egui::DragValue::new(trap_type).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
+                ui.label("Data4:"); ui.add(egui::DragValue::new(data4).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data5:"); ui.add(egui::DragValue::new(data5).speed(1.0).range(0..=u16::MAX)); ui.end_row();
             }
 
             RoomTriggerType::PlayerSpawn { direction } => {
@@ -753,7 +742,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction } => {
+            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
                 ui.label("Anim:");
                 let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
                     &anim.asset.name
@@ -805,9 +794,13 @@ impl Editor {
                         ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
                     });
                 ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "enemy_spawn_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
             }
 
-            RoomTriggerType::Door { dest_room_id, dest_trigger_id } => {
+            RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
                 ui.label("To room:");
                 let cur_room_name = if let Some(name) = assets.room_names.get(dest_room_id) {
                     name
@@ -828,9 +821,13 @@ impl Editor {
                 ui.label("To trigger:");
                 ui.add(egui::DragValue::new(dest_trigger_id).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "door_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
             }
 
-            RoomTriggerType::WallButton { width, height, effect_id, flag_id, required_collectable_id } => {
+            RoomTriggerType::WallButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -839,8 +836,12 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Required:");
-                self.show_item_id_editor(ui, "wall_button_required_collectable_id", required_collectable_id, &assets.tables.collectable);
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "wall_button_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
+
+                ui.label("Req Col:");
+                self.show_item_id_editor(ui, "wall_button_req_collectable_id", req_collectable_id, &assets.tables.collectable);
                 ui.end_row();
 
                 ui.label("Effect:");
@@ -852,7 +853,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::FloorButton { width, height, effect_id, flag_id } => {
+            RoomTriggerType::DetectorButton { width, height, effect_id, flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -861,12 +862,20 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "detector_button_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
+
+                ui.label("Req Col:");
+                self.show_item_id_editor(ui, "detector_button_req_collectable_id", req_collectable_id, &assets.tables.collectable);
+                ui.end_row();
+
                 ui.label("Effect:");
-                self.show_effect_id_editor(ui, "floor_button_effect_id", effect_id, &assets.tables.effect);
+                self.show_effect_id_editor(ui, "detector_button_effect_id", effect_id, &assets.tables.effect);
                 ui.end_row();
 
                 ui.label("Flag:");
-                self.show_effect_id_editor(ui, "floor_button_flag_id", flag_id, &assets.tables.flag);
+                self.show_effect_id_editor(ui, "detector_button_flag_id", flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 
@@ -910,9 +919,13 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::GetPickup { pickup_id } => {
+            RoomTriggerType::GetPickup { pickup_id, respawn_delay } => {
                 ui.label("Pickup:");
                 self.show_item_id_editor(ui, "get_pickup_id", pickup_id, &assets.tables.pickup);
+                ui.end_row();
+
+                ui.label("Respawn:");
+                ui.add(egui::DragValue::new(respawn_delay).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
         }
