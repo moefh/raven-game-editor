@@ -63,6 +63,7 @@ struct $<PREFIX>_IMAGE {
     int32_t height;
     int32_t stride;
     int32_t num_frames;
+    int32_t has_mirrors;
     const uint32_t *data;
 };
 
@@ -74,7 +75,8 @@ struct $<PREFIX>_PAL_SPRITE {
     int16_t width;
     int16_t height;
     int16_t num_frames;
-    uint16_t bpp;
+    uint8_t has_mirrors;
+    uint8_t bpp;
     uint8_t palette[16];
     const uint8_t *data;
 };

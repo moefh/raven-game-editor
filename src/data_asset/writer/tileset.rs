@@ -40,7 +40,7 @@ pub fn write_tilesets(writer: &ProjectDataWriter, tileset_ids: &[DataAssetId]) -
         if let Some(tileset) = writer.store.assets.tilesets.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Tileset, *id)?;
             writer.write(format!(
-                "  {{ {}, {}, {}, {}, {}_tileset_data_{} }},\n",
+                "  {{ {}, {}, {}, {}, 0, {}_tileset_data_{} }},\n",
                 tileset.width,
                 tileset.height,
                 tileset.width.div_ceil(4),

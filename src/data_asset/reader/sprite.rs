@@ -22,10 +22,12 @@ pub fn create(
     let height = asset_struct.get_u32("height")?;
     let stride = asset_struct.get_u32("stride")?;
     let num_frames = asset_struct.get_u32("num_frames")?;
+    let has_mirrors = asset_struct.get_u32("has_mirrors")?;
     let array = asset_struct.get_array_ref("data")?;
 
     let data = array.get_u32_array(project_data)?;
     let name = project_data.extract_asset_name("sprite_data_", array)?;
+    let has_mirrors = has_mirrors != 0;
 
     let want_stride = width.div_ceil(4);
     if stride != want_stride {
@@ -33,12 +35,21 @@ pub fn create(
     }
     let want_len = stride * height * num_frames;
     if data.len() as u32 != want_len {
-        error(format!("unexpected sprite data length: got {}, expected {} = {}*{}*{}",
-            data.len(), want_len, stride, height, num_frames), asset_struct.pos)?;
+        error(
+            format!(
+                "unexpected sprite data length: got {}, expected {} = {}*{}*{}",
+                data.len(),
+                want_len,
+                stride,
+                height,
+                num_frames
+            ),
+            asset_struct.pos
+        )?;
     }
-    let num_frames = if Sprite::MIRROR_FRAMES {
+    let num_frames = if has_mirrors {
         if ! num_frames.is_multiple_of(2)  {
-            error(format!("sprite with an odd number of tiles, should be even: {}", num_frames), asset_struct.pos)?;
+            error(format!("sprite with mirrors has an odd number of tiles, must be even: {}", num_frames), asset_struct.pos)?;
         }
         num_frames / 2
     } else {
@@ -50,6 +61,7 @@ pub fn create(
         width,
         height,
         num_frames,
+        add_mirrors: has_mirrors,
         data: image_converter.get_image_pixels(data, width, height, num_frames),
     })
 }

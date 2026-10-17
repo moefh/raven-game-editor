@@ -7,46 +7,46 @@ use super::super::{
 };
 
 pub struct PropertiesDialog {
+    dlg_id: egui::Id,
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
     pub width: u32,
     pub height: u32,
     pub num_frames: u32,
+    pub add_mirrors: bool,
     pub sel_color: u8,
 }
 
 impl PropertiesDialog {
     pub fn new() -> Self {
         PropertiesDialog {
+            dlg_id: egui::Id::new("dlg_sprite_properties"),
             image_changed: false,
             open: false,
             name: String::new(),
             width: 0,
             height: 0,
             num_frames: 0,
+            add_mirrors: false,
             sel_color: 0,
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_sprite_properties")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite, sel_color: u8) {
-        self.name.clear();
-        self.name.push_str(&sprite.asset.name);
+        self.name.replace_range(.., &sprite.asset.name);
         self.width = sprite.width;
         self.height = sprite.height;
         self.num_frames = sprite.num_frames;
+        self.add_mirrors = sprite.add_mirrors;
         self.sel_color = sel_color;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite) {
-        sprite.asset.name.clear();
-        sprite.asset.name.push_str(&self.name);
+        sprite.asset.name.replace_range(.., &self.name);
+        sprite.add_mirrors = self.add_mirrors;
 
         let width = self.width;
         let height = self.height;
@@ -60,7 +60,7 @@ impl PropertiesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
         if ! self.open { return false; }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Sprite Properties", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 300.0, "Sprite Properties", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", sprite.asset.id))
                     .num_columns(2)
@@ -81,6 +81,10 @@ impl PropertiesDialog {
                         ui.label("Num frames:");
                         ui.add(egui::Slider::new(&mut self.num_frames, 1..=255));
                         ui.end_row();
+
+                        ui.label("Add mirror:");
+                        ui.checkbox(&mut self.add_mirrors, "");
+                        ui.end_row();
                     });
             });
 
@@ -95,7 +99,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

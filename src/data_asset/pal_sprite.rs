@@ -32,6 +32,7 @@ pub struct PalSprite {
     pub width: u32,
     pub height: u32,
     pub num_frames: u32,
+    pub add_mirrors: bool,
     pub depth: PalSpriteDepth,
     pub palette: Vec<u8>,
     pub color_to_palette_index_map: Vec<u8>,
@@ -56,6 +57,7 @@ impl PalSprite {
             depth,
             palette,
             color_to_palette_index_map,
+            add_mirrors: false,
             data: vec![Self::EMPTY_COLOR; (width*height*num_frames) as usize],
         }
     }
@@ -148,6 +150,9 @@ impl super::HashedDataAsset for PalSprite {
         hasher.add_u32(self.width);
         hasher.add_u32(self.height);
         hasher.add_u32(self.num_frames);
+        hasher.add_bool(self.add_mirrors);
+        hasher.add_u32(self.depth.bits_per_pixel());
+        hasher.add_bytes(&self.palette);
         hasher.add_bytes(&self.data);
     }
 }
@@ -159,6 +164,7 @@ impl super::DuplicableAsset<PalSprite> for PalSprite {
             width: self.width,
             height: self.height,
             num_frames: self.num_frames,
+            add_mirrors: self.add_mirrors,
             depth: self.depth,
             palette: self.palette.clone(),
             color_to_palette_index_map: self.color_to_palette_index_map.clone(),
@@ -171,12 +177,12 @@ impl super::GenericAsset for PalSprite {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: w(2) + h(2) + num_frames(2) + depth(2) + palette(16) + data<ptr>(4)
-        let header = 2usize * 4usize + 16usize + 4usize;
+        // header: w(2) + h(2) + num_frames(2) + has_mirrors(1) + depth(1) + palette(16) + data<ptr>(4)
+        let header = 2usize * 3 + 1usize + 1usize + 16usize + 4usize;
 
         // image: ceil((depth * width) / 8) * height * num_frames
         let image = ((self.depth.bits_per_pixel() * self.width).div_ceil(8) * self.height * self.num_frames) as usize;
 
-        header + image
+        header + image * if self.add_mirrors { 2 } else { 1 }
     }
 }

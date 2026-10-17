@@ -21,7 +21,7 @@ fn write_sprite_data(writer: &ProjectDataWriter, sprite: &Sprite, name_id: &str)
         name_id
     ));
     write_sprite_frames(writer, sprite, false);
-    if Sprite::MIRROR_FRAMES {
+    if sprite.add_mirrors {
         write_sprite_frames(writer, sprite, true);
     }
     writer.write("};\n");
@@ -42,17 +42,17 @@ pub fn write_sprites(writer: &ProjectDataWriter, sprite_ids: &[DataAssetId]) -> 
     }
 
     writer.log(format!("-> writing {} sprites", writer.store.asset_ids.sprites.len()));
-    let mult_mirrors = if Sprite::MIRROR_FRAMES { 2 } else { 1 };
     writer.write(format!("const struct {}_IMAGE {}_sprites[] = {{\n", writer.ident.prefix_upper, writer.ident.prefix_lower));
     for id in sprite_ids.iter() {
         if let Some(sprite) = writer.store.assets.sprites.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
             writer.write(format!(
-                "  {{ {}, {}, {}, {}, {}_sprite_data_{} }},\n",
+                "  {{ {}, {}, {}, {}, {}, {}_sprite_data_{} }},\n",
                 sprite.width,
                 sprite.height,
                 sprite.width.div_ceil(4),
-                sprite.num_frames * mult_mirrors,
+                sprite.num_frames * if sprite.add_mirrors { 2 } else { 1 },
+                if sprite.add_mirrors { 1 } else { 0 },
                 writer.ident.prefix_lower,
                 name_id
             ));

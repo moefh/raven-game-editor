@@ -1,6 +1,7 @@
 use std::io::Result;
 
 use super::{
+    error,
     ValueDef,
     ValueDefStruct,
     ValueStruct,
@@ -21,7 +22,8 @@ pub fn get_asset_def() -> ValueDefStruct
         (String::from("width"), ValueDef::I16),
         (String::from("height"), ValueDef::I16),
         (String::from("num_frames"), ValueDef::I16),
-        (String::from("bits_per_pixel"), ValueDef::U16),
+        (String::from("has_mirrors"), ValueDef::U8),
+        (String::from("bits_per_pixel"), ValueDef::U8),
         (String::from("palette"), ValueDef::U8Array),
         (String::from("data"), ValueDef::ArrayRef),
     ])
@@ -31,15 +33,38 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     let width = asset_struct.get_i16("width")?;
     let height = asset_struct.get_i16("height")?;
     let num_frames = asset_struct.get_i16("num_frames")?;
-    let bits_per_pixel = asset_struct.get_u16("bits_per_pixel")?;
+    let has_mirrors = asset_struct.get_u8("has_mirrors")?;
+    let bits_per_pixel = asset_struct.get_u8("bits_per_pixel")?;
     let palette = asset_struct.get_u8_array("palette")?;
     let array = asset_struct.get_array_ref("data")?;
 
     let width = width.unsigned_abs() as u32;
     let height = height.unsigned_abs() as u32;
     let num_frames = num_frames.unsigned_abs() as u32;
+    let has_mirrors = has_mirrors != 0;
     let bits_per_pixel = bits_per_pixel as u32;
     let data = array.get_u8_array(project_data)?;
+
+    let want_len = (width * bits_per_pixel).div_ceil(8) * height * num_frames;
+    if data.len() as u32 != want_len {
+        error(
+            format!(
+                "unexpected sprite data length: got {}, expected {}",
+                data.len(),
+                want_len
+            ),
+            asset_struct.pos
+        )?;
+    }
+    let num_frames = if has_mirrors {
+        if ! num_frames.is_multiple_of(2)  {
+            error(format!("pal_sprite with mirrors has an odd number of tiles, must be even: {}", num_frames), asset_struct.pos)?;
+        }
+        num_frames / 2
+    } else {
+        num_frames
+    };
+
     let name = project_data.extract_asset_name("pal_sprite_data_", array)?;
     let color_to_palette_index_map = PalSprite::gen_color_to_palette_index_map(&palette.values);
     Ok(PalSprite {
@@ -47,6 +72,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
         width,
         height,
         num_frames,
+        add_mirrors: has_mirrors,
         depth: PalSpriteDepth::from_bits_per_pixel(bits_per_pixel),
         palette: palette.values.clone(),
         color_to_palette_index_map,

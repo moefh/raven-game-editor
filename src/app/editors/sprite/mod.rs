@@ -75,12 +75,14 @@ impl SpriteEditor {
                 let dirty = if base.is_dirty() { " (modified)" } else { "" };
                 let frames_plural = if sprite.num_frames > 1 { "s" } else { "" };
                 ui.add(egui::Label::new(format!(
-                    "{} bytes [{}x{}, {} frame{}]{}",
+                    "{} bytes [{}x{}, {} frame{}, {}mirrored]{}",
                     sprite.data_size(),
                     sprite.width,
                     sprite.height,
                     sprite.num_frames,
-                    frames_plural, dirty
+                    frames_plural,
+                    if sprite.add_mirrors { "" } else { "not " },
+                    dirty
                 )).truncate());
 
                 if let Some(sprite) = editor.image_picker.get_selected_image_l() {

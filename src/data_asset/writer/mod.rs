@@ -225,7 +225,6 @@ impl<'a> ProjectDataWriter<'a> {
         self.write("// ================================================================\n");
         self.write("\n");
 
-        let mult_mirrors = if super::Sprite::MIRROR_FRAMES { 2 } else { 1 };
         for id in self.store.asset_ids.sprites.iter() {
             if let Some(sprite) = self.store.assets.sprites.get(id) {
                 let name_id = self.ident.get_asset_name_id(DataAssetType::Sprite, *id)?;
@@ -252,7 +251,7 @@ impl<'a> ProjectDataWriter<'a> {
                     "#define {}_SPRITE_FRAMES_{} {}\n",
                     self.ident.prefix_upper,
                     name_id_upper,
-                    sprite.num_frames*mult_mirrors
+                    sprite.num_frames * if sprite.add_mirrors { 2 } else { 1 }
                 ));
                 self.write("\n");
             }

@@ -7,12 +7,14 @@ use super::super::{
 };
 
 pub struct PropertiesDialog {
+    dlg_id: egui::Id,
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
     pub width: u32,
     pub height: u32,
     pub num_frames: u32,
+    pub add_mirrors: bool,
     pub depth: PalSpriteDepth,
     pub sel_color: u8,
 }
@@ -20,42 +22,40 @@ pub struct PropertiesDialog {
 impl PropertiesDialog {
     pub fn new() -> Self {
         PropertiesDialog {
+            dlg_id: egui::Id::new("dlg_pal_sprite_properties"),
             image_changed: false,
             open: false,
             name: String::new(),
             width: 0,
             height: 0,
             num_frames: 0,
+            add_mirrors: false,
             depth: PalSpriteDepth::Bpp1,
             sel_color: 0,
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_pal_sprite_properties")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, pal_sprite: &PalSprite, sel_color: u8) {
-        self.name.clear();
-        self.name.push_str(&pal_sprite.asset.name);
+        self.name.replace_range(.., &pal_sprite.asset.name);
         self.width = pal_sprite.width;
         self.height = pal_sprite.height;
         self.num_frames = pal_sprite.num_frames;
+        self.add_mirrors = pal_sprite.add_mirrors;
         self.depth = pal_sprite.depth;
         self.sel_color = sel_color;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite) {
-        pal_sprite.asset.name.clear();
-        pal_sprite.asset.name.push_str(&self.name);
+        pal_sprite.asset.name.replace_range(.., &self.name);
+        pal_sprite.add_mirrors = self.add_mirrors;
 
         let width = self.width;
         let height = self.height;
         let num_frames = self.num_frames;
         let depth = self.depth;
-        if num_frames != pal_sprite.num_frames || width != pal_sprite.width || height != pal_sprite.height || depth != pal_sprite.depth {
+        if num_frames!=pal_sprite.num_frames || width!=pal_sprite.width || height!=pal_sprite.height || depth!=pal_sprite.depth {
             pal_sprite.resize(width, height, num_frames, self.sel_color);
             pal_sprite.depth = self.depth;
             if (pal_sprite.depth.num_colors() as usize) < pal_sprite.palette.len() {
@@ -71,7 +71,7 @@ impl PropertiesDialog {
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
         if ! self.open { return false; }
 
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Paletted Sprite Properties", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 300.0, "Paletted Sprite Properties", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", pal_sprite.asset.id))
                     .num_columns(2)
@@ -103,6 +103,10 @@ impl PropertiesDialog {
                                 ui.selectable_value(&mut self.depth, PalSpriteDepth::Bpp4, "4 bpp (16 colors)");
                             });
                         ui.end_row();
+
+                        ui.label("Add mirror:");
+                        ui.checkbox(&mut self.add_mirrors, "");
+                        ui.end_row();
                     });
             });
 
@@ -117,7 +121,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

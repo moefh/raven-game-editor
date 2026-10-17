@@ -21,6 +21,7 @@ pub fn get_asset_def() -> ValueDefStruct
         (String::from("height"), ValueDef::U32),
         (String::from("stride"), ValueDef::U32),
         (String::from("num_frames"), ValueDef::U32),
+        (String::from("has_mirrors"), ValueDef::U32),
         (String::from("data"), ValueDef::ArrayRef),
     ])
 }
@@ -35,10 +36,15 @@ pub fn create(
     let height = asset_struct.get_u32("height")?;
     let stride = asset_struct.get_u32("stride")?;
     let num_tiles = asset_struct.get_u32("num_frames")?;
+    let has_mirrors = asset_struct.get_u32("has_mirrors")?;
     let array = asset_struct.get_array_ref("data")?;
 
     let data = array.get_u32_array(project_data)?;
     let name = project_data.extract_asset_name("tileset_data_", array)?;
+
+    if has_mirrors != 0 {
+        error("tileset image must not include mirrors", asset_struct.pos)?;
+    }
 
     let want_stride = width.div_ceil(4);
     if stride != want_stride {
