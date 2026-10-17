@@ -168,6 +168,15 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, errors: &mut Vec<Asset
     }
 }
 
+fn is_map_in_room_with_no_parallax(map_id: DataAssetId, store: &DataAssetStore) -> bool {
+    for room in store.assets.rooms.iter() {
+        if room.parallax.tileset_id.is_none() && room.maps.iter().find(|map| map.map_id == map_id).is_some() {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn check_maps(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
@@ -181,7 +190,9 @@ pub fn check_maps(
         if let Some(tileset) = store.assets.tilesets.get(&map_data.tileset_id) {
             check_map_tiles(map_data, tileset, &mut map_errors);
             let tileset_transp = tileset_transp_map.entry(map_data.tileset_id).or_insert_with(|| build_tileset_transparency(tileset));
-            check_map_transparency(map_data, tileset_transp, &mut map_errors);
+            if is_map_in_room_with_no_parallax(map_data.asset.id, store) {
+                check_map_transparency(map_data, tileset_transp, &mut map_errors);
+            }
             check_map_opaqueness(map_data, tileset_transp, &mut map_warnings);
         } else {
             map_errors.push(AssetError::MapTilesetInvalid { tileset_id: map_data.tileset_id });
