@@ -251,14 +251,15 @@ impl EnemyInfo {
 }
 
 pub struct Enemy {
+    pub id: u16,
     enemy: EnemyInfo,
     behavior: EnemyBehavior,
 }
 
 impl Enemy {
     pub fn new(
-        x: i16,
-        y: i16,
+        id: u16,
+        pos: (i16, i16),
         anim_id: DataAssetId,
         enemy_type: RoomEnemyType,
         direction: RoomEntityDirection,
@@ -266,8 +267,8 @@ impl Enemy {
         store: &DataAssetStore
     ) -> Self {
         let mut enemy = EnemyInfo {
-            x: x as i32,
-            y: y as i32,
+            x: pos.0 as i32,
+            y: pos.1 as i32,
             direction: direction.into(),
             anim_id,
             anim_loop: EnemyAnimLoop::Stand,
@@ -276,6 +277,7 @@ impl Enemy {
         let behavior = EnemyBehavior::new(enemy_type, &mut enemy, room, store);
 
         Enemy {
+            id,
             enemy,
             behavior,
         }

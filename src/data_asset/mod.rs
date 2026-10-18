@@ -399,8 +399,9 @@ impl AssetCollection {
                     RoomTriggerType::GetPickup {..} |
                     RoomTriggerType::WallButton {..} |
                     RoomTriggerType::DetectorButton {..} |
-                    RoomTriggerType::UnblockEffect {..} |
-                    RoomTriggerType::DisableAnimationEffect {..} => { false }
+                    RoomTriggerType::UnblockTiles {..} |
+                    RoomTriggerType::DisableAnimation {..} |
+                    RoomTriggerType::RemoveEnemy {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
                     RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }

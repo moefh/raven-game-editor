@@ -196,7 +196,7 @@ impl GameRunnerState {
         }
     }
 
-    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, _store: &DataAssetStore) {
+    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, enemies: &mut Vec<Enemy>, _store: &DataAssetStore) {
         if effect_id == u16::MAX { return; }
 
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
@@ -205,7 +205,7 @@ impl GameRunnerState {
 
         for trigger in &room.triggers {
             match trigger.trigger_type {
-                RoomTriggerType::UnblockEffect { width, height, on_effect_id } if on_effect_id == effect_id => {
+                RoomTriggerType::UnblockTiles { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
                     let x_end = ((trigger.x as i32 + width as i32 - 1) / TILE_SIZE).clamp(0, room_width);
                     let y_start = (trigger.y as i32 / TILE_SIZE).clamp(0, room_height);
@@ -217,7 +217,7 @@ impl GameRunnerState {
                         }
                     }
                 }
-                RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } if on_effect_id == effect_id => {
+                RoomTriggerType::DisableAnimation { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
                     let x_end = ((trigger.x as i32 + width as i32 - 1) / TILE_SIZE).clamp(0, room_width);
                     let y_start = (trigger.y as i32 / TILE_SIZE).clamp(0, room_height);
@@ -229,6 +229,11 @@ impl GameRunnerState {
                         }
                     }
                 }
+
+                RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } if on_effect_id == effect_id => {
+                    enemies.retain(|e| e.id != enemy_id);
+                }
+
                 _ => {}
             }
         }
@@ -238,8 +243,8 @@ impl GameRunnerState {
 pub struct GameRunnerWidget {
     pub room_id: Option<DataAssetId>,
     pub frame_counter: u32,
-    pub player: Player,
     pub enemies: Vec<Enemy>,
+    pub player: Player,
     pub controller: Controller,
     state: GameRunnerState,
     map_animation_step: u32,
@@ -333,7 +338,7 @@ impl GameRunnerWidget {
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
     ) -> bool {
-        self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state);
+        self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state, &mut self.enemies);
         for enemy in self.enemies.iter_mut() {
             enemy.tick_engine(room, &self.player, store, &mut self.state);
         }
@@ -380,10 +385,11 @@ impl GameRunnerWidget {
 
     fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
         for trigger in &room.triggers {
-            if let RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } = trigger.trigger_type {
+            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } = trigger.trigger_type {
                 let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
                 if has_flag_requirements {
-                    self.enemies.push(Enemy::new(trigger.x, trigger.y, animation_id, enemy_type, direction, room, store));
+                    let enemy = Enemy::new(enemy_id, (trigger.x, trigger.y), animation_id, enemy_type, direction, room, store);
+                    self.enemies.push(enemy);
                 }
             }
         }

@@ -57,14 +57,15 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::PlayerSpawn { direction } => {
                 writer.write(format!(".player_spawn = {{ {} }}", direction.value()));
             }
-            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
+            RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } => {
                 let animation_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
                 writer.write(
                     format!(
-                        ".enemy_spawn = {{ &{}_sprite_animations[{}], {}, {}, {} }}",
+                        ".enemy_spawn = {{ {}, {}, &{}_sprite_animations[{}], {}, {} }}",
+                        enemy_id,
+                        enemy_type.value(),
                         writer.ident.prefix_lower,
                         animation_index,
-                        enemy_type.value(),
                         direction.value(),
                         req_flag_id,
                     )
@@ -92,11 +93,14 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                     req_collectable_id
                 ));
             }
-            RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
-                writer.write(format!(".unblock_effect = {{ {}, {}, {} }}", width, height, on_effect_id));
+            RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
+                writer.write(format!(".unblock_tiles = {{ {}, {}, {} }}", width, height, on_effect_id));
             }
-            RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
-                writer.write(format!(".disable_animation_effect = {{ {}, {}, {} }}", width, height, on_effect_id));
+            RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
+                writer.write(format!(".disable_animation = {{ {}, {}, {} }}", width, height, on_effect_id));
+            }
+            RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
+                writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_id, on_effect_id));
             }
             RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                 writer.write(format!(".get_upgrade = {{ {} }}", get_upgrade_id));

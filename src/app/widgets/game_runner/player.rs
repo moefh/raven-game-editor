@@ -17,6 +17,7 @@ use super::{
     Direction,
     WindowContext,
     GameRunnerState,
+    Enemy,
 };
 use super::consts::{*};
 use super::controller::{*};
@@ -177,6 +178,7 @@ impl Player {
         store: &DataAssetStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
+        enemies: &mut Vec<Enemy>
     ) {
         for trigger in &room.triggers {
             match trigger.trigger_type {
@@ -189,7 +191,7 @@ impl Player {
                         let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
                         if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.activate_effect(set_effect_id, room, store);
+                            game_state.activate_effect(set_effect_id, room, enemies, store);
                             game_state.set_flag(set_flag_id, room, store);
                         }
                     }
@@ -203,7 +205,7 @@ impl Player {
                         let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
                         if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.activate_effect(set_effect_id, room, store);
+                            game_state.activate_effect(set_effect_id, room, enemies, store);
                             game_state.set_flag(set_flag_id, room, store);
                         }
                     }
@@ -241,6 +243,7 @@ impl Player {
         store: &DataAssetStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
+        enemies: &mut Vec<Enemy>
     ) {
         let dx = self.dx >> 8;
         let dy = self.dy >> 8;
@@ -285,7 +288,7 @@ impl Player {
                 self.anim_frame = 0;
             }
         }
-        self.collect_items(room, player_anim, store, pad, game_state);
+        self.collect_items(room, player_anim, store, pad, game_state, enemies);
     }
 
     pub fn draw(

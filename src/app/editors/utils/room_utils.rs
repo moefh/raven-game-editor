@@ -120,8 +120,9 @@ pub enum RoomTriggerTypeSel {
     EnemySpawn,
     WallButton,
     DetectorButton,
-    UnblockEffect,
-    DisableAnimationEffect,
+    UnblockTiles,
+    DisableAnimation,
+    RemoveEnemy,
     GetUpgrade,
     GetCollectable,
     GetPickup,
@@ -136,8 +137,9 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::EnemySpawn { .. } => RoomTriggerTypeSel::EnemySpawn,
             RoomTriggerType::WallButton {..} => { RoomTriggerTypeSel::WallButton }
             RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeSel::DetectorButton }
-            RoomTriggerType::UnblockEffect {..} => { RoomTriggerTypeSel::UnblockEffect }
-            RoomTriggerType::DisableAnimationEffect {..} => { RoomTriggerTypeSel::DisableAnimationEffect }
+            RoomTriggerType::UnblockTiles {..} => { RoomTriggerTypeSel::UnblockTiles }
+            RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeSel::DisableAnimation }
+            RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeSel::GetCollectable }
             RoomTriggerType::GetPickup {..} => { RoomTriggerTypeSel::GetPickup }
@@ -157,8 +159,9 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
                 if let Some(animation_id) = asset_ids.animations.get_first() {
                     *trigger_type = RoomTriggerType::EnemySpawn {
-                        animation_id,
+                        enemy_id: 0,
                         enemy_type: RoomEnemyType::Walker,
+                        animation_id,
                         direction: RoomEntityDirection::Right,
                         req_flag_id: u16::MAX,
                     };
@@ -197,18 +200,25 @@ impl RoomTriggerTypeSel {
                 };
                 true
             }
-            RoomTriggerTypeSel::UnblockEffect if ! matches!(trigger_type, RoomTriggerType::UnblockEffect {..}) => {
-                *trigger_type = RoomTriggerType::UnblockEffect {
+            RoomTriggerTypeSel::UnblockTiles if ! matches!(trigger_type, RoomTriggerType::UnblockTiles {..}) => {
+                *trigger_type = RoomTriggerType::UnblockTiles {
                     width: 64,
                     height: 64,
                     on_effect_id: u16::MAX
                 };
                 true
             }
-            RoomTriggerTypeSel::DisableAnimationEffect if ! matches!(trigger_type, RoomTriggerType::DisableAnimationEffect {..}) => {
-                *trigger_type = RoomTriggerType::DisableAnimationEffect {
+            RoomTriggerTypeSel::DisableAnimation if ! matches!(trigger_type, RoomTriggerType::DisableAnimation {..}) => {
+                *trigger_type = RoomTriggerType::DisableAnimation {
                     width: 64,
                     height: 64,
+                    on_effect_id: u16::MAX
+                };
+                true
+            }
+            RoomTriggerTypeSel::RemoveEnemy if ! matches!(trigger_type, RoomTriggerType::RemoveEnemy {..}) => {
+                *trigger_type = RoomTriggerType::RemoveEnemy {
+                    enemy_id: 0,
                     on_effect_id: u16::MAX
                 };
                 true
@@ -244,8 +254,9 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::EnemySpawn => "enemy spawn",
             RoomTriggerTypeSel::WallButton => { "wall button" }
             RoomTriggerTypeSel::DetectorButton => { "detector button" }
-            RoomTriggerTypeSel::UnblockEffect => { "unblock" }
-            RoomTriggerTypeSel::DisableAnimationEffect => { "disable animation" }
+            RoomTriggerTypeSel::UnblockTiles => { "unblock tiles" }
+            RoomTriggerTypeSel::DisableAnimation => { "disable animation" }
+            RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }
             RoomTriggerTypeSel::GetPickup => { "pickup" }

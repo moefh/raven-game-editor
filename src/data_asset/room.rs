@@ -69,12 +69,13 @@ pub struct RoomMap {
 pub enum RoomTriggerType {
     Unknown { data0: u16, data1: u16, data2: u16, data3: u16, data4: u16, data5: u16 },
     PlayerSpawn { direction: RoomEntityDirection },
-    EnemySpawn { animation_id: DataAssetId, enemy_type: RoomEnemyType, direction: RoomEntityDirection, req_flag_id: u16 },
+    EnemySpawn { animation_id: DataAssetId, enemy_id: u16, enemy_type: RoomEnemyType, direction: RoomEntityDirection, req_flag_id: u16 },
     Door { dest_room_id: DataAssetId, dest_trigger_id: u16, req_flag_id: u16 },
     WallButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
     DetectorButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
-    UnblockEffect { width: u16, height: u16, on_effect_id: u16 },
-    DisableAnimationEffect { width: u16, height: u16, on_effect_id: u16 },
+    UnblockTiles { width: u16, height: u16, on_effect_id: u16 },
+    DisableAnimation { width: u16, height: u16, on_effect_id: u16 },
+    RemoveEnemy { enemy_id: u16, on_effect_id: u16 },
     GetUpgrade { get_upgrade_id: u16 },
     GetCollectable { get_collectable_id: u16 },
     GetPickup { get_pickup_id: u16, respawn_delay: u16 },
@@ -158,9 +159,10 @@ impl super::HashedDataAsset for Room {
                     hasher.add_u8(1);
                     hasher.add_u8(direction.value());
                 }
-                RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
+                RoomTriggerType::EnemySpawn { animation_id, enemy_id, enemy_type, direction, req_flag_id } => {
                     hasher.add_u8(2);
                     hasher.add_asset_id(animation_id);
+                    hasher.add_u16(enemy_id);
                     hasher.add_u16(enemy_type.value());
                     hasher.add_u8(direction.value());
                     hasher.add_u16(req_flag_id);
@@ -189,28 +191,33 @@ impl super::HashedDataAsset for Room {
                     hasher.add_u16(req_flag_id);
                     hasher.add_u16(req_collectable_id);
                 }
-                RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
+                RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
                     hasher.add_u8(7);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
+                RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
                     hasher.add_u8(8);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
                     hasher.add_u8(9);
+                    hasher.add_u16(enemy_id);
+                    hasher.add_u16(on_effect_id);
+                }
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                    hasher.add_u8(10);
                     hasher.add_u16(get_upgrade_id);
                 }
                 RoomTriggerType::GetCollectable { get_collectable_id } => {
-                    hasher.add_u8(10);
+                    hasher.add_u8(11);
                     hasher.add_u16(get_collectable_id);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
-                    hasher.add_u8(11);
+                    hasher.add_u8(12);
                     hasher.add_u16(get_pickup_id);
                     hasher.add_u16(respawn_delay);
                 }
@@ -260,8 +267,9 @@ pub enum RoomTriggerTypeIdent {
     Door,
     WallButton,
     DetectorButton,
-    UnblockEffect,
-    DisableAnimationEffect,
+    UnblockTiles,
+    DisableAnimation,
+    RemoveEnemy,
     GetUpgrade,
     GetCollectable,
     GetPickup,
@@ -276,8 +284,9 @@ impl RoomTriggerTypeIdent {
             RoomTriggerType::EnemySpawn{..} => { RoomTriggerTypeIdent::EnemySpawn }
             RoomTriggerType::WallButton {..} => { RoomTriggerTypeIdent::WallButton }
             RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeIdent::DetectorButton }
-            RoomTriggerType::UnblockEffect {..} => { RoomTriggerTypeIdent::UnblockEffect }
-            RoomTriggerType::DisableAnimationEffect {..} => { RoomTriggerTypeIdent::DisableAnimationEffect }
+            RoomTriggerType::UnblockTiles {..} => { RoomTriggerTypeIdent::UnblockTiles }
+            RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeIdent::DisableAnimation }
+            RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeIdent::RemoveEnemy }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeIdent::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeIdent::GetCollectable }
             RoomTriggerType::GetPickup {..} => { RoomTriggerTypeIdent::GetPickup }
@@ -292,8 +301,9 @@ impl RoomTriggerTypeIdent {
             RoomTriggerTypeIdent::EnemySpawn => { "ROOM_TRIGGER_TYPE_ENEMY_SPAWN" }
             RoomTriggerTypeIdent::WallButton => { "ROOM_TRIGGER_TYPE_WALL_BUTTON" }
             RoomTriggerTypeIdent::DetectorButton => { "ROOM_TRIGGER_TYPE_DETECTOR_BUTTON" }
-            RoomTriggerTypeIdent::UnblockEffect => { "ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT" }
-            RoomTriggerTypeIdent::DisableAnimationEffect => { "ROOM_TRIGGER_TYPE_DISABLE_ANIMATION_EFFECT" }
+            RoomTriggerTypeIdent::UnblockTiles => { "ROOM_TRIGGER_TYPE_UNBLOCK_TILES" }
+            RoomTriggerTypeIdent::DisableAnimation => { "ROOM_TRIGGER_TYPE_DISABLE_ANIMATION" }
+            RoomTriggerTypeIdent::RemoveEnemy => { "ROOM_TRIGGER_TYPE_REMOVE_ENEMY" }
             RoomTriggerTypeIdent::GetUpgrade => { "ROOM_TRIGGER_TYPE_GET_UPGRADE" }
             RoomTriggerTypeIdent::GetCollectable => { "ROOM_TRIGGER_TYPE_GET_COLLECTABLE" }
             RoomTriggerTypeIdent::GetPickup => { "ROOM_TRIGGER_TYPE_GET_PICKUP" }

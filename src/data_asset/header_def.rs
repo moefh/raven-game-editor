@@ -153,8 +153,9 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_ENEMY_SPAWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_WALL_BUTTON,
    $<PREFIX>_ROOM_TRIGGER_TYPE_DETECTOR_BUTTON,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_UNBLOCK_EFFECT,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_DISABLE_ANIMATION_EFFECT,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_UNBLOCK_TILES,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_DISABLE_ANIMATION,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_REMOVE_ENEMY,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_UPGRADE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_COLLECTABLE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_PICKUP,
@@ -189,8 +190,9 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t req_flag_id;
         } door;
         struct {
-            const struct $<PREFIX>_SPRITE_ANIMATION *animation;
+            uint16_t enemy_id;
             uint16_t enemy_type;
+            const struct $<PREFIX>_SPRITE_ANIMATION *animation;
             uint8_t direction;
             uint16_t req_flag_id;
         } enemy_spawn;
@@ -214,12 +216,16 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t width;
             uint16_t height;
             uint16_t on_effect_id;
-        } unblock_effect;
+        } unblock_tiles;
         struct {
             uint16_t width;
             uint16_t height;
             uint16_t on_effect_id;
-        } disable_animation_effect;
+        } disable_animation;
+        struct {
+            uint16_t enemy_id;
+            uint16_t on_effect_id;
+        } remove_enemy;
         struct {
             uint16_t get_upgrade_id;
         } get_upgrade;

@@ -218,10 +218,13 @@ pub fn fix_after_data_table_item_removed(
                     fix_removed_flag(req_flag_id, table_type, index);
                     fix_removed_collectable(req_collectable_id, table_type, index);
                 }
-                RoomTriggerType::UnblockEffect { on_effect_id, .. } => {
+                RoomTriggerType::UnblockTiles { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, table_type, index);
                 }
-                RoomTriggerType::DisableAnimationEffect { on_effect_id, .. } => {
+                RoomTriggerType::DisableAnimation { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, table_type, index);
+                }
+                RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, table_type, index);
                 }
                 RoomTriggerType::GetUpgrade { get_upgrade_id } => {
@@ -305,10 +308,13 @@ pub fn fix_after_data_table_items_swapped(
                     fix_swapped_flag(req_flag_id, table_type, index1, index2);
                     fix_swapped_collectable(req_collectable_id, table_type, index1, index2);
                 }
-                RoomTriggerType::UnblockEffect { on_effect_id, .. } => {
+                RoomTriggerType::UnblockTiles { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, table_type, index1, index2);
                 }
-                RoomTriggerType::DisableAnimationEffect { on_effect_id, .. } => {
+                RoomTriggerType::DisableAnimation { on_effect_id, .. } => {
+                    fix_swapped_effect(on_effect_id, table_type, index1, index2);
+                }
+                RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, table_type, index1, index2);
                 }
                 RoomTriggerType::GetUpgrade { get_upgrade_id } => {

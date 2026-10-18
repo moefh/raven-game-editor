@@ -79,8 +79,9 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         ])),
 
         (String::from("enemy_spawn"), ValueDefStruct::new(vec![
-            (String::from("animation"), ValueDef::AssetRef),
+            (String::from("enemy_id"), ValueDef::U16),
             (String::from("enemy_type"), ValueDef::U16),
+            (String::from("animation"), ValueDef::AssetRef),
             (String::from("direction"), ValueDef::U8),
             (String::from("req_flag_id"), ValueDef::U16),
         ])),
@@ -103,15 +104,20 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("req_collectable_id"), ValueDef::U16),
         ])),
 
-        (String::from("unblock_effect"), ValueDefStruct::new(vec![
+        (String::from("unblock_tiles"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
-        (String::from("disable_animation_effect"), ValueDefStruct::new(vec![
+        (String::from("disable_animation"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("remove_enemy"), ValueDefStruct::new(vec![
+            (String::from("enemy_id"), ValueDef::U16),
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
@@ -219,13 +225,15 @@ fn conv_trigger_player_spawn(data: &ValueStruct, _project_data: &ProjectData) ->
 }
 
 fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
-    let animation_ref = data.get_asset_ref("animation")?;
+    let enemy_id = data.get_u16("enemy_id")?;
     let enemy_type = data.get_u16("enemy_type")?;
+    let animation_ref = data.get_asset_ref("animation")?;
     let direction = data.get_u8("direction")?;
     let req_flag_id = data.get_u16("req_flag_id")?;
     Ok(RoomTriggerType::EnemySpawn {
-        animation_id: animation_ref.get_asset_id(project_data)?,
+        enemy_id,
         enemy_type: enemy_type.into(),
+        animation_id: animation_ref.get_asset_id(project_data)?,
         direction: RoomEntityDirection::from(direction),
         req_flag_id,
     })
@@ -253,18 +261,25 @@ fn conv_trigger_detector_button(data: &ValueStruct, _project_data: &ProjectData)
     })
 }
 
-fn conv_trigger_unblock_effect(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
-    Ok(RoomTriggerType::UnblockEffect {
+fn conv_trigger_unblock_tiles(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::UnblockTiles {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
         on_effect_id: data.get_u16("on_effect_id")?,
     })
 }
 
-fn conv_trigger_disable_animation_effect(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
-    Ok(RoomTriggerType::DisableAnimationEffect {
+fn conv_trigger_disable_animation(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::DisableAnimation {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
+        on_effect_id: data.get_u16("on_effect_id")?,
+    })
+}
+
+fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::RemoveEnemy {
+        enemy_id: data.get_u16("enemy_id")?,
         on_effect_id: data.get_u16("on_effect_id")?,
     })
 }
@@ -308,10 +323,12 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_wall_button(type_data, project_data)?
     } else if RoomTriggerTypeIdent::DetectorButton.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_detector_button(type_data, project_data)?
-    } else if RoomTriggerTypeIdent::UnblockEffect.matches_enum_ident(&trigger_type.name, prefix) {
-        conv_trigger_unblock_effect(type_data, project_data)?
-    } else if RoomTriggerTypeIdent::DisableAnimationEffect.matches_enum_ident(&trigger_type.name, prefix) {
-        conv_trigger_disable_animation_effect(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::UnblockTiles.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_unblock_tiles(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::DisableAnimation.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_disable_animation(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::RemoveEnemy.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_remove_enemy(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetUpgrade.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_get_upgrade(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetCollectable.matches_enum_ident(&trigger_type.name, prefix) {

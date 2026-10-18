@@ -173,8 +173,8 @@ impl TriggerRect {
         match trigger.trigger_type {
             RoomTriggerType::WallButton { width, height, .. } |
             RoomTriggerType::DetectorButton { width, height, .. } |
-            RoomTriggerType::UnblockEffect { width, height, .. } |
-            RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
+            RoomTriggerType::UnblockTiles { width, height, .. } |
+            RoomTriggerType::DisableAnimation { width, height, .. } => {
                 TriggerRect::resizable(trigger.x, trigger.y, width, height)
             }
 
@@ -198,6 +198,10 @@ impl TriggerRect {
             RoomTriggerType::GetUpgrade {..} |
             RoomTriggerType::GetCollectable {..} |
             RoomTriggerType::GetPickup {..} => {
+                TriggerRect::rigid(trigger.x, trigger.y, 16, 16)
+            }
+
+            RoomTriggerType::RemoveEnemy {..} => {
                 TriggerRect::rigid(trigger.x, trigger.y, 16, 16)
             }
 
@@ -230,8 +234,8 @@ impl TriggerRect {
         match &mut trigger.trigger_type {
             RoomTriggerType::WallButton { width, height, .. } |
             RoomTriggerType::DetectorButton { width, height, .. } |
-            RoomTriggerType::UnblockEffect { width, height, .. } |
-            RoomTriggerType::DisableAnimationEffect { width, height, .. } => {
+            RoomTriggerType::UnblockTiles { width, height, .. } |
+            RoomTriggerType::DisableAnimation { width, height, .. } => {
                 *width = (self.x2 - self.x1).clamp(0, u16::MAX as i32) as u16;
                 *height = (self.y2 - self.y1).clamp(0, u16::MAX as i32) as u16;
             }
@@ -241,6 +245,7 @@ impl TriggerRect {
             RoomTriggerType::Door {..} |
             RoomTriggerType::EnemySpawn {..} |
             RoomTriggerType::PlayerSpawn {..} |
+            RoomTriggerType::RemoveEnemy {..} |
             RoomTriggerType::Unknown {..} => {
                 // not resizable
             }

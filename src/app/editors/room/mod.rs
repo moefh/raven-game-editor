@@ -76,8 +76,9 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
         RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
         RoomTriggerType::WallButton {..} => { IMAGES.log }
         RoomTriggerType::DetectorButton {..} => { IMAGES.log }
-        RoomTriggerType::UnblockEffect {..} => { IMAGES.room_effect }
-        RoomTriggerType::DisableAnimationEffect {..} => { IMAGES.room_effect }
+        RoomTriggerType::UnblockTiles {..} => { IMAGES.room_effect }
+        RoomTriggerType::DisableAnimation {..} => { IMAGES.room_effect }
+        RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
         RoomTriggerType::GetCollectable {..} => { IMAGES.room_item }
         RoomTriggerType::GetPickup {..} => { IMAGES.room_item }
@@ -702,8 +703,9 @@ impl Editor {
                     RoomTriggerTypeSel::EnemySpawn,
                     RoomTriggerTypeSel::WallButton,
                     RoomTriggerTypeSel::DetectorButton,
-                    RoomTriggerTypeSel::UnblockEffect,
-                    RoomTriggerTypeSel::DisableAnimationEffect,
+                    RoomTriggerTypeSel::UnblockTiles,
+                    RoomTriggerTypeSel::DisableAnimation,
+                    RoomTriggerTypeSel::RemoveEnemy,
                     RoomTriggerTypeSel::GetUpgrade,
                     RoomTriggerTypeSel::GetCollectable,
                     RoomTriggerTypeSel::GetPickup,
@@ -742,22 +744,9 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::EnemySpawn { animation_id, enemy_type, direction, req_flag_id } => {
-                ui.label("Anim:");
-                let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
-                    &anim.asset.name
-                } else {
-                    "??"
-                };
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_animation", self.asset_id))
-                    .selected_text(cur_anim_name)
-                    .show_ui(ui, |ui| {
-                        for anim_id in self.sorted_animation_ids.iter() {
-                            if let Some(anim) = assets.animations.get(anim_id) {
-                                ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
-                            }
-                        }
-                    });
+            RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } => {
+                ui.label("Enemy Id:");
+                ui.add(egui::DragValue::new(enemy_id).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
                 ui.label("Behavior:");
@@ -785,6 +774,23 @@ impl Editor {
                         *enemy_type = enemy_type_val.into();
                     }
                 }
+
+                ui.label("Anim:");
+                let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
+                    &anim.asset.name
+                } else {
+                    "??"
+                };
+                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_animation", self.asset_id))
+                    .selected_text(cur_anim_name)
+                    .show_ui(ui, |ui| {
+                        for anim_id in self.sorted_animation_ids.iter() {
+                            if let Some(anim) = assets.animations.get(anim_id) {
+                                ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
+                            }
+                        }
+                    });
+                ui.end_row();
 
                 ui.label("Dir:");
                 egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_direction", self.asset_id))
@@ -879,7 +885,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::UnblockEffect { width, height, on_effect_id } => {
+            RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -888,12 +894,12 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Req Effect:");
-                self.show_effect_id_editor(ui, "unblock_effect_id", on_effect_id, &assets.tables.effect);
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "unblock_tiles_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 
-            RoomTriggerType::DisableAnimationEffect { width, height, on_effect_id } => {
+            RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -902,8 +908,18 @@ impl Editor {
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
-                ui.label("Req Effect:");
-                self.show_effect_id_editor(ui, "disable_animation_effect_id", on_effect_id, &assets.tables.effect);
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "disable_animation_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
+                ui.label("Enemy Id:");
+                ui.add(egui::DragValue::new(enemy_id).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 
