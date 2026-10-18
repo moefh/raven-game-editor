@@ -19,7 +19,7 @@ impl ConfirmationDialog {
 
     pub fn new() -> Self {
         ConfirmationDialog {
-            id: egui::Id::new("dlg_confirmation"),
+            id: egui::Id::unique("dlg_confirmation"),
             open: false,
             title: String::new(),
             text: String::new(),

@@ -38,7 +38,7 @@ impl AddImportedTilesDialog {
     pub fn new() -> Self {
         AddImportedTilesDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_tileset_import"),
+            dlg_window_id: egui::Id::unique("dlg_tileset_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             add_tile_location: AddImageLocation::End,
             sel_tile: 0,

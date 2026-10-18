@@ -31,7 +31,7 @@ impl PropertiesDialog {
             parent_tileset_id,
             anim_tileset_id,
             name: String::new(),
-            dlg_id: egui::Id::new("dlg_animation_properties"),
+            dlg_id: egui::Id::unique("dlg_animation_properties"),
             prop_grid_id: format!("editor_panel_{}_prop_grid", tile_anim_id),
             parent_combo_id: format!("editor_panel_{}_parent_tileset", tile_anim_id),
             anim_combo_id: format!("editor_panel_{}_anim_tileset", tile_anim_id),

@@ -151,8 +151,8 @@ impl TilesetEditor {
         self.dialogs.show(wc, &mut self.editor, tileset);
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(tileset);
-        let min_size = min_size.max(egui::Vec2::new(540.0, 400.0));
-        let default_size = default_size.max(egui::Vec2::new(540.0, 400.0));
+        let min_size = min_size.max(egui::Vec2::new(620.0, 400.0));
+        let default_size = default_size.max(egui::Vec2::new(620.0, 400.0));
         self.base.show_window(wc, tileset, min_size, default_size, |ui, wc, tileset, base| {
             Self::show_footer(ui, wc, &self.editor, base, tileset);
             self.editor.show(ui, wc, &mut self.dialogs, tileset);
@@ -277,12 +277,12 @@ impl Editor {
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_left", asset_id)),
+            tile_picker_panel_id: egui::Id::unique(format!("editor_panel_{}_left", asset_id)),
             import_tile_sys_dlg_id: format!("editor_{}_import_tile", asset_id),
             selected_tab: EditorTab::Tile,
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::BLUE, true),
             tile_picker: ImagePickerWidget::new(),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_tile_picker_popup", asset_id))),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_panel_{}_tile_picker_popup", asset_id))),
             tile_image_editor: ImageEditorWidget::new(),
             grid_tile_picker: ImagePickerWidget::new().use_as_palette(true),
             grid_image_editor: ImageEditorWidget::new(),

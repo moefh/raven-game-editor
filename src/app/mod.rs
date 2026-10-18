@@ -179,6 +179,14 @@ impl RavenEditorApp {
         }
     }
 
+    fn fix_visuals(visuals: &mut egui::style::Visuals) {
+        visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(3);
+        visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(3);
+        visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(3);
+        visuals.widgets.active.corner_radius = egui::CornerRadius::same(3);
+        visuals.widgets.open.corner_radius = egui::CornerRadius::same(3);
+    }
+
     pub fn setup_egui_context(&self, ctx: &egui::Context) {
         if self.settings.start_maximized {
             ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(true));
@@ -196,9 +204,11 @@ impl RavenEditorApp {
             style.visuals.faint_bg_color = egui::Color32::from_rgb(0x08, 0x10, 0x20);
             style.visuals.extreme_bg_color = egui::Color32::BLACK;
             style.visuals.widgets.open.weak_bg_fill = egui::Color32::from_rgb(0x10, 0x20, 0x60);
+            Self::fix_visuals(&mut style.visuals);
         });
         ctx.style_mut_of(egui::Theme::Light, |style: &mut egui::Style| {
             style.visuals.faint_bg_color = style.visuals.window_fill;
+            Self::fix_visuals(&mut style.visuals);
         });
         ctx.set_zoom_factor(get_setting_zoom(self.settings.zoom));
         match self.settings.theme.as_str() {

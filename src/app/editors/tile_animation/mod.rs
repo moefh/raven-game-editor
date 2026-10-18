@@ -153,12 +153,14 @@ impl Editor {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
-            header_panel_id: egui::Id::new(format!("editor_panel_{}_header", asset_id)),
-            display_toolbar_panel_id: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
-            parent_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id)),
-            parent_tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_panel_{}_parent_tile_picker", asset_id))),
-            anim_tile_picker_panel_id: egui::Id::new(format!("editor_panel_{}_anim_tile_picker", asset_id)),
-            anim_loop_len_panel_id: egui::Id::new(format!("editor_panel_{}_anim_loop_len", asset_id)),
+            header_panel_id: egui::Id::unique(format!("editor_panel_{}_header", asset_id)),
+            display_toolbar_panel_id: egui::Id::unique(format!("editor_panel_{}_display_toolbar", asset_id)),
+            parent_tile_picker_panel_id: egui::Id::unique(format!("editor_panel_{}_parent_tile_picker", asset_id)),
+            parent_tile_picker_popup: TilePickerPopupWidget::new(
+                egui::Id::unique(format!("editor_panel_{}_parent_tile_picker", asset_id))
+            ),
+            anim_tile_picker_panel_id: egui::Id::unique(format!("editor_panel_{}_anim_tile_picker", asset_id)),
+            anim_loop_len_panel_id: egui::Id::unique(format!("editor_panel_{}_anim_loop_len", asset_id)),
             parent_tile_picker: ImagePickerWidget::new().with_empty_selection(),
             anim_tile_view: SpriteFrameListView::new(true, false),
             frame_indices: Vec::with_capacity(255),

@@ -228,7 +228,7 @@ impl TreeView {
     pub fn new(egui_id_salt: impl AsRef<str>, root_display_name: impl Into<String>) -> Self {
         let mut id_generator = TreeViewFolderIdGenerator::new();
         let root = TreeViewFolder::new(
-            egui::Id::new(egui_id_salt.as_ref()),
+            egui::Id::unique(egui_id_salt.as_ref()),
             id_generator.generate_id(),
             root_display_name.into(),
             0

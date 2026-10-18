@@ -123,7 +123,7 @@ impl PalColorPickerWidget {
 
         painter.rect_filled(bg_rect, egui::CornerRadius::same(8), wc.settings.color_picker_bg_color);
         self.draw_palette(&painter, sel_rect, sel_dims, sel_colors, false);
-        if ui.place(edit_pal_rect, egui::Button::new("Edit Palette")).clicked() {
+        if ui.place(edit_pal_rect, egui::Button::new("Edit Pal")).clicked() {
             action = PalColorPickerAction::EditPalette;
         }
         self.draw_palette(&painter, pal_rect, pal_dims, palette, true);

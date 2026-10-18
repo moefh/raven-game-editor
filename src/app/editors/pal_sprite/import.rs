@@ -52,7 +52,7 @@ impl ImportDialog {
     pub fn new() -> Self {
         ImportDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_pal_sprite_import"),
+            dlg_window_id: egui::Id::unique("dlg_pal_sprite_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_palette: ImportPaletteOption::GenerateNew,
             palette_depth: PalSpriteDepth::Bpp4,

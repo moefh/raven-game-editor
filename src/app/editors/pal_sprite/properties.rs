@@ -22,7 +22,7 @@ pub struct PropertiesDialog {
 impl PropertiesDialog {
     pub fn new() -> Self {
         PropertiesDialog {
-            dlg_id: egui::Id::new("dlg_pal_sprite_properties"),
+            dlg_id: egui::Id::unique("dlg_pal_sprite_properties"),
             image_changed: false,
             open: false,
             name: String::new(),

@@ -25,11 +25,11 @@ impl ColorsetEditorDialog {
 
     pub fn new() -> Self {
         ColorsetEditorDialog {
-            id: egui::Id::new("dlg_colorset_window"),
+            id: egui::Id::unique("dlg_colorset_window"),
             open: false,
             colorset: 0,
             pick_color_index: None,
-            color_picker_popup: ColorPickerPopupWidget::new(egui::Id::new("dlg_colorset_picker"), true),
+            color_picker_popup: ColorPickerPopupWidget::new(egui::Id::unique("dlg_colorset_picker"), true),
         }
     }
 

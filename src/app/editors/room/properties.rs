@@ -35,7 +35,7 @@ impl PropertiesDialog {
     pub fn new() -> Self {
         PropertiesDialog {
             open: false,
-            dlg_id: egui::Id::new("dlg_room_properties"),
+            dlg_id: egui::Id::unique("dlg_room_properties"),
             name: String::new(),
             has_script: false,
             para_tileset_id: None,

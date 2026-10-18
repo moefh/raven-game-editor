@@ -327,8 +327,8 @@ pub struct ColorPickerWidget {
 impl ColorPickerWidget {
     pub fn new(id_prefix: impl AsRef<str>, left_color: u8, right_color: u8, allow_new_colorset: bool) -> Self {
         ColorPickerWidget {
-            colorset_combo_id: egui::Id::new(format!("{}_combo", id_prefix.as_ref())),
-            popup_id: egui::Id::new(format!("{}_popup", id_prefix.as_ref())),
+            colorset_combo_id: egui::Id::unique(format!("{}_combo", id_prefix.as_ref())),
+            popup_id: egui::Id::unique(format!("{}_popup", id_prefix.as_ref())),
             allow_new_colorset,
             state: ColorPickerState {
                 left_color,

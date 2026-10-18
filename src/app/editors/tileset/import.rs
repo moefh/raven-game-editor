@@ -31,7 +31,7 @@ impl ImportDialog {
     pub fn new() -> Self {
         ImportDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_tileset_import"),
+            dlg_window_id: egui::Id::unique("dlg_tileset_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             import_tileset_sys_dlg_id: String::new(),
         }

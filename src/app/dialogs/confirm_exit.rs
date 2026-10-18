@@ -15,7 +15,7 @@ impl ConfirmExitDialog {
 
     pub fn new() -> Self {
         ConfirmExitDialog {
-            id: egui::Id::new("dlg_exit_confirmation"),
+            id: egui::Id::unique("dlg_exit_confirmation"),
             open: false,
         }
     }

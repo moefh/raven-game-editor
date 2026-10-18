@@ -19,7 +19,7 @@ impl ExportDialog {
     pub fn new() -> Self {
         ExportDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_tileset_export"),
+            dlg_window_id: egui::Id::unique("dlg_tileset_export"),
             num_items_x: 1,
             export_sys_dlg_id: String::new(),
         }

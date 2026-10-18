@@ -57,7 +57,7 @@ pub struct AppWindowBase {
 impl AppWindowBase {
     pub fn new(id_str: &str) -> Self {
         AppWindowBase {
-            id: egui::Id::new(id_str),
+            id: egui::Id::unique(id_str),
             open: false,
         }
     }

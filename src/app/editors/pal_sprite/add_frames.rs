@@ -13,6 +13,7 @@ pub enum AddFramesAction {
 }
 
 pub struct AddFramesDialog {
+    dlg_id: egui::Id,
     pub image_changed: bool,
     pub open: bool,
     pub action: AddFramesAction,
@@ -24,6 +25,7 @@ pub struct AddFramesDialog {
 impl AddFramesDialog {
     pub fn new() -> Self {
         AddFramesDialog {
+            dlg_id: egui::Id::unique("dlg_pal_sprite_add_frames"),
             image_changed: false,
             open: false,
             action: AddFramesAction::Insert,
@@ -33,17 +35,13 @@ impl AddFramesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_pal_sprite_add_frames")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, action: AddFramesAction, sel_frame: u32, sel_color: u8) {
         self.action = action;
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.sel_color = sel_color;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite, wc: &mut WindowContext) {
@@ -80,7 +78,7 @@ impl AddFramesDialog {
             AddFramesAction::Insert => { "Insert Frames" }
             AddFramesAction::Append => { "Append Frames" }
         };
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, title, |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, title, |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_frames_grid", pal_sprite.asset.id))
                     .num_columns(2)
@@ -103,7 +101,7 @@ impl AddFramesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

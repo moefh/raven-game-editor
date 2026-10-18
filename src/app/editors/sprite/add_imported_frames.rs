@@ -39,7 +39,7 @@ impl AddImportedFramesDialog {
     pub fn new() -> Self {
         AddImportedFramesDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_sprite_import"),
+            dlg_window_id: egui::Id::unique("dlg_sprite_import"),
             load_options: Self::DEFAULT_LOAD_OPTIONS,
             add_frame_location: AddImageLocation::End,
             sel_frame: 0,

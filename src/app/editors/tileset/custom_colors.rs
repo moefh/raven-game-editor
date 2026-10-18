@@ -39,8 +39,8 @@ impl CustomColorsDialog {
     pub fn new() -> Self {
         CustomColorsDialog {
             open: false,
-            dlg_id: egui::Id::new("dlg_tileset_custom_colors"),
-            dlg_grid_id: egui::Id::new("dlg_tileset_custom_colors_grid"),
+            dlg_id: egui::Id::unique("dlg_tileset_custom_colors"),
+            dlg_grid_id: egui::Id::unique("dlg_tileset_custom_colors_grid"),
             changed: false,
         }
     }

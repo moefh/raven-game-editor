@@ -48,7 +48,7 @@ impl PropertiesDialog {
     pub fn new(tileset_id: DataAssetId) -> Self {
         PropertiesDialog {
             open: false,
-            dlg_id: egui::Id::new("dlg_map_properties"),
+            dlg_id: egui::Id::unique("dlg_map_properties"),
             name: String::new(),
             tileset_id,
             tile_anim_id: None,

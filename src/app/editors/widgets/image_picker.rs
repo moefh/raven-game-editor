@@ -133,7 +133,11 @@ impl ImagePickerWidget {
         image: &impl ImageCollection,
     ) {
         let bg_color = self.custom_bg_color.unwrap_or(wc.settings.image_bg_color);
-        let source = egui::scroll_area::ScrollSource { scroll_bar: true, drag: egui::scroll_area::DragScroll::Never, mouse_wheel: true };
+        let source = egui::scroll_area::ScrollSource {
+            scroll_bar: true,
+            drag: egui::scroll_area::DragScroll::Never,
+            mouse_wheel: true,
+        };
         let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
         let zoom = self.zoom.unwrap_or(get_setting_zoom(wc.settings.tile_picker_zoom));
         let image_size = zoom * image.get_item_size();
@@ -157,7 +161,10 @@ impl ImagePickerWidget {
             let min_size = Vec2::splat(50.0).max(image_picker_size + Vec2::new(16.0, 6.0)).min(Vec2::new(200.0, f32::INFINITY));
             let (response, painter) = ui.allocate_painter(min_size, egui::Sense::drag());
             let space = response.rect;
-            let images_rect = Rect::from_min_size(space.min + empty_item_size + Vec2::splat(Self::BORDER), zoom * image.get_full_size());
+            let images_rect = Rect::from_min_size(
+                space.min + empty_item_size + Vec2::splat(Self::BORDER),
+                zoom * image.get_full_size()
+            );
             let canvas_rect = Rect::from_min_size(space.min, image_picker_size);
 
             // draw background
@@ -198,7 +205,7 @@ impl ImagePickerWidget {
         self.image_l_picked = false;
         self.image_r_picked = false;
         if let Some(pointer_pos) = resp.inner.interact_pointer_pos() {
-            let pos = pointer_pos - resp.inner_rect.min + resp.state.offset;
+            let pos = pointer_pos - resp.inner_rect.min + resp.state.clamped_offset();
             if pos.x >= 0.0 && pos.x <= resp.inner_rect.width() {
                 let frame_size = zoom * image.get_item_size();
                 let num_items = image.num_items() as i32 + if self.allow_empty_selection { 1 } else { 0 };

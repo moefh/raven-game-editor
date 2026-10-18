@@ -23,7 +23,7 @@ impl ExportDialog {
     pub fn new() -> Self {
         ExportDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_sfx_export"),
+            dlg_window_id: egui::Id::unique("dlg_sfx_export"),
             bits_per_sample: 0,
             sample_rate: 0,
             export_sys_dlg_id: String::new(),

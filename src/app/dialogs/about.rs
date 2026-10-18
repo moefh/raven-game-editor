@@ -19,7 +19,7 @@ impl AboutDialog {
 
     pub fn new() -> Self {
         AboutDialog {
-            id: egui::Id::new("dlg_about"),
+            id: egui::Id::unique("dlg_about"),
             open: false,
         }
     }

@@ -18,7 +18,7 @@ pub struct EffectPropertiesDialog {
 impl EffectPropertiesDialog {
     pub fn new() -> Self {
         EffectPropertiesDialog {
-            id: egui::Id::new("dlg_data_asset_effect_table_properties"),
+            id: egui::Id::unique("dlg_data_asset_effect_table_properties"),
             open: false,
             effect_changed: false,
             effect_index: 0,

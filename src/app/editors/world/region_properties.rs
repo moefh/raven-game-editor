@@ -9,6 +9,7 @@ use super::super::{
 };
 
 pub struct RegionPropertiesDialog {
+    dlg_id: egui::Id,
     pub open: bool,
     pub region_index: usize,
     pub name: String,
@@ -21,6 +22,7 @@ pub struct RegionPropertiesDialog {
 impl RegionPropertiesDialog {
     pub fn new() -> Self {
         RegionPropertiesDialog {
+            dlg_id: egui::Id::unique("dlg_world_region_properties"),
             open: false,
             region_index: 0,
             name: String::new(),
@@ -31,21 +33,16 @@ impl RegionPropertiesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_world_region_properties")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, world: &World, region_index: usize) {
         if let Some(region) = world.regions.get(region_index) {
-            self.name.clear();
-            self.name.push_str(&region.name);
+            self.name.replace_range(.., &region.name);
             self.x = region.x;
             self.y = region.y;
             self.width = region.width;
             self.height = region.height;
             self.region_index = region_index;
             self.open = true;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
     }
 
@@ -60,8 +57,7 @@ impl RegionPropertiesDialog {
         }
 
         if let Some(region) = world.regions.get_mut(self.region_index) {
-            region.name.clear();
-            region.name.push_str(&self.name);
+            region.name.replace_range(.., &self.name);
             region.x = self.x;
             region.y = self.y;
             region.width = self.width;
@@ -71,7 +67,7 @@ impl RegionPropertiesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, world: &mut World) {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "World Region Properties", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 300.0, "World Region Properties", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_region_prop_grid", world.asset.id))
                     .num_columns(2)
@@ -110,7 +106,7 @@ impl RegionPropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
     }
 }

@@ -95,7 +95,7 @@ impl FontEditor {
     pub fn show(&mut self, wc: &mut WindowContext, font: &mut Font) {
         self.dialogs.show(wc, &mut self.editor, font);
 
-        self.base.show_window(wc, font, [400.0, 350.0], [400.0, 400.0], |ui, wc, font, base| {
+        self.base.show_window(wc, font, [440.0, 350.0], [440.0, 400.0], |ui, wc, font, base| {
             Self::show_footer(ui, wc, font, base);
             self.editor.show(ui, wc, &mut self.dialogs, font);
         });

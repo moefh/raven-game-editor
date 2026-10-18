@@ -95,7 +95,7 @@ impl SpriteAnimationEditor {
     ) {
         self.dialogs.show(wc, animation, asset_ids, sprites, &mut self.editor);
 
-        self.base.show_window(wc, animation, [640.0, 450.0], [640.0, 450.0], |ui, wc, animation, base| {
+        self.base.show_window(wc, animation, [680.0, 450.0], [680.0, 450.0], |ui, wc, animation, base| {
             Self::show_footer(ui, wc, animation, base);
             self.editor.show(ui, wc, &mut self.dialogs, animation, asset_ids, sprites);
         });
@@ -166,16 +166,16 @@ impl Editor {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_sprite_animation", asset_id),
-            panel_id_menu_bar: egui::Id::new(format!("editor_panel_{}_top", asset_id)),
-            panel_id_loops: egui::Id::new(format!("editor_panel_{}_left", asset_id)),
-            panel_id_tab_header: egui::Id::new(format!("editor_panel_{}_tabs", asset_id)),
-            panel_id_display_bar: egui::Id::new(format!("editor_panel_{}_display_toolbar", asset_id)),
-            panel_id_loop_info_bar: egui::Id::new(format!("editor_panel_{}_loop_info_bar", asset_id)),
-            panel_id_loop_frames: egui::Id::new(format!("editor_panel_{}_loop_frames", asset_id)),
-            panel_id_loop_properties_grid: egui::Id::new(format!("editor_panel_{}_prop_grid", asset_id)),
-            panel_id_loop_sel_frames: egui::Id::new(format!("editor_panel_{}_loop_sel_frames", asset_id)),
-            panel_id_loop_all_frames: egui::Id::new(format!("editor_panel_{}_loop_all_frames", asset_id)),
-            combo_salt_zoom: egui::Id::new(format!("pal_sprite_editor_{}_zoom_combo", asset_id)),
+            panel_id_menu_bar: egui::Id::unique(format!("editor_panel_{}_top", asset_id)),
+            panel_id_loops: egui::Id::unique(format!("editor_panel_{}_left", asset_id)),
+            panel_id_tab_header: egui::Id::unique(format!("editor_panel_{}_tabs", asset_id)),
+            panel_id_display_bar: egui::Id::unique(format!("editor_panel_{}_display_toolbar", asset_id)),
+            panel_id_loop_info_bar: egui::Id::unique(format!("editor_panel_{}_loop_info_bar", asset_id)),
+            panel_id_loop_frames: egui::Id::unique(format!("editor_panel_{}_loop_frames", asset_id)),
+            panel_id_loop_properties_grid: egui::Id::unique(format!("editor_panel_{}_prop_grid", asset_id)),
+            panel_id_loop_sel_frames: egui::Id::unique(format!("editor_panel_{}_loop_sel_frames", asset_id)),
+            panel_id_loop_all_frames: egui::Id::unique(format!("editor_panel_{}_loop_all_frames", asset_id)),
+            combo_salt_zoom: egui::Id::unique(format!("pal_sprite_editor_{}_zoom_combo", asset_id)),
 
             selected_tab: EditorTabs::Loop,
             selected_loop: 0,

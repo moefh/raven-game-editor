@@ -8,6 +8,7 @@ use super::super::{
 };
 
 pub struct RemoveTilesDialog {
+    dlg_id: egui::Id,
     pub confirmed: bool,
     pub open: bool,
     pub num_tiles: u32,
@@ -17,6 +18,7 @@ pub struct RemoveTilesDialog {
 impl RemoveTilesDialog {
     pub fn new() -> Self {
         RemoveTilesDialog {
+            dlg_id: egui::Id::unique("dlg_tileset_rm_tiles"),
             confirmed: false,
             open: false,
             num_tiles: 0,
@@ -24,16 +26,12 @@ impl RemoveTilesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_tileset_rm_tiles")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, tileset: &Tileset, sel_tile: u32) {
         if tileset.num_tiles <= 1 || tileset.num_tiles <= sel_tile { return; }
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) -> bool {
@@ -62,7 +60,7 @@ impl RemoveTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Tiles", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, "Remove Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 let max_tiles_to_remove = (tileset.num_tiles - self.sel_tile).min(tileset.num_tiles.saturating_sub(1));
                 egui::Grid::new(format!("editor_panel_{}_add_tiles_grid", tileset.asset.id))
@@ -90,7 +88,7 @@ impl RemoveTilesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.confirmed {
             self.confirmed = false;

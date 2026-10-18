@@ -32,7 +32,7 @@ pub struct MapSelectionDialog {
 impl MapSelectionDialog {
     pub fn new() -> Self {
         MapSelectionDialog {
-            dlg_id: egui::Id::new("dlg_room_maps"),
+            dlg_id: egui::Id::unique("dlg_room_maps"),
             open: false,
             sel_map_ids: HashSet::new(),
             display_map_id: None,

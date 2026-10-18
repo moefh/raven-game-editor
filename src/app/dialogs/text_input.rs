@@ -20,7 +20,7 @@ impl TextInputDialog {
 
     pub fn new() -> Self {
         TextInputDialog {
-            id: egui::Id::new("dlg_text_input"),
+            id: egui::Id::unique("dlg_text_input"),
             open: false,
             title: String::new(),
             prompt: String::new(),

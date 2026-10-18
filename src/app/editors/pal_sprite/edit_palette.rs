@@ -152,14 +152,14 @@ pub struct EditPaletteDialog {
 impl EditPaletteDialog {
     pub fn new() -> Self {
         EditPaletteDialog {
-            dlg_id: egui::Id::new("dlg_pal_sprite_pal_edit"),
+            dlg_id: egui::Id::unique("dlg_pal_sprite_pal_edit"),
             image_changed: false,
             open: false,
             depth: PalSpriteDepth::Bpp1,
             set_pal_options: SetPaletteOptions::ChangePaletteColors,
             palette: vec![0; 16],
             edit_color_index: None,
-            popup: ColorPickerPopupWidget::new(egui::Id::new("dlg_pal_sprite_pal_edit_popup"), CLOSE_PICKER_ON_CLICK),
+            popup: ColorPickerPopupWidget::new(egui::Id::unique("dlg_pal_sprite_pal_edit_popup"), CLOSE_PICKER_ON_CLICK),
         }
     }
 

@@ -26,6 +26,7 @@ use super::super::super::widgets::{
 };
 
 pub struct RoomSelectionDialog {
+    dlg_id: egui::Id,
     pub open: bool,
     pub region_index: usize,
     pub sel_room_ids: HashSet<DataAssetId>,
@@ -36,16 +37,13 @@ pub struct RoomSelectionDialog {
 impl RoomSelectionDialog {
     pub fn new() -> Self {
         RoomSelectionDialog {
+            dlg_id: egui::Id::unique("dlg_world_region_rooms"),
             open: false,
             region_index: 0,
             sel_room_ids: HashSet::new(),
             display_room_id: None,
             room_tree: None,
         }
-    }
-
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_world_region_rooms")
     }
 
     pub fn set_open(&mut self, wc: &mut WindowContext, world: &World, region_index: usize, rooms: &AssetList<Room>) {
@@ -60,7 +58,7 @@ impl RoomSelectionDialog {
         self.room_tree = Some(SimpleAssetTree::from_assets(format!("room_sel_{}", world.asset.id), "Available Rooms", sorted_assets(rooms)));
         self.region_index = region_index;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn fix_room_indices(region: &mut WorldRegion, old_rooms: &[DataAssetId]) {
@@ -107,7 +105,7 @@ impl RoomSelectionDialog {
 
     pub fn show(&mut self, wc: &mut WindowContext, world: &mut World, assets: &WorldEditorAssetLists) -> bool {
         let mut rooms_changed = false;
-        let modal_response = AssetEditorBase::show_dialog_window(wc, Self::id(), 550.0, "World Region Rooms", |ui, wc| {
+        let modal_response = AssetEditorBase::show_dialog_window(wc, self.dlg_id, 550.0, "World Region Rooms", |ui, wc| {
             let asset_id = world.asset.id;
 
             egui::Panel::bottom(format!("editor_panel_{}_rooms_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
@@ -173,7 +171,7 @@ impl RoomSelectionDialog {
         });
         if modal_response.should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
             return modal_response.inner;
         }
         false

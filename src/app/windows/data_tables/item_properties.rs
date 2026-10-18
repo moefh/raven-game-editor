@@ -27,7 +27,7 @@ pub struct ItemPropertiesDialog {
 impl ItemPropertiesDialog {
     pub fn new() -> Self {
         ItemPropertiesDialog {
-            id: egui::Id::new("dlg_data_asset_item_table_properties"),
+            id: egui::Id::unique("dlg_data_asset_item_table_properties"),
             open: false,
             item_changed: false,
             item_index: 0,

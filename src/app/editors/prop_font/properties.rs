@@ -7,6 +7,7 @@ use super::super::{
 };
 
 pub struct PropertiesDialog {
+    dlg_id: egui::Id,
     pub image_changed: bool,
     pub open: bool,
     pub name: String,
@@ -16,6 +17,7 @@ pub struct PropertiesDialog {
 impl PropertiesDialog {
     pub fn new() -> Self {
         PropertiesDialog {
+            dlg_id: egui::Id::unique("dlg_pfont_properties"),
             image_changed: false,
             open: false,
             name: String::new(),
@@ -23,21 +25,15 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_prop_font_properties")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, prop_font: &PropFont) {
-        self.name.clear();
-        self.name.push_str(&prop_font.asset.name);
+        self.name.replace_range(.., &prop_font.asset.name);
         self.height = prop_font.height;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, prop_font: &mut PropFont) {
-        prop_font.asset.name.clear();
-        prop_font.asset.name.push_str(&self.name);
+        prop_font.asset.name.replace_range(.., &self.name);
 
         if self.height != prop_font.height {
             prop_font.resize(self.height * 2, self.height, PropFont::NUM_CHARS, PropFont::BG_COLOR);
@@ -53,7 +49,7 @@ impl PropertiesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, prop_font: &mut PropFont) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 300.0, "Prop Font Properties", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 300.0, "Prop Font Properties", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_prop_grid", prop_font.asset.id))
                     .num_columns(2)
@@ -80,7 +76,7 @@ impl PropertiesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

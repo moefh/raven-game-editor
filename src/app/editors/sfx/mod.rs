@@ -64,7 +64,7 @@ impl SfxEditor {
     pub fn show(&mut self, wc: &mut WindowContext, sfx: &mut Sfx) {
         self.dialogs.show(wc, &mut self.editor, sfx);
 
-        self.base.show_window(wc, sfx, [400.0, 250.0], [500.0, 250.0], |ui, wc, sfx, base| {
+        self.base.show_window(wc, sfx, [500.0, 280.0], [500.0, 280.0], |ui, wc, sfx, base| {
             Self::show_footer(ui, wc, sfx, base);
             self.editor.show(ui, wc, &mut self.dialogs, sfx);
         });

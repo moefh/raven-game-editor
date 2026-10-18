@@ -109,9 +109,9 @@ impl GamepadMappingDialog {
 
     pub fn new() -> Self {
         GamepadMappingDialog {
-            id: egui::Id::new("dlg_gamepad_mapping_window"),
-            id_layout_combo: egui::Id::new("dlg_gamepad_mapping_layout_combo"),
-            id_buttons_scroll: egui::Id::new("dlg_gamepad_mapping_buttons_scroll"),
+            id: egui::Id::unique("dlg_gamepad_mapping_window"),
+            id_layout_combo: egui::Id::unique("dlg_gamepad_mapping_layout_combo"),
+            id_buttons_scroll: egui::Id::unique("dlg_gamepad_mapping_buttons_scroll"),
             open: false,
             display_layout: GamepadLayout::Playstation,
             cur_config_button: 0,

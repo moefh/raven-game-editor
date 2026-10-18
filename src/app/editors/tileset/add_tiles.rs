@@ -9,6 +9,7 @@ use super::super::{
 };
 
 pub struct AddTilesDialog {
+    dlg_id: egui::Id,
     pub open: bool,
     pub add_tile_location: AddImageLocation,
     pub num_tiles: u32,
@@ -22,6 +23,7 @@ pub struct AddTilesDialog {
 impl AddTilesDialog {
     pub fn new() -> Self {
         AddTilesDialog {
+            dlg_id: egui::Id::unique("dlg_tileset_add_tiles"),
             dlg_id_grid: String::from("editor_panel_tileset_add_tiles_grid"),
             dlg_id_insert_location_combo: String::from("editor_panel_tileset_add_tiles_insert_at_combo"),
             confirmed: false,
@@ -33,17 +35,13 @@ impl AddTilesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_tileset_add_tiles")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, sel_tile: u32, clear_color: u8) {
         self.add_tile_location = AddImageLocation::AfterSelected;
         self.num_tiles = 1;
         self.sel_tile = sel_tile;
         self.clear_color = clear_color;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, tileset: &mut Tileset, wc: &mut WindowContext) {
@@ -74,7 +72,7 @@ impl AddTilesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Add Tiles", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, "Add Tiles", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(&self.dlg_id_grid)
                     .num_columns(2)
@@ -129,7 +127,7 @@ impl AddTilesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.confirmed {
             self.confirmed = false;

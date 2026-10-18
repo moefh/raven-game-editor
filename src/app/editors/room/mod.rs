@@ -204,7 +204,7 @@ impl RoomEditor {
     pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         self.dialogs.show(wc, &mut self.editor, room, asset_ids, assets);
 
-        self.base.show_window(wc, room, [600.0, 300.0], [700.0, 400.0], |ui, wc, room, base| {
+        self.base.show_window(wc, room, [650.0, 300.0], [700.0, 400.0], |ui, wc, room, base| {
             Self::show_footer(ui, wc, room, assets.maps, base);
             self.editor.show(ui, wc, &mut self.dialogs, room, asset_ids, assets);
         });
@@ -290,7 +290,7 @@ impl Editor {
             sorted_animation_ids: Vec::new(),
             sorted_room_ids: Vec::new(),
             tile_picker: ImagePickerWidget::new().use_as_palette(true),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_{}_tile_picker_popup", asset_id))),
             para_editor: RoomParallaxEditorWidget::new(),
             trigger_tree: TreeView::new(format!("editor_{}_trigger_tree", asset_id), "Triggers"),
         }

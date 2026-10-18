@@ -116,6 +116,8 @@ impl PalSpriteEditor {
         self.dialogs.show(wc, &mut self.editor, pal_sprite);
 
         let (min_size, default_size) = AssetEditorBase::calc_image_editor_window_size(pal_sprite);
+        let min_size = min_size.max(egui::Vec2::new(580.0, 300.0));
+        let default_size = default_size.max(egui::Vec2::new(580.0, 300.0));
         self.base.show_window(wc, pal_sprite, min_size, default_size, |ui, wc, pal_sprite, base| {
             Self::show_footer(ui, wc, &self.editor, pal_sprite, base);
             self.editor.show(ui, wc, &mut self.dialogs, pal_sprite);

@@ -37,7 +37,7 @@ pub struct PropertiesDialog {
 impl PropertiesDialog {
     pub fn new(sprite_id: DataAssetId) -> Self {
         PropertiesDialog {
-            dlg_id: egui::Id::new("dlg_animation_properties"),
+            dlg_id: egui::Id::unique("dlg_animation_properties"),
             open: false,
             sprite_id,
             name: String::new(),

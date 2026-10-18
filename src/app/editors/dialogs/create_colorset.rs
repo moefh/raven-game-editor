@@ -41,9 +41,9 @@ pub struct CreateColorsetDialog {
 impl CreateColorsetDialog {
     pub fn new(id: DataAssetId) -> Self {
         CreateColorsetDialog {
-            window_id: egui::Id::new(format!("editor_{}_create_colorset", id)),
-            grid_id: egui::Id::new(format!("editor_{}_create_colorset_grid", id)),
-            source_combo_id: egui::Id::new(format!("editor_{}_create_colorset_source_combo", id)),
+            window_id: egui::Id::unique(format!("editor_{}_create_colorset", id)),
+            grid_id: egui::Id::unique(format!("editor_{}_create_colorset_grid", id)),
+            source_combo_id: egui::Id::unique(format!("editor_{}_create_colorset_source_combo", id)),
             open: false,
             selected_image: 0,
             name: String::new(),

@@ -130,7 +130,7 @@ impl MapDataEditor {
     ) {
         self.dialogs.show(wc, &mut self.editor, map_data, asset_ids, assets.tilesets, assets.tile_anims);
 
-        let min_size = egui::Vec2::new(670.0, 200.0);
+        let min_size = egui::Vec2::new(730.0, 200.0);
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32 * 1.2) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
@@ -208,7 +208,7 @@ impl Editor {
             import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
             map_editor: MapEditorWidget::new(),
             image_picker: ImagePickerWidget::new().use_as_palette(true),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::new(format!("editor_{}_tile_picker_popup", asset_id))),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_{}_tile_picker_popup", asset_id))),
             custom_colors: CustomColors {
                 use_grid_color: false,
                 use_bg_color: false,

@@ -8,6 +8,7 @@ use super::super::{
 };
 
 pub struct RemoveFramesDialog {
+    dlg_id: egui::Id,
     pub image_changed: bool,
     pub open: bool,
     pub num_frames: u32,
@@ -18,6 +19,7 @@ pub struct RemoveFramesDialog {
 impl RemoveFramesDialog {
     pub fn new() -> Self {
         RemoveFramesDialog {
+            dlg_id: egui::Id::unique("dlg_pal_sprite_remove_frames"),
             image_changed: false,
             open: false,
             num_frames: 0,
@@ -26,17 +28,13 @@ impl RemoveFramesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_pal_sprite_remove_frames")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, pal_sprite: &PalSprite, sel_frame: u32) {
         if pal_sprite.num_frames <= 1 || pal_sprite.num_frames <= sel_frame { return; }
         self.max_frames = (pal_sprite.num_frames - sel_frame).min(pal_sprite.num_frames - 1);
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, pal_sprite: &mut PalSprite, wc: &mut WindowContext) {
@@ -69,7 +67,7 @@ impl RemoveFramesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, pal_sprite: &mut PalSprite) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Remove Frames", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, "Remove Frames", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(format!("editor_panel_{}_add_frames_grid", pal_sprite.asset.id))
                     .num_columns(2)
@@ -92,7 +90,7 @@ impl RemoveFramesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.image_changed {
             self.image_changed = false;

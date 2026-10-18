@@ -16,7 +16,7 @@ impl MessageBoxDialog {
 
     pub fn new() -> Self {
         MessageBoxDialog {
-            id: egui::Id::new("dlg_message_box"),
+            id: egui::Id::unique("dlg_message_box"),
             open: false,
             title: String::new(),
             text: String::new(),

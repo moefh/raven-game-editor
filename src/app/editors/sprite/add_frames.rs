@@ -9,6 +9,7 @@ use super::super::{
 };
 
 pub struct AddFramesDialog {
+    dlg_id: egui::Id,
     pub open: bool,
     pub add_frame_location: AddImageLocation,
     pub num_frames: u32,
@@ -22,6 +23,7 @@ pub struct AddFramesDialog {
 impl AddFramesDialog {
     pub fn new() -> Self {
         AddFramesDialog {
+            dlg_id: egui::Id::unique("dlg_sprite_add_frames"),
             dlg_id_grid: String::from("editor_panel_sprite_add_frame_grid"),
             dlg_id_insert_location_combo: String::from("editor_panel_sprite_add_frame_insert_at_combo"),
             confirmed: false,
@@ -33,17 +35,13 @@ impl AddFramesDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_sprite_add_frames")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, sel_frame: u32, clear_color: u8) {
         self.add_frame_location = AddImageLocation::AfterSelected;
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.clear_color = clear_color;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn confirm(&mut self, sprite: &mut Sprite, wc: &mut WindowContext) {
@@ -72,7 +70,7 @@ impl AddFramesDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, sprite: &mut Sprite) -> bool {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 350.0, "Add frames", |ui, wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 350.0, "Add frames", |ui, wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 egui::Grid::new(&self.dlg_id_grid)
                     .num_columns(2)
@@ -122,7 +120,7 @@ impl AddFramesDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
         if self.confirmed {
             self.confirmed = false;

@@ -23,7 +23,7 @@ pub fn menu_item_with_submenu<'a, R>(
     add_contents: impl FnOnce(&mut egui::Ui) -> R
 ) -> egui::InnerResponse<Option<R>> {
     let (response, inner) = egui::menu::SubMenuButton::from_button(
-        menu_item(image, text).right_text(egui::menu::SubMenuButton::RIGHT_ARROW),
+        menu_item(image, text).right_text(egui::menu::SubMenuButton::arrow_atom(None)),
     ).ui(ui, add_contents);
     egui::InnerResponse::new(inner.map(|i| i.inner), response)
 }

@@ -27,8 +27,8 @@ impl ExportSelectedTilesDialog {
     pub fn new() -> Self {
         ExportSelectedTilesDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_tileset_export_sel_tiles"),
-            dlg_id_insert_location_combo: egui::Id::new("dlg_tileset_export_sel_tiles_combo"),
+            dlg_window_id: egui::Id::unique("dlg_tileset_export_sel_tiles"),
+            dlg_id_insert_location_combo: egui::Id::unique("dlg_tileset_export_sel_tiles_combo"),
             selected_tile: 0,
             start_tile_location: SelectImageLocation::Selected,
             num_tiles: 1,

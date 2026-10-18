@@ -100,6 +100,7 @@ impl ReplaceSampleOption {
 }
 
 pub struct TransposeDialog {
+    dlg_id: egui::Id,
     pub open: bool,
     transpose_amount: i32,
     chan_filter_cmp: ChannelFilter,
@@ -133,6 +134,7 @@ impl TransposeDialog {
 
     pub fn new() -> Self {
         TransposeDialog {
+            dlg_id: egui::Id::unique("dlg_mod_transpose"),
             open: false,
             transpose_amount: 0,
             chan_filter_cmp: ChannelFilter::Any,
@@ -164,10 +166,6 @@ impl TransposeDialog {
         }
     }
 
-    pub fn id() -> egui::Id {
-        egui::Id::new("dlg_mod_transpose")
-    }
-
     pub fn set_open(&mut self, wc: &mut WindowContext, _mod_data: &ModData) {
         self.chan_filter_cmp = ChannelFilter::Any;
         self.chan_filter_channel = 0;
@@ -180,7 +178,7 @@ impl TransposeDialog {
         self.replace_sample_opt = ReplaceSampleOption::DontReplace;
         self.replace_sample_val = 1;
         self.open = true;
-        wc.set_dialog_open(Self::id(), self.open);
+        wc.set_dialog_open(self.dlg_id, self.open);
     }
 
     fn filter_cell(&self, cell: ModCell, cell_chan: u8, filter_period: u16) -> bool {
@@ -394,7 +392,7 @@ impl TransposeDialog {
     }
 
     pub fn show(&mut self, wc: &mut WindowContext, mod_data: &mut ModData) {
-        if AssetEditorBase::show_dialog_window(wc, Self::id(), 600.0, "Transpose", |ui, _wc| {
+        if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 600.0, "Transpose", |ui, _wc| {
             egui::Frame::NONE.outer_margin(24.0).show(ui, |ui| {
                 self.show_filters(ui, mod_data);
                 ui.add_space(20.0);
@@ -412,7 +410,7 @@ impl TransposeDialog {
             });
         }).should_close() {
             self.open = false;
-            wc.set_dialog_open(Self::id(), self.open);
+            wc.set_dialog_open(self.dlg_id, self.open);
         }
     }
 }

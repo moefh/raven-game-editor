@@ -21,7 +21,7 @@ pub struct OrganizerDialog {
 impl OrganizerDialog {
     pub fn new() -> Self {
         OrganizerDialog {
-            dlg_id: egui::Id::new("dlg_tileset_organizer"),
+            dlg_id: egui::Id::unique("dlg_tileset_organizer"),
             image_changed: false,
             open: false,
             tiles: ImageOrganizerWidget::new(),

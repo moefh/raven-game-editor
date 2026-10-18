@@ -18,7 +18,7 @@ pub struct ConfirmationDialog {
 impl ConfirmationDialog {
     pub fn new(asset_id: DataAssetId) -> Self {
         ConfirmationDialog {
-            id: egui::Id::new(format!("editor_{}_dlg_confirmation", asset_id)),
+            id: egui::Id::unique(format!("editor_{}_dlg_confirmation", asset_id)),
             title: String::new(),
             text: String::new(),
             yes_label: String::new(),

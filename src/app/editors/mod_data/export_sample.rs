@@ -23,7 +23,7 @@ impl ExportSampleDialog {
     pub fn new() -> Self {
         ExportSampleDialog {
             open: false,
-            dlg_window_id: egui::Id::new("dlg_mod_sample_export"),
+            dlg_window_id: egui::Id::unique("dlg_mod_sample_export"),
             sample_index: 0,
             bits_per_sample: 0,
             sample_rate: 0,

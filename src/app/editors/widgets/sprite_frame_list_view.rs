@@ -51,7 +51,7 @@ impl SpriteFrameListView {
         num_frames: usize
     ) -> Option<usize> {
         if num_frames != 0 {
-            let pos_offset = pos - scroll.inner_rect.min + scroll.state.offset;
+            let pos_offset = pos - scroll.inner_rect.min + scroll.state.clamped_offset();
             let frame = (pos_offset.x / image_width).floor();
             if frame >= 0.0 && (frame as usize) < num_frames {
                 return Some(frame as usize);
