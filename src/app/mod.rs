@@ -160,6 +160,7 @@ impl RavenEditorApp {
             app.recent_projects.load(&mut app.logger);
             app.sys_dialogs.load_paths(&mut app.logger);
         }
+        app.editors.clear(&app.store);
         app.logger.log(app.sound_player.init_info());
         app.setup_egui_context(&cc.egui_ctx);
         app
@@ -373,7 +374,7 @@ impl RavenEditorApp {
     }
 
     fn load_project(&mut self, store: DataAssetStore) {
-        self.editors.clear();
+        self.editors.clear(&store);
         self.tex_manager.clear();
         self.windows.clear_project();
         self.store = store;

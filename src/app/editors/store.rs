@@ -4,9 +4,11 @@ use std::collections::{
 };
 
 use crate::data_asset::{
+    calc_store_tables_hash,
     DataAssetId,
     DataAssetType,
     DataAssetStore,
+    DataAssetHash,
     AssetList,
     Room,
 };
@@ -41,6 +43,8 @@ pub struct EditorStore {
     pub fonts: HashMap<DataAssetId, FontEditor>,
     pub prop_fonts: HashMap<DataAssetId, PropFontEditor>,
     pub room_names: HashMap<DataAssetId, String>,
+    pub cur_store_tables_hash: DataAssetHash,
+    pub saved_store_tables_hash: DataAssetHash,
 }
 
 impl EditorStore {
@@ -60,10 +64,12 @@ impl EditorStore {
             fonts: HashMap::new(),
             prop_fonts: HashMap::new(),
             room_names: HashMap::new(),
+            cur_store_tables_hash: DataAssetHash::EMPTY,
+            saved_store_tables_hash: DataAssetHash::EMPTY,
         }
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, store: &DataAssetStore) {
         self.egui_id_to_asset_id.clear();
         self.tilesets.clear();
         self.maps.clear();
@@ -78,6 +84,8 @@ impl EditorStore {
         self.fonts.clear();
         self.prop_fonts.clear();
         self.room_names.clear();
+        self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
+        self.saved_store_tables_hash = self.cur_store_tables_hash;
     }
 
     pub fn create_editors_for_new_store(&mut self, store: &DataAssetStore) {
@@ -294,6 +302,8 @@ impl EditorStore {
         for pfont in store.assets.prop_fonts.iter() {
             if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.update_dirty_flag(pfont); }
         }
+
+        self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
     }
 
     pub fn clear_dirty_flags(&mut self, store: &DataAssetStore) {
@@ -333,10 +343,13 @@ impl EditorStore {
         for pfont in store.assets.prop_fonts.iter() {
             if let Some(editor) = self.prop_fonts.get_mut(&pfont.asset.id) { editor.base.clear_dirty_flag(pfont); }
         }
+
+        self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
+        self.saved_store_tables_hash = self.cur_store_tables_hash;
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.iter().any(|e| e.is_dirty())
+        self.iter().any(|e| e.is_dirty()) || self.cur_store_tables_hash != self.saved_store_tables_hash
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &AssetEditorBase> {
@@ -382,8 +395,7 @@ impl EditorStore {
             seen_ids.insert(*room_id);
             if let Some(room) = rooms.get(room_id) {
                 if *room_name != room.asset.name {
-                    room_name.clear();
-                    room_name.push_str(&room.asset.name);
+                    room_name.replace_range(.., &room.asset.name);
                 }
             } else {
                 remove_ids.insert(*room_id);

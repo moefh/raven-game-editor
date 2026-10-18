@@ -22,6 +22,7 @@ use std::collections::HashMap;
 pub use hash::{
     calc_asset_hash,
     calc_asset_data_hash,
+    calc_store_tables_hash,
     DataAssetHash,
     DataAssetHasher,
     HashedDataAsset,
@@ -515,6 +516,12 @@ impl DataStoreEffectTable {
             names: Vec::new(),
         }
     }
+
+    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+        for name in &self.names {
+            hasher.add_str(name);
+        }
+    }
 }
 
 pub struct DataStoreItem {
@@ -533,6 +540,13 @@ impl DataStoreItemTable {
         }
     }
 
+    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+        for item in &self.items {
+            hasher.add_str(&item.name);
+            hasher.add_asset_id(item.sprite_id);
+        }
+    }
+
     pub fn data_size(&self) -> usize {
         // ptr<4> * num_items
         4 * self.items.len()
@@ -545,6 +559,26 @@ pub struct DataStoreTables {
     pub pickup: DataStoreItemTable,
     pub effect: DataStoreEffectTable,
     pub flag: DataStoreEffectTable,
+}
+
+impl DataStoreTables {
+    fn new() -> Self {
+        DataStoreTables {
+            upgrade: DataStoreItemTable::new(),
+            collectable: DataStoreItemTable::new(),
+            pickup: DataStoreItemTable::new(),
+            effect: DataStoreEffectTable::new(),
+            flag: DataStoreEffectTable::new(),
+        }
+    }
+
+    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+        self.upgrade.data_hash(hasher);
+        self.collectable.data_hash(hasher);
+        self.pickup.data_hash(hasher);
+        self.effect.data_hash(hasher);
+        self.flag.data_hash(hasher);
+    }
 }
 
 pub struct DataAssetStore {
@@ -571,13 +605,7 @@ impl DataAssetStore {
             project_prefix: String::from("PROJECT"),
             assets: AssetCollection::new(),
             asset_ids: AssetIdCollection::new(),
-            tables: DataStoreTables {
-                upgrade: DataStoreItemTable::new(),
-                collectable: DataStoreItemTable::new(),
-                pickup: DataStoreItemTable::new(),
-                effect: DataStoreEffectTable::new(),
-                flag: DataStoreEffectTable::new(),
-            },
+            tables: DataStoreTables::new(),
         }
     }
 

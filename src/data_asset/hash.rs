@@ -105,3 +105,9 @@ pub fn calc_asset_data_hash<A: HashedDataAsset>(asset: &A) -> DataAssetHash {
     asset.data_hash(&mut hasher);
     hasher.finalize()
 }
+
+pub fn calc_store_tables_hash(tables: &super::DataStoreTables) -> DataAssetHash {
+    let mut hasher = DataAssetHasher::new();
+    tables.data_hash(&mut hasher);
+    hasher.finalize()
+}
