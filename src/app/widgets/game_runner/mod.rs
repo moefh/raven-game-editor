@@ -268,12 +268,32 @@ impl GameRunnerState {
     }
 }
 
+struct ScreenUi {
+    energy_sprite: Option<DataAssetId>,
+}
+
+impl ScreenUi {
+    fn new() -> Self {
+        ScreenUi {
+            energy_sprite: None,
+        }
+    }
+
+    fn setup(&mut self, store: &DataAssetStore) {
+        self.energy_sprite = store.assets.sprites
+            .iter()
+            .find(|s| s.asset.name == "screen/energy")
+            .map(|spr| spr.asset.id);
+    }
+}
+
 pub struct GameRunnerWidget {
     pub room_id: Option<DataAssetId>,
     pub frame_counter: u32,
     pub enemies: Vec<Enemy>,
     pub player: Player,
     pub controller: Controller,
+    screen_ui: ScreenUi,
     state: GameRunnerState,
     map_animation_step: u32,
     last_game_runner_step: u32,
@@ -283,11 +303,13 @@ impl GameRunnerWidget {
     pub const WIDTH: i32 = 320;
     pub const HEIGHT: i32 = 240;
     pub const SCREEN_SIZE: Vec2 = Vec2 { x: Self::WIDTH as f32, y: Self::HEIGHT as f32 };
+    pub const SCREEN_HEADER_HEIGHT: i32 = 32;
     const PLAYER_ANIMATION: &str = "bunny";
 
     pub fn new() -> Self {
         GameRunnerWidget {
             frame_counter: 0,
+            screen_ui: ScreenUi::new(),
             player: Player::new(),
             enemies: Vec::new(),
             controller: Controller::new(),
@@ -390,6 +412,7 @@ impl GameRunnerWidget {
 
     pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) {
         self.reset();
+        self.screen_ui.setup(store);
         if let Some(room_id) = room_id &&
             let Some(room) = store.assets.rooms.get(&room_id) &&
             let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
@@ -431,18 +454,20 @@ impl GameRunnerWidget {
     // ================================================
 
     fn follow_player(&mut self, player_anim: &SpriteAnimation) {
+        let height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
         self.state.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
-        self.state.room_y = self.player.y + (player_anim.clip_rect.h - Self::HEIGHT) / 2;
+        self.state.room_y = self.player.y + (player_anim.clip_rect.h - height) / 2;
     }
 
     fn clip_scroll(&mut self, room_size: RoomSize) {
+        let height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
         if room_size.width as i32 >= Self::WIDTH {
             self.state.room_x = self.state.room_x.clamp(0, room_size.width as i32 - Self::WIDTH);
         } else {
             self.state.room_x = 0;
         }
-        if room_size.height as i32 >= Self::HEIGHT {
-            self.state.room_y = self.state.room_y.clamp(0, room_size.height as i32 - Self::HEIGHT);
+        if room_size.height as i32 >= height {
+            self.state.room_y = self.state.room_y.clamp(0, room_size.height as i32 - height);
         } else {
             self.state.room_y = 0;
         }
@@ -598,16 +623,23 @@ impl GameRunnerWidget {
         self.follow_player(player_anim);
         self.clip_scroll(room_size);
 
+        // room
+        let room_top = zoom * Self::SCREEN_HEADER_HEIGHT as f32;
+        let room_rect = Rect::from_min_max(
+            Pos2::new(screen_rect.min.x, screen_rect.min.y + room_top),
+            screen_rect.max
+        );
+        let room_pos = screen_pos + Vec2::new(0.0, room_top);
         let draw_map_info = DrawMapInfo {
             zoom,
-            pos: screen_pos - zoom * Vec2::new(self.state.room_x as f32, self.state.room_y as f32),
-            screen_rect,
+            pos: room_pos - zoom * Vec2::new(self.state.room_x as f32, self.state.room_y as f32),
+            screen_rect: room_rect,
             animation_step: Some(self.map_animation_step),
         };
         let draw_room_info = DrawRoomLayerInfo {
             zoom,
-            pos: screen_pos - zoom * self.calc_parallax_pos(self.state.room_x, self.state.room_y, room_size, room),
-            screen_rect,
+            pos: room_pos - zoom * self.calc_parallax_pos(self.state.room_x, self.state.room_y, room_size, room),
+            screen_rect: room_rect,
         };
 
         self.draw_room_bg(ui, wc, room, store, &draw_map_info, &draw_room_info);
@@ -617,6 +649,23 @@ impl GameRunnerWidget {
             enemy.draw(ui, wc, draw_map_info.pos, zoom, store);
         }
         self.draw_room_fg(ui, wc, room, store, &draw_map_info);
+
+        // header
+        let header_rect = Rect::from_min_max(
+            screen_rect.min,
+            Pos2::new(screen_rect.max.x, screen_rect.min.y + room_top)
+        );
+        ui.painter().rect_filled(header_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0, 0, 0));
+        if let Some(sprite) = self.screen_ui.energy_sprite.and_then(|id| store.assets.sprites.get(&id)) {
+            let sprite_uv = sprite.get_item_uv(0);
+            let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
+            let draw_rect = egui::Rect::from_min_size(
+                screen_pos + zoom * egui::Vec2::new(2.0, 0.0),
+                zoom * sprite_size
+            );
+            let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+            egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
+        }
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataAssetStore) {
