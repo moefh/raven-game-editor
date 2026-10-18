@@ -5,7 +5,10 @@ pub mod consts;
 pub mod controller;
 pub mod collision;
 
-use std::collections::HashSet;
+use std::collections::{
+    HashSet,
+    HashMap,
+};
 
 use egui::{
     Vec2,
@@ -154,8 +157,8 @@ pub struct GameRunnerState {
     pub room: GameRunnerRoomState,
     pub acquired_upgrade_ids: HashSet<u16>,
     pub acquired_collectable_ids: HashSet<u16>,
-    pub acquired_pickup_ids: HashSet<u16>,
     pub acquired_flag_ids: HashSet<u16>,
+    pub acquired_pickups: HashMap<u16,u16>,   // trigger_id -> respawn_delay
 }
 
 impl GameRunnerState {
@@ -165,8 +168,8 @@ impl GameRunnerState {
             room_y: 0,
             acquired_upgrade_ids: HashSet::new(),
             acquired_collectable_ids: HashSet::new(),
-            acquired_pickup_ids: HashSet::new(),
             acquired_flag_ids: HashSet::new(),
+            acquired_pickups: HashMap::new(),
             room: GameRunnerRoomState {
                 width: 0,
                 height: 0,
@@ -178,6 +181,21 @@ impl GameRunnerState {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.acquired_upgrade_ids.clear();
+        self.acquired_collectable_ids.clear();
+        self.acquired_flag_ids.clear();
+        self.acquired_pickups.clear();
+    }
+
+    fn spawn_pickups(&mut self, room: &Room) {
+        for trigger in &room.triggers {
+            if let RoomTriggerType::GetPickup { .. } = trigger.trigger_type {
+                self.acquired_pickups.insert(trigger.trigger_id, 0);
+            }
+        }
+    }
+
     pub fn get_upgrade(&mut self, upgrade_id: u16, _room: &Room, _store: &DataAssetStore) {
         self.acquired_upgrade_ids.insert(upgrade_id);
     }
@@ -186,13 +204,23 @@ impl GameRunnerState {
         self.acquired_collectable_ids.insert(collectable_id);
     }
 
-    pub fn get_pickup(&mut self, pickup_id: u16, _room: &Room, _store: &DataAssetStore) {
-        self.acquired_pickup_ids.insert(pickup_id);
+    pub fn get_pickup(&mut self, trigger_id: u16, respawn: u16, _room: &Room, _store: &DataAssetStore) {
+        self.acquired_pickups.insert(trigger_id, if respawn == 0 { u16::MAX } else { respawn });
     }
 
     pub fn set_flag(&mut self, flag_id: u16, _room: &Room, _store: &DataAssetStore) {
         if flag_id != u16::MAX {
             self.acquired_flag_ids.insert(flag_id);
+        }
+    }
+
+    pub fn spawn_enemies_for_flag(&self, flag_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataAssetStore) {
+        for trigger in &room.triggers {
+            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id }=trigger.trigger_type &&
+                req_flag_id == flag_id {
+                    let enemy = Enemy::new(enemy_id, (trigger.x, trigger.y), animation_id, enemy_type, direction, room, store);
+                    enemies.push(enemy);
+                }
         }
     }
 
@@ -338,6 +366,9 @@ impl GameRunnerWidget {
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
     ) -> bool {
+        for (_, delay) in self.state.acquired_pickups.iter_mut() {
+            if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
+        }
         self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state, &mut self.enemies);
         for enemy in self.enemies.iter_mut() {
             enemy.tick_engine(room, &self.player, store, &mut self.state);
@@ -351,6 +382,7 @@ impl GameRunnerWidget {
         self.frame_counter = 0;
         self.last_game_runner_step = 0;
         self.map_animation_step = 0;
+        self.state.clear();
         self.player.reset();
         self.enemies.clear();
         self.room_id = None;
@@ -375,9 +407,8 @@ impl GameRunnerWidget {
         self.room_id = Some(room.asset.id);
         self.enemies.clear();
         self.spawn_enemies(room, store);
-        self.state.acquired_upgrade_ids.clear();
-        self.state.acquired_collectable_ids.clear();
-        self.state.acquired_pickup_ids.clear();
+        self.state.clear();
+        self.state.spawn_pickups(room);
         self.state.room_x = 0;
         self.state.room_y = 0;
         self.state.room.load_room(room, store);
@@ -464,7 +495,7 @@ impl GameRunnerWidget {
                         }
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, .. } => {
-                    if ! self.state.acquired_pickup_ids.contains(&get_pickup_id) &&
+                    if self.state.acquired_pickups.get(&trigger.trigger_id).unwrap_or(&u16::MAX) == &0 &&
                         let Some(item) = store.tables.pickup.items.get(get_pickup_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);

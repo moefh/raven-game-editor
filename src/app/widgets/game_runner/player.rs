@@ -111,12 +111,20 @@ impl Player {
             }
             if self.dx != 0 {
                 if self.dx > 0 {
-                    self.dx -= DX_FRICTION;
+                    self.dx -= DX_FLOOR_FRICTION;
                     if self.dx < 0 { self.dx = 0; }
                 } else {
-                    self.dx += DX_FRICTION;
+                    self.dx += DX_FLOOR_FRICTION;
                     if self.dx > 0 { self.dx = 0; }
                 }
+            }
+        } else if self.dx != 0 {
+            if self.dx > 0 {
+                self.dx -= DX_AIR_FRICTION;
+                if self.dx < 0 { self.dx = 0; }
+            } else {
+                self.dx += DX_AIR_FRICTION;
+                if self.dx > 0 { self.dx = 0; }
             }
         }
 
@@ -192,7 +200,10 @@ impl Player {
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
                         if player_rect.intersects_rect(&trigger_rect) {
                             game_state.activate_effect(set_effect_id, room, enemies, store);
-                            game_state.set_flag(set_flag_id, room, store);
+                            if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id) {
+                                game_state.spawn_enemies_for_flag(set_flag_id, room, enemies, store);
+                                game_state.set_flag(set_flag_id, room, store);
+                            }
                         }
                     }
                 }
@@ -206,7 +217,10 @@ impl Player {
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
                         if player_rect.intersects_rect(&trigger_rect) {
                             game_state.activate_effect(set_effect_id, room, enemies, store);
-                            game_state.set_flag(set_flag_id, room, store);
+                            if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id){
+                                game_state.spawn_enemies_for_flag(set_flag_id, room, enemies, store);
+                                game_state.set_flag(set_flag_id, room, store);
+                            }
                         }
                     }
                 }
@@ -224,11 +238,11 @@ impl Player {
                         game_state.get_collectable(get_collectable_id, room, store);
                     }
                 }
-                RoomTriggerType::GetPickup { get_pickup_id, .. } => {
+                RoomTriggerType::GetPickup { respawn_delay, .. } => {
                     let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                     let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
                     if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.get_pickup(get_pickup_id, room, store);
+                        game_state.get_pickup(trigger.trigger_id, respawn_delay, room, store);
                     }
                 }
                 _ => {}
