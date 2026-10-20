@@ -4,14 +4,14 @@ use super::super::{
     AppWindowBase,
     WindowContext,
 };
-use super::super::super::editors::DataTableType;
+use super::super::super::editors::DataTableReference;
 
 pub struct EffectPropertiesDialog {
     pub effect_changed: bool,
     pub open: bool,
     pub effect_index: usize,
     id: egui::Id,
-    table_type: DataTableType,
+    table_ref: DataTableReference,
     name: String,
 }
 
@@ -22,15 +22,15 @@ impl EffectPropertiesDialog {
             open: false,
             effect_changed: false,
             effect_index: 0,
-            table_type: DataTableType::Upgrades,
+            table_ref: DataTableReference::Upgrades,
             name: String::new(),
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, table_type: DataTableType, effect_index: usize, store: &DataAssetStore) {
-        self.table_type = table_type;
+    pub fn set_open(&mut self, wc: &mut WindowContext, table_ref: DataTableReference, effect_index: usize, store: &DataAssetStore) {
+        self.table_ref = table_ref;
         self.effect_index = effect_index;
-        if let Some(effect_name) = table_type.get_store_effect(store, effect_index) {
+        if let Some(effect_name) = table_ref.get_store_effect(store, effect_index) {
             self.name.replace_range(.., effect_name);
         } else {
             self.name.clear();
@@ -40,7 +40,7 @@ impl EffectPropertiesDialog {
     }
 
     fn confirm(&mut self, store: &mut DataAssetStore) {
-        if let Some(effect_name) = self.table_type.get_store_effect_mut(store, self.effect_index) {
+        if let Some(effect_name) = self.table_ref.get_store_effect_mut(store, self.effect_index) {
             effect_name.replace_range(.., &self.name);
         }
     }

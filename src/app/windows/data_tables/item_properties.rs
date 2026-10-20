@@ -11,14 +11,14 @@ use super::super::{
     AppWindowBase,
     WindowContext,
 };
-use super::super::super::editors::DataTableType;
+use super::super::super::editors::DataTableReference;
 
 pub struct ItemPropertiesDialog {
     pub item_changed: bool,
     pub open: bool,
     pub item_index: usize,
     id: egui::Id,
-    table_type: DataTableType,
+    table_ref: DataTableReference,
     name: String,
     sprite_id: Option<DataAssetId>,
     sorted_sprite_ids: Vec<DataAssetId>,
@@ -31,17 +31,23 @@ impl ItemPropertiesDialog {
             open: false,
             item_changed: false,
             item_index: 0,
-            table_type: DataTableType::Upgrades,
+            table_ref: DataTableReference::Upgrades,
             name: String::new(),
             sprite_id: None,
             sorted_sprite_ids: Vec::new(),
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, table_type: DataTableType, item_index: usize, store: &DataAssetStore) {
-        self.table_type = table_type;
+    pub fn set_open(
+        &mut self,
+        wc: &mut WindowContext,
+        table_ref: DataTableReference,
+        item_index: usize,
+        store: &DataAssetStore
+    ) {
+        self.table_ref = table_ref;
         self.item_index = item_index;
-        if let Some(item) = table_type.get_store_item(store, item_index) {
+        if let Some(item) = table_ref.get_store_item(store, item_index) {
             self.name.replace_range(.., &item.name);
             self.sprite_id = Some(item.sprite_id);
         } else {
@@ -54,7 +60,7 @@ impl ItemPropertiesDialog {
     }
 
     fn confirm(&mut self, store: &mut DataAssetStore) {
-        if let Some(item) = self.table_type.get_store_item_mut(store, self.item_index) {
+        if let Some(item) = self.table_ref.get_store_item_mut(store, self.item_index) {
             item.name.replace_range(.., &self.name);
             if let Some(sprite_id) = self.sprite_id {
                 item.sprite_id = sprite_id;

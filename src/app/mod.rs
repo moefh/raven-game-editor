@@ -543,7 +543,7 @@ impl RavenEditorApp {
                 self.dialogs.open_confirmation_dialog(
                     &mut self.window_tracker,
                     "Unsaved Changes",
-                    "The current project has unsaved changes.\n\nDiscard changes?",
+                    "The current project has been modified.\n\nDiscard changes?",
                     "Yes",
                     "No"
                 );
