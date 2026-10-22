@@ -1,10 +1,11 @@
-
 use crate::data_asset::{
     calc_asset_data_hash,
     DataAssetStore,
     DataAssetId,
     Tileset,
 };
+
+use super::ImageDiff;
 
 pub struct TilesetListDiff {
     pub diffs: Vec<TilesetDiff>,
@@ -51,6 +52,7 @@ impl TilesetListDiff {
 pub struct TilesetDiff {
     pub cur_id: DataAssetId,
     pub other_id: DataAssetId,
+    pub tiles_diff: Vec<ImageDiff>,
 }
 
 impl TilesetDiff {
@@ -58,7 +60,11 @@ impl TilesetDiff {
         let cur_hash = calc_asset_data_hash(cur);
         let other_hash = calc_asset_data_hash(other);
         if cur_hash != other_hash {
-            Some(TilesetDiff { cur_id: cur.asset.id, other_id: other.asset.id })
+            Some(TilesetDiff {
+                cur_id: cur.asset.id,
+                other_id: other.asset.id,
+                tiles_diff: ImageDiff::compare(cur, other),
+            })
         } else {
             None
         }

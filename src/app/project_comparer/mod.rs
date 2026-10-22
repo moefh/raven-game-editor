@@ -11,7 +11,9 @@ mod sfx;
 mod font;
 mod prop_font;
 mod base;
+mod utils;
 
+pub use utils::{*};
 pub use tileset::{*};
 pub use tile_animation::{*};
 pub use map_data::{*};
@@ -78,6 +80,36 @@ pub fn get_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a
 }
 pub fn get_prop_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a PropFont> {
     store.assets.prop_fonts.iter().find(|asset| asset.asset.name == name)
+}
+
+#[derive(Clone, Copy)]
+pub enum ProjectComparerAssetDiffRef {
+    Changed(usize),
+    CurOnly(usize),
+    OtherOnly(usize),
+}
+
+impl ProjectComparerAssetDiffRef {
+    pub fn is_changed(self, index: usize) -> bool {
+        match self {
+            ProjectComparerAssetDiffRef::Changed(n) => { n == index }
+            _ => { false }
+        }
+    }
+
+    pub fn is_cur_only(self, index: usize) -> bool {
+        match self {
+            ProjectComparerAssetDiffRef::CurOnly(n) => { n == index }
+            _ => { false }
+        }
+    }
+
+    pub fn is_other_only(self, index: usize) -> bool {
+        match self {
+            ProjectComparerAssetDiffRef::OtherOnly(n) => { n == index }
+            _ => { false }
+        }
+    }
 }
 
 pub struct ProjectComparer {

@@ -36,6 +36,7 @@ use super::super::{
 };
 use super::super::project_comparer::{
     ProjectComparer,
+    ProjectComparerAssetDiffRef,
     ItemTableDiff,
     EffectTableDiff,
 };
@@ -44,11 +45,12 @@ struct DiffState {
     has_differences: bool,
     open_editor: Option<DataAssetId>,
     open_tables: bool,
+    display_asset: Option<ProjectComparerAssetDiffRef>,
 }
 
 impl DiffState {
-    const EMPTY:   Self = DiffState { has_differences: false, open_editor: None, open_tables: false };
-    const CHANGED: Self = DiffState { has_differences: true, open_editor: None, open_tables: false };
+    const EMPTY:   Self = DiffState { has_differences: false, open_editor: None, open_tables: false, display_asset: None };
+    const CHANGED: Self = DiffState { has_differences: true, open_editor: None, open_tables: false, display_asset: None };
 
     fn merge_open_editor(&mut self, asset_id: DataAssetId) {
         if self.open_editor.is_none() {
@@ -56,8 +58,26 @@ impl DiffState {
         }
     }
 
+    fn merge_display_asset(&mut self, diff_ref: ProjectComparerAssetDiffRef) {
+        if self.display_asset.is_none() {
+            self.display_asset = Some(diff_ref);
+        }
+    }
+
     fn open_tables(&mut self) {
         self.open_tables = true;
+    }
+
+    fn merge(&mut self, diff: DiffState) {
+        if diff.open_tables {
+            self.open_tables = true;
+        }
+        if let Some(open_editor) = diff.open_editor && self.open_editor.is_none() {
+            self.open_editor = Some(open_editor);
+        }
+        if let Some(display_asset) = diff.display_asset && self.display_asset.is_none() {
+            self.display_asset = Some(display_asset);
+        }
     }
 }
 
@@ -87,7 +107,7 @@ impl ProjectComparerWindow {
 
     pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 700.0, 300.0);
-        self.base.show_window(wc, default_rect, [300.0, 200.0], |ui, wc, base| {
+        self.base.show_window(wc, default_rect, [600.0, 200.0], |ui, wc, base| {
             let action = base.show_title_bar(ui, Some(IMAGES.compare), "Project Comparer");
             let display_action = self.display.show(ui, wc, store);
             if matches!(action, AppWindowAction::None) {
@@ -118,11 +138,14 @@ impl DiffDisplay {
 }
 
 struct ProjectComparerDisplay {
+    run_executed: bool,
     other_store: Option<DataAssetStore>,
     other_name: Option<String>,
     comparer: ProjectComparer,
     diff_display: DiffDisplay,
-    run_executed: bool,
+    asset_display: Option<ProjectComparerAssetDiffRef>,
+    tileset_diff: tileset::TilesetDiffWidget,
+    sprite_diff: sprite::SpriteDiffWidget,
 }
 
 impl ProjectComparerDisplay {
@@ -130,17 +153,26 @@ impl ProjectComparerDisplay {
 
     fn new() -> Self {
         ProjectComparerDisplay {
+            run_executed: false,
             other_name: None,
             other_store: None,
             comparer: ProjectComparer::new(),
             diff_display: DiffDisplay::Project,
-            run_executed: false,
+            asset_display: None,
+            tileset_diff: tileset::TilesetDiffWidget::new(),
+            sprite_diff: sprite::SpriteDiffWidget::new(),
         }
     }
 
     pub fn clear(&mut self) {
         self.run_executed = false;
         self.comparer.clear();
+        self.reset_asset_widgets();
+    }
+
+    pub fn reset_asset_widgets(&mut self) {
+        self.tileset_diff.reset();
+        self.sprite_diff.reset();
     }
 
     fn read_project_file(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext) {
@@ -168,7 +200,7 @@ impl ProjectComparerDisplay {
         wc: &mut WindowContext,
         store: &DataAssetStore,
         other_store: &DataAssetStore
-    ) -> AppWindowAction {
+    ) -> DiffState {
         base::show_base(ui, wc, &self.comparer, store, other_store);
 
         if ! self.comparer.has_any_asset_differences() {
@@ -176,7 +208,7 @@ impl ProjectComparerDisplay {
             ui.label("No asset differences found");
         }
 
-        AppWindowAction::None
+        DiffState::EMPTY
     }
 
     fn show_asset_type_diff(
@@ -186,14 +218,14 @@ impl ProjectComparerDisplay {
         store: &DataAssetStore,
         other_store: &DataAssetStore,
         asset_type: DataAssetType
-    ) -> AppWindowAction {
+    ) -> DiffState {
         let diff_state = match asset_type {
-            DataAssetType::Tileset => { tileset::show_tilesets(ui, wc, &self.comparer, store, other_store) }
+            DataAssetType::Tileset => { tileset::show_tilesets(ui, wc, &self.comparer, self.asset_display, store, other_store) }
             DataAssetType::TileAnimation => { tile_animation::show_tile_anims(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::MapData => { map_data::show_maps(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::Room => { room::show_rooms(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::World => { world::show_worlds(ui, wc, &self.comparer, store, other_store) }
-            DataAssetType::Sprite => { sprite::show_sprites(ui, wc, &self.comparer, store, other_store) }
+            DataAssetType::Sprite => { sprite::show_sprites(ui, wc, &self.comparer, self.asset_display, store, other_store) }
             DataAssetType::PalSprite => { pal_sprite::show_pal_sprites(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::SpriteAnimation => { sprite_animation::show_animations(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::ModData => { mod_data::show_mods(ui, wc, &self.comparer, store, other_store) }
@@ -211,16 +243,14 @@ impl ProjectComparerDisplay {
                 });
             }
         }
-        if let Some(asset_id) = diff_state.open_editor {
-            AppWindowAction::ActivateAssetEditor(asset_id)
-        } else {
-            AppWindowAction::None
-        }
+
+        diff_state
     }
 
     fn run_compare(&mut self, store: &DataAssetStore) {
         if let Some(other) = &self.other_store {
             self.comparer.run(store, other);
+            self.reset_asset_widgets();
             self.run_executed = true;
         }
 
@@ -240,7 +270,7 @@ impl ProjectComparerDisplay {
             ui.add_space(1.0);
             ui.horizontal(|ui| {
                 if ui.add(
-                    egui::Button::image_and_text(IMAGES.open, "Read File").frame_when_inactive(false)
+                    egui::Button::image_and_text(IMAGES.open, "Read File").frame_when_inactive(false).gap(8.0)
                 ).on_hover_text("Open file to compare").clicked() {
                     wc.sys_dialogs.open_file(
                         Some(wc.egui.window),
@@ -255,7 +285,7 @@ impl ProjectComparerDisplay {
                 }
                 if ui.add_enabled(
                     self.other_store.is_some(),
-                    egui::Button::image_and_text(IMAGES.compare, "Compare").frame_when_inactive(false)
+                    egui::Button::image_and_text(IMAGES.compare, "Compare").frame_when_inactive(false).gap(8.0)
                 ).on_hover_text("Compare project").clicked() {
                     self.run_compare(store);
                 }
@@ -268,20 +298,24 @@ impl ProjectComparerDisplay {
             if self.other_store.is_some() {
                 egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                     let button = egui::Button::image_and_text(IMAGES.pico, "Project")
-                        .frame_when_inactive(self.diff_display.is_project())
+                        .selected(self.diff_display.is_project())
+                        .frame_when_inactive(true)
                         .gap(8.0);
                     if ui.add(button).clicked() {
                         self.diff_display = DiffDisplay::Project;
+                        self.asset_display = None;
                     }
 
                     for asset_def in ASSET_DEFS {
                         if self.comparer.has_asset_differences(asset_def.asset_type) {
                             let label = get_asset_type_display_name(asset_def.asset_type).unwrap_or("?");
                             let button = egui::Button::image_and_text(include_ref_image!(asset_def.image), label)
-                                .frame_when_inactive(self.diff_display.is_asset_type(asset_def.asset_type))
+                                .selected(self.diff_display.is_asset_type(asset_def.asset_type))
+                                .frame_when_inactive(true)
                                 .gap(8.0);
                             if ui.add(button).clicked() {
                                 self.diff_display = DiffDisplay::AssetType(asset_def.asset_type);
+                                self.asset_display = None;
                             }
                         }
                     }
@@ -289,7 +323,35 @@ impl ProjectComparerDisplay {
                 });
             }
         });
-        egui::CentralPanel::default().show(ui, |ui| {
+
+        let mut diff_state = DiffState::EMPTY;
+
+        if let DiffDisplay::AssetType(asset_type) = self.diff_display &&
+            let Some(diff_ref) = self.asset_display &&
+            let Some(other_store) = &self.other_store {
+                egui::Panel::right("project_compare_asset_diff").resizable(false).exact_size(290.0).show(ui, |ui| {
+                    let asset_diff_state = match asset_type {
+                        DataAssetType::Tileset => { self.tileset_diff.show(ui, wc, &self.comparer, diff_ref, store, other_store) }
+                        DataAssetType::Sprite => { self.sprite_diff.show(ui, wc, &self.comparer, diff_ref, store, other_store) }
+                        /*
+                        DataAssetType::TileAnimation => { tile_animation::show_tile_anims(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::MapData => { map_data::show_maps(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::Room => { room::show_rooms(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::World => { world::show_worlds(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::PalSprite => { pal_sprite::show_pal_sprites(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::SpriteAnimation => { sprite_animation::show_animations(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::ModData => { mod_data::show_mods(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::Sfx => { sfx::show_sfxs(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::Font => { font::show_fonts(ui, wc, &self.comparer, store, other_store) }
+                        DataAssetType::PropFont => { prop_font::show_prop_fonts(ui, wc, &self.comparer, store, other_store) }
+                         */
+                        _ => { DiffState::EMPTY }
+                    };
+                    diff_state.merge(asset_diff_state);
+                });
+            }
+
+        let project_diff_state = egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(false), |ui| {
                     if let Some(other_store) = &self.other_store {
@@ -299,10 +361,23 @@ impl ProjectComparerDisplay {
                         }
                     } else {
                         ui.label("No project to compare");
-                        AppWindowAction::None
+                        DiffState::EMPTY
                     }
                 }).inner
             }).inner
-        }).inner
+        }).inner;
+
+        diff_state.merge(project_diff_state);
+
+        if let Some(display_asset) = diff_state.display_asset {
+            self.asset_display = Some(display_asset);
+            self.reset_asset_widgets();
+        }
+
+        if let Some(asset_id) = diff_state.open_editor {
+            AppWindowAction::ActivateAssetEditor(asset_id)
+        } else {
+            AppWindowAction::None
+        }
     }
 }

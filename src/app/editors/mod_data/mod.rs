@@ -371,6 +371,7 @@ impl Editor {
             ui.add_space(5.0);
 
             let num_channels = mod_data.num_channels as usize;
+            let old_item_spacing = ui.style().spacing.item_spacing;
             ui.style_mut().spacing.item_spacing = egui::Vec2::ZERO;
             let available_height = ui.available_height();
             let mut table = TableBuilder::new(ui)
@@ -473,6 +474,7 @@ impl Editor {
                 let x = x as f32;
                 painter.vline(origin.x + 35.0 + x * 3.0 * 45.0, t_rect.y_range(), stroke);
             }
+            ui.style_mut().spacing.item_spacing = old_item_spacing;
         });
     }
 

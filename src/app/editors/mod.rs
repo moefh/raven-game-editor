@@ -1,7 +1,7 @@
 mod utils;
 mod store;
 mod actions;
-mod widgets;
+pub mod widgets;
 pub mod dialogs;
 
 mod tileset;

@@ -1,4 +1,5 @@
 mod image_collection;
+mod image_collection_alt_id;
 mod image_collection_io;
 mod texture_manager;
 mod static_image_store;
@@ -13,6 +14,9 @@ pub use static_image_store::StaticImageStore;
 pub use image_collection::{
     default_texture_slot,
     ImageCollection,
+};
+pub use image_collection_alt_id::{
+    ImageCollectionAltId,
 };
 pub use image_collection_io::{
     ImageCollectionIO,
@@ -177,9 +181,30 @@ impl std::fmt::Display for StaticImageId {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct DynamicImageId(u32);
+
+static NEXT_DYNAMIC_IMAGE_ID: std::sync::Mutex<u32> = std::sync::Mutex::new(0);
+
+impl DynamicImageId {
+    pub fn gen_id() -> Self {
+        let mut next_id = NEXT_DYNAMIC_IMAGE_ID.lock().unwrap();
+        let id = *next_id;
+        *next_id += 1;
+        DynamicImageId(id)
+    }
+}
+
+impl std::fmt::Display for DynamicImageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TextureNameId {
     Asset(DataAssetId),
     Static(StaticImageId),
+    Dynamic(DynamicImageId),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -202,6 +227,7 @@ impl std::fmt::Display for TextureName {
         match self.id {
             TextureNameId::Asset(asset_id) => write!(f, "raven://asset/{}/{}", asset_id, self.slot),
             TextureNameId::Static(static_id) => write!(f, "raven://static/{}/{}", static_id, self.slot),
+            TextureNameId::Dynamic(dynamic_id) => write!(f, "raven://dynamic/{}/{}", dynamic_id, self.slot),
         }
     }
 }
