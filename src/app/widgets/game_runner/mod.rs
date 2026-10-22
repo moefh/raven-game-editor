@@ -388,7 +388,7 @@ impl GameRunnerWidget {
         player_anim: &SpriteAnimation,
         store: &DataAssetStore
     ) -> bool {
-        for (_, delay) in self.state.acquired_pickups.iter_mut() {
+        for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
         }
         self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state, &mut self.enemies);
