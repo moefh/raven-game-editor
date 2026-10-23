@@ -31,7 +31,7 @@ use super::super::{
     KeyboardPressed,
     MapClipboardData,
     RoomParallaxUndoData,
-    RoomParallaxRect,
+    MapRect,
     MapLayerFragment,
     DrawMapInfo,
 };
@@ -227,7 +227,7 @@ impl RoomParallaxEditorWidget {
         let fill_tile = self.right_draw_tile;
         if let Some(sel_rect) = self.selection.get_rect() &&
             sel_rect.is_positive() &&
-            let Some(para_rect) = RoomParallaxRect::from_rect(sel_rect, &room.parallax) {
+            let Some(para_rect) = MapRect::from_parallax(sel_rect, &room.parallax) {
                 self.selection = match self.tool {
                     RoomParallaxTool::Select => {
                         self.set_undo_target(room);
@@ -444,7 +444,7 @@ impl RoomParallaxEditorWidget {
             RoomParallaxSelection::Rect(..) => {
                 if let Some(sel_rect) = self.selection.get_rect() &&
                     sel_rect.is_positive() &&
-                    let Some(room_rect) = RoomParallaxRect::from_rect(sel_rect, &room.parallax) &&
+                    let Some(room_rect) = MapRect::from_parallax(sel_rect, &room.parallax) &&
                     self.tool == RoomParallaxTool::Select &&
                     let Some(frag) = MapLayerFragment::copy_room_parallax(&room.parallax, room_rect) {
                         wc.map_clipboard = MapClipboardData::MapLayerFragment(frag.clone());

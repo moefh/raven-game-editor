@@ -85,13 +85,24 @@ struct $<PREFIX>_PAL_SPRITE {
 
 #ifndef $<PREFIX>_SKIP_STRUCTS_MAP
 
+struct $<PREFIX>_MAP_TILE_CHANGE {
+    uint16_t x;
+    uint16_t y;
+    uint16_t w;
+    uint16_t h;
+    const uint32_t *tile_bitmap;
+    const uint8_t *tiles;
+};
+
 struct $<PREFIX>_MAP {
     int16_t w;
     int16_t h;
     uint8_t has_bb_layer;
+    uint16_t num_tile_changes;
     const struct $<PREFIX>_IMAGE *tileset;
     const struct $<PREFIX>_TILE_ANIMATION *animation;
     const uint8_t *tiles;
+    const struct $<PREFIX>_MAP_TILE_CHANGE *tile_changes;
 };
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_MAP */

@@ -32,6 +32,7 @@ use super::widgets::{
     ColorPickerWidget,
     ColorPickerResponse,
     ImagePickerWidget,
+    ImagePickerSelection,
     ImageEditorWidget,
     ImageDrawingTool,
     ImageDisplay,
@@ -85,7 +86,7 @@ impl SpriteEditor {
                     dirty
                 )).truncate());
 
-                if let Some(sprite) = editor.image_picker.get_selected_image_l() {
+                if let ImagePickerSelection::Some(sprite) = editor.image_picker.get_selected_image_l() {
                     ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
                         ui.horizontal(|ui| {
                             let spacing = ui.spacing().item_spacing;
@@ -157,7 +158,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite) {
         if editor.image_editor.get_selected_image() >= sprite.num_frames {
             let selected_image = sprite.num_frames - 1;
-            editor.image_picker.set_selected_image_l(Some(selected_image));
+            editor.image_picker.set_selected_image_l(ImagePickerSelection::Some(selected_image));
         }
     }
 
@@ -422,7 +423,7 @@ impl Editor {
             self.image_picker.zoom = Some(80.0 / sprite.width as f32);
             self.image_picker.display = self.image_editor.display;
             self.image_picker.show(ui, wc, sprite);
-            if let Some(selected_image) = self.image_picker.get_selected_image_l() {
+            if let ImagePickerSelection::Some(selected_image) = self.image_picker.get_selected_image_l() {
                 self.image_editor.set_selected_image(selected_image, sprite);
             }
         });

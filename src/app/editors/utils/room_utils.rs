@@ -281,29 +281,6 @@ impl TreeViewItemTrait for RoomTrigger {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct RoomParallaxRect {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl RoomParallaxRect {
-    pub fn from_rect(rect: egui::Rect, para: &RoomParallax) -> Option<Self> {
-        let rect = rect.intersect(egui::Rect::from_min_max(
-            egui::Pos2::ZERO,
-            egui::Pos2::new(para.width as f32, para.height as f32)
-        ));
-        Some(RoomParallaxRect {
-            x: rect.min.x as u32,
-            y: rect.min.y as u32,
-            width: rect.width().max(0.0) as u32,
-            height: rect.height().max(0.0) as u32,
-        })
-    }
-}
-
 pub struct RoomParallaxUndoData {
     pub width: u32,
     pub height: u32,

@@ -42,7 +42,10 @@ pub use reader::tokenizer::{
 };
 
 pub use tileset::Tileset;
-pub use map_data::MapData;
+pub use map_data::{
+    MapData,
+    MapTileChange,
+};
 pub use room::{
     Room,
     RoomMap,

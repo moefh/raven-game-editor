@@ -39,6 +39,7 @@ use super::widgets::{
     ColorPickerWidget,
     ColorPickerResponse,
     ImagePickerWidget,
+    ImagePickerSelection,
     ImageEditorWidget,
     TilePickerPopupWidget,
     TileGridEditorWidget,
@@ -90,8 +91,8 @@ impl TilesetEditor {
         self.editor.prepare_for_saving(tileset);
     }
 
-    fn get_tile_name(tile: Option<u32>, buf: &mut NumBuffer<u32>) -> &str {
-        if let Some(tile) = tile {
+    fn get_tile_name(tile: ImagePickerSelection, buf: &mut NumBuffer<u32>) -> &str {
+        if let ImagePickerSelection::Some(tile) = tile {
             tile.format_into(buf)
         } else {
             "-"
@@ -210,7 +211,7 @@ impl Dialogs {
     fn ensure_valid_selected_image(&self, editor: &mut Editor, tileset: &Tileset) {
         if editor.tile_image_editor.get_selected_image() >= tileset.num_tiles {
             let selected_image = tileset.num_tiles - 1;
-            editor.tile_picker.set_selected_image_l(Some(selected_image));
+            editor.tile_picker.set_selected_image_l(ImagePickerSelection::Some(selected_image));
         }
     }
 
@@ -731,13 +732,19 @@ impl Editor {
         // tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            if let Some(tile) = self.tile_picker_popup.show_anchor(ui, wc, "Select...", tileset, self.tile_picker.get_selected_image_l()) {
-                self.tile_picker.set_selected_image_l(Some(tile));
+            if let ImagePickerSelection::Some(tile) = self.tile_picker_popup.show_anchor(
+                ui,
+                wc,
+                "Select...",
+                tileset,
+                self.tile_picker.get_selected_image_l()
+            ) {
+                self.tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
             }
 
             self.tile_picker.display = self.tile_image_editor.display;
             self.tile_picker.show(ui, wc, tileset);
-            if let Some(selected_image) = self.tile_picker.get_selected_image_l() {
+            if let ImagePickerSelection::Some(selected_image) = self.tile_picker.get_selected_image_l() {
                 self.tile_image_editor.set_selected_image(selected_image, tileset);
             }
         });
@@ -765,8 +772,14 @@ impl Editor {
         // grid tile picker (use the SAME ID as the other tab's panel to avoid red flashing)
         egui::Panel::left(self.tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
-            if let Some(tile) = self.tile_picker_popup.show_anchor(ui, wc, "Select...", tileset, self.grid_tile_picker.get_selected_image_l()) {
-                self.grid_tile_picker.set_selected_image_l(Some(tile));
+            if let ImagePickerSelection::Some(tile) = self.tile_picker_popup.show_anchor(
+                ui,
+                wc,
+                "Select...",
+                tileset,
+                self.grid_tile_picker.get_selected_image_l()
+            ) {
+                self.grid_tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
             }
 
             self.grid_tile_picker.display = self.grid_image_editor.display;

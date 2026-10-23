@@ -15,7 +15,10 @@ use crate::image::{
     TextureSlot,
 };
 
-use super::TILE_SIZE;
+use super::{
+    TILE_SIZE,
+    ImagePickerSelection,
+};
 use super::super::{
     WindowContext,
     TileGrid,
@@ -23,14 +26,14 @@ use super::super::{
 
 pub enum TileGridEditorAction {
     None,
-    PickLeftTile(Option<u32>),
-    PickRightTile(Option<u32>),
+    PickLeftTile(ImagePickerSelection),
+    PickRightTile(ImagePickerSelection),
     SetTile,
 }
 
 pub struct TileGridEditorWidget {
-    pub left_selected_tile: Option<u32>,
-    pub right_selected_tile: Option<u32>
+    pub left_selected_tile: ImagePickerSelection,
+    pub right_selected_tile: ImagePickerSelection
 }
 
 impl TileGridEditorWidget {
@@ -38,8 +41,8 @@ impl TileGridEditorWidget {
 
     pub fn new() -> Self {
         TileGridEditorWidget {
-            left_selected_tile: None,
-            right_selected_tile: None,
+            left_selected_tile: ImagePickerSelection::None,
+            right_selected_tile: ImagePickerSelection::None,
         }
     }
 
@@ -106,7 +109,11 @@ impl TileGridEditorWidget {
                 let y = y as u32;
                 if keys_pressed.command {
                     let tile = tile_grid.get_tile(x, y);
-                    let tile = if tile == MapData::NO_TILE { None } else { Some(tile as u32) };
+                    let tile = if tile == MapData::NO_TILE {
+                        ImagePickerSelection::None
+                    } else {
+                        ImagePickerSelection::Some(tile as u32)
+                    };
                     if response.dragged_by(egui::PointerButton::Primary) {
                         self.left_selected_tile = tile;
                         return TileGridEditorAction::PickLeftTile(tile);
@@ -124,7 +131,7 @@ impl TileGridEditorWidget {
                         Err(())
                     };
                     if let Ok(tile) = tile {
-                        if let Some(tile) = tile {
+                        if let ImagePickerSelection::Some(tile) = tile {
                             tile_grid.set_tile(x, y, (tile & 0xff) as u8);
                         } else {
                             tile_grid.set_tile(x, y, MapData::NO_TILE);

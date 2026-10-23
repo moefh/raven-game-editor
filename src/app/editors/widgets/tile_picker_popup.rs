@@ -13,7 +13,10 @@ use crate::image::{
     TextureSlot,
 };
 
-use super::TILE_SIZE;
+use super::{
+    TILE_SIZE,
+    ImagePickerSelection,
+};
 
 use super::super::{
     get_setting_zoom,
@@ -46,7 +49,7 @@ impl TilePickerPopupWidget {
         rect: Rect,
         dims: (i32, i32),
         tileset: &Tileset,
-        sel_tile: Option<u32>
+        sel_tile: ImagePickerSelection
     ) {
         // tiles
         let tile_size = Vec2::new(rect.width() / (dims.0 as f32), rect.height() / (dims.1 as f32));
@@ -74,7 +77,7 @@ impl TilePickerPopupWidget {
         }
 
         // selection rectangle
-        if let Some(tile) = sel_tile {
+        if let ImagePickerSelection::Some(tile) = sel_tile {
             let x = tile as i32 % dims.0;
             let y = tile as i32 / dims.0;
             let tile_rect = Rect::from_min_size(rect.min + tile_size * Vec2::new(x as f32, y as f32), tile_size);
@@ -83,7 +86,13 @@ impl TilePickerPopupWidget {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, response: &egui::Response, tileset: &Tileset, pick_tile: &mut Option<u32>) -> bool {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        response: &egui::Response,
+        tileset: &Tileset,
+        pick_tile: &mut ImagePickerSelection
+    ) -> bool {
         if ! self.open { return false; }
         let tile_size = Vec2::splat(TILE_SIZE * get_setting_zoom(wc.settings.tile_picker_popup_zoom));
         let mut picked = false;
@@ -102,7 +111,7 @@ impl TilePickerPopupWidget {
                         let y = ((pos.y - response.rect.min.y) / tile_size.y).floor() as i32;
                         let index = y * dims.0 + x;
                         if index >= 0 && index < tileset.num_tiles as i32 {
-                            *pick_tile = Some(index.unsigned_abs());
+                            *pick_tile = ImagePickerSelection::Some(index.unsigned_abs());
                             picked = true;
                         }
                     }
@@ -120,8 +129,8 @@ impl TilePickerPopupWidget {
         wc: &mut WindowContext,
         label: impl AsRef<str>,
         tileset: &Tileset,
-        pick_tile: Option<u32>
-    ) -> Option<u32> {
+        pick_tile: ImagePickerSelection,
+    ) -> ImagePickerSelection {
         let response = ui.button(label.as_ref());
         if response.clicked() {
             self.open();
@@ -130,7 +139,7 @@ impl TilePickerPopupWidget {
         if self.show(wc, &response, tileset, &mut tile) {
             tile
         } else {
-            None
+            ImagePickerSelection::None
         }
     }
 }

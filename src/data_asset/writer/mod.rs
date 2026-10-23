@@ -422,6 +422,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_data_end()?;
 
         sprite_animation::write_animation_names(&self, &self.store.asset_ids.animations.store, anim_info)?;
+        map_data::write_map_item_names(&self, &self.store.asset_ids.maps.store)?;
         room::write_room_item_names(&self, &self.store.asset_ids.rooms.store)?;
         world::write_world_item_names(&self, &self.store.asset_ids.worlds.store)?;
         self.write_asset_ids()?;
@@ -442,6 +443,7 @@ pub fn serialize_map(map_id: DataAssetId, store: &DataAssetStore, logger: &mut S
     writer.write_header()?;
     map_data::write_maps(&writer, &[map_id])?;
     writer.write_data_end()?;
+    map_data::write_map_item_names(&writer, &[map_id])?;
     Ok(writer.output.take())
 }
 

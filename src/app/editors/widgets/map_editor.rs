@@ -25,6 +25,7 @@ use crate::misc::STATIC_IMAGES;
 use super::{
     TILE_SIZE,
     SCREEN_SIZE,
+    FULL_UV,
 };
 use super::super::{
     draw_bb_layer,
@@ -42,8 +43,6 @@ use super::super::{
     MapLayer,
     DrawMapInfo,
 };
-
-const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2 { x: 1.0, y: 1.0 } };
 
 pub enum MapSelection {
     None,
@@ -300,7 +299,7 @@ impl MapEditorWidget {
         let fill_tile = self.get_fill_tile_for_layer();
         if let Some(sel_rect) = self.selection.get_rect() &&
             sel_rect.is_positive() &&
-            let Some(map_rect) = MapRect::from_rect(sel_rect, map_data, self.edit_layer) {
+            let Some(map_rect) = MapRect::from_map_layer(sel_rect, map_data, self.edit_layer) {
                 self.selection = match self.tool {
                     MapTool::SelectLayer => {
                         self.set_undo_target(map_data);
@@ -641,7 +640,7 @@ impl MapEditorWidget {
             MapSelection::Rect(..) => {
                 if let Some(sel_rect) = self.selection.get_rect() &&
                     sel_rect.is_positive() &&
-                    let Some(map_rect) = MapRect::from_rect(sel_rect, map_data, self.edit_layer) {
+                    let Some(map_rect) = MapRect::from_map_layer(sel_rect, map_data, self.edit_layer) {
                         match self.tool {
                             MapTool::SelectLayer => {
                                 if let Some(frag) = MapLayerFragment::copy_map(map_data, self.edit_layer, map_rect) {

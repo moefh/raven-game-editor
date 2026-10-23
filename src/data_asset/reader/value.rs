@@ -308,6 +308,17 @@ impl ValueName {
         }
     }
 
+    pub fn get_struct_array_or_null<'a>(&self, data: &'a ProjectData) -> Result<Option<&'a ValueArray<ValueStruct>>> {
+        if self.is_null() {
+            Ok(None)
+        } else {
+            match data.struct_arrays.get(&self.name) {
+                Some(v) => { Ok(Some(v)) }
+                _ => { self.error_not_found(data) }
+            }
+        }
+    }
+
     pub fn get_u8_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<u8>> {
         match data.data_arrays.get(&self.name) {
             Some(Value::U8Array(a))  => { Ok(&a.values) }

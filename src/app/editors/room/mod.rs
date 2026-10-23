@@ -42,6 +42,7 @@ use super::widgets::{
     RoomParallaxDisplay,
     RoomParallaxTool,
     ImagePickerWidget,
+    ImagePickerSelection,
     TilePickerPopupWidget,
 };
 use super::super::menu_item;
@@ -296,16 +297,16 @@ impl Editor {
         }
     }
 
-    fn tile_to_image_selection(tile: u8) -> Option<u32> {
+    fn tile_to_image_selection(tile: u8) -> ImagePickerSelection {
         if tile == MapData::NO_TILE {
-            None
+            ImagePickerSelection::None
         } else {
-            Some(tile as u32)
+            ImagePickerSelection::Some(tile as u32)
         }
     }
 
-    fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
-        if let Some(image_selection) = image_selection {
+    fn image_selection_to_tile(image_selection: ImagePickerSelection) -> u8 {
+        if let ImagePickerSelection::Some(image_selection) = image_selection {
             (image_selection & 0xff) as u8
         } else {
             MapData::NO_TILE
@@ -1150,7 +1151,7 @@ impl Editor {
     }
 
     fn show_parallax_toolbar(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::top(format!("editor_panel_{}_maps_toolbar", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_parallax_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 let spacing = ui.spacing().item_spacing;
@@ -1225,14 +1226,14 @@ impl Editor {
         egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(tileset) = room.parallax.tileset_id.and_then(|tileset_id| assets.tilesets.get(&tileset_id)) {
-                if let Some(tile) = self.tile_picker_popup.show_anchor(
+                if let ImagePickerSelection::Some(tile) = self.tile_picker_popup.show_anchor(
                     ui,
                     wc,
                     "Select...",
                     tileset,
                     self.tile_picker.get_selected_image_l()
                 ) {
-                    self.tile_picker.set_selected_image_l(Some(tile));
+                    self.tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
                 }
 
                 if self.tile_picker.selection_set != 0 {

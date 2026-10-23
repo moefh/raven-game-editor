@@ -120,6 +120,7 @@ static GLOBAL_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::
         mod_data::get_global_struct_defs,
         room::get_global_struct_defs,
         world::get_global_struct_defs,
+        map_data::get_global_struct_defs,
     ];
     let mut struct_defs = HashMap::new();
     for global_struct_defs_gen in global_struct_defs_gen_table {
@@ -514,12 +515,21 @@ impl<'a> ProjectDataReader<'a> {
     fn read_struct(&mut self, struct_def: &ValueDefStruct) -> Result<ValueStruct> {
         let start = self.expect_punct('{')?;
         let mut values = HashMap::new();
+        let mut stray_tok: Option<Token> = None;
         for (name, value_def) in struct_def.value_defs.iter() {
+            if let Some(stray) = stray_tok {
+                return error(format!("expected ',', got '{}'", stray), stray.pos);
+            }
             values.insert(name.clone(), self.read_value(value_def)?);
             let comma = self.read()?;
-            if ! comma.is_punct(',') {
-                self.unread(comma)?;
-            }
+            stray_tok = if ! comma.is_punct(',') {
+                Some(comma)
+            } else {
+                None
+            };
+        }
+        if let Some(stray) = stray_tok.take() {
+            self.unread(stray)?;
         }
         self.expect_punct('}')?;
         Ok(ValueStruct::new(values, start.pos))

@@ -9,6 +9,7 @@ pub struct StaticImages {
     fx_tiles_id: StaticImageId,
     anim_tiles_id: StaticImageId,
     bad_tile_id: StaticImageId,
+    no_change_tile_id: StaticImageId,
     store: StaticImageStore,
 }
 
@@ -16,6 +17,7 @@ impl StaticImages {
     pub fn fx_tiles(&self) -> &StaticImageData { self.image(self.fx_tiles_id) }
     pub fn anim_tiles(&self) -> &StaticImageData { self.image(self.anim_tiles_id) }
     pub fn bad_tile(&self) -> &StaticImageData { self.image(self.bad_tile_id) }
+    pub fn no_change_tile(&self) -> &StaticImageData { self.image(self.no_change_tile_id) }
 
     fn image(&self, id: StaticImageId) -> &StaticImageData {
         self.store.get(id).unwrap()
@@ -27,11 +29,13 @@ pub static STATIC_IMAGES: LazyLock<StaticImages> = LazyLock::new(|| {
     let fx_tiles_id = store.load_image("effects tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/EffectsBitmap.png"));
     let anim_tiles_id = store.load_image("animation tiles", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/AnimationBitmap.png"));
     let bad_tile_id = store.load_image("bad tile", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/BadTile.png"));
+    let no_change_tile_id = store.load_image("no change tile", TILE_SIZE, TILE_SIZE, include_bytes!("../../assets/NoChangeTile.png"));
     StaticImages {
         store,
         fx_tiles_id,
         anim_tiles_id,
         bad_tile_id,
+        no_change_tile_id,
     }
 });
 

@@ -5,6 +5,7 @@ use crate::data_asset::{
     AssetList,
     Tileset,
     MapData,
+    MapTileChange,
     RoomParallax,
     TileAnimation,
 };
@@ -15,7 +16,6 @@ use crate::image::{
 
 use super::{
     WindowContext,
-    RoomParallaxRect,
 };
 use super::super::widgets::{
     TILE_SIZE,
@@ -50,7 +50,7 @@ pub struct MapRect {
 }
 
 impl MapRect {
-    pub fn from_rect(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
+    pub fn from_map_layer(rect: egui::Rect, map_data: &MapData, layer: MapLayer) -> Option<Self> {
         let (map_width, map_height) = if matches!(layer, MapLayer::Background2) && ! map_data.has_bb {
             (0, 0)
         } else {
@@ -63,6 +63,140 @@ impl MapRect {
             width: rect.width().max(0.0) as u32,
             height: rect.height().max(0.0) as u32,
         })
+    }
+
+    pub fn from_parallax(rect: egui::Rect, para: &RoomParallax) -> Option<Self> {
+        let rect = rect.intersect(egui::Rect::from_min_max(
+            egui::Pos2::ZERO,
+            egui::Pos2::new(para.width as f32, para.height as f32)
+        ));
+        Some(MapRect {
+            x: rect.min.x as u32,
+            y: rect.min.y as u32,
+            width: rect.width().max(0.0) as u32,
+            height: rect.height().max(0.0) as u32,
+        })
+    }
+
+    pub fn from_tile_change(rect: egui::Rect, change: &MapTileChange) -> Option<Self> {
+        let rect = rect.intersect(egui::Rect::from_min_max(
+            egui::Pos2::ZERO,
+            egui::Pos2::new(change.width as f32, change.height as f32)
+        ));
+        Some(MapRect {
+            x: rect.min.x as u32,
+            y: rect.min.y as u32,
+            width: rect.width().max(0.0) as u32,
+            height: rect.height().max(0.0) as u32,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct MapTileChangeFragment {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<Option<u8>>,
+}
+
+impl MapTileChangeFragment {
+    pub fn copy_change(change: &mut MapTileChange, rect: MapRect) -> Option<MapTileChangeFragment> {
+        if rect.width == 0 || rect.height == 0 || rect.x + rect.width > change.width || rect.y + rect.height > change.height {
+            return None;
+        }
+
+        let mut data = Vec::with_capacity((rect.width * rect.height) as usize);
+        for y in 0..rect.height {
+            for x in 0..rect.width {
+                data.push(change.tiles[((rect.y + y) * change.width + rect.x + x) as usize]);
+            }
+        }
+        Some(MapTileChangeFragment {
+            width: rect.width,
+            height: rect.height,
+            data,
+        })
+    }
+
+    pub fn cut_change(change: &mut MapTileChange, rect: MapRect, fill_tile: Option<u8>) -> Option<MapTileChangeFragment> {
+        let frag = Self::copy_change(change, rect);
+        if frag.is_some() &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.x + rect.width <= change.width &&
+            rect.y + rect.height <= change.height {
+                for y in 0..rect.height {
+                    for x in 0..rect.width {
+                        change.tiles[((rect.y + y) * change.width + rect.x + x) as usize] = fill_tile;
+                    }
+                }
+            }
+        frag
+    }
+
+    pub fn paste_in_change(&self, x: i32, y: i32, change: &mut MapTileChange) {
+        if (x > 0 &&   x  as u32 >= change.width) || (y > 0 &&   y  as u32 >= change.height) { return; }
+        if (x < 0 && (-x) as u32 >= change.width) || (y < 0 && (-y) as u32 >= change.height) { return; }
+
+        let mut src_x = 0;
+        let mut src_y = 0;
+        let mut width = self.width;
+        let mut height = self.height;
+        let mut x = x;
+        let mut y = y;
+        if x < 0 { src_x = (-x) as u32; width -= src_x; x = 0; }
+        if y < 0 { src_y = (-y) as u32; height -= src_y; y = 0; }
+        let x = x as u32;
+        let y = y as u32;
+        if width > change.width - x { width = change.width - x; }
+        if height > change.height - y { height = change.height - y; }
+
+        for iy in 0..height {
+            let src = ((iy + src_y) * self.width + src_x) as usize;
+            let dest = ((iy + y) * change.width + x) as usize;
+            change.tiles[dest .. dest + width as usize].clone_from_slice(&self.data[src .. src + width as usize]);
+        }
+    }
+
+    pub fn get_tile(&self, x: u32, y: u32) -> Option<u8> {
+        if x > self.width || y > self.height { return None; }
+        self.data[(y * self.width + x) as usize]
+    }
+}
+
+pub struct MapTileChangeUndoData {
+    pub width: u32,
+    pub height: u32,
+    pub tiles: Vec<Option<u8>>,
+}
+
+impl MapTileChangeUndoData {
+    pub fn from_tile_change(change: &MapTileChange) -> Self {
+        let num_tiles = (change.width * change.height) as usize;
+        let mut tiles = Vec::with_capacity(num_tiles);
+        for y in 0..change.height {
+            for x in 0..change.width {
+                let tile_index = (change.width * y + x) as usize;
+                tiles.push(change.tiles[tile_index]);
+            }
+        }
+        MapTileChangeUndoData {
+            width: change.width,
+            height: change.height,
+            tiles,
+        }
+    }
+
+    pub fn to_tile_change(&self, change: &mut MapTileChange) -> bool {
+        if self.width != change.width || self.height != change.height  {
+            return false;
+        }
+        let width = change.width as usize;
+        for y in 0..change.height as usize {
+            let tile_index = width * y;
+            change.tiles[tile_index..tile_index+width].copy_from_slice(&self.tiles[tile_index..tile_index+width]);
+        }
+        true
     }
 }
 
@@ -171,7 +305,7 @@ impl MapLayerFragment {
         }
     }
 
-    pub fn copy_room_parallax(para: &RoomParallax, rect: RoomParallaxRect) -> Option<MapLayerFragment> {
+    pub fn copy_room_parallax(para: &RoomParallax, rect: MapRect) -> Option<MapLayerFragment> {
         if rect.width == 0 ||
             rect.height == 0 ||
             rect.x + rect.width > para.width ||
@@ -193,7 +327,7 @@ impl MapLayerFragment {
         })
     }
 
-    pub fn cut_room_parallax(para: &mut RoomParallax, rect: RoomParallaxRect, fill_tile: u8) -> Option<MapLayerFragment> {
+    pub fn cut_room_parallax(para: &mut RoomParallax, rect: MapRect, fill_tile: u8) -> Option<MapLayerFragment> {
         let frag = Self::copy_room_parallax(para, rect);
         if frag.is_some() &&
             rect.width > 0 &&
@@ -501,6 +635,29 @@ pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32,
     if new_h != old_h {
         tiles.resize(new_w * new_h, new_tile);
     }
+}
+
+pub fn resize_map_tile_change(change: &mut MapTileChange, new_width: u32, new_height: u32) {
+    let old_w = change.width as usize;
+    let old_h = change.height as usize;
+    let new_w = new_width as usize;
+    let new_h = new_height as usize;
+    for y in 0..usize::min(old_h, new_h) {
+        if new_w < old_w {
+            let start = new_w * y + new_w;
+            let len = old_w - new_w;
+            change.tiles.drain(start .. start + len);
+        } else if new_w > old_w {
+            let start = new_w * y + old_w;
+            let len = new_w - old_w;
+            change.tiles.splice(start .. start, std::iter::repeat_n(None, len));
+        }
+    }
+    if new_h != old_h {
+        change.tiles.resize(new_w * new_h, None);
+    }
+    change.width = new_width;
+    change.height = new_height;
 }
 
 pub fn get_animated_tile(

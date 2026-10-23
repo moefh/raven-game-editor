@@ -27,6 +27,7 @@ use super::{
 };
 use super::widgets::{
     ImagePickerWidget,
+    ImagePickerSelection,
     ImageEditorWidget,
     SpriteFrameListView,
     TilePickerPopupWidget,
@@ -307,14 +308,14 @@ impl Editor {
         egui::Panel::left(self.parent_tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(anim_tileset) = tilesets.get(&tanim.parent_tileset_id) {
-                if let Some(tile) = self.parent_tile_picker_popup.show_anchor(
+                if let ImagePickerSelection::Some(tile) = self.parent_tile_picker_popup.show_anchor(
                     ui,
                     wc,
                     "Select...",
                     anim_tileset,
                     self.parent_tile_picker.get_selected_image_l()
                 ) {
-                    self.parent_tile_picker.set_selected_image_l(Some(tile));
+                    self.parent_tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
                     self.reload_edit_loop = true;
                 }
                 self.parent_tile_picker.display = self.image_editor.display;
@@ -332,9 +333,11 @@ impl Editor {
                 self.image_editor.set_selected_image(anim_tileset.num_tiles.saturating_sub(1), anim_tileset);
             }
         if let Some(parent_tileset) = tilesets.get(&tanim.parent_tileset_id) &&
-            let Some(tile) = self.parent_tile_picker.get_selected_image_l() &&
+            let ImagePickerSelection::Some(tile) = self.parent_tile_picker.get_selected_image_l() &&
             tile >= parent_tileset.num_tiles {
-                self.parent_tile_picker.set_selected_image_l(Some(parent_tileset.num_tiles.saturating_sub(1)));
+                self.parent_tile_picker.set_selected_image_l(
+                    ImagePickerSelection::Some(parent_tileset.num_tiles.saturating_sub(1))
+                );
             }
     }
 

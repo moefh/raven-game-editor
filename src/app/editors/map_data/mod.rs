@@ -1,5 +1,6 @@
 mod properties;
 mod custom_colors;
+mod tile_change_properties;
 
 use core::fmt::NumBuffer;
 
@@ -10,6 +11,7 @@ use crate::data_asset::{
     DataAssetId,
     GenericAsset,
     MapData,
+    MapTileChange,
     Tileset,
     TileAnimation,
 };
@@ -25,13 +27,22 @@ use super::{
     SysDialogOpenFile,
     MapLayer,
     MapTileFixer,
+    DialogResult,
     EditorAction,
+};
+use super::dialogs::{
+    ConfirmationDialog,
 };
 use super::widgets::{
     MapEditorWidget,
+    MapTileChangeEditorWidget,
+    MapTileChangePlacerWidget,
     MapDisplay,
     MapTool,
+    MapTileChangeDisplay,
+    MapTileChangeTool,
     ImagePickerWidget,
+    ImagePickerSelection,
     TilePickerPopupWidget,
 };
 use super::super::{
@@ -41,6 +52,7 @@ use super::super::{
 
 use properties::PropertiesDialog;
 use custom_colors::CustomColorsDialog;
+use tile_change_properties::TileChangePropertiesDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
@@ -61,6 +73,23 @@ impl<'a> MapDataEditorAssetLists<'a> {
     }
 }
 
+enum EditorTab {
+    Tiles,
+    TileChanges,
+}
+
+enum TileChangesTab {
+    Tiles,
+    Placement,
+}
+
+enum TileChangeTreeAction {
+    None,
+    AddTileChange,
+    RemoveTileChange(usize),
+    EditTileChange(usize),
+}
+
 pub struct CustomColors {
     pub use_grid_color: bool,
     pub use_bg_color: bool,
@@ -79,7 +108,7 @@ impl MapDataEditor {
         MapDataEditor {
             base: AssetEditorBase::new(id, open),
             editor: Editor::new(id),
-            dialogs: Dialogs::new(),
+            dialogs: Dialogs::new(id),
         }
     }
 
@@ -130,7 +159,7 @@ impl MapDataEditor {
     ) {
         self.dialogs.show(wc, &mut self.editor, map_data, asset_ids, assets.tilesets, assets.tile_anims);
 
-        let min_size = egui::Vec2::new(730.0, 200.0);
+        let min_size = egui::Vec2::new(730.0, 300.0);
         let def_size = egui::Vec2::new(map_data.width as f32, map_data.height as f32 * 1.2) * Tileset::TILE_SIZE as f32;
         let def_size = def_size.min(wc.window_space.size() - egui::Vec2::splat(100.0)).max(min_size);
 
@@ -150,13 +179,17 @@ impl MapTileFixer for MapDataEditor {
 struct Dialogs {
     properties_dialog: Option<PropertiesDialog>,
     custom_colors_dialog: CustomColorsDialog,
+    tile_change_properties_dialog: TileChangePropertiesDialog,
+    confirmation_dialog: ConfirmationDialog,
 }
 
 impl Dialogs {
-    fn new() -> Self {
+    fn new(id: DataAssetId) -> Self {
         Dialogs {
             properties_dialog: None,
             custom_colors_dialog: CustomColorsDialog::new(),
+            tile_change_properties_dialog: TileChangePropertiesDialog::new(),
+            confirmation_dialog: ConfirmationDialog::new(id),
         }
     }
 
@@ -175,6 +208,9 @@ impl Dialogs {
                 editor.map_editor.set_undo_target(map_data);
             }
         }
+        if self.tile_change_properties_dialog.open {
+            self.tile_change_properties_dialog.show(wc, map_data);
+        }
 
         if self.custom_colors_dialog.open && self.custom_colors_dialog.show(wc, &mut editor.custom_colors) {
             editor.map_editor.custom_grid_color = if editor.custom_colors.use_grid_color {
@@ -187,7 +223,7 @@ impl Dialogs {
             } else {
                 None
             };
-            editor.image_picker.custom_bg_color = editor.map_editor.custom_bg_color;
+            editor.tile_picker.custom_bg_color = editor.map_editor.custom_bg_color;
         }
     }
 }
@@ -195,20 +231,42 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
+    selected_tab: EditorTab,
+    selected_tile_changes_tab: TileChangesTab,
+    selected_tile_change: Option<usize>,
+    remove_tile_change_index: Option<usize>,
     map_editor: MapEditorWidget,
-    image_picker: ImagePickerWidget,
+    tile_picker: ImagePickerWidget,
     tile_picker_popup: TilePickerPopupWidget,
     custom_colors: CustomColors,
+    tile_change_editor: MapTileChangeEditorWidget,
+    tile_change_picker: ImagePickerWidget,
+    tile_change_picker_popup: TilePickerPopupWidget,
+    tile_change_placer: MapTileChangePlacerWidget,
 }
 
 impl Editor {
+    const TILE_CHANGE_TREE_PANEL_WIDTH: f32 = 160.0;
+
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_map", asset_id),
+            selected_tab: EditorTab::Tiles,
+            selected_tile_changes_tab: TileChangesTab::Tiles,
+            selected_tile_change: None,
+            remove_tile_change_index: None,
             map_editor: MapEditorWidget::new(),
-            image_picker: ImagePickerWidget::new().use_as_palette(true),
-            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_{}_tile_picker_popup", asset_id))),
+            tile_picker: ImagePickerWidget::new().use_as_palette(true),
+            tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(
+                format!("editor_{}_tile_picker_popup", asset_id))
+            ),
+            tile_change_editor: MapTileChangeEditorWidget::new(),
+            tile_change_placer: MapTileChangePlacerWidget::new(),
+            tile_change_picker: ImagePickerWidget::new().use_as_palette(true).with_empty_selections(2),
+            tile_change_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(
+                format!("editor_{}_tile_change_picker_popup", asset_id))
+            ),
             custom_colors: CustomColors {
                 use_grid_color: false,
                 use_bg_color: false,
@@ -218,28 +276,47 @@ impl Editor {
         }
     }
 
+    fn select_tile_change(&mut self, sel: Option<usize>, map_data: &MapData) {
+        let old = self.selected_tile_change;
+        if map_data.tile_changes.is_empty() {
+            self.selected_tile_change = None;
+        } else {
+            self.selected_tile_change = sel;
+            if let Some(sel) = self.selected_tile_change {
+                if sel >= map_data.tile_changes.len() {
+                    self.selected_tile_change = Some(map_data.tile_changes.len().saturating_sub(1));
+                }
+            } else {
+                self.selected_tile_change = Some(0);
+            }
+        }
+        if self.selected_tile_change != old {
+            self.tile_change_editor.clear_undo();
+        }
+    }
+
     fn get_selection_rectangle(&self) -> Option<egui::Rect> {
         self.map_editor.selection.get_rect()
     }
 
-    fn tile_to_image_selection(tile: u8) -> Option<u32> {
+    fn tile_to_image_selection(tile: u8) -> ImagePickerSelection {
         if tile == MapData::NO_TILE {
-            None
+            ImagePickerSelection::None
         } else {
-            Some(tile as u32)
+            ImagePickerSelection::Some(tile as u32)
         }
     }
 
-    fn image_selection_to_tile(image_selection: Option<u32>) -> u8 {
-        if let Some(image_selection) = image_selection {
+    fn image_selection_to_tile(image_selection: ImagePickerSelection) -> u8 {
+        if let ImagePickerSelection::Some(image_selection) = image_selection {
             (image_selection & 0xff) as u8
         } else {
             MapData::NO_TILE
         }
     }
 
-    fn get_picker_tile_name(tile: Option<u32>, buf: &mut NumBuffer<u32>) -> &str {
-        if let Some(tile) = tile {
+    fn get_picker_tile_name(tile: ImagePickerSelection, buf: &mut NumBuffer<u32>) -> &str {
+        if let ImagePickerSelection::Some(tile) = tile {
             tile.format_into(buf)
         } else {
             "-"
@@ -255,7 +332,7 @@ impl Editor {
     }
 
     fn show_menubar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, map_data: &mut MapData) {
-        egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_menu", self.asset_id)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.menu_button("Map", |ui| {
@@ -282,38 +359,73 @@ impl Editor {
                             let dlg = dialogs.properties_dialog.get_or_insert_with(|| {
                                 PropertiesDialog::new(map_data.tileset_id)
                             });
-                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.image_picker.get_selected_image_r()));
+                            dlg.set_open(wc, map_data, Self::image_selection_to_tile(self.tile_picker.get_selected_image_r()));
                         }
                     });
-                    ui.menu_button("Edit", |ui| {
-                        if ui.add_enabled(self.map_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
-                            self.map_editor.undo(map_data);
-                        }
-                        if ui.add_enabled(self.map_editor.can_redo(), menu_item(IMAGES.redo, " Redo")).clicked() {
-                            self.map_editor.redo(map_data);
-                        }
+                    match self.selected_tab {
+                        EditorTab::Tiles => {
+                            ui.menu_button("Edit", |ui| {
+                                if ui.add_enabled(self.map_editor.can_undo(), menu_item(IMAGES.undo, " Undo")).clicked() {
+                                    self.map_editor.undo(map_data);
+                                }
+                                if ui.add_enabled(self.map_editor.can_redo(), menu_item(IMAGES.redo, " Redo")).clicked() {
+                                    self.map_editor.redo(map_data);
+                                }
 
-                        ui.separator();
+                                ui.separator();
 
-                        let has_selection = ! self.map_editor.selection.is_empty();
-                        if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
-                            self.map_editor.cut(wc, map_data);
+                                let has_selection = ! self.map_editor.selection.is_empty();
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.cut, " Cut")).clicked() {
+                                    self.map_editor.cut(wc, map_data);
+                                }
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
+                                    self.map_editor.copy(wc, map_data);
+                                }
+                                if ui.add_enabled(! wc.map_clipboard.is_none(), menu_item(IMAGES.paste, " Paste")).clicked() {
+                                    self.map_editor.paste(wc, map_data);
+                                }
+                                if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
+                                    self.map_editor.delete_selection(map_data);
+                                }
+                            });
+                            ui.menu_button("View", |ui| {
+                                if ui.add(menu_item_no_image(" Custom Colors")).clicked() {
+                                    dialogs.custom_colors_dialog.set_open(wc);
+                                }
+                            });
                         }
-                        if ui.add_enabled(has_selection, menu_item(IMAGES.copy, " Copy")).clicked() {
-                            self.map_editor.copy(wc, map_data);
+                        EditorTab::TileChanges => {
+                            ui.menu_button("Edit", |ui| {
+                                let has_change = self.selected_tile_change.is_some();
+                                let can_undo = self.tile_change_editor.can_undo() && has_change;
+                                let can_redo = self.tile_change_editor.can_redo() && has_change;
+
+                                if ui.add_enabled(can_undo, menu_item(IMAGES.undo, " Undo")).clicked() &&
+                                    let Some(change) = self.selected_tile_change.and_then(|s| map_data.tile_changes.get_mut(s)) {
+                                        self.tile_change_editor.undo(change);
+                                    }
+                                if ui.add_enabled(can_redo, menu_item(IMAGES.redo, " Redo")).clicked() &&
+                                    let Some(change) = self.selected_tile_change.and_then(|s| map_data.tile_changes.get_mut(s)) {
+                                        self.tile_change_editor.redo(change);
+                                    }
+
+                                ui.separator();
+
+                                if ui.add_enabled(has_change, menu_item(IMAGES.properties, " Tile change properties...")).clicked() &&
+                                    let Some(change_index) = self.selected_tile_change {
+                                        dialogs.tile_change_properties_dialog.set_open(wc, map_data, change_index);
+                                    }
+                                ui.separator();
+                                if ui.add(menu_item(IMAGES.add, " Add tile change")).clicked() {
+                                    self.add_tile_change(map_data);
+                                }
+                                if ui.add_enabled(has_change, menu_item(IMAGES.trash, " Remove tile change")).clicked() &&
+                                    let Some(change_index) = self.selected_tile_change {
+                                        self.request_remove_tile_change(wc, dialogs, map_data, change_index);
+                                    }
+                            });
                         }
-                        if ui.add_enabled(! wc.map_clipboard.is_none(), menu_item(IMAGES.paste, " Paste")).clicked() {
-                            self.map_editor.paste(wc, map_data);
-                        }
-                        if ui.add_enabled(has_selection, menu_item(IMAGES.trash, " Delete selection")).clicked() {
-                            self.map_editor.delete_selection(map_data);
-                        }
-                    });
-                    ui.menu_button("View", |ui| {
-                        if ui.add(menu_item_no_image(" Custom Colors")).clicked() {
-                            dialogs.custom_colors_dialog.set_open(wc);
-                        }
-                    });
+                    }
                 });
             });
         });
@@ -331,7 +443,7 @@ impl Editor {
     }
 
     fn show_display_toolbar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, map_data: &MapData) {
-        egui::Panel::top(format!("editor_panel_{}_display_toolbar", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tiles_display_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -484,7 +596,7 @@ impl Editor {
     }
 
     fn show_edit_toolbar(&mut self, ui: &mut egui::Ui, _wc: &mut WindowContext, map_data: &mut MapData) {
-        egui::Panel::top(format!("editor_panel_{}_edit_toolbar", self.asset_id)).show(ui, |ui| {
+        egui::Panel::top(format!("editor_panel_{}_tiles_edit_toolbar", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
@@ -592,8 +704,8 @@ impl Editor {
                             MapLayer::Animation => { 2 }
                             _ => { 0 }
                         };
-                        let left_name = Self::get_picker_tile_name(self.image_picker.get_selected_image_l_for_set(sel_set), &mut left_buf);
-                        let right_name = Self::get_picker_tile_name(self.image_picker.get_selected_image_r_for_set(sel_set), &mut right_buf);
+                        let left_name = Self::get_picker_tile_name(self.tile_picker.get_selected_image_l_for_set(sel_set), &mut left_buf);
+                        let right_name = Self::get_picker_tile_name(self.tile_picker.get_selected_image_r_for_set(sel_set), &mut right_buf);
                         ui.label(format!("[tile {}/{}]", left_name, right_name));
                     });
                 });
@@ -623,6 +735,398 @@ impl Editor {
         }
     }
 
+    fn show_tiles_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        map_data: &mut MapData,
+        _asset_ids: &AssetIdCollection,
+        assets: &MapDataEditorAssetLists,
+    ) {
+        self.show_display_toolbar(ui, wc, dialogs, map_data);
+        self.show_edit_toolbar(ui, wc, map_data);
+
+        // tile picker:
+        egui::Panel::left(format!("editor_panel_{}_tiles_left", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            match self.map_editor.edit_layer {
+                MapLayer::Effects => {
+                    let tiles = STATIC_IMAGES.fx_tiles();
+                    if self.tile_picker.selection_set != 1 {
+                        self.tile_picker.selection_set = 1;
+                        self.tile_picker.force_selection_into_visibility();
+                    }
+                    self.tile_picker.show(ui, wc, tiles);
+                }
+                MapLayer::Animation => {
+                    let tiles = STATIC_IMAGES.anim_tiles();
+                    if self.tile_picker.selection_set != 2 {
+                        self.tile_picker.selection_set = 2;
+                        self.tile_picker.force_selection_into_visibility();
+                    }
+                    self.tile_picker.show(ui, wc, tiles);
+                }
+                _ => {
+                    if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                        if let ImagePickerSelection::Some(tile) = self.tile_picker_popup.show_anchor(
+                            ui,
+                            wc,
+                            "Select...",
+                            tileset,
+                            self.tile_picker.get_selected_image_l()
+                        ) {
+                            self.tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
+                        }
+
+                        if self.tile_picker.selection_set != 0 {
+                            self.tile_picker.selection_set = 0;
+                            self.tile_picker.force_selection_into_visibility();
+                        }
+                        self.tile_picker.show(ui, wc, tileset);
+                    }
+                }
+            }
+            self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_l());
+            self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_r());
+        });
+
+        // body:
+        egui::CentralPanel::default().show(ui, |ui| {
+            self.map_editor.show(ui, wc, map_data, assets.tilesets, assets.tile_anims);
+            if self.map_editor.left_draw_tile_changed {
+                self.map_editor.left_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_l(Self::tile_to_image_selection(self.map_editor.left_draw_tile));
+            }
+            if self.map_editor.right_draw_tile_changed {
+                self.map_editor.right_draw_tile_changed = false;
+                self.tile_picker.set_selected_image_r(Self::tile_to_image_selection(self.map_editor.right_draw_tile));
+            }
+        });
+
+        // keyboard:
+        if wc.is_editor_on_top(self.asset_id) {
+            self.map_editor.handle_keyboard(ui, wc, map_data);
+        }
+    }
+
+    fn show_tile_changes_tiles_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_tile_changes_tiles_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.label("Tool:");
+                ui.add_space(2.0);
+
+                if ui.add(egui::Button::image(IMAGES.pen)
+                          .selected(self.tile_change_editor.tool == MapTileChangeTool::Pencil)
+                          .frame_when_inactive(self.tile_change_editor.tool == MapTileChangeTool::Pencil))
+                    .on_hover_text("Pencil (A)").clicked() {
+                        self.tile_change_editor.set_tool(MapTileChangeTool::Pencil);
+                    }
+
+                if ui.add(egui::Button::image(IMAGES.select)
+                          .selected(self.tile_change_editor.tool == MapTileChangeTool::Select)
+                          .frame_when_inactive(self.tile_change_editor.tool == MapTileChangeTool::Select))
+                    .on_hover_text("Select (D)").clicked() {
+                        self.tile_change_editor.set_tool(MapTileChangeTool::Select);
+                    }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                            .selected(self.tile_change_editor.display.has_bits(MapTileChangeDisplay::GRID))
+                            .frame_when_inactive(self.tile_change_editor.display.has_bits(MapTileChangeDisplay::GRID)))
+                            .on_hover_text("Show grid").clicked() {
+                                self.tile_change_editor.display.toggle(MapTileChangeDisplay::GRID);
+                            }
+                        ui.label("Display:");
+
+                        ui.add_space(2.0);
+                        ui.separator();
+                        ui.add_space(2.0);
+
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.tile_change_editor.zoom) {
+                            &format!("{:3.2}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("map_editor_{}_tile_changes_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.tile_change_editor.zoom, *zoom, format!("{:3.2}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
+                ui.spacing_mut().item_spacing = spacing;
+            });
+
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_tile_changes_tree(&mut self, ui: &mut egui::Ui, map_data: &MapData) -> TileChangeTreeAction {
+        let mut action = TileChangeTreeAction::None;
+        let tree_node_id = ui.make_persistent_id(format!("editor_{}_tile_changes_tree", self.asset_id));
+        let node = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true);
+        let mut toggle_node_open = false;
+        let mut node_resp = node.show_header(ui, |ui| {
+            let resp = ui.add(egui::Label::new("Tile Changes").selectable(false).sense(egui::Sense::click()));
+            egui::Popup::context_menu(&resp).show(|ui| {
+                if ui.add(menu_item_no_image(" Add tile change")).clicked() {
+                    action = TileChangeTreeAction::AddTileChange;
+                }
+            });
+            toggle_node_open = resp.clicked();
+        });
+        if toggle_node_open {
+            node_resp.toggle();
+        }
+        node_resp.body(|ui| {
+            for (change_index, change) in map_data.tile_changes.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    let mut selected = Some(change_index) == self.selected_tile_change;
+                    let resp = ui.toggle_value(&mut selected, &change.name);
+                    if resp.clicked() || resp.secondary_clicked() {
+                        self.select_tile_change(Some(change_index), map_data);
+                    }
+                    egui::Popup::context_menu(&resp).show(|ui| {
+                        if ui.add(menu_item(IMAGES.properties, " Properties...")).clicked() {
+                            action = TileChangeTreeAction::EditTileChange(change_index);
+                        }
+                        ui.separator();
+                        if ui.add(menu_item(IMAGES.trash, " Remove tile change")).clicked() {
+                            action = TileChangeTreeAction::RemoveTileChange(change_index);
+                        }
+                    });
+                });
+            }
+        });
+        action
+    }
+
+    fn add_tile_change(&mut self, map_data: &mut MapData) {
+        let tile_change_index = map_data.tile_changes.len();
+        map_data.tile_changes.push(MapTileChange::new("new_tile_change", 0, 0, 4, 8));
+        self.select_tile_change(Some(tile_change_index), map_data);
+    }
+
+    fn request_remove_tile_change(
+        &mut self,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        map_data: &MapData,
+        tile_change_index: usize
+    ) {
+        if let Some(change) = map_data.tile_changes.get(tile_change_index) {
+            self.remove_tile_change_index = Some(tile_change_index);
+            dialogs.confirmation_dialog.set_open(
+                wc,
+                "Remove Tile Change",
+                format!("Remove this tile change?\n\n{}", change.name),
+                "Yes",
+                "No"
+            );
+        }
+    }
+
+    fn remove_tile_change(&mut self, map_data: &mut MapData, index: usize) {
+        map_data.tile_changes.remove(index);
+        self.select_tile_change(self.selected_tile_change, map_data); // ensure selection is valid
+    }
+
+    fn show_tile_changes_tiles_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        map_data: &mut MapData,
+        assets: &MapDataEditorAssetLists,
+    ) {
+        self.show_tile_changes_tiles_toolbar(ui);
+
+        egui::Panel::left(format!("editor_panel_{}_tile_changes_picker", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                if let ImagePickerSelection::Some(tile) = self.tile_change_picker_popup.show_anchor(
+                    ui,
+                    wc,
+                    "Select...",
+                    tileset,
+                    self.tile_change_picker.get_selected_image_l()
+                ) {
+                    self.tile_change_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
+                }
+
+                if self.tile_change_picker.selection_set != 0 {
+                    self.tile_change_picker.selection_set = 0;
+                    self.tile_change_picker.force_selection_into_visibility();
+                }
+                self.tile_change_picker.show(ui, wc, tileset);
+            }
+            self.tile_change_editor.left_draw_tile = self.tile_change_picker.get_selected_image_l();
+            self.tile_change_editor.right_draw_tile = self.tile_change_picker.get_selected_image_r();
+        });
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            if let Some(change) = self.selected_tile_change.and_then(|index| map_data.tile_changes.get_mut(index)) &&
+                let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
+                    self.tile_change_editor.show(ui, wc, change, tileset);
+                    if self.tile_change_editor.left_draw_tile_changed {
+                        self.tile_change_editor.left_draw_tile_changed = false;
+                        self.tile_change_picker.set_selected_image_l(self.tile_change_editor.left_draw_tile);
+                    }
+                    if self.tile_change_editor.right_draw_tile_changed {
+                        self.tile_change_editor.right_draw_tile_changed = false;
+                        self.tile_change_picker.set_selected_image_r(self.tile_change_editor.right_draw_tile);
+                    }
+                }
+        });
+
+        if wc.is_editor_on_top(self.asset_id) &&
+            let Some(change) = self.selected_tile_change.and_then(|index| map_data.tile_changes.get_mut(index)) {
+                self.tile_change_editor.handle_keyboard(ui, wc, change);
+            }
+    }
+
+    fn show_tile_changes_placement_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_tile_changes_placement_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                let spacing = ui.spacing().item_spacing;
+                ui.spacing_mut().item_spacing = egui::Vec2::new(1.0, 0.0);
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::image(IMAGES.grid)
+                            .selected(self.tile_change_placer.display.has_bits(MapDisplay::GRID))
+                            .frame_when_inactive(self.tile_change_placer.display.has_bits(MapDisplay::GRID)))
+                            .on_hover_text("Show grid").clicked() {
+                                self.tile_change_placer.display.toggle(MapDisplay::GRID);
+                            }
+                        ui.label("Display:");
+
+                        ui.add_space(2.0);
+                        ui.separator();
+                        ui.add_space(2.0);
+
+                        let cur_zoom_name = if let Some(zoom) = ZOOM_OPTIONS.iter().find(|&z| *z == self.tile_change_placer.zoom) {
+                            &format!("{:3.2}x", zoom)
+                        } else {
+                            "custom"
+                        };
+                        egui::ComboBox::from_id_salt(format!("map_editor_{}_tile_changes_zoom_combo", self.asset_id))
+                            .selected_text(cur_zoom_name)
+                            .width(60.0)
+                            .show_ui(ui, |ui| {
+                                for zoom in ZOOM_OPTIONS {
+                                    ui.selectable_value(&mut self.tile_change_placer.zoom, *zoom, format!("{:3.2}x", zoom));
+                                }
+                            });
+                        ui.add_space(1.0);
+                        ui.label("Zoom:");
+                    });
+                });
+                ui.spacing_mut().item_spacing = spacing;
+            });
+
+            ui.add_space(0.0);  // don't remove this, it's necessary
+        });
+    }
+
+    fn show_tile_changes_placement_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        map_data: &mut MapData,
+        assets: &MapDataEditorAssetLists,
+    ) {
+        self.show_tile_changes_placement_toolbar(ui);
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            if let Some(change_index) = self.selected_tile_change {
+                self.tile_change_placer.show(ui, wc, map_data, change_index, assets.tilesets, assets.tile_anims);
+            }
+        });
+    }
+
+    fn show_tile_changes_tabs_toolbar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top(format!("editor_panel_{}_tile_changes_tabs_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(
+                    egui::Button::selectable(matches!(self.selected_tile_changes_tab, TileChangesTab::Tiles), "Tiles")
+                ).clicked() {
+                    self.selected_tile_changes_tab = TileChangesTab::Tiles;
+                }
+                if ui.add(
+                    egui::Button::selectable(matches!(self.selected_tile_changes_tab, TileChangesTab::Placement), "Placement")
+                ).clicked() {
+                    self.selected_tile_changes_tab = TileChangesTab::Placement;
+                }
+            });
+        });
+    }
+
+    fn show_tile_changes_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        map_data: &mut MapData,
+        _asset_ids: &AssetIdCollection,
+        assets: &MapDataEditorAssetLists,
+    ) {
+        egui::Panel::left(format!("editor_panel_{}_tile_changes_tree", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            ui.allocate_ui(egui::Vec2::new(Self::TILE_CHANGE_TREE_PANEL_WIDTH, ui.available_height()), |ui| {
+                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                    match self.show_tile_changes_tree(ui, map_data) {
+                        TileChangeTreeAction::None => {}
+                        TileChangeTreeAction::AddTileChange => {
+                            self.add_tile_change(map_data)
+                        }
+                        TileChangeTreeAction::RemoveTileChange(index) => {
+                            self.request_remove_tile_change(wc, dialogs, map_data, index)
+                        }
+                        TileChangeTreeAction::EditTileChange(index) => {
+                            dialogs.tile_change_properties_dialog.set_open(wc, map_data, index);
+                        }
+                    }
+                });
+            });
+        });
+
+        self.show_tile_changes_tabs_toolbar(ui);
+
+        match self.selected_tile_changes_tab {
+            TileChangesTab::Tiles => { self.show_tile_changes_tiles_tab(ui, wc, map_data, assets); }
+            TileChangesTab::Placement => { self.show_tile_changes_placement_tab(ui, wc, map_data, assets); }
+        }
+    }
+
+    fn show_tabs_toolbar(&mut self, ui: &mut egui::Ui, _map_data: &MapData) {
+        egui::Panel::top(format!("editor_panel_{}_tabs_toolbar", self.asset_id)).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(
+                    egui::Button::selectable(matches!(self.selected_tab, EditorTab::Tiles), "Tiles")
+                ).clicked() {
+                    self.selected_tab = EditorTab::Tiles;
+                }
+                if ui.add(
+                    egui::Button::selectable(matches!(self.selected_tab, EditorTab::TileChanges), "Tile Changes")
+                ).clicked() {
+                    self.selected_tab = EditorTab::TileChanges;
+                }
+            });
+        });
+    }
+
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -632,74 +1136,27 @@ impl Editor {
         asset_ids: &AssetIdCollection,
         assets: &MapDataEditorAssetLists,
     ) {
+        if let Some(index) = self.selected_tile_change && index >= map_data.tile_changes.len() {
+            self.select_tile_change(None, map_data);
+        } else if self.selected_tile_change.is_none() && ! map_data.tile_changes.is_empty() {
+            self.select_tile_change(Some(0), map_data);
+        }
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.import_map(wc, file, map_data, asset_ids);
         }
+        if dialogs.confirmation_dialog.open &&
+            dialogs.confirmation_dialog.show(wc) == DialogResult::Yes &&
+            let Some(index) = self.remove_tile_change_index {
+                self.remove_tile_change_index = None;
+                self.remove_tile_change(map_data, index);
+            }
 
         self.show_menubar(ui, wc, dialogs, map_data);
-        self.show_display_toolbar(ui, wc, dialogs, map_data);
-        self.show_edit_toolbar(ui, wc, map_data);
+        self.show_tabs_toolbar(ui, map_data);
 
-        // tile picker:
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
-            ui.add_space(5.0);
-            match self.map_editor.edit_layer {
-                MapLayer::Effects => {
-                    let tiles = STATIC_IMAGES.fx_tiles();
-                    if self.image_picker.selection_set != 1 {
-                        self.image_picker.selection_set = 1;
-                        self.image_picker.force_selection_into_visibility();
-                    }
-                    self.image_picker.show(ui, wc, tiles);
-                }
-                MapLayer::Animation => {
-                    let tiles = STATIC_IMAGES.anim_tiles();
-                    if self.image_picker.selection_set != 2 {
-                        self.image_picker.selection_set = 2;
-                        self.image_picker.force_selection_into_visibility();
-                    }
-                    self.image_picker.show(ui, wc, tiles);
-                }
-                _ => {
-                    if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
-                        if let Some(tile) = self.tile_picker_popup.show_anchor(
-                            ui,
-                            wc,
-                            "Select...",
-                            tileset,
-                            self.image_picker.get_selected_image_l()
-                        ) {
-                            self.image_picker.set_selected_image_l(Some(tile));
-                        }
-
-                        if self.image_picker.selection_set != 0 {
-                            self.image_picker.selection_set = 0;
-                            self.image_picker.force_selection_into_visibility();
-                        }
-                        self.image_picker.show(ui, wc, tileset);
-                    }
-                }
-            }
-            self.map_editor.left_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_l());
-            self.map_editor.right_draw_tile = Self::image_selection_to_tile(self.image_picker.get_selected_image_r());
-        });
-
-        // body:
-        egui::CentralPanel::default().show(ui, |ui| {
-            self.map_editor.show(ui, wc, map_data, assets.tilesets, assets.tile_anims);
-            if self.map_editor.left_draw_tile_changed {
-                self.map_editor.left_draw_tile_changed = false;
-                self.image_picker.set_selected_image_l(Self::tile_to_image_selection(self.map_editor.left_draw_tile));
-            }
-            if self.map_editor.right_draw_tile_changed {
-                self.map_editor.right_draw_tile_changed = false;
-                self.image_picker.set_selected_image_r(Self::tile_to_image_selection(self.map_editor.right_draw_tile));
-            }
-        });
-
-        // keyboard:
-        if wc.is_editor_on_top(self.asset_id) {
-            self.map_editor.handle_keyboard(ui, wc, map_data);
+        match self.selected_tab {
+            EditorTab::Tiles => { self.show_tiles_tab(ui, wc, dialogs, map_data, asset_ids, assets); }
+            EditorTab::TileChanges => { self.show_tile_changes_tab(ui, wc, dialogs, map_data, asset_ids, assets); }
         }
     }
 }
