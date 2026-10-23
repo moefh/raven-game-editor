@@ -314,6 +314,9 @@ pub fn fix_after_tileset_tiles_added(
     for map_id in store.asset_ids.maps.iter() {
         if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
             map_data.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            for change in &mut map_data.tile_changes {
+                change.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
             if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.add_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
             }
@@ -358,6 +361,9 @@ pub fn fix_after_tileset_tiles_removed(
     for map_id in store.asset_ids.maps.iter() {
         if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
             map_data.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            for change in &mut map_data.tile_changes {
+                change.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
+            }
             if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.remove_tileset_hole(hole_start, hole_size, num_tiles_after_hole);
             }
@@ -400,6 +406,9 @@ pub fn fix_after_tileset_tiles_shuffled(
     for map_id in store.asset_ids.maps.iter() {
         if let Some(map_data) = store.assets.maps.get_mut(map_id) && map_data.tileset_id == tileset_id {
             map_data.shuffle_tiles(&shuffle);
+            for change in &mut map_data.tile_changes {
+                change.shuffle_tiles(&shuffle);
+            }
             if let Some(map_editor) = editors.maps.get_mut(map_id) {
                 map_editor.shuffle_tiles(&shuffle);
             }

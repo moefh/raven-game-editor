@@ -616,6 +616,41 @@ impl MapTileFixer for MapData {
     }
 }
 
+impl MapTileFixer for MapTileChange {
+    fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
+        Vec::new()
+    }
+
+    fn shuffle_tiles(&mut self, shuffle: &[u32]) {
+        let old = Vec::from_iter(self.tiles.iter().copied());
+        for (to, &from) in shuffle.iter().enumerate() {
+            if from as usize != to {
+                for (i, tile) in self.tiles.iter_mut().enumerate() {
+                    if let Some(tile) = tile && old[i].is_some_and(|old_tile| old_tile == *tile) {
+                        *tile = (to & 0xff) as u8;
+                    }
+                }
+            }
+        }
+    }
+
+    fn add_tileset_hole(&mut self, hole_start: u8, hole_size: u8, _num_tiles_after_hole: u8) {
+        for tile in &mut self.tiles {
+            if let Some(tile) = tile && *tile >= hole_start {
+                *tile = (*tile).saturating_add(hole_size);
+            }
+        }
+    }
+
+    fn remove_tileset_hole(&mut self, hole_start: u8, hole_size: u8, _num_tiles_after_hole: u8) {
+        for tile in &mut self.tiles {
+            if let Some(tile) = tile && *tile >= hole_start + hole_size && *tile != MapData::NO_TILE {
+                *tile = (*tile).saturating_sub(hole_size);
+            }
+        }
+    }
+}
+
 pub fn resize_map_tiles(tiles: &mut Vec<u8>, old_w: u32, old_h: u32, new_w: u32, new_h: u32, new_tile: u8) {
     let old_w = old_w as usize;
     let old_h = old_h as usize;
