@@ -67,18 +67,69 @@ pub struct RoomMap {
 
 #[derive(Clone)]
 pub enum RoomTriggerType {
-    Unknown { data0: u16, data1: u16, data2: u16, data3: u16, data4: u16, data5: u16 },
-    PlayerSpawn { direction: RoomEntityDirection },
-    EnemySpawn { animation_id: DataAssetId, enemy_id: u16, enemy_type: RoomEnemyType, direction: RoomEntityDirection, req_flag_id: u16 },
-    Door { dest_room_id: DataAssetId, dest_trigger_id: u16, req_flag_id: u16 },
-    WallButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
-    DetectorButton { width: u16, height: u16, set_effect_id: u16, set_flag_id: u16, req_flag_id: u16, req_collectable_id: u16 },
-    UnblockTiles { width: u16, height: u16, on_effect_id: u16 },
-    DisableAnimation { width: u16, height: u16, on_effect_id: u16 },
-    RemoveEnemy { enemy_id: u16, on_effect_id: u16 },
-    GetUpgrade { get_upgrade_id: u16 },
-    GetCollectable { get_collectable_id: u16 },
-    GetPickup { get_pickup_id: u16, respawn_delay: u16 },
+    Unknown {
+        data0: u16,
+        data1: u16,
+        data2: u16,
+        data3: u16,
+        data4: u16,
+        data5: u16
+    },
+    PlayerSpawn {
+        direction: RoomEntityDirection
+    },
+    EnemySpawn {
+        animation_id: DataAssetId,
+        enemy_id: u16,
+        enemy_type: RoomEnemyType,
+        direction: RoomEntityDirection,
+        req_flag_id: u16
+    },
+    Door {
+        dest_room_id: DataAssetId,
+        dest_trigger_id: u16,
+        req_flag_id: u16
+    },
+    WallButton {
+        width: u16,
+        height: u16,
+        set_effect_id: u16,
+        set_flag_id: u16,
+        req_flag_id: u16,
+        req_collectable_id: u16
+    },
+    DetectorButton {
+        width: u16,
+        height: u16,
+        set_effect_id: u16,
+        set_flag_id: u16,
+        req_flag_id: u16,
+        req_collectable_id: u16
+    },
+    UnblockTiles {
+        width: u16,
+        height: u16,
+        on_effect_id: u16
+    },
+    DisableAnimation {
+        width: u16,
+        height: u16,
+        on_effect_id: u16
+    },
+    RemoveEnemy {
+        enemy_id: u16,
+        on_effect_id: u16
+    },
+    GetUpgrade {
+        get_upgrade_id: u16
+    },
+    GetCollectable {
+        get_collectable_id: u16
+    },
+    GetPickup {
+        get_pickup_id: u16,
+        respawn_delay: u16
+    },
 }
 
 #[derive(Clone)]
@@ -243,18 +294,19 @@ impl super::GenericAsset for Room {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: num_maps(2) + num_triggers(2) + maps<ptr>(4) + triggers<ptr>(4)
-        let header = 2 + 2 + 2 * 4;
+        // header: u16(2) * (num_maps, num_triggers) + ptr(4) * (maps, triggers)
+        let header = 2usize * 2 + 4usize * 2;
 
-        // map[0..num_maps]: x(2) + y(2) + map<ptr>(4)
-        let maps = self.maps.len() * (2 + 2 + 4);
+        // map[0..num_maps]: u16(2) * (x, y) + map<ptr>(4)
+        let maps = self.maps.len() * (2usize * 2 + 4usize);
 
-        // trigger[0..num_triggers]: type(4) + x(2) + y(2) + data[0..4](4)
-        let triggers = self.triggers.len() * (4 + 2 + 2 + 4 * 4);
+        // trigger[0..num_triggers]: u16(2)*(type,id,x,y) + u16(2)*6
+        let triggers = self.triggers.len() * (2usize * 4 + 2usize * 6);
 
-        // parallax: tileset<ptr>(4) + width(2) + height(2) + tiles<ptr>(4)
-        //   tiles: w * h * [u8(1)]
-        let parallax = 4 + 2 + 2 + 4 + (self.parallax.width as usize * self.parallax.height as usize);
+        // parallax:
+        //   header: tileset<ptr>(4) + u16(2) * (width, height) + tiles<ptr>(4)
+        //   tiles:  w * h * [u8(1)]
+        let parallax = 4usize + 2usize * 2 + 4usize + (self.parallax.width as usize * self.parallax.height as usize);
 
         header + maps + triggers + parallax
     }

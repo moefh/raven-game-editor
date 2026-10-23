@@ -110,8 +110,9 @@ impl super::GenericAsset for MapData {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: u16(2) * (w,h) + ptr(4) * (tileset,tile_anim,tile_data)<ptr> + num_tile_changes(2) + pad(2) + tile_changes<ptr>(4)
-        let header = 2usize * 2 + 4usize * 3 + 2usize + 2usize + 4usize;
+        // header: u16(2) * (w,h) + has_bb(1) + pad(1) + num_tile_changes(2) +
+        //         ptr(4) * (tileset,tile_anim,tile_data,tile_changes)<ptr>
+        let header = 2usize * 2 + 1usize + 1usize + 2usize + 4usize * 4;
 
         // tile_data:
         //   tiles:    w * h * [u8(1) * (fg,bg,fx)]
@@ -120,9 +121,10 @@ impl super::GenericAsset for MapData {
         let bb_tiles = if self.has_bb { (self.width as usize) * (self.height as usize) } else { 0 };
 
         // tile changes:
-        //   header: u116(2) * (x,y,w,h) + ptr(4)
-        //   changes[..]: 4*ceil((w*h)/32) + change.num_set_blocks
-        let tile_changes = self.tile_changes.len() * (2usize * 4 + 4usize);
+        //   header:      u16(2) * (x,y,w,h) + ptr(4) * (tile_bitmap<ptr>, tiles<ptr>)
+        //   tile_bitmap: u32(4) * ceil((w*h)/32)
+        //   tiles:       u8(1) * num_set_tiles
+        let tile_changes = self.tile_changes.len() * (2usize * 4 + 4usize * 2);
         let tile_change_tiles = self.tile_changes.iter().fold(0, |sum, change| {
             let mut num_set_tiles = 0;
             for y in 0..change.height {
@@ -134,7 +136,7 @@ impl super::GenericAsset for MapData {
             }
             let width = change.width as usize;
             let height = change.height as usize;
-            sum + num_set_tiles + 4 * (width * height).div_ceil(32)
+            sum + 4usize * (width * height).div_ceil(32) + num_set_tiles
         });
 
         header + tiles + bb_tiles + tile_changes + tile_change_tiles
