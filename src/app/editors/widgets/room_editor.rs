@@ -169,7 +169,7 @@ impl TriggerRect {
         Self::new(x, y, width, height, false)
     }
 
-    fn from_trigger(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Self {
+    fn from_trigger(trigger: &RoomTrigger, room: &Room, assets: &RoomEditorAssetLists) -> Self {
         match trigger.trigger_type {
             RoomTriggerType::WallButton { width, height, .. } |
             RoomTriggerType::DetectorButton { width, height, .. } |
@@ -187,6 +187,18 @@ impl TriggerRect {
                             animation.clip_rect.w.clamp(4, u16::MAX as i32) as u16,
                             animation.clip_rect.h.clamp(4, u16::MAX as i32) as u16
                         )
+                    })
+                    .unwrap_or_else(|| TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
+            }
+
+            RoomTriggerType::ChangeTiles { map_index, tile_change_index, .. } => {
+                room.maps.get(map_index as usize)
+                    .and_then(|room_map| assets.maps.get(&room_map.map_id))
+                    .and_then(|map_data| map_data.tile_changes.get(tile_change_index as usize))
+                    .map(|change| {
+                        let width = change.width * Tileset::TILE_SIZE;
+                        let height = change.height * Tileset::TILE_SIZE;
+                        TriggerRect::rigid(trigger.x, trigger.y, width as u16, height as u16)
                     })
                     .unwrap_or_else(|| TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
             }
@@ -246,6 +258,7 @@ impl TriggerRect {
             RoomTriggerType::EnemySpawn {..} |
             RoomTriggerType::PlayerSpawn {..} |
             RoomTriggerType::RemoveEnemy {..} |
+            RoomTriggerType::ChangeTiles {..} |
             RoomTriggerType::Unknown {..} => {
                 // not resizable
             }
@@ -364,8 +377,8 @@ impl RoomEditorWidget {
         TILE_SIZE * egui::Rect::from_min_size(map_pos, map_size)
     }
 
-    fn get_trigger_rect(trigger: &RoomTrigger, assets: &RoomEditorAssetLists) -> Rect {
-        TriggerRect::from_trigger(trigger, assets).egui_rect()
+    fn get_trigger_rect(trigger: &RoomTrigger, room: &Room, assets: &RoomEditorAssetLists) -> Rect {
+        TriggerRect::from_trigger(trigger, room, assets).egui_rect()
     }
 
     fn get_item_rect(&self, item: RoomItemRef, room: &Room, assets: &RoomEditorAssetLists) -> Option<Rect> {
@@ -384,7 +397,7 @@ impl RoomEditorWidget {
 
             RoomItemRef::Trigger(trg_index) => {
                 let trigger = room.triggers.get(trg_index)?;
-                Some(Self::get_trigger_rect(trigger, assets))
+                Some(Self::get_trigger_rect(trigger, room, assets))
             }
         }
     }
@@ -411,17 +424,22 @@ impl RoomEditorWidget {
             }
 
             RoomItemRef::Trigger(trg_index) => {
-                let trigger = room.triggers.get_mut(trg_index)?;
-                if self.grid.align && matches!(trigger.trigger_type, RoomTriggerType::EnemySpawn {..}) {
-                    let size = Self::get_trigger_rect(trigger, assets).size();
+                let trigger = room.triggers.get(trg_index)?;
+                let (new_x, new_y) = if self.grid.align && matches!(trigger.trigger_type, RoomTriggerType::EnemySpawn {..}) {
+                    let size = Self::get_trigger_rect(trigger, room, assets).size();
                     let height = size.y.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
                     let pos = Vec2::new(pos.x, pos.y + size.y);
-                    trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
-                    trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16) - height;
+                    let new_x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                    let new_y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16) - height;
+                    (new_x, new_y)
                 } else {
-                    trigger.x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
-                    trigger.y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
-                }
+                    let new_x = self.grid.align_i16(pos.x.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                    let new_y = self.grid.align_i16(pos.y.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16);
+                    (new_x, new_y)
+                };
+                let trigger = room.triggers.get_mut(trg_index)?;
+                trigger.x = new_x;
+                trigger.y = new_y;
                 Some(true)
             }
         }
@@ -446,10 +464,16 @@ impl RoomEditorWidget {
         None
     }
 
-    fn get_trigger_border(item: RoomItemRef, room: &mut Room, pos: Pos2, zoom: f32, assets: &RoomEditorAssetLists) -> Option<RectBorder> {
+    fn get_trigger_border(
+        item: RoomItemRef,
+        room: &mut Room,
+        pos: Pos2,
+        zoom: f32,
+        assets: &RoomEditorAssetLists
+    ) -> Option<RectBorder> {
         if let RoomItemRef::Trigger(trg_index) = item {
             let trigger = room.triggers.get(trg_index)?;
-            let rect = TriggerRect::from_trigger(trigger, assets);
+            let rect = TriggerRect::from_trigger(trigger, room, assets);
             if rect.resizable {
                 Self::get_rect_border(rect.egui_rect(), pos, zoom)
             } else {
@@ -475,10 +499,9 @@ impl RoomEditorWidget {
     fn resize_move(&mut self, mouse_pos: Pos2, room: &mut Room, border: RectBorder, assets: &RoomEditorAssetLists) -> bool {
         let new_pos = TriggerPos::from_pos2(self.drag_item_origin + (mouse_pos - self.drag_mouse_origin));
 
-        if self.dragging_item &&
-            let RoomItemRef::Trigger(index) = self.selected_item &&
-            let Some(trigger) = room.triggers.get_mut(index) {
-                let mut rect = TriggerRect::from_trigger(trigger, assets);
+        if self.dragging_item && let RoomItemRef::Trigger(trigger_index) = self.selected_item {
+            let new_rect = if let Some(trigger) = room.triggers.get(trigger_index) {
+                let mut rect = TriggerRect::from_trigger(trigger, room, assets);
                 if ! rect.resizable { return false; }
                 let x = self.grid.align_i32(new_pos.x);
                 let y = self.grid.align_i32(new_pos.y);
@@ -492,11 +515,17 @@ impl RoomEditorWidget {
                     RectBorder::BottomRight => { rect.set_bottom_border(y); rect.set_right_border(x); }
                     RectBorder::BottomLeft  => { rect.set_bottom_border(y); rect.set_left_border(x);  }
                 }
-                rect.apply_to_trigger(trigger);
-                true
+                rect
             } else {
-                false
+                return false;
+            };
+            if let Some(trigger) = room.triggers.get_mut(trigger_index) {
+                new_rect.apply_to_trigger(trigger);
             }
+            true
+        } else {
+            false
+        }
     }
 
     fn drag_start(&mut self, item_pos: Pos2, mouse_pos: Pos2) {
@@ -758,7 +787,14 @@ impl RoomEditorWidget {
         false
     }
 
-    fn draw_trigger_outline(&self, painter: &egui::Painter, to_canvas: &RectTransform, trigger: &RoomTrigger, assets: &RoomEditorAssetLists) {
+    fn draw_trigger_outline(
+        &self,
+        painter: &egui::Painter,
+        to_canvas: &RectTransform,
+        trigger: &RoomTrigger,
+        room: &Room,
+        assets: &RoomEditorAssetLists
+    ) {
         let display_bits = match trigger.trigger_type {
             RoomTriggerType::EnemySpawn { .. } => { RoomDisplay::ENEMY_TRIGGERS }
             _ => { RoomDisplay::OTHER_TRIGGERS }
@@ -767,7 +803,7 @@ impl RoomEditorWidget {
             return;
         }
 
-        let rect = Self::get_trigger_rect(trigger, assets);
+        let rect = Self::get_trigger_rect(trigger, room, assets);
         Self::draw_outline_rect(painter, to_canvas.transform_rect(rect));
     }
 
@@ -943,7 +979,7 @@ impl RoomEditorWidget {
 
         // draw trigger outlines
         for trigger in room.triggers.iter() {
-            self.draw_trigger_outline(&painter, &to_canvas, trigger, assets);
+            self.draw_trigger_outline(&painter, &to_canvas, trigger, room, assets);
         }
 
         // draw screen rect
@@ -967,7 +1003,7 @@ impl RoomEditorWidget {
         // outline selected trigger
         if let RoomItemRef::Trigger(trg_index) = self.selected_item &&
             let Some(trigger) = room.triggers.get(trg_index) {
-                let rect = Self::get_trigger_rect(trigger, assets);
+                let rect = Self::get_trigger_rect(trigger, room, assets);
                 Self::draw_selection_rect(&painter, to_canvas.transform_rect(rect));
             }
 

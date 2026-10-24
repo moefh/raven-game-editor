@@ -292,6 +292,7 @@ impl Editor {
         }
         if self.selected_tile_change != old {
             self.tile_change_editor.clear_undo();
+            self.tile_change_placer.clear_placement();
         }
     }
 
@@ -914,7 +915,7 @@ impl Editor {
 
     fn add_tile_change(&mut self, map_data: &mut MapData) {
         let tile_change_index = map_data.tile_changes.len();
-        map_data.tile_changes.push(MapTileChange::new("new_tile_change", 0, 0, 4, 8));
+        map_data.tile_changes.push(MapTileChange::new("new_tile_change", 4, 8));
         self.select_tile_change(Some(tile_change_index), map_data);
     }
 

@@ -32,8 +32,6 @@ pub fn get_asset_def() -> ValueDefStruct
 pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
     vec![
         (String::from("MAP_TILE_CHANGE"), ValueDefStruct::new(vec![
-            (String::from("x"), ValueDef::U16),
-            (String::from("y"), ValueDef::U16),
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
             (String::from("tile_bitmap"), ValueDef::ArrayRef),
@@ -79,15 +77,11 @@ fn conv_tiles(
 }
 
 fn conv_tile_change(change: &ValueStruct, name: String, project_data: &ProjectData) -> Result<MapTileChange> {
-    let x = change.get_u16("x")?;
-    let y = change.get_u16("y")?;
     let width = change.get_u16("width")?;
     let height = change.get_u16("height")?;
     let tile_bitmap_array = change.get_array_ref("tile_bitmap")?;
     let tiles_array = change.get_array_ref("tiles")?;
 
-    let x = x as u32;
-    let y = y as u32;
     let width = width as u32;
     let height = height as u32;
 
@@ -97,8 +91,6 @@ fn conv_tile_change(change: &ValueStruct, name: String, project_data: &ProjectDa
 
     Ok(MapTileChange {
         name,
-        x,
-        y,
         width,
         height,
         tiles,

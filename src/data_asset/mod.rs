@@ -54,6 +54,7 @@ pub use room::{
     RoomEnemyType,
     RoomTriggerType,
     RoomTriggerTypeIdent,
+    RoomTriggerMapLayer,
     RoomEntityDirection,
 };
 pub use world::{
@@ -405,6 +406,7 @@ impl AssetCollection {
                     RoomTriggerType::DetectorButton {..} |
                     RoomTriggerType::UnblockTiles {..} |
                     RoomTriggerType::DisableAnimation {..} |
+                    RoomTriggerType::ChangeTiles {..} |
                     RoomTriggerType::RemoveEnemy {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }

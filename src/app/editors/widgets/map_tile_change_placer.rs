@@ -39,6 +39,8 @@ pub struct MapTileChangePlacerWidget {
     drag_mouse_origin: Pos2,
     drag_tile_change_origin: Pos2,
     last_map_area_size: Vec2,
+    tile_change_x: u32,
+    tile_change_y: u32,
 }
 
 impl MapTileChangePlacerWidget {
@@ -47,12 +49,21 @@ impl MapTileChangePlacerWidget {
         MapTileChangePlacerWidget {
             zoom,
             scroll: Vec2::ZERO,
-            display: MapDisplay::new(MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::BACK_BACKGROUND | MapDisplay::GRID),
+            display: MapDisplay::new(
+                MapDisplay::FOREGROUND | MapDisplay::BACKGROUND | MapDisplay::BACK_BACKGROUND | MapDisplay::GRID
+            ),
+            tile_change_x: 0,
+            tile_change_y: 0,
             dragging_tile_change: false,
             drag_mouse_origin: Pos2::ZERO,
             drag_tile_change_origin: Pos2::ZERO,
             last_map_area_size: Vec2::ZERO,
         }
+    }
+
+    pub fn clear_placement(&mut self) {
+        //self.tile_change_x = 0;
+        //self.tile_change_y = 0;
     }
 
     pub fn set_zoom(&mut self, zoom: f32, canvas_size: Vec2, zoom_center: Vec2, map_data: &MapData) {
@@ -72,12 +83,12 @@ impl MapTileChangePlacerWidget {
         self.scroll = self.scroll.max(canvas_size - map_size).min(Vec2::ZERO);
     }
 
-    fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, map_data: &mut MapData, tile_change: usize) {
+    fn handle_mouse_down(&mut self, resp: &egui::Response, mouse_pos: Pos2, map_data: &MapData, tile_change: usize) {
         if resp.drag_stopped() {
             self.dragging_tile_change = false;
             return;
         }
-        let change = if let Some(change) = map_data.tile_changes.get_mut(tile_change) {
+        let change = if let Some(change) = map_data.tile_changes.get(tile_change) {
             change
         } else {
             return;
@@ -89,12 +100,16 @@ impl MapTileChangePlacerWidget {
                 return;
             }
             let new_pos = self.drag_tile_change_origin + (mouse_pos - self.drag_mouse_origin);
-            change.x = (new_pos.x.round() as i32).clamp(0, map_data.width.saturating_sub(change.width) as i32).unsigned_abs();
-            change.y = (new_pos.y.round() as i32).clamp(0, map_data.height.saturating_sub(change.height) as i32).unsigned_abs();
+            self.tile_change_x = (new_pos.x.round() as i32)
+                .clamp(0, map_data.width.saturating_sub(change.width) as i32)
+                .unsigned_abs();
+            self.tile_change_y = (new_pos.y.round() as i32)
+                .clamp(0, map_data.height.saturating_sub(change.height) as i32)
+                .unsigned_abs();
             return;
         }
 
-        let tile_change_pos = Pos2::new(change.x as f32, change.y as f32);
+        let tile_change_pos = Pos2::new(self.tile_change_x as f32, self.tile_change_y as f32);
         let rect = Rect::from_min_size(tile_change_pos, Vec2::new(change.width as f32, change.height as f32));
         if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) && resp.drag_started() {
             self.dragging_tile_change = true;
@@ -107,7 +122,7 @@ impl MapTileChangePlacerWidget {
         &self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        map_data: &mut MapData,
+        map_data: &MapData,
         tile_change: usize,
         tilesets: &AssetList<Tileset>,
         info: &DrawMapInfo,
@@ -116,8 +131,8 @@ impl MapTileChangePlacerWidget {
             for iy in 0..change.height {
                 for ix in 0..change.width {
                     if let Some(tile) = change.tiles[(iy * change.width + ix) as usize] && tile != MapData::NO_TILE {
-                        let x = ix + change.x;
-                        let y = iy + change.y;
+                        let x = ix + self.tile_change_x;
+                        let y = iy + self.tile_change_y;
                         let (uv, texture) = if tile as u32 >= tileset.num_tiles {
                             (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                         } else {
@@ -151,7 +166,7 @@ impl MapTileChangePlacerWidget {
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        map_data: &mut MapData,
+        map_data: &MapData,
         tile_change_index: usize,
         tilesets: &AssetList<Tileset>,
         tile_anims: &AssetList<TileAnimation>,
@@ -206,8 +221,9 @@ impl MapTileChangePlacerWidget {
         }
 
         if let Some(change) = map_data.tile_changes.get(tile_change_index) {
+            let tile_change_pos = egui::Vec2::new(self.tile_change_x as f32, self.tile_change_y as f32);
             let sel_rect = Rect::from_min_size(
-                canvas_rect.min + self.scroll + self.zoom * TILE_SIZE * egui::Vec2::new(change.x as f32, change.y as f32),
+                canvas_rect.min + self.scroll + self.zoom * TILE_SIZE * tile_change_pos,
                 self.zoom * TILE_SIZE * egui::Vec2::new(change.width as f32, change.height as f32),
             );
             Self::draw_tile_change_rect(&painter, sel_rect);

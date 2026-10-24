@@ -12,6 +12,7 @@ use crate::data_asset::{
     RoomTrigger,
     RoomTriggerType,
     RoomEntityDirection,
+    RoomTriggerMapLayer,
 };
 use crate::image::{
     TextureSlot,
@@ -122,6 +123,7 @@ pub enum RoomTriggerTypeSel {
     DetectorButton,
     UnblockTiles,
     DisableAnimation,
+    ChangeTiles,
     RemoveEnemy,
     GetUpgrade,
     GetCollectable,
@@ -139,6 +141,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeSel::DetectorButton }
             RoomTriggerType::UnblockTiles {..} => { RoomTriggerTypeSel::UnblockTiles }
             RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeSel::DisableAnimation }
+            RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeSel::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeSel::GetCollectable }
@@ -216,6 +219,15 @@ impl RoomTriggerTypeSel {
                 };
                 true
             }
+            RoomTriggerTypeSel::ChangeTiles if ! matches!(trigger_type, RoomTriggerType::ChangeTiles {..}) => {
+                *trigger_type = RoomTriggerType::ChangeTiles {
+                    map_index: 0,
+                    tile_change_index: 0,
+                    map_layer: RoomTriggerMapLayer::Background2,
+                    on_effect_id: u16::MAX
+                };
+                true
+            }
             RoomTriggerTypeSel::RemoveEnemy if ! matches!(trigger_type, RoomTriggerType::RemoveEnemy {..}) => {
                 *trigger_type = RoomTriggerType::RemoveEnemy {
                     enemy_id: 0,
@@ -256,6 +268,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::DetectorButton => { "detector button" }
             RoomTriggerTypeSel::UnblockTiles => { "unblock tiles" }
             RoomTriggerTypeSel::DisableAnimation => { "disable animation" }
+            RoomTriggerTypeSel::ChangeTiles => { "change tiles" }
             RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }

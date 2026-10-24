@@ -14,8 +14,10 @@ use crate::data_asset::{
     GenericAsset,
     AssetList,
     Room,
+    RoomMap,
     RoomTrigger,
     RoomTriggerType,
+    RoomTriggerMapLayer,
     RoomEntityDirection,
     MapData,
     Tileset,
@@ -79,6 +81,7 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
         RoomTriggerType::DetectorButton {..} => { IMAGES.log }
         RoomTriggerType::UnblockTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::DisableAnimation {..} => { IMAGES.room_effect }
+        RoomTriggerType::ChangeTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
         RoomTriggerType::GetCollectable {..} => { IMAGES.room_item }
@@ -677,12 +680,81 @@ impl Editor {
         }
     }
 
+    fn show_trigger_map_index_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        map_index: &mut u16,
+        maps: &AssetList<MapData>,
+        room_maps: &[RoomMap]
+    ) {
+        let sel_map_name = room_maps.get(*map_index as usize)
+            .and_then(|room_map| maps.get(&room_map.map_id))
+            .map(|m| m.asset.name.as_ref())
+            .unwrap_or("<invalid selection>");
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(sel_map_name)
+            .show_ui(ui, |ui| {
+                for (index, room_map) in room_maps.iter().enumerate() {
+                    ui.selectable_value(
+                        map_index,
+                        index as u16,
+                        maps.get(&room_map.map_id).map(|m| m.asset.name.as_ref()).unwrap_or("?")
+                    );
+                }
+            });
+    }
+
+    fn show_trigger_tile_change_index_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        tile_change_index: &mut u16,
+        map_data: &MapData
+    ) {
+        if map_data.tile_changes.is_empty() {
+            ui.label("<none in map>");
+            *tile_change_index = 0;
+            return;
+        }
+        let sel_tile_change_name = map_data.tile_changes.get(*tile_change_index as usize)
+            .map(|change| change.name.as_ref())
+            .unwrap_or("<invalid selection>");
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(sel_tile_change_name)
+            .show_ui(ui, |ui| {
+                for (index, change) in map_data.tile_changes.iter().enumerate() {
+                    ui.selectable_value(
+                        tile_change_index,
+                        index as u16,
+                        &change.name
+                    );
+                }
+            });
+    }
+
+    fn show_trigger_map_layer_editor(&self, ui: &mut egui::Ui, combo_id: &str, map_layer: &mut RoomTriggerMapLayer) {
+        let sel_layer_text = match map_layer {
+            RoomTriggerMapLayer::Background2 => { "2nd background" }
+            RoomTriggerMapLayer::Background => { "background" }
+            RoomTriggerMapLayer::Foreground => { "foreground" }
+        };
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(sel_layer_text)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(map_layer, RoomTriggerMapLayer::Background2, "2nd background");
+                ui.selectable_value(map_layer, RoomTriggerMapLayer::Background, "background");
+                ui.selectable_value(map_layer, RoomTriggerMapLayer::Foreground, "foreground");
+            });
+    }
+
     fn show_trigger_properties_grid(
         &self,
         ui: &mut egui::Ui,
         trigger: &mut RoomTrigger,
         asset_ids: &AssetIdCollection,
-        assets: &RoomEditorAssetLists
+        assets: &RoomEditorAssetLists,
+        room_maps: &[RoomMap],
     ) {
         ui.label("Trigger id:");
         ui.horizontal(|ui| {
@@ -706,6 +778,7 @@ impl Editor {
                     RoomTriggerTypeSel::DetectorButton,
                     RoomTriggerTypeSel::UnblockTiles,
                     RoomTriggerTypeSel::DisableAnimation,
+                    RoomTriggerTypeSel::ChangeTiles,
                     RoomTriggerTypeSel::RemoveEnemy,
                     RoomTriggerTypeSel::GetUpgrade,
                     RoomTriggerTypeSel::GetCollectable,
@@ -914,6 +987,28 @@ impl Editor {
                 ui.end_row();
             }
 
+            RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } => {
+                ui.label("Map:");
+                self.show_trigger_map_index_editor(ui, "change_tiles_map_index", map_index, assets.maps, room_maps);
+                ui.end_row();
+
+                ui.label("New tiles:");
+                if let Some(map_data) = room_maps.get(*map_index as usize).and_then(|room_map| assets.maps.get(&room_map.map_id)) {
+                    self.show_trigger_tile_change_index_editor(ui, "change_tiles_tile_change_index", tile_change_index, map_data);
+                } else {
+                    ui.label("<invalid map>");
+                }
+                ui.end_row();
+
+                ui.label("Layer:");
+                self.show_trigger_map_layer_editor(ui, "change_tiles_map_layer", map_layer);
+                ui.end_row();
+
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "change_tiles_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
             RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
                 ui.label("Enemy Id:");
                 ui.add(egui::DragValue::new(enemy_id).speed(1.0).range(0..=u16::MAX));
@@ -966,7 +1061,7 @@ impl Editor {
                     .num_columns(2)
                     .spacing([8.0, 2.0])
                     .show(ui, |ui| {
-                        self.show_trigger_properties_grid(ui, trigger, asset_ids, assets);
+                        self.show_trigger_properties_grid(ui, trigger, asset_ids, assets, &room.maps);
                     });
             });
         None

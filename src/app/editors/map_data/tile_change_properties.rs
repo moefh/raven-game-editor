@@ -13,8 +13,6 @@ pub struct TileChangePropertiesDialog {
     pub open: bool,
     pub tile_change_index: usize,
     pub name: String,
-    pub x: u32,
-    pub y: u32,
     pub width: u32,
     pub height: u32,
 }
@@ -26,8 +24,6 @@ impl TileChangePropertiesDialog {
             open: false,
             tile_change_index: 0,
             name: String::new(),
-            x: 0,
-            y: 0,
             width: 0,
             height: 0,
         }
@@ -36,8 +32,6 @@ impl TileChangePropertiesDialog {
     pub fn set_open(&mut self, wc: &mut WindowContext, map_data: &MapData, tile_change_index: usize) {
         if let Some(change) = map_data.tile_changes.get(tile_change_index) {
             self.name.replace_range(.., &change.name);
-            self.x = change.x;
-            self.y = change.y;
             self.width = change.width;
             self.height = change.height;
             self.tile_change_index = tile_change_index;
@@ -47,17 +41,17 @@ impl TileChangePropertiesDialog {
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, map_data: &mut MapData) -> bool {
-        if self.width == 0 || self.x + self.width > map_data.width {
+        if self.width == 0 || self.width > map_data.width {
             wc.open_message_box(
                 "Invalid Width",
-                format!("The region with must be between 1 and {}", map_data.width.saturating_sub(self.x))
+                format!("The region width must be between 1 and {}", map_data.width)
             );
             return false;
         }
-        if self.height == 0 || self.y + self.height > map_data.height {
+        if self.height == 0 || self.height > map_data.height  {
             wc.open_message_box(
                 "Invalid Height",
-                format!("The region height must be between 1 and {}", map_data.height.saturating_sub(self.y))
+                format!("The region height must be between 1 and {}", map_data.height)
             );
             return false;
         }
@@ -65,8 +59,6 @@ impl TileChangePropertiesDialog {
         if let Some(change) = map_data.tile_changes.get_mut(self.tile_change_index) {
             change.name.replace_range(.., &self.name);
             resize_map_tile_change(change, self.width, self.height);
-            change.x = self.x;
-            change.y = self.y;
         }
         true
     }
@@ -82,20 +74,12 @@ impl TileChangePropertiesDialog {
                         ui.text_edit_singleline(&mut self.name);
                         ui.end_row();
 
-                        ui.label("X:");
-                        ui.add(egui::Slider::new(&mut self.x, 0..=map_data.width.saturating_sub(1)));
-                        ui.end_row();
-
-                        ui.label("Y:");
-                        ui.add(egui::Slider::new(&mut self.y, 0..=map_data.height.saturating_sub(1)));
-                        ui.end_row();
-
                         ui.label("Width:");
-                        ui.add(egui::Slider::new(&mut self.width, 1..=map_data.width.saturating_sub(self.x)));
+                        ui.add(egui::Slider::new(&mut self.width, 1..=map_data.width));
                         ui.end_row();
 
                         ui.label("Height:");
-                        ui.add(egui::Slider::new(&mut self.height, 1..=map_data.height.saturating_sub(self.y)));
+                        ui.add(egui::Slider::new(&mut self.height, 1..=map_data.height));
                         ui.end_row();
 
                     });

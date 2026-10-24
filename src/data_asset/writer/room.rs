@@ -99,6 +99,15 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
                 writer.write(format!(".disable_animation = {{ {}, {}, {} }}", width, height, on_effect_id));
             }
+            RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } => {
+                writer.write(format!(
+                    ".change_tiles = {{ {}, {}, {}, {} }}",
+                    map_index,
+                    tile_change_index,
+                    map_layer.value(),
+                    on_effect_id
+                ));
+            }
             RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
                 writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_id, on_effect_id));
             }

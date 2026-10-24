@@ -21,6 +21,7 @@ use super::super::{
     RoomParallax,
     RoomTriggerType,
     RoomTriggerTypeIdent,
+    RoomTriggerMapLayer,
     RoomEntityDirection,
 };
 
@@ -113,6 +114,13 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("disable_animation"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("change_tiles"), ValueDefStruct::new(vec![
+            (String::from("map_index"), ValueDef::U16),
+            (String::from("tile_change_index"), ValueDef::U16),
+            (String::from("map_layer"), ValueDef::U8),
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
@@ -277,6 +285,15 @@ fn conv_trigger_disable_animation(data: &ValueStruct, _project_data: &ProjectDat
     })
 }
 
+fn conv_trigger_change_tiles(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::ChangeTiles {
+        map_index: data.get_u16("map_index")?,
+        tile_change_index: data.get_u16("tile_change_index")?,
+        map_layer: RoomTriggerMapLayer::from(data.get_u8("map_layer")?),
+        on_effect_id: data.get_u16("on_effect_id")?,
+    })
+}
+
 fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::RemoveEnemy {
         enemy_id: data.get_u16("enemy_id")?,
@@ -327,6 +344,8 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_unblock_tiles(type_data, project_data)?
     } else if RoomTriggerTypeIdent::DisableAnimation.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_disable_animation(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::ChangeTiles.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_change_tiles(type_data, project_data)?
     } else if RoomTriggerTypeIdent::RemoveEnemy.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_remove_enemy(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetUpgrade.matches_enum_ident(&trigger_type.name, prefix) {

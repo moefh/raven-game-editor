@@ -116,7 +116,7 @@ fn write_map_tile_changes(writer: &ProjectDataWriter, map_data: &MapData, name_i
     ));
     for (change_index, change) in map_data.tile_changes.iter().enumerate() {
         writer.write("  {\n");
-        writer.write(format!("    {}, {}, {}, {},\n", change.x, change.y, change.width, change.height));
+        writer.write(format!("    {}, {},\n", change.width, change.height));
         writer.write(format!("    {}_map_{}_tile_change_{}_tile_bitmap,\n", writer.ident.prefix_lower, name_id, change_index));
         writer.write(format!("    {}_map_{}_tile_change_{}_tiles,\n", writer.ident.prefix_lower, name_id, change_index));
         writer.write("  },\n");

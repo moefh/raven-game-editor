@@ -1,19 +1,15 @@
 #[derive(Clone)]
 pub struct MapTileChange {
     pub name: String,
-    pub x: u32,
-    pub y: u32,
     pub width: u32,
     pub height: u32,
     pub tiles: Vec<Option<u8>>,
 }
 
 impl MapTileChange {
-    pub fn new(name: impl Into<String>, x: u32, y: u32, width: u32, height: u32) -> Self {
+    pub fn new(name: impl Into<String>, width: u32, height: u32) -> Self {
         MapTileChange {
             name: name.into(),
-            x,
-            y,
             width,
             height,
             tiles: vec![None; (width * height) as usize],
@@ -74,8 +70,6 @@ impl super::HashedDataAsset for MapData {
         hasher.add_bytes(&self.bb_tiles);
         for change in &self.tile_changes {
             hasher.add_str(&change.name);
-            hasher.add_u32(change.x);
-            hasher.add_u32(change.y);
             hasher.add_u32(change.width);
             hasher.add_u32(change.height);
             for tile in &change.tiles {
@@ -121,10 +115,10 @@ impl super::GenericAsset for MapData {
         let bb_tiles = if self.has_bb { (self.width as usize) * (self.height as usize) } else { 0 };
 
         // tile changes:
-        //   header:      u16(2) * (x,y,w,h) + ptr(4) * (tile_bitmap<ptr>, tiles<ptr>)
+        //   header:      u16(2) * (w,h) + ptr(4) * (tile_bitmap<ptr>, tiles<ptr>)
         //   tile_bitmap: u32(4) * ceil((w*h)/32)
         //   tiles:       u8(1) * num_set_tiles
-        let tile_changes = self.tile_changes.len() * (2usize * 4 + 4usize * 2);
+        let tile_changes = self.tile_changes.len() * (2usize * 2 + 4usize * 2);
         let tile_change_tiles = self.tile_changes.iter().fold(0, |sum, change| {
             let mut num_set_tiles = 0;
             for y in 0..change.height {
