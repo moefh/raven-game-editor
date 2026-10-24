@@ -598,8 +598,8 @@ pub struct DataAssetStore {
 }
 
 impl DataAssetStore {
-    pub const VERSION: u32 = 11;
-    pub const VERSION_DATE: &str = "2026-10-17";
+    pub const VERSION: u32 = 12;
+    pub const VERSION_DATE: &str = "2026-10-24";
 
     pub fn new() -> Self {
         DataAssetStore {

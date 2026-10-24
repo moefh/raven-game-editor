@@ -86,8 +86,6 @@ struct $<PREFIX>_PAL_SPRITE {
 #ifndef $<PREFIX>_SKIP_STRUCTS_MAP
 
 struct $<PREFIX>_MAP_TILE_CHANGE {
-    uint16_t x;
-    uint16_t y;
     uint16_t w;
     uint16_t h;
     const uint32_t *tile_bitmap;
@@ -234,6 +232,12 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t height;
             uint16_t on_effect_id;
         } disable_animation;
+        struct {
+            uint16_t map_index;
+            uint16_t tile_change_index;
+            uint8_t map_layer;
+            uint16_t on_effect_id;
+        } change_tiles;
         struct {
             uint16_t enemy_id;
             uint16_t on_effect_id;
