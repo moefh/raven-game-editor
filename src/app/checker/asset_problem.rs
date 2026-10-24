@@ -15,13 +15,14 @@ impl MapLayer {
         match self {
             MapLayer::Foreground => "foreground",
             MapLayer::Background => "background",
-            MapLayer::Background2   => "2nd background",
+            MapLayer::Background2 => "2nd background",
         }
     }
 }
 
 pub enum AssetWarning {
     MapOpaqueTile { first_tile_x: u32, first_tile_y: u32, num_tiles: u32 },
+    RoomRemoveEnemyWithInvalidEnemy { trigger_index: usize },
     WorldWithNoRegions,
     WorldRegionWithNoMaps { region_index: usize },
 }
@@ -37,6 +38,14 @@ impl AssetWarning {
                     num_tiles
                 ));
             }
+
+            AssetWarning::RoomRemoveEnemyWithInvalidEnemy { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> remove_enemy '{}' has invalid enemy id", trigger.name_id));
+                    }
+            }
+
             AssetWarning::WorldWithNoRegions => {
                 ui.label("  -> world has no regions");
             }

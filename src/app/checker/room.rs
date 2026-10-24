@@ -116,6 +116,23 @@ fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, errors: &m
     }
 }
 
+fn is_valid_enemy_id(room: &Room, check_enemy_id: u16) -> bool {
+    for trigger in &room.triggers {
+        if let RoomTriggerType::EnemySpawn { enemy_id, .. } = trigger.trigger_type && enemy_id == check_enemy_id {
+            return true;
+        }
+    }
+    false
+}
+
+fn check_room_enemies(room: &Room, _errors: &mut Vec<AssetError>, warn: &mut Vec<AssetWarning>) {
+    for (trigger_index, trigger) in room.triggers.iter().enumerate() {
+        if let RoomTriggerType::RemoveEnemy { enemy_id, .. } = trigger.trigger_type && ! is_valid_enemy_id(room, enemy_id) {
+            warn.push(AssetWarning::RoomRemoveEnemyWithInvalidEnemy { trigger_index });
+        }
+    }
+}
+
 fn check_room_tile_chages(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
         if let RoomTriggerType::ChangeTiles { map_index, tile_change_index, .. } = trigger.trigger_type {
@@ -197,7 +214,7 @@ fn check_room_project_table_refs(
             RoomTriggerType::ChangeTiles { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
-            RoomTriggerType::RemoveEnemy { on_effect_id, .. } => { // TODO: check enemy_id
+            RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
             RoomTriggerType::GetUpgrade { get_upgrade_id } => {
@@ -231,6 +248,7 @@ fn check_room(
     check_room_trigger_ids(room, &mut errors, &mut warnings);
     check_room_tile_chages(room, maps, &mut errors, &mut warnings);
     check_room_door_destinations(room, rooms, &mut errors, &mut warnings);
+    check_room_enemies(room, &mut errors, &mut warnings);
     check_room_project_table_refs(room, tables, &mut errors, &mut warnings);
 
     (errors, warnings)
