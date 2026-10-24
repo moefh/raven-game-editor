@@ -44,6 +44,7 @@ use super::widgets::{
     ImagePickerWidget,
     ImagePickerSelection,
     TilePickerPopupWidget,
+    ImageDisplay,
 };
 use super::super::{
     menu_item,
@@ -705,8 +706,14 @@ impl Editor {
                             MapLayer::Animation => { 2 }
                             _ => { 0 }
                         };
-                        let left_name = Self::get_picker_tile_name(self.tile_picker.get_selected_image_l_for_set(sel_set), &mut left_buf);
-                        let right_name = Self::get_picker_tile_name(self.tile_picker.get_selected_image_r_for_set(sel_set), &mut right_buf);
+                        let left_name = Self::get_picker_tile_name(
+                            self.tile_picker.get_selected_image_l_for_set(sel_set),
+                            &mut left_buf
+                        );
+                        let right_name = Self::get_picker_tile_name(
+                            self.tile_picker.get_selected_image_r_for_set(sel_set),
+                            &mut right_buf
+                        );
                         ui.label(format!("[tile {}/{}]", left_name, right_name));
                     });
                 });
@@ -843,6 +850,19 @@ impl Editor {
                             .on_hover_text("Show grid").clicked() {
                                 self.tile_change_editor.display.toggle(MapTileChangeDisplay::GRID);
                             }
+
+                        if ui.add(egui::Button::image(IMAGES.transparency)
+                                  .selected(self.tile_change_editor.display.has_bits(MapTileChangeDisplay::TRANSPARENT))
+                                  .frame_when_inactive(self.tile_change_editor.display.has_bits(MapTileChangeDisplay::TRANSPARENT)))
+                            .on_hover_text("Toggle Transparency Display").clicked() {
+                                self.tile_change_editor.display.toggle(MapTileChangeDisplay::TRANSPARENT);
+                            }
+
+                        if self.tile_change_editor.display.has_bits(MapTileChangeDisplay::TRANSPARENT) {
+                            self.tile_change_picker.display.set_bits(ImageDisplay::TRANSPARENT);
+                        } else {
+                            self.tile_change_picker.display.clear_bits(ImageDisplay::TRANSPARENT);
+                        }
                         ui.label("Display:");
 
                         ui.add_space(2.0);

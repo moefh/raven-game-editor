@@ -138,6 +138,14 @@ impl ImageDisplay {
     pub fn is_transparent(&self) -> bool {
         self.has_bits(Self::TRANSPARENT)
     }
+
+    pub fn set_bits(&mut self, bits: u8) {
+        self.bits |= bits;
+    }
+
+    pub fn clear_bits(&mut self, bits: u8) {
+        self.bits &= !bits;
+    }
 }
 
 pub struct ImageEditorWidget<ImageAsset> {

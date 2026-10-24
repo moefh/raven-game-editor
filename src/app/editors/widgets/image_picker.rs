@@ -180,7 +180,13 @@ impl ImagePickerWidget {
         wc: &mut WindowContext,
         image: &impl ImageCollection,
     ) {
-        let bg_color = self.custom_bg_color.unwrap_or(wc.settings.image_bg_color);
+        let bg_color = self.custom_bg_color.unwrap_or(
+            if self.display.is_transparent() || self.num_empty_selections < 2 {
+                wc.settings.image_bg_color
+            } else {
+                egui::Color32::from_rgb(0, 255, 0)
+            }
+        );
         let source = egui::scroll_area::ScrollSource {
             scroll_bar: true,
             drag: egui::scroll_area::DragScroll::Never,

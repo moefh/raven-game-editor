@@ -42,7 +42,8 @@ pub struct MapTileChangeDisplay {
 
 #[allow(unused)]
 impl MapTileChangeDisplay {
-    pub const GRID: u32            = 1 << 4;
+    pub const GRID: u32        = 1 << 0;
+    pub const TRANSPARENT: u32 = 1 << 1;
 
     pub fn new(bits: u32) -> Self {
         MapTileChangeDisplay {
@@ -128,7 +129,7 @@ pub struct MapTileChangeEditorWidget {
 }
 
 impl MapTileChangeEditorWidget {
-    const DEFAULT_DISPLAY: u32 = MapTileChangeDisplay::GRID;
+    const DEFAULT_DISPLAY: u32 = MapTileChangeDisplay::GRID | MapTileChangeDisplay::TRANSPARENT;
     const MAX_UNDO_TARGETS: usize = 32;
 
     pub fn new() -> Self {
@@ -450,6 +451,11 @@ impl MapTileChangeEditorWidget {
         tileset: &Tileset,
         info: &DrawMapInfo
     ) {
+        let slot = if self.display.has_bits(MapTileChangeDisplay::TRANSPARENT) {
+            TextureSlot::Transparent
+        } else {
+            TextureSlot::Opaque
+        };
         for y in 0..change.height {
             for x in 0..change.width {
                 let tile = change.tiles[(y * change.width + x) as usize];
@@ -458,7 +464,7 @@ impl MapTileChangeEditorWidget {
                     if tile as u32 >= tileset.num_tiles {
                         (FULL_UV, STATIC_IMAGES.bad_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent))
                     } else {
-                        (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
+                        (tileset.get_item_uv(tile as u32), tileset.texture(wc.tex_man, wc.egui.ctx, slot))
                     }
                 } else {
                     (FULL_UV, STATIC_IMAGES.no_change_tile().texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque))
@@ -518,7 +524,13 @@ impl MapTileChangeEditorWidget {
         }
 
         // draw background green
-        let bg_color = self.custom_bg_color.unwrap_or(wc.settings.image_bg_color);
+        let bg_color = self.custom_bg_color.unwrap_or(
+            if self.display.has_bits(MapTileChangeDisplay::TRANSPARENT) {
+                wc.settings.image_bg_color
+            } else {
+                egui::Color32::from_rgb(0, 255, 0)
+            }
+        );
         painter.rect_filled(change_area_rect, egui::CornerRadius::ZERO, bg_color);
 
         let draw_info = DrawMapInfo {
