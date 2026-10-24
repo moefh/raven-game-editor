@@ -66,6 +66,13 @@ pub enum AssetError {
     RoomMapInvalidYLocation { y: u32, map_id: DataAssetId },
     RoomTriggersWithSameId { trigger1_index: usize, trigger2_index: usize, trigger_id: u16 },
     RoomDoorWithInvalidDestination { trigger_index: usize },
+    RoomChangeTileWithInvalidTileChange { trigger_index: usize },
+    RoomChangeTileWithInvalidMap { trigger_index: usize },
+    RoomTriggerWithInvalidEffect { trigger_index: usize },
+    RoomTriggerWithInvalidFlag { trigger_index: usize },
+    RoomTriggerWithInvalidUpgrade { trigger_index: usize },
+    RoomTriggerWithInvalidCollectable { trigger_index: usize },
+    RoomTriggerWithInvalidPickup { trigger_index: usize },
     WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -183,6 +190,55 @@ impl AssetError {
                     }
             }
 
+            AssetError::RoomChangeTileWithInvalidTileChange { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> change_tile '{}' has map tile change", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomChangeTileWithInvalidMap { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> change_tile '{}' has invalid map", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidEffect { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid effect table item", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidFlag { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid flag table item", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidUpgrade { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid upgrade table item", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidCollectable { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid collectable table item", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidPickup { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid pickup table item", trigger.name_id));
+                    }
+            }
+
             AssetError::WorldRegionsUsingSameRoom { room_id, region1_index, region2_index } => {
                 if let Some(world) = store.assets.worlds.get(&asset_id) &&
                     let Some(room) = store.assets.rooms.get(room_id) &&
@@ -196,7 +252,12 @@ impl AssetError {
                         ));
                     } else {
                         ui.label("*** ERROR: INVALID WORLD REGION REFERENCE");
-                        ui.label(format!("*** room_id={}, region1_index={}, region2_index={}", room_id, region1_index, region2_index));
+                        ui.label(format!(
+                            "*** room_id={}, region1_index={}, region2_index={}",
+                            room_id,
+                            region1_index,
+                            region2_index
+                        ));
                     }
             }
 

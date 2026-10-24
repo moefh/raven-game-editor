@@ -6,6 +6,7 @@ use std::collections::{
 use crate::data_asset::{
     DataAssetId,
     DataAssetStore,
+    DataStoreTables,
     AssetList,
     Room,
     RoomTriggerType,
@@ -115,7 +116,109 @@ fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, errors: &m
     }
 }
 
-fn check_room(room: &Room, rooms: &AssetList<Room>, maps: &AssetList<MapData>) -> (Vec<AssetError>, Vec<AssetWarning>) {
+fn check_room_tile_chages(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
+    for (trigger_index, trigger) in room.triggers.iter().enumerate() {
+        if let RoomTriggerType::ChangeTiles { map_index, tile_change_index, .. } = trigger.trigger_type {
+            if let Some(room_map) = room.maps.get(map_index as usize) && let Some(map_data) = maps.get(&room_map.map_id) {
+                if tile_change_index as usize >= map_data.tile_changes.len() {
+                    errors.push(AssetError::RoomChangeTileWithInvalidTileChange { trigger_index });
+                }
+            } else {
+                errors.push(AssetError::RoomChangeTileWithInvalidMap { trigger_index });
+            }
+        }
+    }
+}
+
+fn check_room_trigger_effect(effect_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if effect_id != u16::MAX && effect_id as usize >= tables.effect.names.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidEffect { trigger_index });
+    }
+}
+
+fn check_room_trigger_flag(flag_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if flag_id != u16::MAX && flag_id as usize >= tables.flag.names.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidFlag { trigger_index });
+    }
+}
+
+fn check_room_trigger_upgrade(upgrade_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if upgrade_id != u16::MAX && upgrade_id as usize >= tables.upgrade.items.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidUpgrade { trigger_index });
+    }
+}
+
+fn check_room_trigger_collectable(collectable_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if collectable_id != u16::MAX && collectable_id as usize >= tables.collectable.items.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidCollectable { trigger_index });
+    }
+}
+
+fn check_room_trigger_pickup(pickup_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if pickup_id != u16::MAX && pickup_id as usize >= tables.pickup.items.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidPickup { trigger_index });
+    }
+}
+
+fn check_room_project_table_refs(
+    room: &Room,
+    tables: &DataStoreTables,
+    errors: &mut Vec<AssetError>,
+    _warn: &mut Vec<AssetWarning>,
+) {
+    for (trigger_index, trigger) in room.triggers.iter().enumerate() {
+        match trigger.trigger_type {
+            RoomTriggerType::Unknown {..} => {}
+            RoomTriggerType::PlayerSpawn {..} => {}
+            RoomTriggerType::EnemySpawn { req_flag_id, .. } => {
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::Door { req_flag_id, .. } => {
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
+                check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+                check_room_trigger_collectable(req_collectable_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::DetectorButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
+                check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+                check_room_trigger_collectable(req_collectable_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::UnblockTiles { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::DisableAnimation { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::ChangeTiles { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::RemoveEnemy { on_effect_id, .. } => { // TODO: check enemy_id
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                check_room_trigger_upgrade(get_upgrade_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::GetCollectable { get_collectable_id } => {
+                check_room_trigger_collectable(get_collectable_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::GetPickup { get_pickup_id, .. } => {
+                check_room_trigger_pickup(get_pickup_id, tables, trigger_index, errors);
+            }
+        }
+    }
+}
+
+fn check_room(
+    room: &Room,
+    rooms: &AssetList<Room>,
+    maps: &AssetList<MapData>,
+    tables: &DataStoreTables,
+) -> (Vec<AssetError>, Vec<AssetWarning>) {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
@@ -126,7 +229,9 @@ fn check_room(room: &Room, rooms: &AssetList<Room>, maps: &AssetList<MapData>) -
     check_room_maps(room, maps, &mut errors, &mut warnings);
     check_room_size(room, maps, &mut errors, &mut warnings);
     check_room_trigger_ids(room, &mut errors, &mut warnings);
+    check_room_tile_chages(room, maps, &mut errors, &mut warnings);
     check_room_door_destinations(room, rooms, &mut errors, &mut warnings);
+    check_room_project_table_refs(room, tables, &mut errors, &mut warnings);
 
     (errors, warnings)
 }
@@ -137,7 +242,7 @@ pub fn check_rooms(
     store: &DataAssetStore
 ) {
     for room in store.assets.rooms.iter() {
-        let (errors, warnings) = check_room(room, &store.assets.rooms, &store.assets.maps);
+        let (errors, warnings) = check_room(room, &store.assets.rooms, &store.assets.maps, &store.tables);
         asset_errors.insert(room.asset.id, errors);
         asset_warnings.insert(room.asset.id, warnings);
     }
