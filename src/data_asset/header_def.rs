@@ -316,9 +316,10 @@ struct $<PREFIX>_TABLE_ITEM {
 
 #ifndef $<PREFIX>_SKIP_ROOM_SCRIPT
 
-struct $<PREFIX>_STATE;
-typedef void (*$<prefix>_room_init_function)(uint32_t, struct $<PREFIX>_STATE *);
-typedef void (*$<prefix>_room_update_function)(struct $<PREFIX>_STATE *);
+#ifndef RAVEN_SKIP_ROOM_SCRIPT_FUNCTION_TYPEDEFS
+typedef void (*$<prefix>_room_init_function)(uint32_t, void *);
+typedef void (*$<prefix>_room_update_function)(void *);
+#endif
 
 struct $<PREFIX>_ROOM_SCRIPT {
     $<prefix>_room_init_function init;
