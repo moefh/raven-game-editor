@@ -26,6 +26,7 @@ use crate::data_asset::{
     RoomMap,
     RoomTrigger,
     RoomTriggerType,
+    RoomTriggerMapLayer,
     MapData,
     Tileset,
 };
@@ -224,7 +225,7 @@ impl GameRunnerState {
         }
     }
 
-    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, enemies: &mut Vec<Enemy>, _store: &DataAssetStore) {
+    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataAssetStore) {
         if effect_id == u16::MAX { return; }
 
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
@@ -244,6 +245,30 @@ impl GameRunnerState {
                             self.room.fx[(y*room_width + x) as usize] |= 0x0f;
                         }
                     }
+                }
+                RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } if on_effect_id==effect_id => {
+                    let x_start = trigger.x as i32 / TILE_SIZE;
+                    let y_start = trigger.y as i32 / TILE_SIZE;
+                    if let Some(change) = room.maps.get(map_index as usize)
+                        .and_then(|room_map| store.assets.maps.get(&room_map.map_id))
+                        .and_then(|map_data| map_data.tile_changes.get(tile_change_index as usize)) {
+                            for cy in 0..change.height {
+                                for cx in 0..change.width {
+                                    if let Some(tile) = change.tiles[(cy * change.width + cx) as usize] {
+                                        let x = cx as i32 + x_start;
+                                        let y = cy as i32 + y_start;
+                                        if x >= 0 && y >= 0 && x < room_width && y < room_height {
+                                            let index = (y * room_width + x) as usize;
+                                            match map_layer {
+                                                RoomTriggerMapLayer::Background2 => { self.room.bb[index] = tile; }
+                                                RoomTriggerMapLayer::Background => { self.room.bg[index] = tile; }
+                                                RoomTriggerMapLayer::Foreground => { self.room.fg[index] = tile; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                 }
                 RoomTriggerType::DisableAnimation { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
