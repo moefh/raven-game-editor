@@ -614,13 +614,14 @@ impl GameRunnerWidget {
         if room.parallax.width == 0 || room.parallax.height == 0 {
             return egui::Vec2::ZERO;
         }
+        let self_height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
         let room_w = room_size.width as i32 - Self::WIDTH;
-        let room_h = room_size.height as i32 - Self::HEIGHT;
+        let room_h = room_size.height as i32 - self_height;
         let para_x = if room_w <= 0 { 0 } else {
             room_x * (room.parallax.width as i32 * Tileset::TILE_SIZE as i32 - Self::WIDTH) / room_w
         };
         let para_y = if room_h <= 0 { 0 } else {
-            room_y * (room.parallax.height as i32 * Tileset::TILE_SIZE as i32 - Self::HEIGHT) / room_h
+            room_y * (room.parallax.height as i32 * Tileset::TILE_SIZE as i32 - self_height) / room_h
         };
         egui::Vec2::new(para_x as f32, para_y as f32)
     }
