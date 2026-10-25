@@ -81,7 +81,7 @@ enum EditorTab {
 
 enum TileChangesTab {
     Tiles,
-    Placement,
+    Test,
 }
 
 enum TileChangeTreeAction {
@@ -124,11 +124,13 @@ impl MapDataEditor {
         egui::Panel::bottom(format!("editor_panel_{}_bottom", map_data.asset.id)).frame(bottom_frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(format!(
-                    "{} bytes [size: {}x{}, {} 2nd bg]{}",
+                    "{} bytes [size: {}x{}, {} 2nd bg, {} tile change{}]{}",
                     map_data.data_size(),
                     map_data.width,
                     map_data.height,
                     if map_data.has_bb { "has" } else { "no" },
+                    map_data.tile_changes.len(),
+                    if map_data.tile_changes.len() == 1 { "" } else { "s" },
                     dirty
                 )).truncate());
                 ui.with_layout(egui::Layout::default().with_cross_align(egui::Align::RIGHT), |ui| {
@@ -1086,9 +1088,9 @@ impl Editor {
                     self.selected_tile_changes_tab = TileChangesTab::Tiles;
                 }
                 if ui.add(
-                    egui::Button::selectable(matches!(self.selected_tile_changes_tab, TileChangesTab::Placement), "Placement")
+                    egui::Button::selectable(matches!(self.selected_tile_changes_tab, TileChangesTab::Test), "Test")
                 ).clicked() {
-                    self.selected_tile_changes_tab = TileChangesTab::Placement;
+                    self.selected_tile_changes_tab = TileChangesTab::Test;
                 }
             });
         });
@@ -1127,7 +1129,7 @@ impl Editor {
 
         match self.selected_tile_changes_tab {
             TileChangesTab::Tiles => { self.show_tile_changes_tiles_tab(ui, wc, map_data, assets); }
-            TileChangesTab::Placement => { self.show_tile_changes_placement_tab(ui, wc, map_data, assets); }
+            TileChangesTab::Test => { self.show_tile_changes_placement_tab(ui, wc, map_data, assets); }
         }
     }
 
