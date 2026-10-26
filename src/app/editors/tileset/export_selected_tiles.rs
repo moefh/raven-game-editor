@@ -2,7 +2,9 @@ use crate::image::{
     ImageCollectionIO,
     ImagePixelsCollection,
 };
-use crate::data_asset::Tileset;
+use crate::data_asset::{
+    Tileset,
+};
 
 use super::super::{
     AssetEditorBase,
@@ -52,7 +54,7 @@ impl ExportSelectedTilesDialog {
         wc.set_dialog_open(self.dlg_window_id, self.open);
     }
 
-    fn confirm(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext, tileset: &mut Tileset) -> bool {
+    fn confirm(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext, tileset: &Tileset) -> bool {
         let first_tile = match self.start_tile_location {
             SelectImageLocation::Start => { 0 }
             SelectImageLocation::Selected => { self.selected_tile }
@@ -75,7 +77,7 @@ impl ExportSelectedTilesDialog {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, tileset: &mut Tileset) {
+    pub fn show(&mut self, wc: &mut WindowContext, tileset: &Tileset) {
         if ! self.open { return; }
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.export_sys_dlg_id) &&
             self.confirm(file, wc, tileset) {

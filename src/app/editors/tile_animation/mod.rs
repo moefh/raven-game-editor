@@ -319,7 +319,7 @@ impl Editor {
                     self.reload_edit_loop = true;
                 }
                 self.parent_tile_picker.display = self.image_editor.display;
-                self.parent_tile_picker.show(ui, wc, anim_tileset);
+                self.parent_tile_picker.show(ui, wc, anim_tileset, None);
                 if self.parent_tile_picker.image_l_picked {
                     self.reload_edit_loop = true;
                 }

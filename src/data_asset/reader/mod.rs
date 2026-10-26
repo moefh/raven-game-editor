@@ -30,6 +30,7 @@ pub use tokenizer::{
 };
 
 use super::{
+    metadata,
     StringLogger,
     DataAssetId,
     DataAssetType,
@@ -331,6 +332,11 @@ impl ProjectData {
         }
         Vec::new()
     }
+}
+
+pub struct ProjectDataFile {
+    pub store: DataAssetStore,
+    pub metadata: metadata::DataStoreMetadata,
 }
 
 pub struct ProjectDataReader<'a> {
@@ -972,10 +978,16 @@ impl<'a> ProjectDataReader<'a> {
     }
 }
 
-pub fn deserialize_project(input: &str, logger: &mut StringLogger) -> Result<DataAssetStore> {
+pub fn deserialize_project(input: &str, logger: &mut StringLogger) -> Result<ProjectDataFile> {
     let mut reader = ProjectDataReader::new(input, logger);
     reader.read_data()?;
-    reader.create_store()
+    let store = reader.create_store()?;
+    let metadata = metadata::DataStoreMetadata::new();
+
+    Ok(ProjectDataFile {
+        store,
+        metadata,
+    })
 }
 
 pub fn deserialize_map(

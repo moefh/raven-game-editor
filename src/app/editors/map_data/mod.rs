@@ -767,7 +767,7 @@ impl Editor {
                         self.tile_picker.selection_set = 1;
                         self.tile_picker.force_selection_into_visibility();
                     }
-                    self.tile_picker.show(ui, wc, tiles);
+                    self.tile_picker.show(ui, wc, tiles, None);
                 }
                 MapLayer::Animation => {
                     let tiles = STATIC_IMAGES.anim_tiles();
@@ -775,7 +775,7 @@ impl Editor {
                         self.tile_picker.selection_set = 2;
                         self.tile_picker.force_selection_into_visibility();
                     }
-                    self.tile_picker.show(ui, wc, tiles);
+                    self.tile_picker.show(ui, wc, tiles, None);
                 }
                 _ => {
                     if let Some(tileset) = assets.tilesets.get(&map_data.tileset_id) {
@@ -793,7 +793,7 @@ impl Editor {
                             self.tile_picker.selection_set = 0;
                             self.tile_picker.force_selection_into_visibility();
                         }
-                        self.tile_picker.show(ui, wc, tileset);
+                        self.tile_picker.show(ui, wc, tileset, None);
                     }
                 }
             }
@@ -991,7 +991,7 @@ impl Editor {
                     self.tile_change_picker.selection_set = 0;
                     self.tile_change_picker.force_selection_into_visibility();
                 }
-                self.tile_change_picker.show(ui, wc, tileset);
+                self.tile_change_picker.show(ui, wc, tileset, None);
             }
             self.tile_change_editor.left_draw_tile = self.tile_change_picker.get_selected_image_l();
             self.tile_change_editor.right_draw_tile = self.tile_change_picker.get_selected_image_r();

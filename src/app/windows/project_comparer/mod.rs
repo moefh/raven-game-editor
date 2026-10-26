@@ -179,10 +179,10 @@ impl ProjectComparerDisplay {
         let filename = file.filename();
         wc.logger.log(format!("READING FILE TO COMPARE {}", filename));
         match file.read_string().and_then(|content| data_asset::deserialize_project(&content, wc.logger)) {
-            Ok(store) => {
+            Ok(proj_file) => {
                 wc.logger.log("DONE: project to compare read");
                 self.other_name = Some(filename.to_owned());
-                self.other_store = Some(store);
+                self.other_store = Some(proj_file.store);
             },
             Err(e) => {
                 wc.logger.log(format!("ERROR: {}", e));

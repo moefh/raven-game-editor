@@ -428,7 +428,7 @@ impl Editor {
             ui.add_space(5.0);
             self.image_picker.zoom = Some(80.0 / pal_sprite.width as f32);
             self.image_picker.display = self.image_editor.display;
-            self.image_picker.show(ui, wc, pal_sprite);
+            self.image_picker.show(ui, wc, pal_sprite, None);
             if let ImagePickerSelection::Some(selected_image) = self.image_picker.get_selected_image_l() {
                 self.image_editor.set_selected_image(selected_image, pal_sprite);
             }

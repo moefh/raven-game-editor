@@ -1335,7 +1335,7 @@ impl Editor {
                     self.tile_picker.selection_set = 0;
                     self.tile_picker.force_selection_into_visibility();
                 }
-                self.tile_picker.show(ui, wc, tileset);
+                self.tile_picker.show(ui, wc, tileset, None);
             }
             self.para_editor.left_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_l());
             self.para_editor.right_draw_tile = Self::image_selection_to_tile(self.tile_picker.get_selected_image_r());

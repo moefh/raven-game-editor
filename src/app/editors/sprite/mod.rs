@@ -4,6 +4,8 @@ mod add_imported_frames;
 mod remove_frames;
 mod import;
 mod export;
+mod export_selected_frames;
+mod manage_frame_collections;
 
 use crate::misc::IMAGES;
 use crate::image::{
@@ -48,6 +50,8 @@ use add_frames::AddFramesDialog;
 use add_imported_frames::AddImportedFramesDialog;
 use import::ImportDialog;
 use export::ExportDialog;
+use export_selected_frames::ExportSelectedFramesDialog;
+use manage_frame_collections::ManageFrameCollectionsDialog;
 
 pub struct SpriteEditor {
     pub base: AssetEditorBase,
@@ -139,6 +143,8 @@ struct Dialogs {
     rm_frames_dialog: RemoveFramesDialog,
     import_dialog: ImportDialog,
     export_dialog: ExportDialog,
+    export_selected_frames_dialog: ExportSelectedFramesDialog,
+    manage_frame_collections_dialog: ManageFrameCollectionsDialog,
     create_colorset_dialog: CreateColorsetDialog,
 }
 
@@ -151,21 +157,16 @@ impl Dialogs {
             rm_frames_dialog: RemoveFramesDialog::new(),
             import_dialog: ImportDialog::new(),
             export_dialog: ExportDialog::new(),
+            export_selected_frames_dialog: ExportSelectedFramesDialog::new(),
+            manage_frame_collections_dialog: ManageFrameCollectionsDialog::new(),
             create_colorset_dialog: CreateColorsetDialog::new(id),
-        }
-    }
-
-    fn ensure_valid_selected_image(editor: &mut Editor, sprite: &Sprite) {
-        if editor.image_editor.get_selected_image() >= sprite.num_frames {
-            let selected_image = sprite.num_frames - 1;
-            editor.image_picker.set_selected_image_l(ImagePickerSelection::Some(selected_image));
         }
     }
 
     fn show(&mut self, wc: &mut WindowContext, editor: &mut Editor, sprite: &mut Sprite) {
         if self.properties_dialog.open && self.properties_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite);
+            editor.ensure_valid_selected_image(wc, sprite);
         }
         if self.add_frames_dialog.open && self.add_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
@@ -175,15 +176,21 @@ impl Dialogs {
         }
         if self.rm_frames_dialog.open && self.rm_frames_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite);
+            editor.ensure_valid_selected_image(wc, sprite);
         }
         if self.export_dialog.open {
             self.export_dialog.show(wc, sprite);
         }
+        if self.export_selected_frames_dialog.open {
+            self.export_selected_frames_dialog.show(wc, sprite);
+        }
         if self.import_dialog.open && self.import_dialog.show(wc, sprite) {
             Editor::reload_images(wc, sprite);
-            Self::ensure_valid_selected_image(editor, sprite);
+            editor.ensure_valid_selected_image(wc, sprite);
             editor.image_editor.clear_undo_history();
+        }
+        if self.manage_frame_collections_dialog.open && self.manage_frame_collections_dialog.show(wc, sprite) {
+            editor.set_sel_frame_collection(wc, editor.sel_frame_collection, sprite);
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, sprite) {
             editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);
@@ -194,19 +201,25 @@ impl Dialogs {
 struct Editor {
     asset_id: DataAssetId,
     import_frame_sys_dlg_id: String,
+    sel_frame_collection: Option<usize>,
+    frame_collection_indices: Vec<u32>,
     color_picker: ColorPickerWidget,
     image_picker: ImagePickerWidget,
     image_editor: ImageEditorWidget<Sprite>,
 }
 
 impl Editor {
+    const ALL_FRAMES_COLLECTION_NAME: &str = "<all>";
+
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
             import_frame_sys_dlg_id: format!("editor_{}_import_frame", asset_id),
+            sel_frame_collection: None,
+            frame_collection_indices: Vec::new(),
             color_picker: ColorPickerWidget::new(format!("editor_{}_color_picker", asset_id), colors::RED, colors::GREEN, true),
             image_picker: ImagePickerWidget::new(),
-            image_editor: ImageEditorWidget::<Sprite>::new(),
+            image_editor: ImageEditorWidget::new(),
         }
     }
 
@@ -216,6 +229,35 @@ impl Editor {
 
     fn get_hover_pos(&self) -> Option<egui::Vec2> {
         Some(self.image_editor.hover_pos)
+    }
+
+    fn ensure_valid_selected_image(&mut self, wc: &WindowContext, sprite: &Sprite) {
+        if let Some(col_index) = self.sel_frame_collection &&
+            let Some(md) = wc.store_metadata.get_sprite(&self.asset_id) &&
+            let Some(col) = md.frames.get(col_index) &&
+            let Some(first_frame) = col.indices.first() {
+                if ! col.indices.contains(&self.image_editor.get_selected_image()) {
+                    self.image_picker.set_selected_image_l(ImagePickerSelection::Some(*first_frame));
+                }
+            } else {
+                if self.image_editor.get_selected_image() >= sprite.num_frames {
+                    let selected_image = sprite.num_frames - 1;
+                    self.image_picker.set_selected_image_l(ImagePickerSelection::Some(selected_image));
+                }
+            }
+    }
+
+    fn set_sel_frame_collection(&mut self, wc: &WindowContext, sel_frame_collection: Option<usize>, sprite: &Sprite) {
+        self.sel_frame_collection = sel_frame_collection;
+        if let Some(col_index) = self.sel_frame_collection &&
+            let Some(md) = wc.store_metadata.get_sprite(&self.asset_id) &&
+            let Some(col) = md.frames.get(col_index) &&
+            ! col.indices.is_empty() {
+                self.frame_collection_indices.splice(.., col.indices.clone());
+                self.ensure_valid_selected_image(wc, sprite);
+            } else {
+                self.frame_collection_indices.clear();
+            }
     }
 
     fn show_menu_bar(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, dialogs: &mut Dialogs, sprite: &mut Sprite) {
@@ -285,7 +327,7 @@ impl Editor {
                         );
                     }
 
-                    if ui.add(menu_item_no_image(" Insert frames from file...")).clicked() {
+                    if ui.add(menu_item_no_image(" Add frames from file...")).clicked() {
                         dialogs.add_imported_frames_dialog.set_open(
                             wc,
                             self.image_editor.get_selected_image(),
@@ -294,9 +336,17 @@ impl Editor {
                         );
                     }
 
+                    if ui.add(menu_item(IMAGES.export, " Export frames to file...")).clicked() {
+                        dialogs.export_selected_frames_dialog.set_open(
+                            wc,
+                            self.image_editor.get_selected_image(),
+                            sprite,
+                        );
+                    }
+
                     ui.separator();
 
-                    if ui.add(menu_item(IMAGES.add, " Insert frames...")).clicked() {
+                    if ui.add(menu_item(IMAGES.add, " Add frames...")).clicked() {
                         dialogs.add_frames_dialog.set_open(
                             wc,
                             self.image_editor.get_selected_image(),
@@ -408,6 +458,47 @@ impl Editor {
         });
     }
 
+    fn show_frame_collection_combo(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        sprite: &Sprite
+    ) {
+        let sprite_md = wc.store_metadata.get_sprite(&self.asset_id);
+        let selected_frame_collection_name = if let Some(md) = sprite_md && let Some(col_index) = self.sel_frame_collection {
+            if let Some(col) = md.frames.get(col_index) {
+                col.name.as_ref()
+            } else {
+                self.sel_frame_collection = None;
+                Self::ALL_FRAMES_COLLECTION_NAME
+            }
+        } else {
+            Self::ALL_FRAMES_COLLECTION_NAME
+        };
+
+        let mut sel_frame_collection = self.sel_frame_collection;
+        egui::ComboBox::from_id_salt(format!("sprite_editor_{}_frame_collection_combo", self.asset_id))
+            .selected_text(selected_frame_collection_name)
+            .width(60.0)
+            .truncate()
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut sel_frame_collection, None, Self::ALL_FRAMES_COLLECTION_NAME);
+                if let Some(collections) = wc.store_metadata.get_sprite(&self.asset_id) {
+                    for (index, frames) in collections.frames.iter().enumerate() {
+                        ui.selectable_value(&mut sel_frame_collection, Some(index), &frames.name);
+                    }
+                }
+                ui.separator();
+                ui.selectable_value(&mut sel_frame_collection, Some(usize::MAX), "Manage...");
+            });
+        if sel_frame_collection.is_some_and(|c| c == usize::MAX) {
+            dialogs.manage_frame_collections_dialog.set_open(wc, sprite);
+        } else if sel_frame_collection != self.sel_frame_collection {
+            self.set_sel_frame_collection(wc, sel_frame_collection, sprite);
+        }
+    }
+
     pub fn reload_images(wc: &mut WindowContext, asset: &impl ImageCollection) {
         asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque, true);
         asset.load_texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent, true);
@@ -417,12 +508,17 @@ impl Editor {
         self.show_menu_bar(ui, wc, dialogs, sprite);
         self.show_toolbar(ui, wc, sprite);
 
-        // item picker:
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
+        // frame picker:
+        egui::Panel::left(format!("editor_panel_{}_frame_picker", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
+            self.show_frame_collection_combo(ui, wc, dialogs, sprite);
+            ui.add_space(2.0);
             self.image_picker.zoom = Some(80.0 / sprite.width as f32);
             self.image_picker.display = self.image_editor.display;
-            self.image_picker.show(ui, wc, sprite);
+            let image_indices = if self.frame_collection_indices.is_empty() { None } else {
+                Some(self.frame_collection_indices.as_ref())
+            };
+            self.image_picker.show(ui, wc, sprite, image_indices);
             if let ImagePickerSelection::Some(selected_image) = self.image_picker.get_selected_image_l() {
                 self.image_editor.set_selected_image(selected_image, sprite);
             }

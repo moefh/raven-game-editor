@@ -15,6 +15,7 @@ mod writer;
 mod header_def;
 mod hash;
 pub mod utils;
+pub mod metadata;
 
 use std::{fmt, io};
 use std::collections::HashMap;

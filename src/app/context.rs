@@ -9,6 +9,9 @@ use crate::data_asset::{
     DataAssetId,
     StringLogger,
 };
+use crate::data_asset::metadata::{
+    DataStoreMetadata,
+};
 
 use super::{
     AppDialogs,
@@ -182,6 +185,7 @@ pub struct WindowContext<'a> {
     pub sound_player: &'a mut SoundPlayer,
     pub window_tracker: &'a mut AppWindowTracker,
     pub gamepad_manager: &'a mut GamepadManager,
+    pub store_metadata: &'a mut DataStoreMetadata,
     pub image_clipboard: ImageClipboardData,
     pub map_clipboard: MapClipboardData,
     pub keyboard_pressed: Option<KeyboardPressed>,

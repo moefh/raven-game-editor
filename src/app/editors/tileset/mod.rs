@@ -743,7 +743,7 @@ impl Editor {
             }
 
             self.tile_picker.display = self.tile_image_editor.display;
-            self.tile_picker.show(ui, wc, tileset);
+            self.tile_picker.show(ui, wc, tileset, None);
             if let ImagePickerSelection::Some(selected_image) = self.tile_picker.get_selected_image_l() {
                 self.tile_image_editor.set_selected_image(selected_image, tileset);
             }
@@ -783,7 +783,7 @@ impl Editor {
             }
 
             self.grid_tile_picker.display = self.grid_image_editor.display;
-            self.grid_tile_picker.show(ui, wc, tileset);
+            self.grid_tile_picker.show(ui, wc, tileset, None);
             self.tile_grid_editor.left_selected_tile = self.grid_tile_picker.get_selected_image_l();
             self.tile_grid_editor.right_selected_tile = self.grid_tile_picker.get_selected_image_r();
         });

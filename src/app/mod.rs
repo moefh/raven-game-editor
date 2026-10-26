@@ -21,6 +21,9 @@ use crate::data_asset::{
     DataAssetStore,
     StringLogger,
 };
+use crate::data_asset::metadata::{
+    DataStoreMetadata,
+};
 use crate::misc::asset_defs::{
     ASSET_DEFS,
     get_asset_type_display_name,
@@ -96,6 +99,7 @@ pub struct RavenEditorApp {
     pub wasm_editor_is_dirty: Arc<Mutex<bool>>,
     reset_egui_context: bool,
     store: DataAssetStore,
+    metadata: DataStoreMetadata,
     project_path: Option<std::path::PathBuf>,
     project_filename: String,
     project_path_changed: bool,
@@ -133,6 +137,7 @@ impl RavenEditorApp {
             settings,
             reset_egui_context: false,
             store: DataAssetStore::new(),
+            metadata: DataStoreMetadata::new(),
             project_path: None,
             project_filename: String::new(),
             project_path_changed: true,
@@ -253,9 +258,9 @@ impl RavenEditorApp {
         }
         self.logger.log(format!("READING FILE {}", file.filename()));
         match file.read_string().and_then(|content| data_asset::deserialize_project(&content, &mut self.logger)) {
-            Ok(store) => {
+            Ok(proj_file) => {
                 self.logger.log("DONE: project read");
-                self.load_project(store);
+                self.load_project(proj_file.store, proj_file.metadata);
                 self.set_project_path(file.path().map(|p| p.to_owned()), file.filename());
                 if let Some(path) = file.path() {
                     self.recent_projects.add(path);
@@ -369,15 +374,16 @@ impl RavenEditorApp {
     }
 
     fn new_project(&mut self) {
-        self.load_project(crate::data_asset::DataAssetStore::new());
+        self.load_project(DataAssetStore::new(), DataStoreMetadata::new());
         self.set_project_path(None, "");
     }
 
-    fn load_project(&mut self, store: DataAssetStore) {
+    fn load_project(&mut self, store: DataAssetStore, metadata: DataStoreMetadata) {
         self.editors.clear(&store);
         self.tex_manager.clear();
         self.windows.clear_project();
         self.store = store;
+        self.metadata = metadata;
         self.tex_manager.set_bits_per_pixel(self.store.vga_bits_per_pixel);
         self.editors.create_editors_for_new_store(&self.store);
         self.window_tracker.reset(&self.editors.egui_id_to_asset_id, self.windows.get_ids());
@@ -986,6 +992,7 @@ impl RavenEditorApp {
             sound_player: &mut self.sound_player,
             window_tracker: &mut self.window_tracker,
             gamepad_manager: &mut self.gamepad_manager,
+            store_metadata: &mut self.metadata,
             map_clipboard: self.map_clipboard.take(),
             image_clipboard: self.image_clipboard.take(),
             keyboard_pressed: self.keyboard_pressed.take(),

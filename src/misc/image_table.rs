@@ -160,6 +160,8 @@ image_table! {
     fit_zoom: "../../assets/FitZoom.png",
     mouse: "../../assets/MouseIcon.png",
     start_end: "../../assets/StartEndIcon.png",
+    collapse_left: "../../assets/CollapseLeftIcon.png",
+    collapse_right: "../../assets/CollapseRightIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",
