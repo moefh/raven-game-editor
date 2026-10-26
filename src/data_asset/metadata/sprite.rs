@@ -23,4 +23,10 @@ impl SpriteMetadata {
             frames: Vec::new(),
         }
     }
+
+    pub fn duplicate(&self) -> Self {
+        SpriteMetadata {
+            frames: self.frames.clone(),
+        }
+    }
 }

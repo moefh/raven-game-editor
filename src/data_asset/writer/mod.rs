@@ -1,4 +1,5 @@
 mod ident_store;
+mod metadata;
 mod map_data;
 mod sprite_animation;
 mod tile_animation;
@@ -25,6 +26,9 @@ use super::{
     DataAssetType,
     DataAsset,
 };
+use super::metadata::{
+    DataStoreMetadata,
+};
 
 static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
     || time::format_description::parse_borrowed::<3>("[year][month][day]00[hour][minute][second]").unwrap());
@@ -33,24 +37,26 @@ struct ProjectDataWriter<'a> {
     output: RefCell<String>,
     logger: RefCell<&'a mut StringLogger>,
     store: &'a DataAssetStore,
+    metadata: &'a DataStoreMetadata,
     ident: IdentStore,
 }
 
 impl<'a> ProjectDataWriter<'a> {
-    pub fn new(store: &'a DataAssetStore, logger: &'a mut StringLogger) -> Self {
+    pub fn new(store: &'a DataAssetStore, metadata: &'a DataStoreMetadata, logger: &'a mut StringLogger) -> Self {
         ProjectDataWriter {
             output: RefCell::new(String::new()),
             logger: RefCell::new(logger),
             store,
+            metadata,
             ident: IdentStore::new(&store.project_prefix),
         }
     }
 
-    fn write<S: AsRef<str>>(&self, data: S) {
+    fn write(&self, data: impl AsRef<str>) {
         self.output.borrow_mut().push_str(data.as_ref());
     }
 
-    fn log<S: AsRef<str>>(&self, msg: S) {
+    fn log(&self, msg: impl AsRef<str>) {
         self.logger.borrow_mut().log(msg);
     }
 
@@ -379,6 +385,26 @@ impl<'a> ProjectDataWriter<'a> {
     }
 
     // =========================================================================
+    // === METADATA
+    // =========================================================================
+
+    fn write_metadata(&mut self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === METADATA\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        self.write(format!("#if {}_METADATA\n", self.ident.prefix_upper));
+        self.write("\n");
+        metadata::write(&self, &self.metadata)?;
+        self.write("\n");
+        self.write(format!("#endif /* {}_METADATA */\n", self.ident.prefix_upper));
+        self.write("\n");
+
+        Ok(())
+    }
+
+    // =========================================================================
     // === PROJECT
     // =========================================================================
 
@@ -428,17 +454,28 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_asset_ids()?;
         self.write_sprite_sizes()?;
 
+        self.write_metadata()?;
+
         self.write_footer(merge_sample_saved_size)?;
         Ok(self.output.take())
     }
 }
 
-pub fn serialize_project(store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    ProjectDataWriter::new(store, logger).serialize()
+pub fn serialize_project(
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    ProjectDataWriter::new(store, metadata, logger).serialize()
 }
 
-pub fn serialize_map(map_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    let mut writer = ProjectDataWriter::new(store, logger);
+pub fn serialize_map(
+    map_id: DataAssetId,
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
     writer.write_header()?;
     map_data::write_maps(&writer, &[map_id])?;
@@ -447,8 +484,13 @@ pub fn serialize_map(map_id: DataAssetId, store: &DataAssetStore, logger: &mut S
     Ok(writer.output.take())
 }
 
-pub fn serialize_room(room_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    let mut writer = ProjectDataWriter::new(store, logger);
+pub fn serialize_room(
+    room_id: DataAssetId,
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
     writer.write_header()?;
     room::write_rooms(&writer, &[room_id])?;
@@ -458,8 +500,13 @@ pub fn serialize_room(room_id: DataAssetId, store: &DataAssetStore, logger: &mut
     Ok(writer.output.take())
 }
 
-pub fn serialize_world(world_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    let mut writer = ProjectDataWriter::new(store, logger);
+pub fn serialize_world(
+    world_id: DataAssetId,
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
     writer.write_header()?;
     world::write_worlds(&writer, &[world_id])?;
@@ -468,8 +515,13 @@ pub fn serialize_world(world_id: DataAssetId, store: &DataAssetStore, logger: &m
     Ok(writer.output.take())
 }
 
-pub fn serialize_sprite_animation(animation_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    let mut writer = ProjectDataWriter::new(store, logger);
+pub fn serialize_sprite_animation(
+    animation_id: DataAssetId,
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
     writer.write_header()?;
     let info = sprite_animation::write_sprite_animations(&writer, &[animation_id])?;
@@ -478,8 +530,13 @@ pub fn serialize_sprite_animation(animation_id: DataAssetId, store: &DataAssetSt
     Ok(writer.output.take())
 }
 
-pub fn serialize_tile_animation(tile_anim_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> Result<String> {
-    let mut writer = ProjectDataWriter::new(store, logger);
+pub fn serialize_tile_animation(
+    tile_anim_id: DataAssetId,
+    store: &DataAssetStore,
+    metadata: &DataStoreMetadata,
+    logger: &mut StringLogger
+) -> Result<String> {
+    let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
     writer.write_header()?;
     tile_animation::write_tile_animations(&writer, &[tile_anim_id])?;

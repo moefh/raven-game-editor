@@ -28,6 +28,7 @@ enum ColAction {
 pub struct ManageFrameCollectionsDialog {
     dlg_id: egui::Id,
     pub open: bool,
+    pub confirmed: bool,
     pub scroll_top: bool,
     pub frame_zoom: f32,
     pub frames: Vec<metadata::SpriteFrameCollection>,
@@ -39,6 +40,7 @@ impl ManageFrameCollectionsDialog {
         ManageFrameCollectionsDialog {
             dlg_id: egui::Id::unique("dlg_sprite_manage_frame_collections"),
             open: false,
+            confirmed: false,
             scroll_top: false,
             frame_zoom: 1.0,
             frames: Vec::new(),
@@ -53,6 +55,7 @@ impl ManageFrameCollectionsDialog {
         }
         self.set_sel_frame(if self.frames.is_empty() { None } else { Some(0) });
         self.frame_zoom = 80.0 / sprite.width as f32;
+        self.confirmed = false;
         self.open = true;
         wc.set_dialog_open(self.dlg_id, self.open);
     }
@@ -66,6 +69,7 @@ impl ManageFrameCollectionsDialog {
         let sprite_md = wc.store_metadata.get_sprite_mut(&sprite.asset.id);
         sprite_md.frames.clear();
         sprite_md.frames.append(&mut self.frames.clone());
+        self.confirmed = true;
     }
 
     fn show_frame_collections(&mut self, ui: &mut egui::Ui) -> ColsAction {
@@ -212,7 +216,7 @@ impl ManageFrameCollectionsDialog {
         }).should_close() {
             self.open = false;
             wc.set_dialog_open(self.dlg_id, self.open);
-            return true;
+            return self.confirmed;
         }
         false
     }

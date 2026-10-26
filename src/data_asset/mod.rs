@@ -41,6 +41,9 @@ pub use reader::tokenizer::{
     Token,
     TokenData,
 };
+pub use metadata::{
+    DataStoreMetadata,
+};
 
 pub use tileset::Tileset;
 pub use map_data::{
@@ -615,28 +618,57 @@ impl DataAssetStore {
         }
     }
 
-    pub fn serialize_project(&self, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_project(self, logger)
+    pub fn serialize_project(
+        &self,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_project(self, metadata, logger)
     }
 
-    pub fn serialize_map(&self, map_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_map(map_id, self, logger)
+    pub fn serialize_map(
+        &self,
+        map_id: DataAssetId,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_map(map_id, self, metadata, logger)
     }
 
-    pub fn serialize_room(&self, room_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_room(room_id, self, logger)
+    pub fn serialize_room(
+        &self,
+        room_id: DataAssetId,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_room(room_id, self, metadata, logger)
     }
 
-    pub fn serialize_world(&self, world_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_world(world_id, self, logger)
+    pub fn serialize_world(
+        &self,
+        world_id: DataAssetId,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_world(world_id, self, metadata, logger)
     }
 
-    pub fn serialize_sprite_animation(&self, animation_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_sprite_animation(animation_id, self, logger)
+    pub fn serialize_sprite_animation(
+        &self,
+        animation_id: DataAssetId,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_sprite_animation(animation_id, self, metadata, logger)
     }
 
-    pub fn serialize_tile_animation(&self, tile_anim_id: DataAssetId, logger: &mut StringLogger) -> Result<String, io::Error> {
-        writer::serialize_tile_animation(tile_anim_id, self, logger)
+    pub fn serialize_tile_animation(
+        &self,
+        tile_anim_id: DataAssetId,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> Result<String, io::Error> {
+        writer::serialize_tile_animation(tile_anim_id, self, metadata, logger)
     }
 
     fn gen_id(&mut self) -> DataAssetId {
@@ -675,12 +707,11 @@ impl DataAssetStore {
         self.assets.asset_has_dependents(id)
     }
 
-    pub fn remove_asset(&mut self, id: DataAssetId) -> Option<DataAsset> {
+    pub fn remove_asset(&mut self, id: DataAssetId, metadata: &mut DataStoreMetadata) -> Option<DataAsset> {
         if let Some(v) = self.assets.tilesets.remove(&id) { self.asset_ids.tilesets.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.maps.remove(&id) { self.asset_ids.maps.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.rooms.remove(&id) { self.asset_ids.rooms.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.worlds.remove(&id) { self.asset_ids.worlds.remove_id(id); return Some(v.asset); }
-        if let Some(v) = self.assets.sprites.remove(&id) { self.asset_ids.sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.pal_sprites.remove(&id) { self.asset_ids.pal_sprites.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.animations.remove(&id) { self.asset_ids.animations.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.tile_anims.remove(&id) { self.asset_ids.tile_anims.remove_id(id); return Some(v.asset); }
@@ -688,10 +719,15 @@ impl DataAssetStore {
         if let Some(v) = self.assets.mods.remove(&id) { self.asset_ids.mods.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.fonts.remove(&id) { self.asset_ids.fonts.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.prop_fonts.remove(&id) { self.asset_ids.prop_fonts.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.sprites.remove(&id) {
+            self.asset_ids.sprites.remove_id(id);
+            metadata.remove_sprite(id);
+            return Some(v.asset);
+        }
         None
     }
 
-    pub fn duplicate_asset(&mut self, id: DataAssetId, dup_name: &str) -> Option<DataAssetId> {
+    pub fn duplicate_asset(&mut self, id: DataAssetId, dup_name: &str, metadata: &mut DataStoreMetadata) -> Option<DataAssetId> {
         if let Some(dup_id) = self.assets.tilesets.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.tilesets.push(dup_id);
             return Some(dup_id);
@@ -710,6 +746,7 @@ impl DataAssetStore {
         }
         if let Some(dup_id) = self.assets.sprites.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.sprites.push(dup_id);
+            metadata.duplicate_sprite(id, dup_id);
             return Some(dup_id);
         }
         if let Some(dup_id) = self.assets.pal_sprites.duplicate_asset(&id, dup_name, &mut self.id_generator) {

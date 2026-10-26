@@ -1,4 +1,5 @@
 pub mod tokenizer;
+mod metadata;
 mod value;
 mod image_converter;
 mod pre_processor;
@@ -30,7 +31,6 @@ pub use tokenizer::{
 };
 
 use super::{
-    metadata,
     StringLogger,
     DataAssetId,
     DataAssetType,
@@ -50,6 +50,10 @@ pub fn err<S: AsRef<str>>(msg: S, pos: TokenPosition) -> Error {
 
 pub fn error<T, S: AsRef<str>>(msg: S, pos: TokenPosition) -> Result<T> {
     Result::Err(err(msg, pos))
+}
+
+pub fn error_with_no_position<T, S: Into<String>>(msg: S) -> Result<T> {
+    Result::Err(Error::other(msg.into()))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -115,6 +119,13 @@ static ASSET_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::
     ])
 });
 
+// metadata types by name
+static METADATA_TYPES_BY_ARRAY_NAME: LazyLock<HashMap<String, DataAssetType>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("sprite_metadata"), DataAssetType::Sprite),
+    ])
+});
+
 // structs in global arrays that store data used by the asset structs
 static GLOBAL_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
     let global_struct_defs_gen_table = &[
@@ -155,6 +166,13 @@ const CUSTOM_GLOBAL_STRUCT_READERS: &[fn(&mut ProjectDataReader, &str) -> Result
     room::read_custom_global_struct,
 ];
 
+// metadata structs
+static METADATA_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("SPRITE_METADATA"), metadata::sprite::get_metadata_def()),
+    ])
+});
+
 fn get_asset_type_upper_name(asset_type: DataAssetType) -> &'static str {
     match asset_type {
         DataAssetType::Sfx => { "SFX" }
@@ -182,6 +200,7 @@ pub struct ProjectData {
     tiles_per_world_block: u32,
     room_names_with_scripts: HashSet<String>,
 
+    asset_metadata: HashMap<DataAssetType, Vec<ValueStruct>>,
     enums: HashMap<String, Vec<String>>,
     item_tables: HashMap<ItemTableType, Vec<ValueStruct>>,
     data_arrays: HashMap<String, Value>,
@@ -202,6 +221,7 @@ impl ProjectData {
             tiles_per_world_block: 22,
             room_names_with_scripts: HashSet::new(),
 
+            asset_metadata: HashMap::new(),
             data_arrays: HashMap::new(),
             struct_arrays: HashMap::new(),
             assets: HashMap::new(),
@@ -218,7 +238,6 @@ impl ProjectData {
             } else {
                 error(format!("invalid name: '{}'", value_name.name), value_name.pos)
             }
-
     }
 
     fn check_name_match(name: &str, parts: &[&str]) -> bool {
@@ -336,7 +355,7 @@ impl ProjectData {
 
 pub struct ProjectDataFile {
     pub store: DataAssetStore,
-    pub metadata: metadata::DataStoreMetadata,
+    pub metadata: super::metadata::DataStoreMetadata,
 }
 
 pub struct ProjectDataReader<'a> {
@@ -427,6 +446,15 @@ impl<'a> ProjectDataReader<'a> {
             .and_then(|unprefixed_name| ITEM_TYPES_BY_ARRAY_NAME.get(unprefixed_name).copied())
             .ok_or_else(|| {
                 err(format!("can't find item type for '{}'", item_array_name), pos)
+            })
+    }
+
+    fn get_metadata_type_for_array_name(&self, metadata_array_name: &str, pos: TokenPosition) -> Result<DataAssetType> {
+        metadata_array_name
+            .strip_prefix(&self.data.prefix_lower)
+            .and_then(|unprefixed_name| METADATA_TYPES_BY_ARRAY_NAME.get(unprefixed_name).copied())
+            .ok_or_else(|| {
+                err(format!("can't find metadata asset type for '{}'", metadata_array_name), pos)
             })
     }
 
@@ -743,6 +771,27 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
+    fn read_asset_metadata_array(&mut self, struct_def: &ValueDefStruct) -> Result<()> {
+        let mut name_token = self.expect_any_ident("array name for")?;
+        if let Some(name) = name_token.drain_ident() {
+            self.expect_punct('[')?;
+            self.expect_punct(']')?;
+            self.expect_punct('=')?;
+            self.expect_punct('{')?;
+            let mut values = Vec::new();
+            while let Some(t) = self.read_loop()? {
+                self.unread(t)?;
+                values.push(self.read_struct(struct_def)?);
+            }
+            let asset_type = self.get_metadata_type_for_array_name(&name, name_token.pos)?;
+            self.data.asset_metadata.insert(asset_type, values);
+            self.expect_punct(';')?;
+            Ok(())
+        } else {
+            self.unexpected(&name_token)
+        }
+    }
+
     fn read_global_data(&mut self) -> Result<()> {
         self.expect_ident("struct")?;
         let mut struct_tag_token = self.expect_any_ident("struct tag")?;
@@ -754,6 +803,10 @@ impl<'a> ProjectDataReader<'a> {
             } else if let Some(struct_def) = self.get_struct_def(&struct_tag, &TABLE_ITEM_STRUCT_DEFS) {
                 // read struct array of item table
                 self.read_item_array(struct_def)?;
+                return Ok(());
+            } else if let Some(struct_def) = self.get_struct_def(&struct_tag, &METADATA_STRUCT_DEFS) {
+                // read struct array of asset metadata
+                self.read_asset_metadata_array(struct_def)?;
                 return Ok(());
             } else if let Some(prefixless_tag) = struct_tag.strip_prefix(&self.data.prefix_upper) {
                 // read custom structs
@@ -863,14 +916,29 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
-    fn create_store(mut self) -> Result<DataAssetStore> {
-        // generate asset ids
-        let mut id_generator = DataAssetIdGenerator::new();
-        for (asset_type, asset_structs) in self.data.assets.iter() {
-            let ids: Vec<DataAssetId> = (0..asset_structs.len()).map(|_| id_generator.gen_id()).collect();
-            self.data.asset_ids.insert(*asset_type, ids);
+    fn create_metadata(&self) -> Result<super::metadata::DataStoreMetadata> {
+        let mut sprites = HashMap::new();
+        for (asset_type, structs) in self.data.asset_metadata.iter() {
+            if let Some(asset_ids_of_type) = self.data.asset_ids.get(asset_type) {
+                for (&asset_id, asset_struct) in asset_ids_of_type.iter().zip(structs.iter()) {
+                    match asset_type {
+                        DataAssetType::Sprite => {
+                            sprites.insert(asset_id, metadata::sprite::create(asset_struct)?);
+                        }
+                        _ => {
+                            error_with_no_position(format!("unknown metadata asset type: '{:?}'", asset_type))?;
+                        }
+                    }
+                }
+            }
         }
 
+        Ok(super::metadata::DataStoreMetadata {
+            sprites,
+        })
+    }
+
+    fn create_store(self, id_generator: DataAssetIdGenerator) -> Result<DataAssetStore> {
         // create assets
         let mut assets = AssetCollection::new();
         let mut asset_ids = AssetIdCollection::new();
@@ -970,7 +1038,7 @@ impl<'a> ProjectDataReader<'a> {
             assets,
             asset_ids,
             tables,
-            project_prefix: self.data.prefix,
+            project_prefix: self.data.prefix.clone(),
             vga_bits_per_pixel: self.data.vga_bits_per_pixel,
             vga_sync_bits: self.data.vga_sync_bits,
             tiles_per_world_block: self.data.tiles_per_world_block,
@@ -981,12 +1049,20 @@ impl<'a> ProjectDataReader<'a> {
 pub fn deserialize_project(input: &str, logger: &mut StringLogger) -> Result<ProjectDataFile> {
     let mut reader = ProjectDataReader::new(input, logger);
     reader.read_data()?;
-    let store = reader.create_store()?;
-    let metadata = metadata::DataStoreMetadata::new();
 
+    // generate asset ids
+    let mut id_generator = DataAssetIdGenerator::new();
+    for (asset_type, asset_structs) in reader.data.assets.iter() {
+        let ids: Vec<DataAssetId> = (0..asset_structs.len()).map(|_| id_generator.gen_id()).collect();
+        reader.data.asset_ids.insert(*asset_type, ids);
+    }
+
+    // convert data/metadata
+    let metadata = reader.create_metadata()?;
+    let store = reader.create_store(id_generator)?;
     Ok(ProjectDataFile {
-        store,
         metadata,
+        store,
     })
 }
 

@@ -5,6 +5,7 @@ use crate::data_asset::{
     DataAssetType,
     DataAssetStore,
     StringLogger,
+    DataStoreMetadata,
 };
 
 use super::{
@@ -32,12 +33,13 @@ impl AssetExporter {
         &mut self,
         sys_dialogs: &mut SysDialogs,
         store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
         let mut has_errors = false;
         self.pending_requests.retain(|request_id, asset_id| {
             if let Some(SysDialogResponse::File(file)) = sys_dialogs.get_response_for(request_id) {
-                if Self::export_asset(file, *asset_id, store, logger) {
+                if Self::export_asset(file, *asset_id, store, metadata, logger) {
                     has_errors = true;
                 }
                 false
@@ -48,14 +50,20 @@ impl AssetExporter {
         has_errors
     }
 
-    fn export_asset(file: SysDialogOpenFile, asset_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_asset(
+        file: SysDialogOpenFile,
+        asset_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         if let Some(asset) = store.assets.get_asset(asset_id) {
             match asset.asset_type {
-                DataAssetType::MapData => { Self::export_map(file, asset_id, store, logger) }
-                DataAssetType::Room => { Self::export_room(file, asset_id, store, logger) }
-                DataAssetType::World => { Self::export_world(file, asset_id, store, logger) }
-                DataAssetType::SpriteAnimation => { Self::export_sprite_animation(file, asset_id, store, logger) }
-                DataAssetType::TileAnimation => { Self::export_tile_animation(file, asset_id, store, logger) }
+                DataAssetType::MapData => { Self::export_map(file, asset_id, store, metadata, logger) }
+                DataAssetType::Room => { Self::export_room(file, asset_id, store, metadata, logger) }
+                DataAssetType::World => { Self::export_world(file, asset_id, store, metadata, logger) }
+                DataAssetType::SpriteAnimation => { Self::export_sprite_animation(file, asset_id, store, metadata, logger) }
+                DataAssetType::TileAnimation => { Self::export_tile_animation(file, asset_id, store, metadata, logger) }
                 _ => {
                     logger.log(format!("ERROR: exporting asset type {:?} not implemented!", asset.asset_type));
                     true
@@ -67,9 +75,15 @@ impl AssetExporter {
         }
     }
 
-    fn export_map(file: SysDialogOpenFile, map_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_map(
+        file: SysDialogOpenFile,
+        map_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         logger.log("WRITING MAP");
-        match store.serialize_map(map_id, logger).and_then(|content| file.write_string(content)) {
+        match store.serialize_map(map_id, metadata, logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 logger.log(format!("DONE: map saved to {}", file.filename()));
                 false
@@ -81,9 +95,15 @@ impl AssetExporter {
         }
     }
 
-    fn export_room(file: SysDialogOpenFile, room_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_room(
+        file: SysDialogOpenFile,
+        room_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         logger.log("WRITING ROOM");
-        match store.serialize_room(room_id, logger).and_then(|content| file.write_string(content)) {
+        match store.serialize_room(room_id, metadata, logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 logger.log(format!("DONE: room saved to {}", file.filename()));
                 false
@@ -95,9 +115,15 @@ impl AssetExporter {
         }
     }
 
-    fn export_world(file: SysDialogOpenFile, world_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_world(
+        file: SysDialogOpenFile,
+        world_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         logger.log("WRITING WORLD");
-        match store.serialize_world(world_id, logger).and_then(|content| file.write_string(content)) {
+        match store.serialize_world(world_id, metadata, logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 logger.log(format!("DONE: world saved to {}", file.filename()));
                 false
@@ -109,9 +135,15 @@ impl AssetExporter {
         }
     }
 
-    fn export_sprite_animation(file: SysDialogOpenFile, animation_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_sprite_animation(
+        file: SysDialogOpenFile,
+        animation_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         logger.log("WRITING SPRITE ANIMATION");
-        match store.serialize_sprite_animation(animation_id, logger).and_then(|content| file.write_string(content)) {
+        match store.serialize_sprite_animation(animation_id, metadata, logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 logger.log(format!("DONE: sprite animation saved to {}", file.filename()));
                 false
@@ -123,9 +155,15 @@ impl AssetExporter {
         }
     }
 
-    fn export_tile_animation(file: SysDialogOpenFile, tile_anim_id: DataAssetId, store: &DataAssetStore, logger: &mut StringLogger) -> bool {
+    fn export_tile_animation(
+        file: SysDialogOpenFile,
+        tile_anim_id: DataAssetId,
+        store: &DataAssetStore,
+        metadata: &DataStoreMetadata,
+        logger: &mut StringLogger
+    ) -> bool {
         logger.log("WRITING TILE ANIMATION");
-        match store.serialize_tile_animation(tile_anim_id, logger).and_then(|content| file.write_string(content)) {
+        match store.serialize_tile_animation(tile_anim_id, metadata, logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 logger.log(format!("DONE: tile animation saved to {}", file.filename()));
                 false

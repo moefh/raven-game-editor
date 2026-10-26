@@ -9,7 +9,7 @@ use super::{
 };
 
 pub struct DataStoreMetadata {
-    sprites: HashMap<DataAssetId,SpriteMetadata>,
+    pub sprites: HashMap<DataAssetId,SpriteMetadata>,
 }
 
 impl DataStoreMetadata {
@@ -25,5 +25,15 @@ impl DataStoreMetadata {
 
     pub fn get_sprite_mut<'a>(&'a mut self, sprite_id: &DataAssetId) -> &'a mut SpriteMetadata {
         self.sprites.entry(*sprite_id).or_insert_with(SpriteMetadata::new)
+    }
+
+    pub fn duplicate_sprite(&mut self, sprite_id: DataAssetId, dup_id: DataAssetId) {
+        if let Some(sprite_md) = self.get_sprite(&sprite_id) {
+            self.sprites.insert(dup_id, sprite_md.duplicate());
+        }
+    }
+
+    pub fn remove_sprite(&mut self, sprite_id: DataAssetId) {
+        self.sprites.remove(&sprite_id);
     }
 }

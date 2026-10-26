@@ -172,6 +172,12 @@ impl ValueStruct {
         })})
     }
 
+    pub fn get_u32_array(&self, name: &str) -> Result<&ValueArray<u32>> {
+        self.get_value(name).and_then(|value| { value.get_u32_array().ok_or_else(|| {
+            err(format!("invalid value in struct member '{}': expected 'u32[]', found '{:?}'", name, value.get_type_name()), self.pos)
+        })})
+    }
+
     pub fn get_struct_array(&self, name: &str) -> Result<&ValueArray<ValueStruct>> {
         self.get_value(name).and_then(|value| { value.get_struct_array().ok_or_else(|| {
             err(

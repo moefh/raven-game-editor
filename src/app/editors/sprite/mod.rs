@@ -190,7 +190,7 @@ impl Dialogs {
             editor.image_editor.clear_undo_history();
         }
         if self.manage_frame_collections_dialog.open && self.manage_frame_collections_dialog.show(wc, sprite) {
-            editor.set_sel_frame_collection(wc, editor.sel_frame_collection, sprite);
+            editor.set_sel_frame_collection(wc, self.manage_frame_collections_dialog.sel_frame, sprite);
         }
         if self.create_colorset_dialog.open && self.create_colorset_dialog.show(wc, sprite) {
             editor.color_picker.set_colorset(self.create_colorset_dialog.created_colorset_index);

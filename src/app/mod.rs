@@ -329,7 +329,7 @@ impl RavenEditorApp {
     fn write_project(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
         self.logger.log("WRITING PROJECT");
         self.prepare_for_saving();
-        match self.store.serialize_project(&mut self.logger).and_then(|content| file.write_string(content)) {
+        match self.store.serialize_project(&self.metadata, &mut self.logger).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 self.logger.log(format!("DONE: project saved to {}", file.filename()));
                 self.set_project_path(file.path().map(|p| p.to_owned()), file.filename());
@@ -452,7 +452,7 @@ impl RavenEditorApp {
     }
 
     fn remove_asset(&mut self, id: DataAssetId) {
-        self.store.remove_asset(id);
+        self.store.remove_asset(id, &mut self.metadata);
         self.editors.remove_editor(id);
         self.window_tracker.remove_editor(id);
     }
@@ -463,7 +463,7 @@ impl RavenEditorApp {
         } else {
             self.new_asset_name(asset_type, None)
         };
-        if let Some(dup_id) = self.store.duplicate_asset(id, &dup_name) {
+        if let Some(dup_id) = self.store.duplicate_asset(id, &dup_name, &mut self.metadata) {
             let egui_id = self.editors.add_asset(dup_id, asset_type);
             self.window_tracker.add_editor(egui_id, dup_id);
         } else {
@@ -1136,7 +1136,7 @@ impl eframe::App for RavenEditorApp {
         if let Some(SysDialogResponse::File(file)) = self.sys_dialogs.get_response_for(Self::EXPORT_HEADER_SYS_DLG_ID) {
             self.export_header(ui.ctx(), file);
         }
-        if self.asset_exporter.check_dialog_response(&mut self.sys_dialogs, &self.store, &mut self.logger) {
+        if self.asset_exporter.check_dialog_response(&mut self.sys_dialogs, &self.store, &self.metadata, &mut self.logger) {
             self.open_message_box(
                 "Error Exportint Asset",
                 "Error exporting asset.\n\nConsult the log window for details."
