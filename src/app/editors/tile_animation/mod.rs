@@ -1,12 +1,12 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetId,
     GenericAsset,
-    AssetList,
-    AssetIdList,
+    DataAssetList,
+    DataAssetIdList,
     AssetIdCollection,
     TileAnimation,
     Tileset,
@@ -82,7 +82,7 @@ impl TileAnimationEditor {
         wc: &mut WindowContext,
         tanim: &mut TileAnimation,
         asset_ids: &AssetIdCollection,
-        tilesets: &mut AssetList<Tileset>,
+        tilesets: &mut DataAssetList<Tileset>,
     ) {
         self.dialogs.show(wc, &mut self.editor, tanim, &asset_ids.tilesets, tilesets);
 
@@ -121,8 +121,8 @@ impl Dialogs {
         wc: &mut WindowContext,
         _editor: &mut Editor,
         tanim: &mut TileAnimation,
-        tileset_ids: &AssetIdList,
-        tilesets: &AssetList<Tileset>
+        tileset_ids: &DataAssetIdList,
+        tilesets: &DataAssetList<Tileset>
     ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
             dlg.show(wc, tanim, tileset_ids, tilesets);
@@ -173,7 +173,7 @@ impl Editor {
         }
     }
 
-    fn fix_frame_indices(&mut self, tileset_id: DataAssetId, tilesets: &AssetList<Tileset>) {
+    fn fix_frame_indices(&mut self, tileset_id: DataAssetId, tilesets: &DataAssetList<Tileset>) {
         if let Some(tileset) = tilesets.get(&tileset_id) && self.frame_indices.len() != tileset.num_tiles as usize {
             self.frame_indices.clear();
             self.frame_indices.extend((0..tileset.num_tiles).map(|n| {
@@ -303,7 +303,7 @@ impl Editor {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         tanim: &mut TileAnimation,
-        tilesets: &mut AssetList<Tileset>
+        tilesets: &mut DataAssetList<Tileset>
     ) {
         egui::Panel::left(self.parent_tile_picker_panel_id).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
@@ -327,7 +327,7 @@ impl Editor {
         });
     }
 
-    fn ensure_valid_selected_tiles(&mut self, tanim: &mut TileAnimation, tilesets: &mut AssetList<Tileset>) {
+    fn ensure_valid_selected_tiles(&mut self, tanim: &mut TileAnimation, tilesets: &mut DataAssetList<Tileset>) {
         if let Some(anim_tileset) = tilesets.get(&tanim.anim_tileset_id) &&
             self.image_editor.get_selected_image() >= anim_tileset.num_tiles {
                 self.image_editor.set_selected_image(anim_tileset.num_tiles.saturating_sub(1), anim_tileset);
@@ -343,7 +343,7 @@ impl Editor {
 
     fn import_tile_anim(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, tanim: &mut TileAnimation, asset_ids: &AssetIdCollection) {
         let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_tile_animation(&content, self.asset_id, asset_ids, wc.logger)
+            data_store::deserialize_tile_animation(&content, self.asset_id, asset_ids, wc.logger)
         });
         match result {
             Ok(mut new_tanim) => {
@@ -369,7 +369,7 @@ impl Editor {
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         tanim: &mut TileAnimation,
-        tilesets: &mut AssetList<Tileset>,
+        tilesets: &mut DataAssetList<Tileset>,
         asset_ids: &AssetIdCollection,
     ) {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {

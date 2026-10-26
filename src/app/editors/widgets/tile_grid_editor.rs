@@ -6,7 +6,7 @@ use egui::{
     Image,
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     MapData,
     Tileset,
 };

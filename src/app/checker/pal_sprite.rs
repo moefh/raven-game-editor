@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use crate::data_asset::{DataAssetId, DataAssetStore, PalSprite};
+use crate::data_store::{DataAssetId, DataStore, PalSprite};
 
 use super::{
     AssetError,
@@ -39,7 +39,7 @@ fn check_pal_sprite(pal_sprite: &PalSprite) -> (Vec<AssetError>, Vec<AssetWarnin
 pub fn check_pal_sprites(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for pal_sprite in store.assets.pal_sprites.iter() {
         let (errors, warnings) = check_pal_sprite(pal_sprite);

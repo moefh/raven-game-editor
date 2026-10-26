@@ -3,7 +3,7 @@ use crate::image::{
     ImageSlicingMethod,
     ImageLoadOptions,
 };
-use crate::data_asset::Sprite;
+use crate::data_store::Sprite;
 
 use super::super::{
     AssetEditorBase,

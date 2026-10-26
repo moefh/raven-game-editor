@@ -2,7 +2,7 @@ use crate::image::{
     ImagePixels,
     ImageSlicingMethod,
 };
-use crate::data_asset;
+use crate::data_store;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum AddImageLocation {
@@ -82,7 +82,7 @@ pub struct CollisionRect {
 }
 
 impl CollisionRect {
-    pub fn from_data(rect: data_asset::Rect) -> Self {
+    pub fn from_data(rect: data_store::Rect) -> Self {
         CollisionRect {
             x1: rect.x,
             y1: rect.y,
@@ -91,7 +91,7 @@ impl CollisionRect {
         }
     }
 
-    pub fn apply_to_data(&self, rect: &mut data_asset::Rect) {
+    pub fn apply_to_data(&self, rect: &mut data_store::Rect) {
         rect.x = self.x1.clamp(-256, i16::MAX as i32);
         rect.y = self.y1.clamp(-256, i16::MAX as i32);
         rect.w = (self.x2 - self.x1).clamp(0, u16::MAX as i32);

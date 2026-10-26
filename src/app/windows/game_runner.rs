@@ -1,7 +1,7 @@
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     self,
-    DataAssetStore,
+    DataStore,
     DataAssetId,
 };
 
@@ -41,11 +41,11 @@ impl GameRunnerWindow {
         }
     }
 
-    pub fn set_room(&mut self, room_id: DataAssetId, store: &DataAssetStore) {
+    pub fn set_room(&mut self, room_id: DataAssetId, store: &DataStore) {
         self.display.game.set_room(Some(room_id), store);
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataStore) -> AppWindowAction {
         let default_zoom = get_setting_zoom(wc.settings.game_runner_default_zoom);
         let default_size = GameRunnerWidget::SCREEN_SIZE * default_zoom + egui::Vec2::new(18.0, 80.0);
         let default_rect = self.base.default_rect(wc, default_size.x, default_size.y);
@@ -75,14 +75,14 @@ impl GameDisplay {
         self.game.reset();
     }
 
-    fn sort_ids(&mut self, store: &DataAssetStore) {
+    fn sort_ids(&mut self, store: &DataStore) {
         if self.sorted_room_ids.len() != store.asset_ids.rooms.len() {
             store.asset_ids.rooms.copy_to(&mut self.sorted_room_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_room_ids, &store.assets.rooms);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_room_ids, &store.assets.rooms);
         }
     }
 
-    fn show_room_combo(&mut self, ui: &mut egui::Ui, store: &DataAssetStore) {
+    fn show_room_combo(&mut self, ui: &mut egui::Ui, store: &DataStore) {
         let cur_room_name = if let Some(room) = self.game.room_id.and_then(|room_id| store.assets.rooms.get(&room_id)) {
             &room.asset.name
         } else {
@@ -104,7 +104,7 @@ impl GameDisplay {
         }
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataAssetStore) {
+    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataStore) {
         self.sort_ids(store);
         egui::Panel::top("game_runner_toolbar").show(ui, |ui| {
             ui.add_space(2.0);

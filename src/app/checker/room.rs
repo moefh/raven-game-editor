@@ -3,11 +3,11 @@ use std::collections::{
     BTreeMap,
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     DataStoreTables,
-    AssetList,
+    DataAssetList,
     Room,
     RoomTriggerType,
     MapData,
@@ -21,7 +21,7 @@ use super::{
     AssetWarning,
 };
 
-fn check_room_maps(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {
+fn check_room_maps(room: &Room, maps: &DataAssetList<MapData>, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {
     for map in &room.maps {
         if let Some(map_data) = maps.get(&map.map_id) {
             let map_x = map.x as u32;
@@ -46,7 +46,7 @@ fn check_room_maps(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<Asse
     }
 }
 
-fn check_room_size(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {
+fn check_room_size(room: &Room, maps: &DataAssetList<MapData>, errors: &mut Vec<AssetError>, _warnings: &mut Vec<AssetWarning>) {
     let room_size = room.maps.iter().fold((0, 0), |max, room_map| {
         match maps.get(&room_map.map_id) {
             Some(map_data) => { (
@@ -97,7 +97,7 @@ fn check_room_trigger_ids(room: &Room, errors: &mut Vec<AssetError>, _warnings: 
     }
 }
 
-fn is_valid_door(room_id: DataAssetId, trigger_id: u16, rooms: &AssetList<Room>) -> bool {
+fn is_valid_door(room_id: DataAssetId, trigger_id: u16, rooms: &DataAssetList<Room>) -> bool {
     if let Some(room) = rooms.get(&room_id) &&
         let Some(trigger) = room.triggers.iter().find(|tr| tr.trigger_id == trigger_id) &&
         matches!(trigger.trigger_type, RoomTriggerType::Door {..}) {
@@ -107,7 +107,7 @@ fn is_valid_door(room_id: DataAssetId, trigger_id: u16, rooms: &AssetList<Room>)
         }
 }
 
-fn check_room_door_destinations(room: &Room, rooms: &AssetList<Room>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
+fn check_room_door_destinations(room: &Room, rooms: &DataAssetList<Room>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
         if let RoomTriggerType::Door { dest_room_id, dest_trigger_id, .. } = trigger.trigger_type &&
             ! is_valid_door(dest_room_id, dest_trigger_id, rooms) {
@@ -133,7 +133,7 @@ fn check_room_enemies(room: &Room, _errors: &mut Vec<AssetError>, warn: &mut Vec
     }
 }
 
-fn check_room_tile_chages(room: &Room, maps: &AssetList<MapData>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
+fn check_room_tile_chages(room: &Room, maps: &DataAssetList<MapData>, errors: &mut Vec<AssetError>, _warn: &mut Vec<AssetWarning>) {
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
         if let RoomTriggerType::ChangeTiles { map_index, tile_change_index, .. } = trigger.trigger_type {
             if let Some(room_map) = room.maps.get(map_index as usize) && let Some(map_data) = maps.get(&room_map.map_id) {
@@ -232,8 +232,8 @@ fn check_room_project_table_refs(
 
 fn check_room(
     room: &Room,
-    rooms: &AssetList<Room>,
-    maps: &AssetList<MapData>,
+    rooms: &DataAssetList<Room>,
+    maps: &DataAssetList<MapData>,
     tables: &DataStoreTables,
 ) -> (Vec<AssetError>, Vec<AssetWarning>) {
     let mut errors = Vec::new();
@@ -257,7 +257,7 @@ fn check_room(
 pub fn check_rooms(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for room in store.assets.rooms.iter() {
         let (errors, warnings) = check_room(room, &store.assets.rooms, &store.assets.maps, &store.tables);

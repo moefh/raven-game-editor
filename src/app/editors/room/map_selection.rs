@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use crate::data_asset::{
+use crate::data_store::{
     Room,
     RoomMap,
     MapData,
     Tileset,
-    AssetList,
+    DataAssetList,
     DataAssetId,
 };
 
@@ -40,7 +40,7 @@ impl MapSelectionDialog {
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room, maps: &AssetList<MapData>) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room, maps: &DataAssetList<MapData>) {
         self.sel_map_ids.clear();
         for map in &room.maps {
             self.sel_map_ids.insert(map.map_id);
@@ -76,7 +76,7 @@ impl MapSelectionDialog {
         changed
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, maps: &DataAssetList<MapData>, tilesets: &DataAssetList<Tileset>) -> bool {
         let mut maps_changed = false;
         let modal_response = AssetEditorBase::show_dialog_window(wc, self.dlg_id, 550.0, "Room Properties", |ui, wc| {
             let asset_id = room.asset.id;

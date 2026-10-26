@@ -5,11 +5,11 @@ use crate::platform::{
     KeyboardPressed,
 };
 use crate::image::TextureManager;
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
     StringLogger,
 };
-use crate::data_asset::metadata::{
+use crate::data_store::metadata::{
     DataStoreMetadata,
 };
 

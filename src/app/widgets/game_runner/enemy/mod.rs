@@ -3,8 +3,8 @@ mod chiller;
 mod hopper;
 mod floater;
 
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataAssetId,
     Room,
     RoomEnemyType,
@@ -72,7 +72,7 @@ enum EnemyBehavior {
 }
 
 impl EnemyBehavior {
-    pub fn new(enemy_type: RoomEnemyType, enemy: &mut EnemyInfo, room: &Room, store: &DataAssetStore) -> Self {
+    pub fn new(enemy_type: RoomEnemyType, enemy: &mut EnemyInfo, room: &Room, store: &DataStore) -> Self {
         if let Some(anim) = store.assets.animations.get(&enemy.anim_id) {
             match enemy_type {
                 RoomEnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, room, anim, store)) }
@@ -94,7 +94,7 @@ impl EnemyBehavior {
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
         room: &Room,
-        store: &DataAssetStore
+        store: &DataStore
     ) {
         match self {
             EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, game_state, anim, store); }
@@ -264,7 +264,7 @@ impl Enemy {
         enemy_type: RoomEnemyType,
         direction: RoomEntityDirection,
         room: &Room,
-        store: &DataAssetStore
+        store: &DataStore
     ) -> Self {
         let mut enemy = EnemyInfo {
             x: pos.0 as i32,
@@ -283,7 +283,7 @@ impl Enemy {
         }
     }
 
-    pub fn tick_engine(&mut self, room: &Room, player: &Player, store: &DataAssetStore, game_state: &mut GameRunnerState) {
+    pub fn tick_engine(&mut self, room: &Room, player: &Player, store: &DataStore, game_state: &mut GameRunnerState) {
         if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) {
             self.behavior.tick(&mut self.enemy, player, game_state, anim, room, store);
             if let Some(cur_loop) = anim.loops.get(self.enemy.anim_loop.index()) {
@@ -298,7 +298,7 @@ impl Enemy {
         wc: &mut WindowContext,
         screen_pos: egui::Pos2,
         zoom: f32,
-        store: &DataAssetStore,
+        store: &DataStore,
     ) {
         if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) &&
             let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {

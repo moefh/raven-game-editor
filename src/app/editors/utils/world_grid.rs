@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{
-    HashedDataAsset,
+use crate::data_store::{
+    HashedData,
     DataAssetId,
-    DataAssetHash,
-    DataAssetHasher,
-    AssetList,
+    DataHash,
+    DataHasher,
+    DataAssetList,
     World,
     WorldRegion,
     Room,
@@ -61,7 +61,7 @@ fn count_room_doors(room: &Room) -> usize {
     })
 }
 
-fn count_region_doors(region: &WorldRegion, rooms: &AssetList<Room>) -> usize {
+fn count_region_doors(region: &WorldRegion, rooms: &DataAssetList<Room>) -> usize {
     region.rooms.iter().fold(0, |num_doors, room_id| {
         num_doors + rooms.get(room_id).map(|room| { count_room_doors(room) }).unwrap_or(0)
     })
@@ -96,7 +96,7 @@ impl Door {
         }
     }
 
-    pub fn get_info_with_region(&self, info: &mut String, world: &World, rooms: &AssetList<Room>) {
+    pub fn get_info_with_region(&self, info: &mut String, world: &World, rooms: &DataAssetList<Room>) {
         if let Some(region) = self.get_region(world) {
             info.push('<');
             info.push_str(&region.name);
@@ -107,7 +107,7 @@ impl Door {
         self.get_info(info, rooms);
     }
 
-    pub fn get_info(&self, info: &mut String, rooms: &AssetList<Room>) {
+    pub fn get_info(&self, info: &mut String, rooms: &DataAssetList<Room>) {
         if let Some(room) = self.get_room(rooms) {
             use std::fmt::Write as _;
             info.push_str(&room.asset.name);
@@ -121,21 +121,21 @@ impl Door {
         }
     }
 
-    pub fn get_room<'a>(&self, rooms: &'a AssetList<Room>) -> Option<&'a Room> {
+    pub fn get_room<'a>(&self, rooms: &'a DataAssetList<Room>) -> Option<&'a Room> {
         self.room_id.and_then(|room_id| rooms.get(&room_id))
     }
 
-    pub fn get_trigger<'a>(&self, rooms: &'a AssetList<Room>) -> Option<&'a RoomTrigger> {
+    pub fn get_trigger<'a>(&self, rooms: &'a DataAssetList<Room>) -> Option<&'a RoomTrigger> {
         self.get_room(rooms).and_then(|room| {
             self.trigger_index.and_then(|trigger_index| room.triggers.get(trigger_index))
         })
     }
 
-    pub fn get_room_mut<'a>(&self, rooms: &'a mut AssetList<Room>) -> Option<&'a mut Room> {
+    pub fn get_room_mut<'a>(&self, rooms: &'a mut DataAssetList<Room>) -> Option<&'a mut Room> {
         self.room_id.and_then(|room_id| rooms.get_mut(&room_id))
     }
 
-    pub fn get_trigger_mut<'a>(&self, rooms: &'a mut AssetList<Room>) -> Option<&'a mut RoomTrigger> {
+    pub fn get_trigger_mut<'a>(&self, rooms: &'a mut DataAssetList<Room>) -> Option<&'a mut RoomTrigger> {
         self.get_room_mut(rooms).and_then(|room| {
             self.trigger_index.and_then(|trigger_index| room.triggers.get_mut(trigger_index))
         })
@@ -167,7 +167,7 @@ pub struct RoomInfo {
 }
 
 impl RoomInfo {
-    pub fn calculate(region: &WorldRegion, room: &Room, maps: &AssetList<MapData>) -> Option<RoomInfo> {
+    pub fn calculate(region: &WorldRegion, room: &Room, maps: &DataAssetList<MapData>) -> Option<RoomInfo> {
         let mut min_x = i32::MAX;
         let mut min_y = i32::MAX;
         let mut max_x = i32::MIN;
@@ -266,7 +266,7 @@ impl Grid {
 }
 
 pub struct WorldGridStore {
-    state_hash: DataAssetHash,
+    state_hash: DataHash,
     pub world_grid: Grid,
     pub region_grids: Vec<Grid>,
     pub doors: Vec<Door>,
@@ -275,15 +275,15 @@ pub struct WorldGridStore {
 impl WorldGridStore {
     pub fn new() -> Self {
         WorldGridStore {
-            state_hash: DataAssetHash::EMPTY,
+            state_hash: DataHash::EMPTY,
             world_grid: Grid::new(),
             region_grids: Vec::new(),
             doors: Vec::new(),
         }
     }
 
-    pub fn update(&mut self, world: &World, rooms: &AssetList<Room>, maps: &AssetList<MapData>) {
-        let mut hasher = DataAssetHasher::new();
+    pub fn update(&mut self, world: &World, rooms: &DataAssetList<Room>, maps: &DataAssetList<MapData>) {
+        let mut hasher = DataHasher::new();
         world.data_hash(&mut hasher);
         for room in rooms.iter() { room.data_hash(&mut hasher); }
         for map in maps.iter() { map.data_hash(&mut hasher); }
@@ -312,7 +312,7 @@ impl WorldGridStore {
         }
     }
 
-    fn update_doors(&mut self, world: &World, rooms: &AssetList<Room>, maps: &AssetList<MapData>) {
+    fn update_doors(&mut self, world: &World, rooms: &DataAssetList<Room>, maps: &DataAssetList<MapData>) {
         // update door indices
         let mut num_world_doors = 0;
         for (region_grid, region) in self.region_grids.iter_mut().zip(world.regions.iter()) {
@@ -380,7 +380,7 @@ impl WorldGridStore {
         }
     }
 
-    pub fn set_door_dest(&self, door_index: usize, dest_door_index: usize, rooms: &mut AssetList<Room>) -> bool {
+    pub fn set_door_dest(&self, door_index: usize, dest_door_index: usize, rooms: &mut DataAssetList<Room>) -> bool {
         if let Some(door) = self.doors.get(door_index) &&
             let Some(dest_door) = self.doors.get(dest_door_index) &&
             let Some(dest_room_id) = dest_door.room_id &&

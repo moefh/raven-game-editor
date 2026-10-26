@@ -4,7 +4,7 @@ mod map_selection;
 use std::collections::HashMap;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetId,
     DataStoreTables,
@@ -12,7 +12,7 @@ use crate::data_asset::{
     DataStoreEffectTable,
     AssetIdCollection,
     GenericAsset,
-    AssetList,
+    DataAssetList,
     Room,
     RoomMap,
     RoomTrigger,
@@ -91,22 +91,22 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
 }
 
 pub struct RoomEditorAssetLists<'a> {
-    pub maps: &'a AssetList<MapData>,
-    pub tilesets: &'a AssetList<Tileset>,
-    pub tile_anims: &'a AssetList<TileAnimation>,
-    pub animations: &'a AssetList<SpriteAnimation>,
-    pub sprites: &'a AssetList<Sprite>,
+    pub maps: &'a DataAssetList<MapData>,
+    pub tilesets: &'a DataAssetList<Tileset>,
+    pub tile_anims: &'a DataAssetList<TileAnimation>,
+    pub animations: &'a DataAssetList<SpriteAnimation>,
+    pub sprites: &'a DataAssetList<Sprite>,
     pub room_names: &'a HashMap<DataAssetId, String>,
     pub tables: &'a DataStoreTables,
 }
 
 impl<'a> RoomEditorAssetLists<'a> {
     pub fn new(
-        maps: &'a AssetList<MapData>,
-        tilesets: &'a AssetList<Tileset>,
-        tile_anims: &'a AssetList<TileAnimation>,
-        animations: &'a AssetList<SpriteAnimation>,
-        sprites: &'a AssetList<Sprite>,
+        maps: &'a DataAssetList<MapData>,
+        tilesets: &'a DataAssetList<Tileset>,
+        tile_anims: &'a DataAssetList<TileAnimation>,
+        animations: &'a DataAssetList<SpriteAnimation>,
+        sprites: &'a DataAssetList<Sprite>,
         room_names: &'a HashMap<DataAssetId, String>,
         tables: &'a DataStoreTables,
     ) -> Self {
@@ -182,10 +182,10 @@ impl RoomEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_asset::GenericAsset) {
+    pub fn prepare_for_saving(&mut self, _asset: &mut impl crate::data_store::GenericAsset) {
     }
 
-    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, maps: &AssetList<MapData>, base: &AssetEditorBase) {
+    fn show_footer(ui: &mut egui::Ui, wc: &WindowContext, room: &Room, maps: &DataAssetList<MapData>, base: &AssetEditorBase) {
         let margin = egui::Margin { left: 5, right: 5, top: 4, bottom: 0 };
         let bottom_frame = egui::Frame::NONE.inner_margin(margin).fill(base.footer_bg_color(wc, room.asset.id));
         egui::Panel::bottom(format!("editor_panel_{}_bottom", room.asset.id)).frame(bottom_frame).show(ui, |ui| {
@@ -403,7 +403,7 @@ impl Editor {
 
     fn import_room(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, room: &mut Room, asset_ids: &AssetIdCollection) {
         let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_room(&content, self.asset_id, asset_ids, wc.logger)
+            data_store::deserialize_room(&content, self.asset_id, asset_ids, wc.logger)
         });
         match result {
             Ok(mut new_room) => {
@@ -475,7 +475,7 @@ impl Editor {
         }
     }
 
-    fn show_map_tree(&self, ui: &mut egui::Ui, room: &Room, maps: &AssetList<MapData>) -> (bool, Option<usize>) {
+    fn show_map_tree(&self, ui: &mut egui::Ui, room: &Room, maps: &DataAssetList<MapData>) -> (bool, Option<usize>) {
         let (mut choose_maps, mut sel_map) = (false, None);
 
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_tree", room.asset.id));
@@ -576,7 +576,7 @@ impl Editor {
         ui: &mut egui::Ui,
         map_index: usize,
         room: &mut Room,
-        maps: &AssetList<MapData>
+        maps: &DataAssetList<MapData>
     ) -> Option<()> {
         let room_map = room.maps.get_mut(map_index)?;
         let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_prop_tree", self.asset_id));
@@ -685,7 +685,7 @@ impl Editor {
         ui: &mut egui::Ui,
         combo_id: &str,
         map_index: &mut u16,
-        maps: &AssetList<MapData>,
+        maps: &DataAssetList<MapData>,
         room_maps: &[RoomMap]
     ) {
         let sel_map_name = room_maps.get(*map_index as usize)
@@ -1389,7 +1389,7 @@ impl Editor {
 
         if self.sorted_animation_ids.is_empty() {
             asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
         }
         if self.sorted_room_ids.is_empty() {
             asset_ids.rooms.copy_to(&mut self.sorted_room_ids);

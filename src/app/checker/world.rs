@@ -3,9 +3,9 @@ use std::collections::{
     BTreeMap,
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     World,
 };
 
@@ -46,7 +46,7 @@ fn check_world(world: &World) -> (Vec<AssetError>, Vec<AssetWarning>) {
 pub fn check_worlds(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for world in store.assets.worlds.iter() {
         let (errors, warnings) = check_world(world);

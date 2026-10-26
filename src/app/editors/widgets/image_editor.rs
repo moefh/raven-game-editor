@@ -20,7 +20,7 @@ use crate::image::{
     ImageRect,
     ImageRotation,
 };
-use crate::data_asset;
+use crate::data_store;
 
 use super::{
     WidgetZoom,
@@ -153,7 +153,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub selection: ImageSelection,
     pub pick_left_color: Option<u8>,
     pub pick_right_color: Option<u8>,
-    pub collision_rect: Option<data_asset::Rect>,
+    pub collision_rect: Option<data_store::Rect>,
     pub selection_enabled: bool,
     pub hover_pos: Vec2,
     pub zoom: WidgetZoom,
@@ -473,11 +473,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         }
     }
 
-    pub fn set_collision_rect(&mut self, rect: Option<data_asset::Rect>) {
+    pub fn set_collision_rect(&mut self, rect: Option<data_store::Rect>) {
         self.collision_rect = rect;
     }
 
-    pub fn get_collision_rect(&mut self) -> Option<data_asset::Rect> {
+    pub fn get_collision_rect(&mut self) -> Option<data_store::Rect> {
         self.collision_rect
     }
 
@@ -566,7 +566,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         // crate a collision rect for the full image if none exists
         let collision_rect = self.collision_rect.get_or_insert_with(|| {
-            data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32)
+            data_store::Rect::new(0, 0, image.width() as i32, image.height() as i32)
         });
 
         let cmd_held = resp.ctx.input(|i| i.modifiers.command);
@@ -607,7 +607,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
         // crate a collision rect for the full image if none exists
         let collision_rect = self.collision_rect.get_or_insert_with(|| {
-            data_asset::Rect::new(0, 0, image.width() as i32, image.height() as i32)
+            data_store::Rect::new(0, 0, image.width() as i32, image.height() as i32)
         });
 
         let cmd_held = resp.ctx.input(|i| i.modifiers.command);

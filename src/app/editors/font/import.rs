@@ -4,7 +4,7 @@ use crate::image::{
     ImageSlicingMethod,
     ImageLoadOptions,
 };
-use crate::data_asset::Font;
+use crate::data_store::Font;
 
 use super::super::{
     AssetEditorBase,

@@ -1,6 +1,6 @@
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     SpriteAnimation,
 };
 use crate::image::ImageCollection;
@@ -39,7 +39,7 @@ impl SpriteFrameFixer for SpriteAnimation {
 
 fn reload_sprite_texture(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     sprite_id: DataAssetId,
 ) {
     if let Some(sprite) = store.assets.sprites.get_mut(&sprite_id) {
@@ -50,7 +50,7 @@ fn reload_sprite_texture(
 
 pub fn fix_after_sprite_frames_added(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     sprite_id: DataAssetId,
     hole_start: u32,
@@ -77,7 +77,7 @@ pub fn fix_after_sprite_frames_added(
 
 pub fn fix_after_sprite_frames_removed(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     sprite_id: DataAssetId,
     hole_start: u32,

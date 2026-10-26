@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     Room,
     SpriteAnimation,
 };
@@ -19,7 +19,7 @@ pub struct Floater {
 impl Floater {
     const FLOAT_DY: &[i32] = &[0, -1, -2, -2, -1, 0, 1, 2, 2, 1 ];
 
-    pub fn new(enemy: &mut EnemyInfo, _room: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) -> Self {
+    pub fn new(enemy: &mut EnemyInfo, _room: &Room, _anim: &SpriteAnimation, _store: &DataStore) -> Self {
         enemy.anim_loop = EnemyAnimLoop::Float;
         Floater {
             initial_y: enemy.y,
@@ -34,7 +34,7 @@ impl Floater {
         _player: &Player,
         _game_dtate: &GameRunnerState,
         _anim: &SpriteAnimation,
-        _store: &DataAssetStore
+        _store: &DataStore
     ) {
         self.float_frame += 16;
         if (self.float_frame >> 8) >= Self::FLOAT_DY.len() {

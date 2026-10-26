@@ -1,5 +1,5 @@
 use crate::image::ImageCollection;
-use crate::data_asset::Tileset;
+use crate::data_store::Tileset;
 
 use super::super::{
     AssetEditorBase,

@@ -25,8 +25,8 @@ impl PropFont {
     }
 }
 
-impl super::HashedDataAsset for PropFont {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for PropFont {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_u32(self.max_width);
         hasher.add_u32(self.height);

@@ -2,7 +2,7 @@
 
 mod misc;
 mod image;
-mod data_asset;
+mod data_store;
 mod app;
 mod platform;
 
@@ -10,7 +10,7 @@ use crate::app::{
     RavenEditorApp,
     AppSettings,
 };
-use crate::data_asset::StringLogger;
+use crate::data_store::StringLogger;
 
 const SEND_LOG_TO_STDOUT: bool = false;
 

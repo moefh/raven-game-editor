@@ -1,6 +1,6 @@
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::{
@@ -45,7 +45,7 @@ impl EditorAction {
     pub fn run(
         self,
         wc: &mut WindowContext,
-        store: &mut DataAssetStore,
+        store: &mut DataStore,
         editors: &mut EditorStore,
         windows: &mut AppWindows,
         exporter: &mut AssetExporter

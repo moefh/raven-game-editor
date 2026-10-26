@@ -28,8 +28,8 @@ impl TileAnimation {
     }
 }
 
-impl super::HashedDataAsset for TileAnimation {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for TileAnimation {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_asset_id(self.parent_tileset_id);
         hasher.add_asset_id(self.anim_tileset_id);

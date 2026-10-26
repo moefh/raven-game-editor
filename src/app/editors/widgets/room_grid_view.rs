@@ -4,8 +4,8 @@ use egui::{
     Color32,
 };
 
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     World,
     Room,
     MapData,
@@ -35,7 +35,7 @@ impl Size {
 pub struct RoomGridViewWidget;
 
 impl RoomGridViewWidget {
-    fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Size {
+    fn get_room_size(room: &Room, maps: &DataAssetList<MapData>) -> Size {
         room.maps.iter().fold(Size::new(0, 0), |size, room_map| {
             match maps.get(&room_map.map_id) {
                 Some(map_data) => {
@@ -54,7 +54,7 @@ impl RoomGridViewWidget {
         wc: &mut WindowContext,
         room: &Room,
         world: &World,
-        maps: &AssetList<MapData>,
+        maps: &DataAssetList<MapData>,
         grid_store: &world_grid::WorldGridStore,
         region_index: usize,
     ) {

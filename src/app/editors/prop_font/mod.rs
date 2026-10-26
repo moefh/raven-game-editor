@@ -9,7 +9,7 @@ use crate::image::{
     ImagePixels,
     TextureSlot,
 };
-use crate::data_asset::{
+use crate::data_store::{
     PropFont,
     DataAssetId,
     GenericAsset,

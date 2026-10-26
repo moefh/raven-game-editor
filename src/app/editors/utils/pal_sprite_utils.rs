@@ -1,7 +1,7 @@
 
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 use crate::image::ImageCollection;
 
@@ -28,7 +28,7 @@ pub trait PalSpriteFrameFixer {
 
 fn reload_pal_sprite_texture(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     pal_sprite_id: DataAssetId,
 ) {
     if let Some(pal_sprite) = store.assets.pal_sprites.get_mut(&pal_sprite_id) {
@@ -39,7 +39,7 @@ fn reload_pal_sprite_texture(
 
 pub fn fix_after_pal_sprite_frames_added(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     pal_sprite_id: DataAssetId,
     hole_start: u32,
@@ -56,7 +56,7 @@ pub fn fix_after_pal_sprite_frames_added(
 
 pub fn fix_after_pal_sprite_frames_removed(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     pal_sprite_id: DataAssetId,
     hole_start: u32,

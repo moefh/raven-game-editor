@@ -1,10 +1,10 @@
-use crate::data_asset::{
+use crate::data_store::{
     self,
     Sprite,
     SpriteAnimation,
     DataAssetId,
-    AssetList,
-    AssetIdList,
+    DataAssetList,
+    DataAssetIdList,
 };
 
 use super::super::{
@@ -53,7 +53,7 @@ impl PropertiesDialog {
         wc.set_dialog_open(self.dlg_id, self.open);
     }
 
-    fn confirm(&mut self, animation: &mut SpriteAnimation, sprites: &AssetList<Sprite>) {
+    fn confirm(&mut self, animation: &mut SpriteAnimation, sprites: &DataAssetList<Sprite>) {
         animation.asset.name.replace_range(.., &self.name);
         if animation.sprite_id != self.sprite_id && let Some(sprite) = sprites.get(&self.sprite_id) {
             animation.sprite_id = self.sprite_id;
@@ -61,10 +61,10 @@ impl PropertiesDialog {
         }
     }
 
-    fn sort_ids(&mut self, sprite_ids: &AssetIdList, sprites: &AssetList<Sprite>) {
+    fn sort_ids(&mut self, sprite_ids: &DataAssetIdList, sprites: &DataAssetList<Sprite>) {
         if self.sorted_sprite_ids.is_empty() {
             sprite_ids.copy_to(&mut self.sorted_sprite_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, sprites);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, sprites);
         }
     }
 
@@ -72,8 +72,8 @@ impl PropertiesDialog {
         &mut self,
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
-        sprite_ids: &AssetIdList,
-        sprites: &AssetList<Sprite>
+        sprite_ids: &DataAssetIdList,
+        sprites: &DataAssetList<Sprite>
     ) {
         if ! self.open { return; }
         self.sort_ids(sprite_ids, sprites);

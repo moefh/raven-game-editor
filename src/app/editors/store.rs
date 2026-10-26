@@ -3,13 +3,13 @@ use std::collections::{
     HashSet,
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     calc_store_tables_hash,
     DataAssetId,
     DataAssetType,
-    DataAssetStore,
-    DataAssetHash,
-    AssetList,
+    DataStore,
+    DataHash,
+    DataAssetList,
     Room,
 };
 use super::{
@@ -43,8 +43,8 @@ pub struct EditorStore {
     pub fonts: HashMap<DataAssetId, FontEditor>,
     pub prop_fonts: HashMap<DataAssetId, PropFontEditor>,
     pub room_names: HashMap<DataAssetId, String>,
-    pub cur_store_tables_hash: DataAssetHash,
-    pub saved_store_tables_hash: DataAssetHash,
+    pub cur_store_tables_hash: DataHash,
+    pub saved_store_tables_hash: DataHash,
 }
 
 impl EditorStore {
@@ -64,12 +64,12 @@ impl EditorStore {
             fonts: HashMap::new(),
             prop_fonts: HashMap::new(),
             room_names: HashMap::new(),
-            cur_store_tables_hash: DataAssetHash::EMPTY,
-            saved_store_tables_hash: DataAssetHash::EMPTY,
+            cur_store_tables_hash: DataHash::EMPTY,
+            saved_store_tables_hash: DataHash::EMPTY,
         }
     }
 
-    pub fn clear(&mut self, store: &DataAssetStore) {
+    pub fn clear(&mut self, store: &DataStore) {
         self.egui_id_to_asset_id.clear();
         self.tilesets.clear();
         self.maps.clear();
@@ -88,7 +88,7 @@ impl EditorStore {
         self.saved_store_tables_hash = self.cur_store_tables_hash;
     }
 
-    pub fn create_editors_for_new_store(&mut self, store: &DataAssetStore) {
+    pub fn create_editors_for_new_store(&mut self, store: &DataStore) {
         for id in store.asset_ids.tilesets.iter().copied() { self.add_tileset(id); }
         for id in store.asset_ids.maps.iter().copied() { self.add_map(id); }
         for id in store.asset_ids.rooms.iter().copied() { self.add_room(id); }
@@ -265,7 +265,7 @@ impl EditorStore {
         egui_id
     }
 
-    pub fn update_dirty_flags(&mut self, store: &DataAssetStore) {
+    pub fn update_dirty_flags(&mut self, store: &DataStore) {
         for tileset in store.assets.tilesets.iter() {
             if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.update_dirty_flag(tileset); }
         }
@@ -306,7 +306,7 @@ impl EditorStore {
         self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
     }
 
-    pub fn clear_dirty_flags(&mut self, store: &DataAssetStore) {
+    pub fn clear_dirty_flags(&mut self, store: &DataStore) {
         for tileset in store.assets.tilesets.iter() {
             if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.clear_dirty_flag(tileset); }
         }
@@ -386,7 +386,7 @@ impl EditorStore {
         self.iter().filter_map(|e| { if e.open { Some(e.egui_id) } else { None }})
     }
 
-    pub fn refresh_room_names(&mut self, rooms: &AssetList<Room>) {
+    pub fn refresh_room_names(&mut self, rooms: &DataAssetList<Room>) {
         let mut seen_ids = HashSet::new();
         let mut remove_ids = HashSet::new();
 

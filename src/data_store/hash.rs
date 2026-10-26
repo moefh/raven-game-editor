@@ -1,37 +1,37 @@
 use sha2::{Sha256, Digest};
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub struct DataAssetHash {
+pub struct DataHash {
     bytes: [u8; 32],
 }
 
-impl DataAssetHash {
-    pub const EMPTY: DataAssetHash = DataAssetHash { bytes: [0; 32] };
+impl DataHash {
+    pub const EMPTY: DataHash = DataHash { bytes: [0; 32] };
 }
 
-pub struct DataAssetHasher {
+pub struct DataHasher {
     hash: Sha256,
     include_ids: bool,
 }
 
-impl DataAssetHasher {
+impl DataHasher {
     pub fn new() -> Self {
-        DataAssetHasher {
+        DataHasher {
             hash: sha2::Sha256::new(),
             include_ids: true,
         }
     }
 
     fn new_excluding_ids() -> Self {
-        DataAssetHasher {
+        DataHasher {
             hash: sha2::Sha256::new(),
             include_ids: false,
         }
     }
 
-    pub fn finalize(self) -> DataAssetHash {
+    pub fn finalize(self) -> DataHash {
         let hash = self.hash.finalize();
-        DataAssetHash { bytes: hash.0 }
+        DataHash { bytes: hash.0 }
     }
 
     pub fn add_asset_id(&mut self, id: super::DataAssetId) {
@@ -90,24 +90,24 @@ impl DataAssetHasher {
     }
 }
 
-pub trait HashedDataAsset {
-    fn data_hash(&self, hasher: &mut DataAssetHasher);
+pub trait HashedData {
+    fn data_hash(&self, hasher: &mut DataHasher);
 }
 
-pub fn calc_asset_hash<A: HashedDataAsset>(asset: &A) -> DataAssetHash {
-    let mut hasher = DataAssetHasher::new();
+pub fn calc_asset_hash<A: HashedData>(asset: &A) -> DataHash {
+    let mut hasher = DataHasher::new();
     asset.data_hash(&mut hasher);
     hasher.finalize()
 }
 
-pub fn calc_asset_data_hash<A: HashedDataAsset>(asset: &A) -> DataAssetHash {
-    let mut hasher = DataAssetHasher::new_excluding_ids();
+pub fn calc_asset_data_hash<A: HashedData>(asset: &A) -> DataHash {
+    let mut hasher = DataHasher::new_excluding_ids();
     asset.data_hash(&mut hasher);
     hasher.finalize()
 }
 
-pub fn calc_store_tables_hash(tables: &super::DataStoreTables) -> DataAssetHash {
-    let mut hasher = DataAssetHasher::new();
+pub fn calc_store_tables_hash(tables: &super::DataStoreTables) -> DataHash {
+    let mut hasher = DataHasher::new();
     tables.data_hash(&mut hasher);
     hasher.finalize()
 }

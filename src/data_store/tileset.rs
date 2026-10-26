@@ -21,8 +21,8 @@ impl Tileset {
     }
 }
 
-impl super::HashedDataAsset for Tileset {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for Tileset {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_u32(self.width);
         hasher.add_u32(self.height);

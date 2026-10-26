@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
 };
 
 use super::{
@@ -12,8 +12,8 @@ pub fn show_worlds(
     ui: &mut egui::Ui,
     _wc: &mut WindowContext,
     comparer: &ProjectComparer,
-    cur_store: &DataAssetStore,
-    other_store: &DataAssetStore
+    cur_store: &DataStore,
+    other_store: &DataStore
 ) -> DiffState {
     if comparer.worlds.cur_only.is_empty() && comparer.worlds.other_only.is_empty() && comparer.worlds.diffs.is_empty() {
         return DiffState::EMPTY;

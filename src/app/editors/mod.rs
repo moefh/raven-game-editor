@@ -51,13 +51,13 @@ use crate::misc::{
     get_asset_type_image,
     IMAGES,
 };
-use crate::data_asset::{
+use crate::data_store::{
     calc_asset_hash,
-    AssetList,
+    DataAssetList,
     DataAssetId,
     GenericAsset,
-    DataAssetHash,
-    HashedDataAsset,
+    DataHash,
+    HashedData,
 };
 use crate::image::{
     ImageCollection,
@@ -88,7 +88,7 @@ enum MaximizedState {
     Normal,
 }
 
-fn sorted_assets<T: GenericAsset>(assets: &AssetList<T>) -> impl Iterator<Item = &T> {
+fn sorted_assets<T: GenericAsset>(assets: &DataAssetList<T>) -> impl Iterator<Item = &T> {
     let mut assets: Vec<&T> = assets.iter().collect();
     assets.sort_by_key(|a| &a.asset().name);
     assets.into_iter()
@@ -103,8 +103,8 @@ pub struct AssetEditorBase {
     title: String,
     maximized_state: MaximizedState,
     window_rect: egui::Rect,
-    saved_hash: DataAssetHash,
-    cur_hash: DataAssetHash,
+    saved_hash: DataHash,
+    cur_hash: DataHash,
 }
 
 impl AssetEditorBase {
@@ -118,8 +118,8 @@ impl AssetEditorBase {
             footer_panel_id: egui::Id::unique(format!("editor_{}_footer_panel", id)),
             maximized_state: MaximizedState::Normal,
             window_rect: egui::Rect::ZERO,
-            saved_hash: DataAssetHash::EMPTY,
-            cur_hash: DataAssetHash::EMPTY,
+            saved_hash: DataHash::EMPTY,
+            cur_hash: DataHash::EMPTY,
         }
     }
 
@@ -127,12 +127,12 @@ impl AssetEditorBase {
         self.cur_hash != self.saved_hash
     }
 
-    pub fn clear_dirty_flag(&mut self, asset: &impl HashedDataAsset) {
+    pub fn clear_dirty_flag(&mut self, asset: &impl HashedData) {
         self.cur_hash = calc_asset_hash(asset);
         self.saved_hash = self.cur_hash;
     }
 
-    pub fn update_dirty_flag(&mut self, asset: &impl HashedDataAsset) {
+    pub fn update_dirty_flag(&mut self, asset: &impl HashedData) {
         self.cur_hash = calc_asset_hash(asset);
     }
 

@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     Room,
     SpriteAnimation,
 };
@@ -40,7 +40,7 @@ impl State {
     }
 }
 
-fn check_player_seen(enemy: &EnemyInfo, player: &Player, enemy_anim: &SpriteAnimation, store: &DataAssetStore) -> Option<Direction> {
+fn check_player_seen(enemy: &EnemyInfo, player: &Player, enemy_anim: &SpriteAnimation, store: &DataStore) -> Option<Direction> {
     if let Some(player_anim_id) = player.anim_id && let Some(player_anim) = store.assets.animations.get(&player_anim_id) {
         enemy.check_player_seen(player, enemy_anim, player_anim)
     } else {
@@ -56,7 +56,7 @@ pub struct Hopper {
 }
 
 impl Hopper {
-    pub fn new(enemy: &mut EnemyInfo, _room: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) -> Self {
+    pub fn new(enemy: &mut EnemyInfo, _room: &Room, _anim: &SpriteAnimation, _store: &DataStore) -> Self {
         let state = State::AmbushWait;
         enemy.anim_loop = state.get_anim_loop();
         Hopper {
@@ -80,7 +80,7 @@ impl Hopper {
         player: &Player,
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        store: &DataAssetStore,
+        store: &DataStore,
     ) {
         match self.state {
             State::AmbushWait => {

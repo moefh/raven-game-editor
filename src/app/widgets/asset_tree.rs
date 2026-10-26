@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetType,
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     DataAsset,
     GenericAsset,
 };
@@ -293,7 +293,7 @@ impl StoreAssetTree {
         }
     }
 
-    pub fn update(&mut self, store: &DataAssetStore) {
+    pub fn update(&mut self, store: &DataStore) {
         for tree in self.roots.values_mut() {
             tree.clear_used_mark();
         }

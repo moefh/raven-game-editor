@@ -4,7 +4,7 @@ use crate::image::colors::{
     color_to_6bit_rgb,
     color_6bit_rgb_to_color,
 };
-use crate::data_asset::{
+use crate::data_store::{
     PalSprite,
     PalSpriteDepth,
 };

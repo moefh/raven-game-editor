@@ -34,7 +34,7 @@ use super::{
     StringLogger,
     DataAssetId,
     DataAssetType,
-    DataAssetStore,
+    DataStore,
     DataAssetIdGenerator,
     DataStoreTables,
     DataStoreItem,
@@ -354,7 +354,7 @@ impl ProjectData {
 }
 
 pub struct ProjectDataFile {
-    pub store: DataAssetStore,
+    pub store: DataStore,
     pub metadata: super::metadata::DataStoreMetadata,
 }
 
@@ -938,7 +938,7 @@ impl<'a> ProjectDataReader<'a> {
         })
     }
 
-    fn create_store(self, id_generator: DataAssetIdGenerator) -> Result<DataAssetStore> {
+    fn create_store(self, id_generator: DataAssetIdGenerator) -> Result<DataStore> {
         // create assets
         let mut assets = AssetCollection::new();
         let mut asset_ids = AssetIdCollection::new();
@@ -1033,7 +1033,7 @@ impl<'a> ProjectDataReader<'a> {
             flag: self.create_effect_table("TABLE_FLAG"),
         };
 
-        Ok(DataAssetStore {
+        Ok(DataStore {
             id_generator,
             assets,
             asset_ids,

@@ -1,8 +1,8 @@
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetId,
     AssetIdCollection,
-    AssetList,
+    DataAssetList,
     Room,
     MapData,
     Tileset,
@@ -48,7 +48,7 @@ impl PropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room, maps: &AssetList<MapData>, new_tile: u8) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, room: &Room, maps: &DataAssetList<MapData>, new_tile: u8) {
         self.name.clear();
         self.name.push_str(&room.asset.name);
         self.has_script = room.has_script;
@@ -93,14 +93,14 @@ impl PropertiesDialog {
         }
     }
 
-    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>) {
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, tilesets: &DataAssetList<Tileset>) {
         if self.sorted_tileset_ids.is_empty() {
             asset_ids.tilesets.copy_to(&mut self.sorted_tileset_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>) {
+    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, asset_ids: &AssetIdCollection, tilesets: &DataAssetList<Tileset>) {
         if ! self.open { return; }
         self.sort_ids(asset_ids, tilesets);
 

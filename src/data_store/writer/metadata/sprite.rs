@@ -11,7 +11,7 @@ use super::super::{
 };
 use super::super::super::{
     DataAssetId,
-    AssetIdList,
+    DataAssetIdList,
 };
 
 fn write_sprite(writer: &ProjectDataWriter, sprite_md: Option<&SpriteMetadata>) {
@@ -34,7 +34,7 @@ fn write_sprite(writer: &ProjectDataWriter, sprite_md: Option<&SpriteMetadata>) 
 
 pub fn write(
     writer: &ProjectDataWriter,
-    sprite_ids: &AssetIdList,
+    sprite_ids: &DataAssetIdList,
     sprites: &HashMap<DataAssetId, super::SpriteMetadata>
 ) -> Result<()> {
     writer.write(format!(

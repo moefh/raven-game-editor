@@ -2,10 +2,10 @@
 use super::{
     DataAssetId,
     GenericAsset,
-    AssetList,
+    DataAssetList,
 };
 
-pub fn sort_asset_ids_by_name<T: GenericAsset>(ids: &mut [DataAssetId], assets: &AssetList<T>) {
+pub fn sort_asset_ids_by_name<T: GenericAsset>(ids: &mut [DataAssetId], assets: &DataAssetList<T>) {
     ids.sort_by(|x, y| {
         if let Some(ax) = assets.get(x) {
             if let Some(ay) = assets.get(y) {

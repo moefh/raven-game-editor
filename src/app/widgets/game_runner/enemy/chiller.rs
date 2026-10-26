@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     Room,
     SpriteAnimation,
 };
@@ -33,7 +33,7 @@ pub struct Chiller {
 }
 
 impl Chiller {
-    pub fn new(enemy: &mut EnemyInfo, _room_id: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) -> Self {
+    pub fn new(enemy: &mut EnemyInfo, _room_id: &Room, _anim: &SpriteAnimation, _store: &DataStore) -> Self {
         let state = State::Look;
         enemy.anim_loop = state.get_anim_loop();
         Chiller {
@@ -55,7 +55,7 @@ impl Chiller {
         _player: &Player,
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        _store: &DataAssetStore,
+        _store: &DataStore,
     ) {
         match self.state {
             State::Look => {

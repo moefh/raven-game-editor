@@ -1,8 +1,8 @@
 use crate::misc::{
     STATIC_IMAGES,
 };
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     Tileset,
     MapData,
     MapTileChange,
@@ -797,8 +797,8 @@ pub fn draw_bb_layer(
     ui: &mut egui::Ui,
     wc: &mut WindowContext,
     map_data: &MapData,
-    tilesets: &AssetList<Tileset>,
-    tile_anims: &AssetList<TileAnimation>,
+    tilesets: &DataAssetList<Tileset>,
+    tile_anims: &DataAssetList<TileAnimation>,
     draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
@@ -868,8 +868,8 @@ pub fn draw_bg_layer(
     ui: &mut egui::Ui,
     wc: &mut WindowContext,
     map_data: &MapData,
-    tilesets: &AssetList<Tileset>,
-    tile_anims: &AssetList<TileAnimation>,
+    tilesets: &DataAssetList<Tileset>,
+    tile_anims: &DataAssetList<TileAnimation>,
     draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
@@ -943,8 +943,8 @@ pub fn draw_fg_layer(
     ui: &mut egui::Ui,
     wc: &mut WindowContext,
     map_data: &MapData,
-    tilesets: &AssetList<Tileset>,
-    tile_anims: &AssetList<TileAnimation>,
+    tilesets: &DataAssetList<Tileset>,
+    tile_anims: &DataAssetList<TileAnimation>,
     draw: &DrawMapInfo,
     layer_tint: Option<egui::Color32>
 ) -> bool {
@@ -1029,8 +1029,8 @@ impl<'a> DrawMapLayerData<'a> {
     fn from_map_layer(
         map_data: &'a MapData,
         layer: MapLayer,
-        tilesets: &'a AssetList<Tileset>,
-        tile_anims: &'a AssetList<TileAnimation>
+        tilesets: &'a DataAssetList<Tileset>,
+        tile_anims: &'a DataAssetList<TileAnimation>
     ) -> Option<Self> {
         let tileset = tilesets.get(&map_data.tileset_id)?;
         let (tile_anim, anim_tileset) = if

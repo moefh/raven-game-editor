@@ -1,4 +1,4 @@
-use crate::data_asset::DataAssetStore;
+use crate::data_store::DataStore;
 
 use super::super::{
     AppWindowBase,
@@ -27,7 +27,7 @@ impl EffectPropertiesDialog {
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, table_ref: DataTableReference, effect_index: usize, store: &DataAssetStore) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, table_ref: DataTableReference, effect_index: usize, store: &DataStore) {
         self.table_ref = table_ref;
         self.effect_index = effect_index;
         if let Some(effect_name) = table_ref.get_store_effect(store, effect_index) {
@@ -39,13 +39,13 @@ impl EffectPropertiesDialog {
         wc.set_dialog_open(self.id, self.open);
     }
 
-    fn confirm(&mut self, store: &mut DataAssetStore) {
+    fn confirm(&mut self, store: &mut DataStore) {
         if let Some(effect_name) = self.table_ref.get_store_effect_mut(store, self.effect_index) {
             effect_name.replace_range(.., &self.name);
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> bool {
         if ! self.open { return false; }
 
         if AppWindowBase::show_dialog_window(wc, self.id, 300.0, "Effect Properties", |ui, _wc| {

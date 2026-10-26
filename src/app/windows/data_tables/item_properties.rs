@@ -1,10 +1,10 @@
-use crate::data_asset::{
+use crate::data_store::{
     self,
     Sprite,
     AssetIdCollection,
-    AssetList,
+    DataAssetList,
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::super::{
@@ -43,7 +43,7 @@ impl ItemPropertiesDialog {
         wc: &mut WindowContext,
         table_ref: DataTableReference,
         item_index: usize,
-        store: &DataAssetStore
+        store: &DataStore
     ) {
         self.table_ref = table_ref;
         self.item_index = item_index;
@@ -59,7 +59,7 @@ impl ItemPropertiesDialog {
         wc.set_dialog_open(self.id, self.open);
     }
 
-    fn confirm(&mut self, store: &mut DataAssetStore) {
+    fn confirm(&mut self, store: &mut DataStore) {
         if let Some(item) = self.table_ref.get_store_item_mut(store, self.item_index) {
             item.name.replace_range(.., &self.name);
             if let Some(sprite_id) = self.sprite_id {
@@ -68,14 +68,14 @@ impl ItemPropertiesDialog {
         }
     }
 
-    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, sprites: &AssetList<Sprite>) {
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, sprites: &DataAssetList<Sprite>) {
         if self.sorted_sprite_ids.is_empty() {
             asset_ids.sprites.copy_to(&mut self.sorted_sprite_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, sprites);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, sprites);
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> bool {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> bool {
         if ! self.open { return false; }
         self.sort_ids(&store.asset_ids, &store.assets.sprites);
 

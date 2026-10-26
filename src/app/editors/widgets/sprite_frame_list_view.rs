@@ -5,7 +5,7 @@ use egui::{
     Rect,
 };
 
-use crate::data_asset::SpriteAnimationFrame;
+use crate::data_store::SpriteAnimationFrame;
 use crate::image::ImageCollection;
 
 use super::super::WindowContext;

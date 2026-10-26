@@ -1,8 +1,8 @@
 use crate::misc::{
     STATIC_IMAGES,
 };
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     AssetIdCollection,
     Tileset,
     MapData,
@@ -53,7 +53,7 @@ impl RoomSize {
         }
     }
 
-    pub fn from_room(room: &Room, maps: &AssetList<MapData>) -> Self {
+    pub fn from_room(room: &Room, maps: &DataAssetList<MapData>) -> Self {
         room.maps.iter().fold(Self::ZERO, |max, room_map| {
             match maps.get(&room_map.map_id) {
                 Some(map) => {

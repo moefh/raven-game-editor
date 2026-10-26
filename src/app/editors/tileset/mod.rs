@@ -16,7 +16,7 @@ use crate::image::{
     ImagePixels,
     ImageRotation,
 };
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
     GenericAsset,
     Tileset,

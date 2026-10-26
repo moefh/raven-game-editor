@@ -24,9 +24,9 @@ pub use hash::{
     calc_asset_hash,
     calc_asset_data_hash,
     calc_store_tables_hash,
-    DataAssetHash,
-    DataAssetHasher,
-    HashedDataAsset,
+    DataHash,
+    DataHasher,
+    HashedData,
 };
 pub use reader::{
     deserialize_project,
@@ -220,13 +220,13 @@ pub trait GenericAsset {
     fn data_size(&self) -> usize;
 }
 
-pub struct AssetList<T> {
+pub struct DataAssetList<T> {
     store: HashMap<DataAssetId, T>
 }
 
-impl<T> AssetList<T> {
+impl<T> DataAssetList<T> {
     fn new() -> Self {
-        AssetList {
+        DataAssetList {
             store: HashMap::new(),
         }
     }
@@ -260,7 +260,7 @@ impl<T> AssetList<T> {
     }
 }
 
-impl<T: DuplicableAsset<T>> AssetList<T> {
+impl<T: DuplicableAsset<T>> DataAssetList<T> {
     fn duplicate_asset(&mut self, id: &DataAssetId, dup_name: &str, id_gen: &mut DataAssetIdGenerator) -> Option<DataAssetId> {
         let dup = if let Some(asset) = self.store.get(id) {
             let dup_id = id_gen.gen_id();
@@ -278,13 +278,13 @@ impl<T: DuplicableAsset<T>> AssetList<T> {
     }
 }
 
-pub struct AssetIdList {
+pub struct DataAssetIdList {
     store: Vec<DataAssetId>
 }
 
-impl AssetIdList {
+impl DataAssetIdList {
     fn new() -> Self {
-        AssetIdList {
+        DataAssetIdList {
             store: Vec::new(),
         }
     }
@@ -315,35 +315,35 @@ impl AssetIdList {
 }
 
 pub struct AssetCollection {
-    pub tilesets: AssetList<Tileset>,
-    pub maps: AssetList<MapData>,
-    pub rooms: AssetList<Room>,
-    pub worlds: AssetList<World>,
-    pub sprites: AssetList<Sprite>,
-    pub pal_sprites: AssetList<PalSprite>,
-    pub animations: AssetList<SpriteAnimation>,
-    pub tile_anims: AssetList<TileAnimation>,
-    pub sfxs: AssetList<Sfx>,
-    pub mods: AssetList<ModData>,
-    pub fonts: AssetList<Font>,
-    pub prop_fonts: AssetList<PropFont>,
+    pub tilesets: DataAssetList<Tileset>,
+    pub maps: DataAssetList<MapData>,
+    pub rooms: DataAssetList<Room>,
+    pub worlds: DataAssetList<World>,
+    pub sprites: DataAssetList<Sprite>,
+    pub pal_sprites: DataAssetList<PalSprite>,
+    pub animations: DataAssetList<SpriteAnimation>,
+    pub tile_anims: DataAssetList<TileAnimation>,
+    pub sfxs: DataAssetList<Sfx>,
+    pub mods: DataAssetList<ModData>,
+    pub fonts: DataAssetList<Font>,
+    pub prop_fonts: DataAssetList<PropFont>,
 }
 
 impl AssetCollection {
     fn new() -> Self {
         AssetCollection {
-            tilesets: AssetList::new(),
-            maps: AssetList::new(),
-            rooms: AssetList::new(),
-            worlds: AssetList::new(),
-            sprites: AssetList::new(),
-            pal_sprites: AssetList::new(),
-            animations: AssetList::new(),
-            tile_anims: AssetList::new(),
-            sfxs: AssetList::new(),
-            mods: AssetList::new(),
-            fonts: AssetList::new(),
-            prop_fonts: AssetList::new(),
+            tilesets: DataAssetList::new(),
+            maps: DataAssetList::new(),
+            rooms: DataAssetList::new(),
+            worlds: DataAssetList::new(),
+            sprites: DataAssetList::new(),
+            pal_sprites: DataAssetList::new(),
+            animations: DataAssetList::new(),
+            tile_anims: DataAssetList::new(),
+            sfxs: DataAssetList::new(),
+            mods: DataAssetList::new(),
+            fonts: DataAssetList::new(),
+            prop_fonts: DataAssetList::new(),
         }
     }
 
@@ -447,35 +447,35 @@ impl AssetCollection {
 }
 
 pub struct AssetIdCollection {
-    pub tilesets: AssetIdList,
-    pub maps: AssetIdList,
-    pub rooms: AssetIdList,
-    pub worlds: AssetIdList,
-    pub sprites: AssetIdList,
-    pub pal_sprites: AssetIdList,
-    pub animations: AssetIdList,
-    pub tile_anims: AssetIdList,
-    pub sfxs: AssetIdList,
-    pub mods: AssetIdList,
-    pub fonts: AssetIdList,
-    pub prop_fonts: AssetIdList,
+    pub tilesets: DataAssetIdList,
+    pub maps: DataAssetIdList,
+    pub rooms: DataAssetIdList,
+    pub worlds: DataAssetIdList,
+    pub sprites: DataAssetIdList,
+    pub pal_sprites: DataAssetIdList,
+    pub animations: DataAssetIdList,
+    pub tile_anims: DataAssetIdList,
+    pub sfxs: DataAssetIdList,
+    pub mods: DataAssetIdList,
+    pub fonts: DataAssetIdList,
+    pub prop_fonts: DataAssetIdList,
 }
 
 impl AssetIdCollection {
     fn new() -> Self {
         AssetIdCollection {
-            tilesets: AssetIdList::new(),
-            maps: AssetIdList::new(),
-            rooms: AssetIdList::new(),
-            worlds: AssetIdList::new(),
-            sprites: AssetIdList::new(),
-            pal_sprites: AssetIdList::new(),
-            animations: AssetIdList::new(),
-            tile_anims: AssetIdList::new(),
-            sfxs: AssetIdList::new(),
-            mods: AssetIdList::new(),
-            fonts: AssetIdList::new(),
-            prop_fonts: AssetIdList::new(),
+            tilesets: DataAssetIdList::new(),
+            maps: DataAssetIdList::new(),
+            rooms: DataAssetIdList::new(),
+            worlds: DataAssetIdList::new(),
+            sprites: DataAssetIdList::new(),
+            pal_sprites: DataAssetIdList::new(),
+            animations: DataAssetIdList::new(),
+            tile_anims: DataAssetIdList::new(),
+            sfxs: DataAssetIdList::new(),
+            mods: DataAssetIdList::new(),
+            fonts: DataAssetIdList::new(),
+            prop_fonts: DataAssetIdList::new(),
         }
     }
 
@@ -526,7 +526,7 @@ impl DataStoreEffectTable {
         }
     }
 
-    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+    pub fn data_hash(&self, hasher: &mut DataHasher) {
         for name in &self.names {
             hasher.add_str(name);
         }
@@ -549,7 +549,7 @@ impl DataStoreItemTable {
         }
     }
 
-    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+    pub fn data_hash(&self, hasher: &mut DataHasher) {
         for item in &self.items {
             hasher.add_str(&item.name);
             hasher.add_asset_id(item.sprite_id);
@@ -581,7 +581,7 @@ impl DataStoreTables {
         }
     }
 
-    pub fn data_hash(&self, hasher: &mut DataAssetHasher) {
+    pub fn data_hash(&self, hasher: &mut DataHasher) {
         self.upgrade.data_hash(hasher);
         self.collectable.data_hash(hasher);
         self.pickup.data_hash(hasher);
@@ -590,7 +590,7 @@ impl DataStoreTables {
     }
 }
 
-pub struct DataAssetStore {
+pub struct DataStore {
     id_generator: DataAssetIdGenerator,
     pub vga_bits_per_pixel: u8,
     pub vga_sync_bits: u8,
@@ -601,12 +601,12 @@ pub struct DataAssetStore {
     pub tables: DataStoreTables,
 }
 
-impl DataAssetStore {
+impl DataStore {
     pub const VERSION: u32 = 12;
     pub const VERSION_DATE: &str = "2026-10-24";
 
     pub fn new() -> Self {
-        DataAssetStore {
+        DataStore {
             id_generator: DataAssetIdGenerator::new(),
             vga_bits_per_pixel: 8,
             vga_sync_bits: 0xc0,

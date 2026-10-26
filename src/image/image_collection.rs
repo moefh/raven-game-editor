@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use egui::{Rect, Pos2, Vec2};
 
 use super::{colors, TextureManager, TextureName, TextureNameId, TextureSlot, ImageRect, ImageRotation, ImageFragment};
-use crate::data_asset::{DataAssetId, Tileset, Sprite, PalSprite, Font, PropFont};
+use crate::data_store::{DataAssetId, Tileset, Sprite, PalSprite, Font, PropFont};
 
 pub trait ImageCollection {
     fn texture_name_id(&self) -> TextureNameId;

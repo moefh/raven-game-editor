@@ -1,5 +1,5 @@
 use crate::image::ImageCollection;
-use crate::data_asset::Sprite;
+use crate::data_store::Sprite;
 
 use super::super::{
     AssetEditorBase,

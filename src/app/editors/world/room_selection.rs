@@ -3,12 +3,12 @@ use std::collections::{
     HashSet
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     Room,
     World,
     WorldRegion,
     DataAssetId,
-    AssetList,
+    DataAssetList,
 };
 
 use super::WorldEditorAssetLists;
@@ -46,7 +46,7 @@ impl RoomSelectionDialog {
         }
     }
 
-    pub fn set_open(&mut self, wc: &mut WindowContext, world: &World, region_index: usize, rooms: &AssetList<Room>) {
+    pub fn set_open(&mut self, wc: &mut WindowContext, world: &World, region_index: usize, rooms: &DataAssetList<Room>) {
         let region = if let Some(region) = world.regions.get(region_index) { region } else {
             return;
         };

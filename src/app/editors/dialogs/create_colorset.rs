@@ -1,4 +1,4 @@
-use crate::data_asset::DataAssetId;
+use crate::data_store::DataAssetId;
 use crate::image::{
     ImageCollection,
     ColorSet,

@@ -14,7 +14,7 @@ use crate::image::{
     ImageCollection,
     TextureSlot,
 };
-use crate::data_asset::{
+use crate::data_store::{
     MapData,
     MapTileChange,
     Tileset,

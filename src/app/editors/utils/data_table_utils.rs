@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataStoreItem,
     DataStoreItemTable,
     DataStoreEffectTable,
@@ -20,7 +20,7 @@ pub enum DataTableReference {
 }
 
 impl DataTableReference {
-    pub fn get_item_name(self, index: usize, store: &DataAssetStore) -> Option<&str> {
+    pub fn get_item_name(self, index: usize, store: &DataStore) -> Option<&str> {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get(index).map(|item| item.name.as_str()) }
             DataTableReference::Collectables => { store.tables.collectable.items.get(index).map(|item| item.name.as_str()) }
@@ -30,7 +30,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn remove_item(self, index: usize, store: &mut DataAssetStore) {
+    pub fn remove_item(self, index: usize, store: &mut DataStore) {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.remove(index); }
             DataTableReference::Collectables => { store.tables.collectable.items.remove(index); }
@@ -54,7 +54,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item_table(self, store: &DataAssetStore) -> Option<&DataStoreItemTable> {
+    pub fn get_store_item_table(self, store: &DataStore) -> Option<&DataStoreItemTable> {
         match self {
             DataTableReference::Upgrades => { Some(&store.tables.upgrade) }
             DataTableReference::Collectables => { Some(&store.tables.collectable) }
@@ -63,7 +63,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item_table_mut(self, store: &mut DataAssetStore) -> Option<&mut DataStoreItemTable> {
+    pub fn get_store_item_table_mut(self, store: &mut DataStore) -> Option<&mut DataStoreItemTable> {
         match self {
             DataTableReference::Upgrades => { Some(&mut store.tables.upgrade) }
             DataTableReference::Collectables => { Some(&mut store.tables.collectable) }
@@ -72,7 +72,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item(self, store: &DataAssetStore, index: usize) -> Option<&DataStoreItem> {
+    pub fn get_store_item(self, store: &DataStore, index: usize) -> Option<&DataStoreItem> {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get(index) }
@@ -81,7 +81,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item_mut(self, store: &mut DataAssetStore, index: usize) -> Option<&mut DataStoreItem> {
+    pub fn get_store_item_mut(self, store: &mut DataStore, index: usize) -> Option<&mut DataStoreItem> {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get_mut(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get_mut(index) }
@@ -90,7 +90,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_effect_table(self, store: &DataAssetStore) -> Option<&DataStoreEffectTable> {
+    pub fn get_store_effect_table(self, store: &DataStore) -> Option<&DataStoreEffectTable> {
         match self {
             DataTableReference::Upgrades => { None }
             DataTableReference::Collectables => { None }
@@ -100,7 +100,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_effect_table_mut(self, store: &mut DataAssetStore) -> Option<&mut DataStoreEffectTable> {
+    pub fn get_store_effect_table_mut(self, store: &mut DataStore) -> Option<&mut DataStoreEffectTable> {
         match self {
             DataTableReference::Upgrades => { None }
             DataTableReference::Collectables => { None }
@@ -110,7 +110,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_effect(self, store: &DataAssetStore, index: usize) -> Option<&String> {
+    pub fn get_store_effect(self, store: &DataStore, index: usize) -> Option<&String> {
         match self {
             DataTableReference::Upgrades => { None }
             DataTableReference::Collectables => { None }
@@ -120,7 +120,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_effect_mut(self, store: &mut DataAssetStore, index: usize) -> Option<&mut String> {
+    pub fn get_store_effect_mut(self, store: &mut DataStore, index: usize) -> Option<&mut String> {
         match self {
             DataTableReference::Upgrades => { None }
             DataTableReference::Collectables => { None }
@@ -218,7 +218,7 @@ fn fix_removed_pickup(pickup_id: &mut u16, data_table_ref: DataTableReference, i
 
 pub fn fix_after_data_table_item_removed(
     _wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     _editors: &mut EditorStore,
     data_table_ref: DataTableReference,
     index: usize
@@ -310,7 +310,7 @@ fn fix_swapped_pickup(pickup_id: &mut u16, data_table_ref: DataTableReference, i
 
 pub fn fix_after_data_table_items_swapped(
     _wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     _editors: &mut EditorStore,
     data_table_ref: DataTableReference,
     index1: usize,

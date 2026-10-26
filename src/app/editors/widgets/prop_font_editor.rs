@@ -2,7 +2,7 @@ use crate::image::{
     ImageCollection,
     TextureSlot,
 };
-use crate::data_asset::PropFont;
+use crate::data_store::PropFont;
 
 use super::super::WindowContext;
 

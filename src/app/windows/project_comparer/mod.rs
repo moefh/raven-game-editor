@@ -18,9 +18,9 @@ use crate::misc::asset_defs::{
     ASSET_DEFS,
     get_asset_type_display_name,
 };
-use crate::data_asset::{
+use crate::data_store::{
     self,
-    DataAssetStore,
+    DataStore,
     DataAssetType,
     DataAssetId,
 };
@@ -105,7 +105,7 @@ impl ProjectComparerWindow {
         self.display.clear();
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataStore) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 700.0, 300.0);
         self.base.show_window(wc, default_rect, [600.0, 200.0], |ui, wc, base| {
             let action = base.show_title_bar(ui, Some(IMAGES.compare), "Project Comparer");
@@ -139,7 +139,7 @@ impl DiffDisplay {
 
 struct ProjectComparerDisplay {
     run_executed: bool,
-    other_store: Option<DataAssetStore>,
+    other_store: Option<DataStore>,
     other_name: Option<String>,
     comparer: ProjectComparer,
     diff_display: DiffDisplay,
@@ -178,7 +178,7 @@ impl ProjectComparerDisplay {
     fn read_project_file(&mut self, file: SysDialogOpenFile, wc: &mut WindowContext) {
         let filename = file.filename();
         wc.logger.log(format!("READING FILE TO COMPARE {}", filename));
-        match file.read_string().and_then(|content| data_asset::deserialize_project(&content, wc.logger)) {
+        match file.read_string().and_then(|content| data_store::deserialize_project(&content, wc.logger)) {
             Ok(proj_file) => {
                 wc.logger.log("DONE: project to compare read");
                 self.other_name = Some(filename.to_owned());
@@ -198,8 +198,8 @@ impl ProjectComparerDisplay {
         &self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        store: &DataAssetStore,
-        other_store: &DataAssetStore
+        store: &DataStore,
+        other_store: &DataStore
     ) -> DiffState {
         base::show_base(ui, wc, &self.comparer, store, other_store);
 
@@ -215,8 +215,8 @@ impl ProjectComparerDisplay {
         &self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        store: &DataAssetStore,
-        other_store: &DataAssetStore,
+        store: &DataStore,
+        other_store: &DataStore,
         asset_type: DataAssetType
     ) -> DiffState {
         let diff_state = match asset_type {
@@ -247,7 +247,7 @@ impl ProjectComparerDisplay {
         diff_state
     }
 
-    fn run_compare(&mut self, store: &DataAssetStore) {
+    fn run_compare(&mut self, store: &DataStore) {
         if let Some(other) = &self.other_store {
             self.comparer.run(store, other);
             self.reset_asset_widgets();
@@ -260,7 +260,7 @@ impl ProjectComparerDisplay {
         }
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
+    fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &DataStore) -> AppWindowAction {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(Self::COMPARE_PROJECT_SYS_DLG_ID) {
             self.read_project_file(file, wc);
             self.run_compare(store);

@@ -1,6 +1,6 @@
-use crate::data_asset::{
-    DataAssetHash,
-    DataAssetHasher,
+use crate::data_store::{
+    DataHash,
+    DataHasher,
 };
 use crate::image::{
     ImageCollectionIO,
@@ -51,11 +51,11 @@ pub enum ImageDiff {
 
 impl ImageDiff {
 
-    fn calc_hashes(images: &impl ImageCollectionIO) -> Vec<DataAssetHash> {
+    fn calc_hashes(images: &impl ImageCollectionIO) -> Vec<DataHash> {
         let item_size = (images.width() * images.height()) as usize;
         (0..images.num_items()).into_iter().map(|index| {
             let index = index as usize;
-            let mut hasher = DataAssetHasher::new();
+            let mut hasher = DataHasher::new();
             hasher.add_bytes(&images.data()[index*item_size..(index+1)*item_size]);
             hasher.finalize()
         }).collect()

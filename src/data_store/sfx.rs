@@ -36,8 +36,8 @@ impl Sfx {
 
 }
 
-impl super::HashedDataAsset for Sfx {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for Sfx {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_u32(self.len);
         hasher.add_u32(self.loop_start);

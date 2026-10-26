@@ -1,8 +1,8 @@
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetId,
     AssetIdCollection,
-    AssetList,
+    DataAssetList,
     MapData,
     Tileset,
     TileAnimation,
@@ -100,14 +100,14 @@ impl PropertiesDialog {
         true
     }
 
-    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, tilesets: &AssetList<Tileset>, tile_anims: &AssetList<TileAnimation>) {
+    fn sort_ids(&mut self, asset_ids: &AssetIdCollection, tilesets: &DataAssetList<Tileset>, tile_anims: &DataAssetList<TileAnimation>) {
         if self.sorted_tileset_ids.is_empty() {
             asset_ids.tilesets.copy_to(&mut self.sorted_tileset_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
         }
         if self.sorted_tile_anim_ids.is_empty() {
             asset_ids.tile_anims.copy_to(&mut self.sorted_tile_anim_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tile_anim_ids, tile_anims);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_tile_anim_ids, tile_anims);
         }
     }
 
@@ -116,8 +116,8 @@ impl PropertiesDialog {
         wc: &mut WindowContext,
         map_data: &mut MapData,
         asset_ids: &AssetIdCollection,
-        tilesets: &AssetList<Tileset>,
-        tile_anims: &AssetList<TileAnimation>
+        tilesets: &DataAssetList<Tileset>,
+        tile_anims: &DataAssetList<TileAnimation>
     ) {
         if ! self.open { return; }
         self.sort_ids(asset_ids, tilesets, tile_anims);

@@ -59,8 +59,8 @@ impl SpriteAnimation {
     }
 }
 
-impl super::HashedDataAsset for SpriteAnimation {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for SpriteAnimation {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_asset_id(self.sprite_id);
         hasher.add_i32(self.clip_rect.x);

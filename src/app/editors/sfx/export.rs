@@ -1,5 +1,5 @@
 use crate::misc::wav_utils;
-use crate::data_asset::Sfx;
+use crate::data_store::Sfx;
 
 use super::super::{
     AssetEditorBase,

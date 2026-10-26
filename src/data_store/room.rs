@@ -207,8 +207,8 @@ impl Room {
     }
 }
 
-impl super::HashedDataAsset for Room {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for Room {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         if let Some(tileset_id) = self.parallax.tileset_id {
             hasher.add_u8(1);

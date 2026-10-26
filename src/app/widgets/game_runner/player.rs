@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataAssetId,
     Room,
     Tileset,
@@ -183,7 +183,7 @@ impl Player {
         &mut self,
         room: &Room,
         player_anim: &SpriteAnimation,
-        store: &DataAssetStore,
+        store: &DataStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
         enemies: &mut Vec<Enemy>
@@ -254,7 +254,7 @@ impl Player {
         &mut self,
         room: &Room,
         player_anim: &SpriteAnimation,
-        store: &DataAssetStore,
+        store: &DataStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
         enemies: &mut Vec<Enemy>

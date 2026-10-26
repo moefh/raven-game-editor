@@ -13,7 +13,7 @@ use crate::image::{
     ColorSet,
     ColorSetCollection,
 };
-use crate::data_asset::{
+use crate::data_store::{
     StringLogger,
     Tokenizer,
     Token,
@@ -187,7 +187,7 @@ struct AppSettingsReader<'a> {
 impl<'a> AppSettingsReader<'a> {
     fn new(config: &'a str) -> Self {
         AppSettingsReader {
-            tok: crate::data_asset::Tokenizer::new(config),
+            tok: crate::data_store::Tokenizer::new(config),
         }
     }
 

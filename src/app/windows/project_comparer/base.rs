@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataStoreItemTable,
     DataStoreEffectTable,
 };
@@ -18,8 +18,8 @@ pub fn show_item_table(
     table_diff: &ItemTableDiff,
     cur_table: &DataStoreItemTable,
     other_table: &DataStoreItemTable,
-    cur_store: &DataAssetStore,
-    other_store: &DataAssetStore,
+    cur_store: &DataStore,
+    other_store: &DataStore,
 ) {
     if ! table_diff.has_differences() { return; }
 
@@ -85,8 +85,8 @@ pub fn show_base(
     ui: &mut egui::Ui,
     _wc: &mut WindowContext,
     comparer: &ProjectComparer,
-    cur_store: &DataAssetStore,
-    other_store: &DataAssetStore
+    cur_store: &DataStore,
+    other_store: &DataStore
 ) -> DiffState {
     let mut diff_state = DiffState::EMPTY;
 

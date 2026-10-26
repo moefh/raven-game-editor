@@ -1,5 +1,5 @@
 use crate::image::ImageCollection;
-use crate::data_asset::PalSprite;
+use crate::data_store::PalSprite;
 
 use super::super::{
     AssetEditorBase,

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::data_asset::{DataAssetId, DataAssetStore, Sprite};
+use crate::data_store::{DataAssetId, DataStore, Sprite};
 
 use super::{
     AssetError,
@@ -21,7 +21,7 @@ fn check_sprite(sprite: &Sprite) -> (Vec<AssetError>, Vec<AssetWarning>) {
 pub fn check_sprites(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for sprite in store.assets.sprites.iter() {
         let (errors, warnings) = check_sprite(sprite);

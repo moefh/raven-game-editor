@@ -17,9 +17,9 @@ use super::super::{
 };
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     DataStoreItem,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::super::editors::DataTableReference;
@@ -62,7 +62,7 @@ impl DataTablesWindow {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> AppWindowAction {
         self.dialogs.show(wc, store);
 
         let default_rect = self.base.default_rect(wc, 600.0, 300.0);
@@ -91,7 +91,7 @@ impl Dialogs {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) {
+    fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) {
         self.item_properties.show(wc, store);
         self.effect_properties.show(wc, store);
 
@@ -117,7 +117,7 @@ impl Editor {
     fn show_items(
         &mut self,
         ui: &mut egui::Ui,
-        store: &mut DataAssetStore,
+        store: &mut DataStore,
     ) -> TableItemAction {
         let mut action = TableItemAction::None;
         if let Some(table) = self.table_ref.get_store_item_table(store) && ! table.items.is_empty() {
@@ -149,7 +149,7 @@ impl Editor {
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        store: &mut DataAssetStore,
+        store: &mut DataStore,
         dialogs: &mut Dialogs
     ) {
         egui::Panel::top("editor_item_table_top").show(ui, |ui| {
@@ -224,7 +224,7 @@ impl Editor {
     fn show_effects(
         &mut self,
         ui: &mut egui::Ui,
-        store: &mut DataAssetStore,
+        store: &mut DataStore,
     ) -> TableItemAction {
         let mut action = TableItemAction::None;
         if let Some(table) = self.table_ref.get_store_effect_table(store) && ! table.names.is_empty() {
@@ -256,7 +256,7 @@ impl Editor {
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
-        store: &mut DataAssetStore,
+        store: &mut DataStore,
         dialogs: &mut Dialogs
     ) {
         egui::Panel::top("editor_item_table_top").show(ui, |ui| {
@@ -320,7 +320,7 @@ impl Editor {
         });
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &mut DataAssetStore, dialogs: &mut Dialogs) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, store: &mut DataStore, dialogs: &mut Dialogs) {
         if dialogs.confirmation_result == DialogResult::Yes &&
             let ConfirmationAction::RemoveTableItem { table_ref, index } = self.confirmation_action {
                 self.table_ref.remove_item(index, store);

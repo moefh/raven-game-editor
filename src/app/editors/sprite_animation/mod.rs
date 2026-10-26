@@ -1,14 +1,14 @@
 mod properties;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     self,
     SpriteAnimation,
     SpriteAnimationFrame,
     Sprite,
     DataAssetId,
     GenericAsset,
-    AssetList,
+    DataAssetList,
     AssetIdCollection,
 };
 
@@ -68,7 +68,7 @@ impl SpriteAnimationEditor {
         }
     }
 
-    pub fn prepare_for_saving(&mut self, animation: &mut SpriteAnimation, sprites: &mut AssetList<Sprite>) {
+    pub fn prepare_for_saving(&mut self, animation: &mut SpriteAnimation, sprites: &mut DataAssetList<Sprite>) {
         if let Some(sprite) = sprites.get_mut(&animation.sprite_id) {
             self.editor.image_editor.drop_selection(sprite);
         }
@@ -91,7 +91,7 @@ impl SpriteAnimationEditor {
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
         asset_ids: &AssetIdCollection,
-        sprites: &mut AssetList<Sprite>
+        sprites: &mut DataAssetList<Sprite>
     ) {
         self.dialogs.show(wc, animation, asset_ids, sprites, &mut self.editor);
 
@@ -124,7 +124,7 @@ impl Dialogs {
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
         asset_ids: &AssetIdCollection,
-        sprites: &mut AssetList<Sprite>,
+        sprites: &mut DataAssetList<Sprite>,
         editor: &mut Editor
     ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
@@ -211,7 +211,7 @@ impl Editor {
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
         _asset_ids: &AssetIdCollection,
-        sprites: &mut AssetList<Sprite>
+        sprites: &mut DataAssetList<Sprite>
     ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
             Some(s) => s,
@@ -436,7 +436,7 @@ impl Editor {
         wc: &mut WindowContext,
         animation: &mut SpriteAnimation,
         _asset_ids: &AssetIdCollection,
-        sprites: &mut AssetList<Sprite>
+        sprites: &mut DataAssetList<Sprite>
     ) {
         let sprite = match sprites.get_mut(&animation.sprite_id) {
             Some(s) => s,
@@ -574,7 +574,7 @@ impl Editor {
         asset_ids: &AssetIdCollection
     ) {
         let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_sprite_animation(&content, self.asset_id, asset_ids, wc.logger)
+            data_store::deserialize_sprite_animation(&content, self.asset_id, asset_ids, wc.logger)
         });
         match result {
             Ok(mut new_animation) => {
@@ -601,7 +601,7 @@ impl Editor {
         dialogs: &mut Dialogs,
         animation: &mut SpriteAnimation,
         asset_ids: &AssetIdCollection,
-        sprites: &mut AssetList<Sprite>
+        sprites: &mut DataAssetList<Sprite>
     ) {
         if let Some(SysDialogResponse::File(file)) = wc.sys_dialogs.get_response_for(&self.import_sys_dlg_id) {
             self.import_sprite_animation(wc, file, animation, asset_ids);

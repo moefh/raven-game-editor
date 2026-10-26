@@ -53,8 +53,8 @@ impl MapData {
     }
 }
 
-impl super::HashedDataAsset for MapData {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for MapData {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         hasher.add_asset_id(self.tileset_id);
         match self.tile_anim_id {

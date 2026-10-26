@@ -1,6 +1,6 @@
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     Tileset,
 };
 
@@ -28,7 +28,7 @@ pub enum AssetWarning {
 }
 
 impl AssetWarning {
-    pub fn log(&self, ui: &mut egui::Ui, asset_id: DataAssetId, store: &DataAssetStore) {
+    pub fn log(&self, ui: &mut egui::Ui, asset_id: DataAssetId, store: &DataStore) {
         match self {
             AssetWarning::MapOpaqueTile { first_tile_x, first_tile_y, num_tiles } => {
                 ui.label(format!(
@@ -88,7 +88,7 @@ pub enum AssetError {
 }
 
 impl AssetError {
-    pub fn log(&self, ui: &mut egui::Ui, asset_id: DataAssetId, store: &DataAssetStore) {
+    pub fn log(&self, ui: &mut egui::Ui, asset_id: DataAssetId, store: &DataStore) {
         match self {
             AssetError::TilesetTooBig { num_tiles } => {
                 ui.label(format!("  -> tileset has too many tiles: {} (max is 255)", num_tiles));

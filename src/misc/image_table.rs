@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use crate::data_asset::{DataAssetType, Tileset};
+use crate::data_store::{DataAssetType, Tileset};
 use crate::image::{StaticImageId, StaticImageData, StaticImageStore};
 
 const TILE_SIZE: u32 = Tileset::TILE_SIZE;

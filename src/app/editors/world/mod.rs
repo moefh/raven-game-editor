@@ -3,14 +3,14 @@ mod room_selection;
 mod region_properties;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     self,
     Room,
     World,
     WorldRegion,
     Tileset,
     MapData,
-    AssetList,
+    DataAssetList,
     DataAssetId,
     GenericAsset,
     AssetIdCollection,
@@ -53,17 +53,17 @@ enum ShiftDirection {
 }
 
 pub struct WorldEditorAssetLists<'a> {
-    pub rooms: &'a mut AssetList<Room>,
-    pub maps: &'a AssetList<MapData>,
-    pub tilesets: &'a AssetList<Tileset>,
+    pub rooms: &'a mut DataAssetList<Room>,
+    pub maps: &'a DataAssetList<MapData>,
+    pub tilesets: &'a DataAssetList<Tileset>,
     pub asset_ids: &'a AssetIdCollection,
 }
 
 impl<'a> WorldEditorAssetLists<'a> {
     pub fn new(
-        rooms: &'a mut AssetList<Room>,
-        maps: &'a AssetList<MapData>,
-        tilesets: &'a AssetList<Tileset>,
+        rooms: &'a mut DataAssetList<Room>,
+        maps: &'a DataAssetList<MapData>,
+        tilesets: &'a DataAssetList<Tileset>,
         asset_ids: &'a AssetIdCollection
     ) -> Self {
         WorldEditorAssetLists {
@@ -250,7 +250,7 @@ impl Editor {
         wc: &mut WindowContext,
         dialogs: &mut Dialogs,
         world: &mut World,
-        rooms: &AssetList<Room>
+        rooms: &DataAssetList<Room>
     ) {
         egui::Panel::top(format!("editor_panel_{}_top", self.asset_id)).show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -356,7 +356,7 @@ impl Editor {
         wc: &mut WindowContext,
         _dialogs: &mut Dialogs,
         world: &mut World,
-        rooms: &mut AssetList<Room>
+        rooms: &mut DataAssetList<Room>
     ) {
         egui::Panel::top(format!("editor_panel_{}_world_header", self.asset_id)).show(ui, |ui| {
             ui.add_space(2.0);
@@ -405,7 +405,7 @@ impl Editor {
         _dialogs: &mut Dialogs,
         world: &mut World,
         region_index: usize,
-        rooms: &AssetList<Room>
+        rooms: &DataAssetList<Room>
     ) -> [RoomTreeAction; 2] {
         let (mut header_action, mut item_action) = (RoomTreeAction::None, RoomTreeAction::None);
 
@@ -619,7 +619,7 @@ impl Editor {
         }
     }
 
-    fn update_highlight_door_info(&mut self, world: &World, rooms: &AssetList<Room>) {
+    fn update_highlight_door_info(&mut self, world: &World, rooms: &DataAssetList<Room>) {
         self.highlight_door_info.clear();
         let (src_door, dest_door, dragging) = match self.selected_tab {
             EditorTab::World => {
@@ -665,7 +665,7 @@ impl Editor {
 
     fn import_world(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, world: &mut World, asset_ids: &AssetIdCollection) {
         let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_world(&content, self.asset_id, asset_ids, wc.logger)
+            data_store::deserialize_world(&content, self.asset_id, asset_ids, wc.logger)
         });
         match result {
             Ok(mut new_world) => {

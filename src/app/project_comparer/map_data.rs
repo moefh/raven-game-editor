@@ -1,7 +1,7 @@
 
-use crate::data_asset::{
+use crate::data_store::{
     calc_asset_data_hash,
-    DataAssetStore,
+    DataStore,
     DataAssetId,
     MapData,
 };
@@ -31,7 +31,7 @@ impl MapListDiff {
         self.other_only.clear();
     }
 
-    pub fn compare(&mut self, cur_store: &DataAssetStore, other_store: &DataAssetStore) {
+    pub fn compare(&mut self, cur_store: &DataStore, other_store: &DataStore) {
         self.diffs.clear();
         self.cur_only.clear();
         self.other_only.clear();

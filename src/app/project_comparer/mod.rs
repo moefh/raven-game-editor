@@ -28,8 +28,8 @@ pub use font::{*};
 pub use prop_font::{*};
 pub use base::{*};
 
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataAssetType,
     Tileset,
     TileAnimation,
@@ -45,40 +45,40 @@ use crate::data_asset::{
     PropFont,
 };
 
-pub fn get_tileset_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a Tileset> {
+pub fn get_tileset_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Tileset> {
     store.assets.tilesets.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_tile_animation_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a TileAnimation> {
+pub fn get_tile_animation_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a TileAnimation> {
     store.assets.tile_anims.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_map_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a MapData> {
+pub fn get_map_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a MapData> {
     store.assets.maps.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_room_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a Room> {
+pub fn get_room_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Room> {
     store.assets.rooms.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_world_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a World> {
+pub fn get_world_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a World> {
     store.assets.worlds.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_sprite_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a Sprite> {
+pub fn get_sprite_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Sprite> {
     store.assets.sprites.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_sprite_animation_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a SpriteAnimation> {
+pub fn get_sprite_animation_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a SpriteAnimation> {
     store.assets.animations.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_pal_sprite_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a PalSprite> {
+pub fn get_pal_sprite_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a PalSprite> {
     store.assets.pal_sprites.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_mod_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a ModData> {
+pub fn get_mod_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a ModData> {
     store.assets.mods.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_sfx_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a Sfx> {
+pub fn get_sfx_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Sfx> {
     store.assets.sfxs.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a Font> {
+pub fn get_font_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Font> {
     store.assets.fonts.iter().find(|asset| asset.asset.name == name)
 }
-pub fn get_prop_font_by_name<'a>(store: &'a DataAssetStore, name: &str) -> Option<&'a PropFont> {
+pub fn get_prop_font_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a PropFont> {
     store.assets.prop_fonts.iter().find(|asset| asset.asset.name == name)
 }
 
@@ -195,7 +195,7 @@ impl ProjectComparer {
         self.prop_fonts.clear();
     }
 
-    pub fn run(&mut self, cur_store: &DataAssetStore, other_store: &DataAssetStore) {
+    pub fn run(&mut self, cur_store: &DataStore, other_store: &DataStore) {
         self.base_project.compare(cur_store, other_store);
         self.tilesets.compare(cur_store, other_store);
         self.tile_anims.compare(cur_store, other_store);

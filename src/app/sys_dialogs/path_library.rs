@@ -7,8 +7,8 @@ use crate::platform::{
     write_settings_file,
 };
 
-use crate::data_asset::StringLogger;
-use crate::data_asset::Tokenizer;
+use crate::data_store::StringLogger;
+use crate::data_store::Tokenizer;
 
 pub struct PathLibrary {
     paths: HashMap<String, PathBuf>,

@@ -14,14 +14,14 @@ use std::sync::{Arc, Mutex};
 
 use crate::include_ref_image;
 use crate::platform;
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetType,
     DataAssetId,
-    DataAssetStore,
+    DataStore,
     StringLogger,
 };
-use crate::data_asset::metadata::{
+use crate::data_store::metadata::{
     DataStoreMetadata,
 };
 use crate::misc::asset_defs::{
@@ -98,7 +98,7 @@ pub struct RavenEditorApp {
     pub is_wasm: bool,
     pub wasm_editor_is_dirty: Arc<Mutex<bool>>,
     reset_egui_context: bool,
-    store: DataAssetStore,
+    store: DataStore,
     metadata: DataStoreMetadata,
     project_path: Option<std::path::PathBuf>,
     project_filename: String,
@@ -136,7 +136,7 @@ impl RavenEditorApp {
             logger,
             settings,
             reset_egui_context: false,
-            store: DataAssetStore::new(),
+            store: DataStore::new(),
             metadata: DataStoreMetadata::new(),
             project_path: None,
             project_filename: String::new(),
@@ -235,7 +235,7 @@ impl RavenEditorApp {
     }
 
     pub fn export_header(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
-        match crate::data_asset::write_header_def(&self.store.project_prefix).and_then(|content| file.write_string(content)) {
+        match crate::data_store::write_header_def(&self.store.project_prefix).and_then(|content| file.write_string(content)) {
             Ok(()) => {
                 self.logger.log(format!("Exported header to {}", file.filename()));
                 true
@@ -257,7 +257,7 @@ impl RavenEditorApp {
             self.sys_dialogs.set_path_for_id("project", dir);
         }
         self.logger.log(format!("READING FILE {}", file.filename()));
-        match file.read_string().and_then(|content| data_asset::deserialize_project(&content, &mut self.logger)) {
+        match file.read_string().and_then(|content| data_store::deserialize_project(&content, &mut self.logger)) {
             Ok(proj_file) => {
                 self.logger.log("DONE: project read");
                 self.load_project(proj_file.store, proj_file.metadata);
@@ -374,11 +374,11 @@ impl RavenEditorApp {
     }
 
     fn new_project(&mut self) {
-        self.load_project(DataAssetStore::new(), DataStoreMetadata::new());
+        self.load_project(DataStore::new(), DataStoreMetadata::new());
         self.set_project_path(None, "");
     }
 
-    fn load_project(&mut self, store: DataAssetStore, metadata: DataStoreMetadata) {
+    fn load_project(&mut self, store: DataStore, metadata: DataStoreMetadata) {
         self.editors.clear(&store);
         self.tex_manager.clear();
         self.windows.clear_project();

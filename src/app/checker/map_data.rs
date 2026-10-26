@@ -1,7 +1,7 @@
 use std::collections::{HashMap, BTreeMap};
 
 use crate::image::{colors, ImageCollection};
-use crate::data_asset::{DataAssetId, DataAssetStore, MapData, Tileset};
+use crate::data_store::{DataAssetId, DataStore, MapData, Tileset};
 
 use super::{
     AssetError,
@@ -168,7 +168,7 @@ fn check_map_tiles(map_data: &MapData, tileset: &Tileset, errors: &mut Vec<Asset
     }
 }
 
-fn is_map_in_room_with_no_parallax(map_id: DataAssetId, store: &DataAssetStore) -> bool {
+fn is_map_in_room_with_no_parallax(map_id: DataAssetId, store: &DataStore) -> bool {
     for room in store.assets.rooms.iter() {
         if room.parallax.tileset_id.is_none() && room.maps.iter().find(|map| map.map_id == map_id).is_some() {
             return true;
@@ -180,7 +180,7 @@ fn is_map_in_room_with_no_parallax(map_id: DataAssetId, store: &DataAssetStore) 
 pub fn check_maps(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     let mut tileset_transp_map = HashMap::new();
     for map_data in store.assets.maps.iter() {

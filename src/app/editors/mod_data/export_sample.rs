@@ -1,5 +1,5 @@
 use crate::misc::wav_utils;
-use crate::data_asset::ModData;
+use crate::data_store::ModData;
 use super::super::{
     AssetEditorBase,
     WindowContext,

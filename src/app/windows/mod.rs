@@ -8,9 +8,9 @@ mod data_tables;
 mod game_runner;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::WindowContext;
@@ -254,7 +254,7 @@ impl AppWindowsCollection {
         }
     }
 
-    fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {
+    fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> Vec<AppWindowAction> {
         let mut actions = Vec::new();
         Self::add_window_action(&mut actions, self.settings.show(wc));
         Self::add_window_action(&mut actions, self.properties.show(wc, store));
@@ -314,7 +314,7 @@ impl AppWindows {
         self.collection.game_runner.clear();
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> Vec<AppWindowAction> {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> Vec<AppWindowAction> {
         self.some_closed_last_frame = false;
         self.collection.show(wc, store)
     }
@@ -327,7 +327,7 @@ impl AppWindows {
     pub fn open_data_tables(&mut self, ctx: &egui::Context) { self.collection.data_tables.open(ctx); }
     pub fn open_project_comparer(&mut self, ctx: &egui::Context) { self.collection.project_comparer.open(ctx); }
 
-    pub fn run_check(&mut self, store: &DataAssetStore) {
+    pub fn run_check(&mut self, store: &DataStore) {
         self.collection.check.run_check(store);
     }
 }

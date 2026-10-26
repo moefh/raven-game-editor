@@ -1,4 +1,4 @@
-use crate::data_asset::ModData;
+use crate::data_store::ModData;
 
 use super::super::{
     AssetEditorBase,

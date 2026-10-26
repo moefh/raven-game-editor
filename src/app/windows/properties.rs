@@ -6,7 +6,7 @@ use super::{
 };
 use super::super::{
     WindowContext,
-    DataAssetStore,
+    DataStore,
 };
 
 pub struct PropertiesWindow {
@@ -34,7 +34,7 @@ impl PropertiesWindow {
         }
     }
 
-    fn show_properties_grid(ui: &mut egui::Ui, wc: &mut WindowContext, store: &mut DataAssetStore) {
+    fn show_properties_grid(ui: &mut egui::Ui, wc: &mut WindowContext, store: &mut DataStore) {
         egui::Grid::new("project_properties_grid")
             .num_columns(2)
             .spacing([8.0, 8.0])
@@ -83,7 +83,7 @@ impl PropertiesWindow {
             });
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &mut DataStore) -> AppWindowAction {
         let default_rect = self.base.default_rect(wc, 400.0, 150.0);
         self.base.show_window(wc, default_rect, [], |ui, wc, base| {
             let action = base.show_title_bar(ui, Some(IMAGES.properties), "Project Properties");

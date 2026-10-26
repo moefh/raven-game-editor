@@ -6,8 +6,8 @@ use egui::{
     Image,
 };
 
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     Room,
     MapData,
     Tileset,
@@ -34,7 +34,7 @@ impl RoomViewWidget {
         Rect::from_min_size(canvas_pos + pos, zoom * Vec2::splat(TILE_SIZE))
     }
 
-    fn get_room_size(room: &Room, maps: &AssetList<MapData>) -> Vec2 {
+    fn get_room_size(room: &Room, maps: &DataAssetList<MapData>) -> Vec2 {
         let max = room.maps.iter().fold(Vec2::ZERO, |max, room_map| {
             match maps.get(&room_map.map_id) {
                 Some(map_data) => {
@@ -90,7 +90,7 @@ impl RoomViewWidget {
         }
     }
 
-    pub fn show(ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room, maps: &AssetList<MapData>, tilesets: &AssetList<Tileset>) {
+    pub fn show(ui: &mut egui::Ui, wc: &mut WindowContext, room: &Room, maps: &DataAssetList<MapData>, tilesets: &DataAssetList<Tileset>) {
         let min_size = ui.available_size();
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());
         let canvas_rect = response.rect;

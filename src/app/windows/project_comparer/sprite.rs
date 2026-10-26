@@ -5,8 +5,8 @@ use egui_extras::{
     Column,
 };
 
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
 };
 use crate::image::{
     TextureNameId,
@@ -31,8 +31,8 @@ pub fn show_sprites(
     _wc: &mut WindowContext,
     comparer: &ProjectComparer,
     asset_ref: Option<ProjectComparerAssetDiffRef>,
-    cur_store: &DataAssetStore,
-    other_store: &DataAssetStore
+    cur_store: &DataStore,
+    other_store: &DataStore
 ) -> DiffState {
     if comparer.sprites.cur_only.is_empty() && comparer.sprites.other_only.is_empty() && comparer.sprites.diffs.is_empty() {
         return DiffState::EMPTY;
@@ -127,8 +127,8 @@ impl SpriteDiffWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         diff: &SpriteDiff,
-        cur_store: &DataAssetStore,
-        other_store: &DataAssetStore
+        cur_store: &DataStore,
+        other_store: &DataStore
     ) {
         if let Some(cur_sprite) = cur_store.assets.sprites.get(&diff.cur_id) &&
             let Some(other_sprite) = other_store.assets.sprites.get(&diff.other_id) {
@@ -218,8 +218,8 @@ impl SpriteDiffWidget {
         wc: &mut WindowContext,
         comparer: &ProjectComparer,
         asset_ref: ProjectComparerAssetDiffRef,
-        cur_store: &DataAssetStore,
-        other_store: &DataAssetStore
+        cur_store: &DataStore,
+        other_store: &DataStore
     ) -> DiffState {
         ui.add_space(4.0);
         match asset_ref {

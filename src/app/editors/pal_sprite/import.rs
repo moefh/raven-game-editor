@@ -3,7 +3,7 @@ use crate::image::{
     ImageSlicingMethod,
     ImageLoadOptions,
 };
-use crate::data_asset::{
+use crate::data_store::{
     PalSprite,
     PalSpriteDepth,
 };

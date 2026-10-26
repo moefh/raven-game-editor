@@ -28,7 +28,7 @@ use crate::platform::current_time_as_millis;
 use super::super::AppSettings;
 
 pub const FULL_UV: Rect = Rect { min: Pos2::ZERO, max: Pos2::new(1.0, 1.0) };
-pub const TILE_SIZE: f32 = crate::data_asset::Tileset::TILE_SIZE as f32;
+pub const TILE_SIZE: f32 = crate::data_store::Tileset::TILE_SIZE as f32;
 pub const SCREEN_SIZE: Vec2 = Vec2::new(320.0, 240.0);
 
 pub use color_picker::{*};

@@ -16,8 +16,8 @@ use egui::{
     Pos2,
 };
 
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataAssetId,
     SpriteAnimation,
     SpriteAnimationLoop,
@@ -74,7 +74,7 @@ pub struct GameRunnerRoomState {
 }
 
 impl GameRunnerRoomState {
-    fn load_room(&mut self, room: &Room, store: &DataAssetStore) {
+    fn load_room(&mut self, room: &Room, store: &DataStore) {
         let room_size = RoomSize::from_room(room, &store.assets.maps);
         let layer_len = (room_size.width * room_size.height) as usize;
         self.width = room_size.width;
@@ -110,7 +110,7 @@ impl GameRunnerRoomState {
         room_map: &RoomMap,
         map_data: &MapData,
         layer: MapLayer,
-        store: &'a DataAssetStore
+        store: &'a DataStore
     ) -> Option<DrawMapLayerData<'a>> {
         let tileset = store.assets.tilesets.get(&map_data.tileset_id)?;
         let (tile_anim, anim_tileset) = if
@@ -197,25 +197,25 @@ impl GameRunnerState {
         }
     }
 
-    pub fn get_upgrade(&mut self, upgrade_id: u16, _room: &Room, _store: &DataAssetStore) {
+    pub fn get_upgrade(&mut self, upgrade_id: u16, _room: &Room, _store: &DataStore) {
         self.acquired_upgrade_ids.insert(upgrade_id);
     }
 
-    pub fn get_collectable(&mut self, collectable_id: u16, _room: &Room, _store: &DataAssetStore) {
+    pub fn get_collectable(&mut self, collectable_id: u16, _room: &Room, _store: &DataStore) {
         self.acquired_collectable_ids.insert(collectable_id);
     }
 
-    pub fn get_pickup(&mut self, trigger_id: u16, respawn: u16, _room: &Room, _store: &DataAssetStore) {
+    pub fn get_pickup(&mut self, trigger_id: u16, respawn: u16, _room: &Room, _store: &DataStore) {
         self.acquired_pickups.insert(trigger_id, if respawn == 0 { u16::MAX } else { respawn });
     }
 
-    pub fn set_flag(&mut self, flag_id: u16, _room: &Room, _store: &DataAssetStore) {
+    pub fn set_flag(&mut self, flag_id: u16, _room: &Room, _store: &DataStore) {
         if flag_id != u16::MAX {
             self.acquired_flag_ids.insert(flag_id);
         }
     }
 
-    pub fn spawn_enemies_for_flag(&self, flag_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataAssetStore) {
+    pub fn spawn_enemies_for_flag(&self, flag_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataStore) {
         for trigger in &room.triggers {
             if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id }=trigger.trigger_type &&
                 req_flag_id == flag_id {
@@ -225,7 +225,7 @@ impl GameRunnerState {
         }
     }
 
-    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataAssetStore) {
+    pub fn activate_effect(&mut self, effect_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataStore) {
         if effect_id == u16::MAX { return; }
 
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
@@ -304,7 +304,7 @@ impl ScreenUi {
         }
     }
 
-    fn setup(&mut self, store: &DataAssetStore) {
+    fn setup(&mut self, store: &DataStore) {
         self.energy_sprite = store.assets.sprites
             .iter()
             .find(|s| s.asset.name == "screen/energy")
@@ -382,7 +382,7 @@ impl GameRunnerWidget {
         }
     }
 
-    fn process_room_triggers(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataAssetStore) -> bool {
+    fn process_room_triggers(&mut self, room: &Room, player_anim: &SpriteAnimation, store: &DataStore) -> bool {
         for door in &room.triggers {
             if let RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } = door.trigger_type {
                 let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
@@ -411,7 +411,7 @@ impl GameRunnerWidget {
         room: &Room,
         _player_sprite: &Sprite,
         player_anim: &SpriteAnimation,
-        store: &DataAssetStore
+        store: &DataStore
     ) -> bool {
         for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
@@ -435,7 +435,7 @@ impl GameRunnerWidget {
         self.room_id = None;
     }
 
-    pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataAssetStore) {
+    pub fn set_room(&mut self, room_id: Option<DataAssetId>, store: &DataStore) {
         self.reset();
         self.screen_ui.setup(store);
         if let Some(room_id) = room_id &&
@@ -451,7 +451,7 @@ impl GameRunnerWidget {
             }
     }
 
-    fn load_room(&mut self, room: &Room, store: &DataAssetStore) {
+    fn load_room(&mut self, room: &Room, store: &DataStore) {
         self.room_id = Some(room.asset.id);
         self.enemies.clear();
         self.spawn_enemies(room, store);
@@ -462,7 +462,7 @@ impl GameRunnerWidget {
         self.state.room.load_room(room, store);
     }
 
-    fn spawn_enemies(&mut self, room: &Room, store: &DataAssetStore) {
+    fn spawn_enemies(&mut self, room: &Room, store: &DataStore) {
         for trigger in &room.triggers {
             if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } = trigger.trigger_type {
                 let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
@@ -523,7 +523,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
-        store: &DataAssetStore,
+        store: &DataStore,
         screen_pos: Pos2,
         zoom: f32
     ) {
@@ -561,7 +561,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
-        store: &DataAssetStore,
+        store: &DataStore,
         draw_map_info: &DrawMapInfo,
         draw_room_info: &DrawRoomLayerInfo
     ) {
@@ -596,7 +596,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
-        store: &DataAssetStore,
+        store: &DataStore,
         draw_map_info: &DrawMapInfo
     ) {
         for room_map in room.maps.iter() {
@@ -633,7 +633,7 @@ impl GameRunnerWidget {
         room: &Room,
         player_sprite: &Sprite,
         player_anim: &SpriteAnimation,
-        store: &DataAssetStore
+        store: &DataStore
     ) {
         let min_size = Self::SCREEN_SIZE.max(ui.available_size());
         let response = ui.allocate_response(min_size, egui::Sense::click());
@@ -694,7 +694,7 @@ impl GameRunnerWidget {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataAssetStore) {
+    pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataStore) {
         let room = match self.room_id {
             None => { return; }
             Some(room_id) => {

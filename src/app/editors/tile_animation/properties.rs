@@ -1,8 +1,8 @@
-use crate::data_asset::{
+use crate::data_store::{
     self,
     DataAssetId,
-    AssetList,
-    AssetIdList,
+    DataAssetList,
+    DataAssetIdList,
     Tileset,
     TileAnimation,
 };
@@ -59,7 +59,7 @@ impl PropertiesDialog {
         combo_id: &str,
         cur_tileset_id: &mut DataAssetId,
         sorted_tileset_ids: &[DataAssetId],
-        tilesets: &AssetList<Tileset>
+        tilesets: &DataAssetList<Tileset>
     ) {
         let cur_tileset_name = if let Some(cur_tileset) = tilesets.get(cur_tileset_id) {
             &cur_tileset.asset.name
@@ -77,10 +77,10 @@ impl PropertiesDialog {
             });
     }
 
-    fn sort_ids(&mut self, tileset_ids: &AssetIdList, tilesets: &AssetList<Tileset>) {
+    fn sort_ids(&mut self, tileset_ids: &DataAssetIdList, tilesets: &DataAssetList<Tileset>) {
         if self.sorted_tileset_ids.is_empty() {
             tileset_ids.copy_to(&mut self.sorted_tileset_ids);
-            data_asset::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_tileset_ids, tilesets);
         }
     }
 
@@ -88,8 +88,8 @@ impl PropertiesDialog {
         &mut self,
         wc: &mut WindowContext,
         tanim: &mut TileAnimation,
-        tileset_ids: &AssetIdList,
-        tilesets: &AssetList<Tileset>
+        tileset_ids: &DataAssetIdList,
+        tilesets: &DataAssetList<Tileset>
     ) {
         if ! self.open { return; }
         self.sort_ids(tileset_ids, tilesets);

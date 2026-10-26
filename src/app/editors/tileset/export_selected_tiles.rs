@@ -2,7 +2,7 @@ use crate::image::{
     ImageCollectionIO,
     ImagePixelsCollection,
 };
-use crate::data_asset::{
+use crate::data_store::{
     Tileset,
 };
 

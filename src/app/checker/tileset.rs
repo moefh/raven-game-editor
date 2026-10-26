@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::data_asset::{DataAssetId, DataAssetStore, Tileset};
+use crate::data_store::{DataAssetId, DataStore, Tileset};
 
 use super::{
     AssetError,
@@ -21,7 +21,7 @@ fn check_tileset(tileset: &Tileset) -> (Vec<AssetError>, Vec<AssetWarning>) {
 pub fn check_tilesets(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for tileset in store.assets.tilesets.iter() {
         let (errors, warnings) = check_tileset(tileset);

@@ -43,8 +43,8 @@ impl World {
     }
 }
 
-impl super::HashedDataAsset for World {
-    fn data_hash(&self, hasher: &mut super::DataAssetHasher) {
+impl super::HashedData for World {
+    fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
         for region in &self.regions {
             hasher.add_str(&region.name);

@@ -1,5 +1,5 @@
 use crate::image::ImageCollection;
-use crate::data_asset::Font;
+use crate::data_store::Font;
 
 use super::super::{
     AssetEditorBase,

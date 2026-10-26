@@ -2,7 +2,12 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::{Result, Error};
 
-use super::{DataAssetStore, DataAssetId, DataAssetType, DataAsset};
+use super::{
+    DataStore,
+    DataAssetId,
+    DataAssetType,
+    DataAsset,
+};
 
 pub struct IdentStore {
     pub prefix_upper: String,
@@ -79,7 +84,7 @@ impl IdentStore {
         })
     }
 
-    pub fn add_assets(&mut self, asset_type: DataAssetType, store: &DataAssetStore) {
+    pub fn add_assets(&mut self, asset_type: DataAssetType, store: &DataStore) {
         self.type_to_id_to_index.entry(asset_type).or_insert_with(|| {
             let mut id_to_index = HashMap::<DataAssetId, usize>::new();
 

@@ -7,11 +7,11 @@ use egui::{
 };
 use egui::emath::RectTransform;
 
-use crate::data_asset::{
+use crate::data_store::{
     Room,
     World,
     WorldRegion,
-    AssetList,
+    DataAssetList,
 };
 
 use super::WidgetZoom;
@@ -555,7 +555,7 @@ impl WorldEditorWidget {
         ui: &mut egui::Ui,
         _wc: &mut WindowContext,
         world: &mut World,
-        rooms: &mut AssetList<Room>,
+        rooms: &mut DataAssetList<Room>,
         grid_store: &world_grid::WorldGridStore
     ) {
         self.ensure_room_selection_is_valid(world);

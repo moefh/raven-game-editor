@@ -7,7 +7,7 @@ use crate::platform::{
     write_settings_file,
 };
 
-use crate::data_asset::StringLogger;
+use crate::data_store::StringLogger;
 
 pub struct RecentProjects {
     paths: Vec<PathBuf>,

@@ -14,8 +14,8 @@ use crate::image::{
     ImageCollection,
     TextureSlot,
 };
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     MapData,
     Room,
     RoomParallax,
@@ -532,7 +532,7 @@ impl RoomParallaxEditorWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &mut Room,
-        tilesets: &AssetList<Tileset>
+        tilesets: &DataAssetList<Tileset>
     ) {
         if room.parallax.tileset_id.is_none() || room.parallax.width == 0 || room.parallax.height == 0 {
             ui.label("Room has no parallax");

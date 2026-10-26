@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
-use crate::data_asset::{DataAssetId, DataAssetStore, ModData};
-use crate::data_asset::MOD_PERIOD_TABLE;
+use crate::data_store::{DataAssetId, DataStore, ModData};
+use crate::data_store::MOD_PERIOD_TABLE;
 
 use super::{
     AssetError,
     AssetWarning,
 };
 
-pub fn check_merged_samples(store: &DataAssetStore) -> Vec<super::MergedSample> {
+pub fn check_merged_samples(store: &DataStore) -> Vec<super::MergedSample> {
     let mut merged_samples = Vec::new();
     for (mod1_index, mod1_id) in store.asset_ids.mods.iter().enumerate() {
         if let Some(mod1_data) = store.assets.mods.get(mod1_id) {
@@ -82,7 +82,7 @@ fn check_mod(mod_data: &ModData) -> (Vec<AssetError>, Vec<AssetWarning>) {
 pub fn check_mods(
     asset_errors: &mut BTreeMap<DataAssetId, Vec<AssetError>>,
     asset_warnings: &mut BTreeMap<DataAssetId, Vec<AssetWarning>>,
-    store: &DataAssetStore
+    store: &DataStore
 ) {
     for mod_data in store.assets.mods.iter() {
         let (errors, warnings) = check_mod(mod_data);

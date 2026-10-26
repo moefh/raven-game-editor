@@ -13,8 +13,8 @@ pub const SCREEN_WIDTH: u32 = 320;
 pub const SCREEN_HEIGHT: u32 = 240;
 
 use crate::platform::current_time_as_string;
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataAssetId,
 };
 
@@ -46,7 +46,7 @@ pub struct CheckResult {
 }
 
 impl CheckResult {
-    pub fn check_project(store: &DataAssetStore) -> Self {
+    pub fn check_project(store: &DataStore) -> Self {
         let timestamp = current_time_as_string();
 
         let mut asset_errors = BTreeMap::new();

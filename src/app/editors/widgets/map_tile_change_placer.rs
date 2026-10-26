@@ -10,8 +10,8 @@ use crate::image::{
     ImageCollection,
     TextureSlot,
 };
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     MapData,
     Tileset,
     TileAnimation,
@@ -124,7 +124,7 @@ impl MapTileChangePlacerWidget {
         wc: &mut WindowContext,
         map_data: &MapData,
         tile_change: usize,
-        tilesets: &AssetList<Tileset>,
+        tilesets: &DataAssetList<Tileset>,
         info: &DrawMapInfo,
     ) {
         if let Some(change) = map_data.tile_changes.get(tile_change) && let Some(tileset) = tilesets.get(&map_data.tileset_id) {
@@ -168,8 +168,8 @@ impl MapTileChangePlacerWidget {
         wc: &mut WindowContext,
         map_data: &MapData,
         tile_change_index: usize,
-        tilesets: &AssetList<Tileset>,
-        tile_anims: &AssetList<TileAnimation>,
+        tilesets: &DataAssetList<Tileset>,
+        tile_anims: &DataAssetList<TileAnimation>,
     ) {
         let min_size = (self.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());

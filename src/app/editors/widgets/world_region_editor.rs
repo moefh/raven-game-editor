@@ -7,7 +7,7 @@ use egui::{
     Color32,
 };
 
-use crate::data_asset::{
+use crate::data_store::{
     World,
     WorldRegion,
 };

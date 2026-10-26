@@ -4,9 +4,9 @@ mod tile_change_properties;
 
 use core::fmt::NumBuffer;
 
-use crate::data_asset::{
+use crate::data_store::{
     self,
-    AssetList,
+    DataAssetList,
     AssetIdCollection,
     DataAssetId,
     GenericAsset,
@@ -58,14 +58,14 @@ use tile_change_properties::TileChangePropertiesDialog;
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 pub struct MapDataEditorAssetLists<'a> {
-    pub tilesets: &'a AssetList<Tileset>,
-    pub tile_anims: &'a AssetList<TileAnimation>,
+    pub tilesets: &'a DataAssetList<Tileset>,
+    pub tile_anims: &'a DataAssetList<TileAnimation>,
 }
 
 impl<'a> MapDataEditorAssetLists<'a> {
     pub fn new(
-        tilesets: &'a AssetList<Tileset>,
-        tile_anims: &'a AssetList<TileAnimation>,
+        tilesets: &'a DataAssetList<Tileset>,
+        tile_anims: &'a DataAssetList<TileAnimation>,
     ) -> Self {
         MapDataEditorAssetLists {
             tilesets,
@@ -202,8 +202,8 @@ impl Dialogs {
         editor: &mut Editor,
         map_data: &mut MapData,
         asset_ids: &AssetIdCollection,
-        tilesets: &AssetList<Tileset>,
-        tile_anims: &AssetList<TileAnimation>,
+        tilesets: &DataAssetList<Tileset>,
+        tile_anims: &DataAssetList<TileAnimation>,
     ) {
         if let Some(dlg) = &mut self.properties_dialog && dlg.open {
             dlg.show(wc, map_data, asset_ids, tilesets, tile_anims);
@@ -728,7 +728,7 @@ impl Editor {
 
     fn import_map(&mut self, wc: &mut WindowContext, file: SysDialogOpenFile, map_data: &mut MapData, asset_ids: &AssetIdCollection) {
         let result = file.read_string().and_then(|content| {
-            data_asset::deserialize_map(&content, self.asset_id, asset_ids, wc.logger)
+            data_store::deserialize_map(&content, self.asset_id, asset_ids, wc.logger)
         });
         match result {
             Ok(mut new_map_data) => {

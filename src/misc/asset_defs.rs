@@ -1,5 +1,5 @@
 use crate::misc::IMAGE_REFS;
-use crate::data_asset::DataAssetType;
+use crate::data_store::DataAssetType;
 
 pub struct AssetDef {
     pub asset_type: DataAssetType,

@@ -33,7 +33,7 @@ pub use colorset::{
     ColorSetSource,
 };
 
-use crate::data_asset::DataAssetId;
+use crate::data_store::DataAssetId;
 
 pub enum ImageRotation {
     CW90,  // 90 degrees clockwise

@@ -1,6 +1,6 @@
 use crate::misc::IMAGES;
 use crate::image::ImageCollection;
-use crate::data_asset::{
+use crate::data_store::{
     metadata,
     Sprite,
 };

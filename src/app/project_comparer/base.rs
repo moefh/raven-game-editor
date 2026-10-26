@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     DataStoreItemTable,
     DataStoreEffectTable,
 };
@@ -29,8 +29,8 @@ impl ItemTableDiff {
         &mut self,
         cur_table: &DataStoreItemTable,
         other_table: &DataStoreItemTable,
-        cur: &DataAssetStore,
-        other: &DataAssetStore
+        cur: &DataStore,
+        other: &DataStore
     ) {
         self.clear();
         for (index, (cur_item, other_item)) in cur_table.items.iter().zip(other_table.items.iter()).enumerate() {
@@ -129,7 +129,7 @@ impl BaseProjectDiff {
         self.flag_table_diff.clear();
     }
 
-    pub fn compare(&mut self, store: &DataAssetStore, other: &DataAssetStore) {
+    pub fn compare(&mut self, store: &DataStore, other: &DataStore) {
         self.cur_data_size = store.data_size();
         self.other_data_size = other.data_size();
         self.upgrade_table_diff.compare(&store.tables.upgrade, &other.tables.upgrade, store, other);

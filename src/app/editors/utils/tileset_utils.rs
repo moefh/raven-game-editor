@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::image::colors;
-use crate::data_asset::{
+use crate::data_store::{
     calc_asset_hash,
     DataAssetId,
-    DataAssetStore,
-    DataAssetHash,
+    DataStore,
+    DataHash,
     Tileset,
     MapData,
     TileAnimation,
@@ -33,7 +33,7 @@ pub struct TileGrid {
     fg_tiles: Vec<u8>,
     buf_tiles: Vec<u8>,
     buf_set: HashSet<u8>,
-    tileset_hash: DataAssetHash,
+    tileset_hash: DataHash,
     image: TileGridImage,
 }
 
@@ -47,13 +47,13 @@ impl TileGrid {
             fg_tiles: vec![MapData::NO_TILE; (width * height) as usize],
             buf_tiles: vec![0; (width * height) as usize],
             buf_set: HashSet::new(),
-            tileset_hash: DataAssetHash::EMPTY,
+            tileset_hash: DataHash::EMPTY,
             image: TileGridImage::new(tileset_id, width, height),
         }
     }
 
     pub fn get_tile_planes_mut(&mut self) -> Vec<&mut [u8]> {
-        self.tileset_hash = DataAssetHash::EMPTY;  // force re-creation of image next time it's used
+        self.tileset_hash = DataHash::EMPTY;  // force re-creation of image next time it's used
         vec![ &mut self.fg_tiles ]
     }
 
@@ -300,7 +300,7 @@ impl TilesetTileFixer for TileAnimation {
 
 pub fn fix_after_tileset_tiles_added(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     tileset_id: DataAssetId,
     hole_start: u8,
@@ -347,7 +347,7 @@ pub fn fix_after_tileset_tiles_added(
 
 pub fn fix_after_tileset_tiles_removed(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     tileset_id: DataAssetId,
     hole_start: u8,
@@ -394,7 +394,7 @@ pub fn fix_after_tileset_tiles_removed(
 
 pub fn fix_after_tileset_tiles_shuffled(
     wc: &mut WindowContext,
-    store: &mut DataAssetStore,
+    store: &mut DataStore,
     editors: &mut EditorStore,
     tileset_id: DataAssetId,
     shuffle: Vec<u32>

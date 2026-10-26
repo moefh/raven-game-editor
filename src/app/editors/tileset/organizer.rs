@@ -1,4 +1,4 @@
-use crate::data_asset::Tileset;
+use crate::data_store::Tileset;
 
 use super::super::{
     get_setting_zoom,

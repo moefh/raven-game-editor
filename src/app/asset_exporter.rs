@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
     DataAssetType,
-    DataAssetStore,
+    DataStore,
     StringLogger,
     DataStoreMetadata,
 };
@@ -32,7 +32,7 @@ impl AssetExporter {
     pub fn check_dialog_response(
         &mut self,
         sys_dialogs: &mut SysDialogs,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -53,7 +53,7 @@ impl AssetExporter {
     fn export_asset(
         file: SysDialogOpenFile,
         asset_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -78,7 +78,7 @@ impl AssetExporter {
     fn export_map(
         file: SysDialogOpenFile,
         map_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -98,7 +98,7 @@ impl AssetExporter {
     fn export_room(
         file: SysDialogOpenFile,
         room_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -118,7 +118,7 @@ impl AssetExporter {
     fn export_world(
         file: SysDialogOpenFile,
         world_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -138,7 +138,7 @@ impl AssetExporter {
     fn export_sprite_animation(
         file: SysDialogOpenFile,
         animation_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {
@@ -158,7 +158,7 @@ impl AssetExporter {
     fn export_tile_animation(
         file: SysDialogOpenFile,
         tile_anim_id: DataAssetId,
-        store: &DataAssetStore,
+        store: &DataStore,
         metadata: &DataStoreMetadata,
         logger: &mut StringLogger
     ) -> bool {

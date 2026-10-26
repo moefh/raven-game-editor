@@ -1,7 +1,7 @@
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::{
@@ -30,7 +30,7 @@ impl StatusWindow {
         }
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataStore) -> AppWindowAction {
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.max.x - 300.0, wc.window_space.min.y + 10.0),
             max: wc.window_space.max - egui::Vec2::new(10.0, 40.0),
@@ -59,7 +59,7 @@ impl StatusWindowContent {
         }
     }
 
-    fn show_windows_tab(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataAssetStore) {
+    fn show_windows_tab(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataStore) {
         struct WindowItem {
             window_id: egui::Id,
             layer: egui::layers::Order,
@@ -133,7 +133,7 @@ impl StatusWindowContent {
         });
     }
 
-    fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataAssetStore) {
+    fn show(&mut self, ui: &mut egui::Ui, wc: &WindowContext, store: &DataStore) {
         egui::Panel::top("editor_status_window_tabs").show(ui, |ui| {
             ui.add_space(2.0);
             ui.horizontal_wrapped(|ui| {

@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use crate::platform::console_log;
-use crate::data_asset::StringLogger;
+use crate::data_store::StringLogger;
 
 enum SysDialogOpenFileData {
     Reader { data: Arc<Mutex<Vec<u8>>> },

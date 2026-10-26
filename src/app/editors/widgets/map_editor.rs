@@ -14,8 +14,8 @@ use crate::image::{
     ImageCollection,
     TextureSlot,
 };
-use crate::data_asset::{
-    AssetList,
+use crate::data_store::{
+    DataAssetList,
     MapData,
     Tileset,
     TileAnimation,
@@ -794,8 +794,8 @@ impl MapEditorWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         map_data: &mut MapData,
-        tilesets: &AssetList<Tileset>,
-        tile_anims: &AssetList<TileAnimation>
+        tilesets: &DataAssetList<Tileset>,
+        tile_anims: &DataAssetList<TileAnimation>
     ) {
         let min_size = (self.zoom * Vec2::splat(TILE_SIZE)).max(ui.available_size());
         let (response, painter) = ui.allocate_painter(min_size, Sense::drag());

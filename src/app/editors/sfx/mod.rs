@@ -7,7 +7,7 @@ use crate::misc::{
     IMAGES,
     wav_utils,
 };
-use crate::data_asset::{
+use crate::data_store::{
     Sfx,
     DataAssetId,
     GenericAsset,

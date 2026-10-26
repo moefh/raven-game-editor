@@ -4,7 +4,7 @@ use regex::Regex;
 
 use super::{
     StringLogger,
-    DataAssetStore,
+    DataStore,
     ProjectData,
     Tokenizer,
     TokenPosition,
@@ -56,12 +56,12 @@ pub fn handle_define(line: &str, data: &mut ProjectData, pos: TokenPosition, log
         if name == "DATA_FILE_VERSION" {
             match parse_number(value) {
                 Some(file_version) => {
-                    if file_version > DataAssetStore::VERSION as u64 {
+                    if file_version > DataStore::VERSION as u64 {
                         return error(
                             format!(
                                 "refusing to parse unknown file version {} (max supported: {})",
                                 file_version,
-                                DataAssetStore::VERSION
+                                DataStore::VERSION
                             ),
                             pos
                         );

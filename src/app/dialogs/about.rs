@@ -6,7 +6,7 @@ use super::{
 };
 
 use egui_extras::{TableBuilder, Column};
-use crate::data_asset::DataAssetStore;
+use crate::data_store::DataStore;
 
 pub struct AboutDialog {
     id: egui::Id,
@@ -67,7 +67,7 @@ impl AboutDialog {
                             ui.label("File format version:");
                         }); });
                         row.col(|ui| { ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                            ui.label(format!("{} ({})", DataAssetStore::VERSION, DataAssetStore::VERSION_DATE));
+                            ui.label(format!("{} ({})", DataStore::VERSION, DataStore::VERSION_DATE));
                         }); });
                     });
                 });

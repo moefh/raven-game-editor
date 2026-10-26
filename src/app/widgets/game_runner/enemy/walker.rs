@@ -1,5 +1,5 @@
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     Room,
     SpriteAnimation,
 };
@@ -14,7 +14,7 @@ use super::super::GameRunnerState;
 pub struct Walker {}
 
 impl Walker {
-    pub fn new(enemy: &mut EnemyInfo, _room_id: &Room, _anim: &SpriteAnimation, _store: &DataAssetStore) -> Self {
+    pub fn new(enemy: &mut EnemyInfo, _room_id: &Room, _anim: &SpriteAnimation, _store: &DataStore) -> Self {
         enemy.anim_loop = EnemyAnimLoop::Run;
         Walker {}
     }
@@ -26,7 +26,7 @@ impl Walker {
         _player: &Player,
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        _store: &DataAssetStore,
+        _store: &DataStore,
     ) {
         enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, game_state, anim);
     }

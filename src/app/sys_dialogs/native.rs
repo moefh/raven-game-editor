@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use super::path_library::PathLibrary;
-use crate::data_asset::StringLogger;
+use crate::data_store::StringLogger;
 
 pub struct SysDialogOpenFile {
     path: PathBuf,

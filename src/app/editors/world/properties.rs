@@ -1,4 +1,4 @@
-use crate::data_asset::World;
+use crate::data_store::World;
 
 use super::super::{
     AssetEditorBase,

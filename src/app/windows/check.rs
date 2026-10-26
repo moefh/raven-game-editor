@@ -5,9 +5,9 @@ use super::{
 use super::super::WindowContext;
 
 use crate::misc::IMAGES;
-use crate::data_asset::{
+use crate::data_store::{
     DataAssetId,
-    DataAssetStore,
+    DataStore,
 };
 
 use super::super::checker::CheckResult;
@@ -36,11 +36,11 @@ impl CheckWindow {
         self.result = None;
     }
 
-    pub fn run_check(&mut self, store: &DataAssetStore) {
+    pub fn run_check(&mut self, store: &DataStore) {
         self.result = Some(CheckResult::check_project(store));
     }
 
-    fn show_result(ui: &mut egui::Ui, _wc: &WindowContext, result: &CheckResult, store: &DataAssetStore) -> Option<DataAssetId> {
+    fn show_result(ui: &mut egui::Ui, _wc: &WindowContext, result: &CheckResult, store: &DataStore) -> Option<DataAssetId> {
         let mut open_asset_id = None;
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
@@ -125,7 +125,7 @@ impl CheckWindow {
         open_asset_id
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, store: &DataAssetStore) -> AppWindowAction {
+    pub fn show(&mut self, wc: &mut WindowContext, store: &DataStore) -> AppWindowAction {
         let default_rect = egui::Rect {
             min: egui::Pos2::new(wc.window_space.min.x + 5.0, wc.window_space.max.y - 150.0),
             max: wc.window_space.max - egui::Vec2::splat(5.0),

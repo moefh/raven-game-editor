@@ -7,7 +7,7 @@ use crate::image::{
     ImageCollectionIO,
     TextureSlot,
 };
-use crate::data_asset::{
+use crate::data_store::{
     Font,
     DataAssetId,
     GenericAsset,

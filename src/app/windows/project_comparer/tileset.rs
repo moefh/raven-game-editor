@@ -5,8 +5,8 @@ use egui_extras::{
     Column,
 };
 
-use crate::data_asset::{
-    DataAssetStore,
+use crate::data_store::{
+    DataStore,
     Tileset,
 };
 use crate::image::{
@@ -32,8 +32,8 @@ pub fn show_tilesets(
     _wc: &mut WindowContext,
     comparer: &ProjectComparer,
     asset_ref: Option<ProjectComparerAssetDiffRef>,
-    cur_store: &DataAssetStore,
-    other_store: &DataAssetStore
+    cur_store: &DataStore,
+    other_store: &DataStore
 ) -> DiffState {
     if comparer.tilesets.cur_only.is_empty() && comparer.tilesets.other_only.is_empty() && comparer.tilesets.diffs.is_empty() {
         return DiffState::EMPTY;
@@ -126,8 +126,8 @@ impl TilesetDiffWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         diff: &TilesetDiff,
-        cur_store: &DataAssetStore,
-        other_store: &DataAssetStore
+        cur_store: &DataStore,
+        other_store: &DataStore
     ) {
         let available_height = ui.available_height();
         let table_cell_size = egui::Vec2::splat(self.zoom * Tileset::TILE_SIZE as f32 + 2.0);
@@ -215,8 +215,8 @@ impl TilesetDiffWidget {
         wc: &mut WindowContext,
         comparer: &ProjectComparer,
         asset_ref: ProjectComparerAssetDiffRef,
-        cur_store: &DataAssetStore,
-        other_store: &DataAssetStore
+        cur_store: &DataStore,
+        other_store: &DataStore
     ) -> DiffState {
         ui.add_space(4.0);
         match asset_ref {
