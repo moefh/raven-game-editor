@@ -1,4 +1,5 @@
 use crate::data_store::{
+    metadata,
     DataAssetId,
     DataStore,
     SpriteAnimation,
@@ -33,6 +34,14 @@ impl SpriteFrameFixer for SpriteAnimation {
                 frame.head_index.iter_mut().for_each(|index| { if *index as u32 == src_index { *index = (dest_index & 0xff) as u8 } });
                 frame.foot_index.iter_mut().for_each(|index| { if *index as u32 == src_index { *index = (dest_index & 0xff) as u8 } });
             }
+        }
+    }
+}
+
+impl SpriteFrameFixer for metadata::SpriteMetadata {
+    fn move_frame(&mut self, src_index: u32, dest_index: u32) {
+        for col in self.frames.iter_mut() {
+            col.indices.iter_mut().for_each(|index| { if *index == src_index { *index = dest_index; } });
         }
     }
 }
@@ -72,6 +81,11 @@ pub fn fix_after_sprite_frames_added(
         sprite_editor.add_sprite_hole(hole_start, hole_size, num_frames_after_hole);
     }
 
+    // fix metadata
+    if let Some(sprite_md) = wc.store_metadata.get_sprite_mut(&sprite_id) {
+        sprite_md.add_sprite_hole(hole_start, hole_size, num_frames_after_hole);
+    }
+
     reload_sprite_texture(wc, store, sprite_id);
 }
 
@@ -97,6 +111,11 @@ pub fn fix_after_sprite_frames_removed(
     // fix sprite editors (undo/redo history)
     if let Some(sprite_editor) = editors.sprites.get_mut(&sprite_id) {
         sprite_editor.remove_sprite_hole(hole_start, hole_size, num_frames_after_hole);
+    }
+
+    // fix metadata
+    if let Some(sprite_md) = wc.store_metadata.get_sprite_mut(&sprite_id) {
+        sprite_md.remove_sprite_hole(hole_start, hole_size, num_frames_after_hole);
     }
 
     reload_sprite_texture(wc, store, sprite_id);

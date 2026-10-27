@@ -48,10 +48,17 @@ impl ManageFrameCollectionsDialog {
         }
     }
 
+    fn remove_invalid_frames(frames: &mut Vec<metadata::SpriteFrameCollection>, sprite: &Sprite) {
+        for f in frames {
+            f.indices.retain(|&i| i < sprite.num_frames);
+        }
+    }
+
     pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
         self.frames.clear();
         if let Some(sprite_md) = wc.store_metadata.get_sprite(&sprite.asset.id) {
             self.frames.append(&mut sprite_md.frames.clone());
+            Self::remove_invalid_frames(&mut self.frames, sprite);
         }
         self.set_sel_frame(if self.frames.is_empty() { None } else { Some(0) });
         self.frame_zoom = 80.0 / sprite.width as f32;
@@ -66,9 +73,9 @@ impl ManageFrameCollectionsDialog {
     }
 
     fn confirm(&mut self, wc: &mut WindowContext, sprite: &Sprite) {
-        let sprite_md = wc.store_metadata.get_sprite_mut(&sprite.asset.id);
+        let sprite_md = wc.store_metadata.get_or_insert_sprite_mut(sprite.asset.id);
         sprite_md.frames.clear();
-        sprite_md.frames.append(&mut self.frames.clone());
+        sprite_md.frames.append(&mut std::mem::take(&mut self.frames));
         self.confirmed = true;
     }
 

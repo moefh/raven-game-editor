@@ -23,8 +23,12 @@ impl DataStoreMetadata {
         self.sprites.get(sprite_id)
     }
 
-    pub fn get_sprite_mut<'a>(&'a mut self, sprite_id: &DataAssetId) -> &'a mut SpriteMetadata {
-        self.sprites.entry(*sprite_id).or_insert_with(SpriteMetadata::new)
+    pub fn get_sprite_mut<'a>(&'a mut self, sprite_id: &DataAssetId) -> Option<&'a mut SpriteMetadata> {
+        self.sprites.get_mut(sprite_id)
+    }
+
+    pub fn get_or_insert_sprite_mut(&mut self, sprite_id: DataAssetId) -> &mut SpriteMetadata {
+        self.sprites.entry(sprite_id).or_insert_with(SpriteMetadata::new)
     }
 
     pub fn duplicate_sprite(&mut self, sprite_id: DataAssetId, dup_id: DataAssetId) {
