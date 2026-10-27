@@ -68,9 +68,26 @@ impl TextureManager {
         self.textures.clear();
     }
 
-    pub fn get_rgba_texture(&mut self, ctx: &egui::Context, name: TextureName,
-                            w: usize, h: usize, data: &[u8], force_load: bool) -> &egui::TextureHandle {
+    fn clip_image_height<'a>(ctx: &egui::Context, w: usize, h: usize, data: &'a [u8]) -> (usize, &'a [u8]) {
+        let max_h = ctx.input(|i| i.max_texture_side);
+        if h <= max_h {
+            (h, data)
+        } else {
+            (max_h, &data[..max_h*w])
+        }
+    }
+
+    pub fn get_rgba_texture(
+        &mut self,
+        ctx: &egui::Context,
+        name: TextureName,
+        w: usize,
+        h: usize,
+        data: &[u8],
+        force_load: bool
+    ) -> &egui::TextureHandle {
         let load_image = || {
+            let (h, data) = Self::clip_image_height(ctx, w, h, data);
             let pixels: Vec::<egui::Color32> = data.iter().map(|pix| {
                 self.color_to_rgb_opaque[*pix as usize]
             }).collect();
@@ -87,9 +104,17 @@ impl TextureManager {
         }
     }
 
-    pub fn get_rgba_texture_transparent(&mut self, ctx: &egui::Context, name: TextureName,
-                                        w: usize, h: usize, data: &[u8], force_load: bool) -> &egui::TextureHandle {
+    pub fn get_rgba_texture_transparent(
+        &mut self,
+        ctx: &egui::Context,
+        name: TextureName,
+        w: usize,
+        h: usize,
+        data: &[u8],
+        force_load: bool
+    ) -> &egui::TextureHandle {
         let load_image = || {
+            let (h, data) = Self::clip_image_height(ctx, w, h, data);
             let pixels: Vec::<egui::Color32> = data.iter().map(|pix| {
                 self.color_to_rgb_transp[*pix as usize]
             }).collect();
