@@ -124,6 +124,20 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
+        (String::from("play_sfx"), ValueDefStruct::new(vec![
+            (String::from("sfx"), ValueDef::AssetRef),
+            (String::from("sound_id"), ValueDef::U16),
+            (String::from("volume"), ValueDef::U16),
+            (String::from("pitch_shift"), ValueDef::U16),
+            (String::from("play_loop"), ValueDef::U8),
+            (String::from("on_effect_id"), ValueDef::U16),
+        ])),
+
+        (String::from("stop_sfx"), ValueDefStruct::new(vec![
+            (String::from("sound_id"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
+        ])),
+
         (String::from("remove_enemy"), ValueDefStruct::new(vec![
             (String::from("enemy_id"), ValueDef::U16),
             (String::from("on_effect_id"), ValueDef::U16),
@@ -140,6 +154,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("get_pickup"), ValueDefStruct::new(vec![
             (String::from("get_pickup_id"), ValueDef::U16),
             (String::from("respawn_delay"), ValueDef::U16),
+            (String::from("sfx"), ValueDef::AssetRef),
         ])),
     ])
 });
@@ -211,6 +226,8 @@ fn conv_trigger_any(data: &ValueStruct, _project_data: &ProjectData) -> Result<R
         data3: data.get_u16("data3")?,
         data4: data.get_u16("data4")?,
         data5: data.get_u16("data5")?,
+        data6: data.get_u16("data6")?,
+        data7: data.get_u16("data7")?,
     })
 }
 
@@ -301,6 +318,30 @@ fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) ->
     })
 }
 
+fn conv_trigger_play_sfx(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let sfx_ref = data.get_asset_ref("sfx")?;
+    let sound_id = data.get_u16("sound_id")?;
+    let pitch_shift = data.get_u16("pitch_shift")?;
+    let volume = data.get_u16("volume")?;
+    let play_loop = data.get_u8("play_loop")?;
+    let on_effect_id = data.get_u16("on_effect_id")?;
+    Ok(RoomTriggerType::PlaySfx {
+        sfx_id: sfx_ref.get_asset_id(project_data)?,
+        sound_id,
+        pitch_shift,
+        volume,
+        play_loop,
+        on_effect_id,
+    })
+}
+
+fn conv_trigger_stop_sfx(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::StopSfx {
+        sound_id: data.get_u16("sound_id")?,
+        on_effect_id: data.get_u16("on_effect_id")?,
+    })
+}
+
 fn conv_trigger_get_upgrade(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetUpgrade {
         get_upgrade_id: data.get_u16("get_upgrade_id")?,
@@ -313,10 +354,14 @@ fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData)
     })
 }
 
-fn conv_trigger_get_pickup(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+fn conv_trigger_get_pickup(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let get_pickup_id = data.get_u16("get_pickup_id")?;
+    let respawn_delay = data.get_u16("respawn_delay")?;
+    let sfx_ref = data.get_asset_ref("sfx")?;
     Ok(RoomTriggerType::GetPickup {
-        get_pickup_id: data.get_u16("get_pickup_id")?,
-        respawn_delay: data.get_u16("respawn_delay")?,
+        get_pickup_id,
+        respawn_delay,
+        sfx_id: sfx_ref.get_asset_id_or_none(project_data)?,
     })
 }
 
@@ -348,6 +393,10 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_change_tiles(type_data, project_data)?
     } else if RoomTriggerTypeIdent::RemoveEnemy.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_remove_enemy(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::PlaySfx.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_play_sfx(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::StopSfx.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_stop_sfx(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetUpgrade.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_get_upgrade(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetCollectable.matches_enum_ident(&trigger_type.name, prefix) {

@@ -24,6 +24,7 @@ use crate::data_store::{
     TileAnimation,
     SpriteAnimation,
     Sprite,
+    Sfx,
 };
 
 use super::{
@@ -83,6 +84,8 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
         RoomTriggerType::DisableAnimation {..} => { IMAGES.room_effect }
         RoomTriggerType::ChangeTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
+        RoomTriggerType::PlaySfx {..} => { IMAGES.sfx }
+        RoomTriggerType::StopSfx {..} => { IMAGES.sfx }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
         RoomTriggerType::GetCollectable {..} => { IMAGES.room_item }
         RoomTriggerType::GetPickup {..} => { IMAGES.room_item }
@@ -97,29 +100,8 @@ pub struct RoomEditorAssetLists<'a> {
     pub animations: &'a DataAssetList<SpriteAnimation>,
     pub sprites: &'a DataAssetList<Sprite>,
     pub room_names: &'a HashMap<DataAssetId, String>,
+    pub sfxs: &'a DataAssetList<Sfx>,
     pub tables: &'a DataStoreTables,
-}
-
-impl<'a> RoomEditorAssetLists<'a> {
-    pub fn new(
-        maps: &'a DataAssetList<MapData>,
-        tilesets: &'a DataAssetList<Tileset>,
-        tile_anims: &'a DataAssetList<TileAnimation>,
-        animations: &'a DataAssetList<SpriteAnimation>,
-        sprites: &'a DataAssetList<Sprite>,
-        room_names: &'a HashMap<DataAssetId, String>,
-        tables: &'a DataStoreTables,
-    ) -> Self {
-        RoomEditorAssetLists {
-            maps,
-            tilesets,
-            tile_anims,
-            animations,
-            sprites,
-            room_names,
-            tables,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -282,6 +264,7 @@ struct Editor {
     para_editor: RoomParallaxEditorWidget,
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_room_ids: Vec<DataAssetId>,
+    sorted_sfx_ids: Vec<DataAssetId>,
 }
 
 impl Editor {
@@ -293,6 +276,7 @@ impl Editor {
             room_editor: RoomEditorWidget::new(),
             sorted_animation_ids: Vec::new(),
             sorted_room_ids: Vec::new(),
+            sorted_sfx_ids: Vec::new(),
             tile_picker: ImagePickerWidget::new().use_as_palette(true),
             tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_{}_tile_picker_popup", asset_id))),
             para_editor: RoomParallaxEditorWidget::new(),
@@ -461,7 +445,16 @@ impl Editor {
             name_id,
             x: pos.x.floor().clamp(0.0, i16::MAX as f32) as i16,
             y: pos.y.floor().clamp(0.0, i16::MAX as f32) as i16,
-            trigger_type: RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0, data4: 0, data5: 0 },
+            trigger_type: RoomTriggerType::Unknown {
+                data0: 0,
+                data1: 0,
+                data2: 0,
+                data3: 0,
+                data4: 0,
+                data5: 0,
+                data6: 0,
+                data7: 0,
+            },
         });
         self.room_editor.set_selected_item(RoomItemRef::Trigger(new_trigger_index), true);
     }
@@ -748,6 +741,53 @@ impl Editor {
             });
     }
 
+    fn show_asset_id_editor<A: GenericAsset>(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        assets: &DataAssetList<A>,
+        sorted_ids: &[DataAssetId],
+        asset_id: &mut DataAssetId
+    ) {
+        let cur_name = match assets.get(asset_id) {
+            Some(asset) => { &asset.asset().name }
+            None => { "??" }
+        };
+        egui::ComboBox::from_id_salt(combo_id)
+            .selected_text(cur_name)
+            .show_ui(ui, |ui| {
+                for id in sorted_ids {
+                    if let Some(asset) = assets.get(id) {
+                        ui.selectable_value(asset_id, *id, &asset.asset().name);
+                    }
+                }
+            });
+    }
+
+    fn show_optional_asset_id_editor<A: GenericAsset>(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        assets: &DataAssetList<A>,
+        sorted_ids: &[DataAssetId],
+        asset_id: &mut Option<DataAssetId>
+    ) {
+        let cur_name = match asset_id.and_then(|asset_id| assets.get(&asset_id)) {
+            Some(asset) => { &asset.asset().name }
+            None => { "<none>" }
+        };
+        egui::ComboBox::from_id_salt(combo_id)
+            .selected_text(cur_name)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(asset_id, None, "<none>");
+                for id in sorted_ids {
+                    if let Some(asset) = assets.get(id) {
+                        ui.selectable_value(asset_id, Some(*id), &asset.asset().name);
+                    }
+                }
+            });
+    }
+
     fn show_trigger_properties_grid(
         &self,
         ui: &mut egui::Ui,
@@ -780,6 +820,8 @@ impl Editor {
                     RoomTriggerTypeSel::DisableAnimation,
                     RoomTriggerTypeSel::ChangeTiles,
                     RoomTriggerTypeSel::RemoveEnemy,
+                    RoomTriggerTypeSel::PlaySfx,
+                    RoomTriggerTypeSel::StopSfx,
                     RoomTriggerTypeSel::GetUpgrade,
                     RoomTriggerTypeSel::GetCollectable,
                     RoomTriggerTypeSel::GetPickup,
@@ -798,13 +840,15 @@ impl Editor {
         ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
 
         match &mut trigger.trigger_type {
-            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
+            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5, data6, data7 } => {
                 ui.label("Data0:"); ui.add(egui::DragValue::new(data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data1:"); ui.add(egui::DragValue::new(data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data2:"); ui.add(egui::DragValue::new(data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data3:"); ui.add(egui::DragValue::new(data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data4:"); ui.add(egui::DragValue::new(data4).speed(1.0).range(0..=u16::MAX)); ui.end_row();
                 ui.label("Data5:"); ui.add(egui::DragValue::new(data5).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data6:"); ui.add(egui::DragValue::new(data6).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data7:"); ui.add(egui::DragValue::new(data7).speed(1.0).range(0..=u16::MAX)); ui.end_row();
             }
 
             RoomTriggerType::PlayerSpawn { direction } => {
@@ -850,20 +894,13 @@ impl Editor {
                 }
 
                 ui.label("Anim:");
-                let cur_anim_name = if let Some(anim) = assets.animations.get(animation_id) {
-                    &anim.asset.name
-                } else {
-                    "??"
-                };
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_animation", self.asset_id))
-                    .selected_text(cur_anim_name)
-                    .show_ui(ui, |ui| {
-                        for anim_id in self.sorted_animation_ids.iter() {
-                            if let Some(anim) = assets.animations.get(anim_id) {
-                                ui.selectable_value(animation_id, *anim_id, &anim.asset.name);
-                            }
-                        }
-                    });
+                self.show_asset_id_editor(
+                    ui,
+                    "enemy_spawn_animation_asset_id",
+                    assets.animations,
+                    &self.sorted_animation_ids,
+                    animation_id
+                );
                 ui.end_row();
 
                 ui.label("Dir:");
@@ -882,10 +919,9 @@ impl Editor {
 
             RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
                 ui.label("To room:");
-                let cur_room_name = if let Some(name) = assets.room_names.get(dest_room_id) {
-                    name
-                } else {
-                    "??"
+                let cur_room_name = match assets.room_names.get(dest_room_id) {
+                    Some(name) => { name }
+                    None => { "??" }
                 };
                 egui::ComboBox::from_id_salt(format!("editor_{}_trg_door_room", self.asset_id))
                     .selected_text(cur_room_name)
@@ -1019,6 +1055,44 @@ impl Editor {
                 ui.end_row();
             }
 
+            RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
+                ui.label("Sfx:");
+                self.show_asset_id_editor(ui, "play_sfx_asset_id", assets.sfxs, &self.sorted_sfx_ids, sfx_id);
+                ui.end_row();
+
+                ui.label("Sound Id:");
+                ui.add(egui::DragValue::new(sound_id).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Volume:");
+                ui.add(egui::DragValue::new(volume).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Pitch Shift:");
+                ui.add(egui::DragValue::new(pitch_shift).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Loop:");
+                let mut loop_checked = *play_loop != 0;
+                ui.add(egui::Checkbox::without_text(&mut loop_checked));
+                *play_loop = if loop_checked { 1 } else { 0 };
+                ui.end_row();
+
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
+                ui.label("Sound Id:");
+                ui.add(egui::DragValue::new(sound_id).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
             RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                 ui.label("Upgrade:");
                 self.show_item_id_editor(ui, "get_upgrade_id", get_upgrade_id, &assets.tables.upgrade);
@@ -1031,13 +1105,17 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
+            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
                 ui.label("Pickup:");
                 self.show_item_id_editor(ui, "get_pickup_id", get_pickup_id, &assets.tables.pickup);
                 ui.end_row();
 
                 ui.label("Respawn:");
                 ui.add(egui::DragValue::new(respawn_delay).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Sfx:");
+                self.show_optional_asset_id_editor(ui, "get_pickup_sfx_asset_id", assets.sfxs, &self.sorted_sfx_ids, sfx_id);
                 ui.end_row();
             }
         }
@@ -1206,7 +1284,7 @@ impl Editor {
         self.show_maps_toolbar(ui, wc, room);
 
         // properties panel:
-        egui::Panel::right(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).show(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).exact_size(250.0).show(ui, |ui| {
             ui.add_space(5.0);
             let want_height = 70.0_f32.max(ui.available_height() / 2.0);
             ui.allocate_ui(egui::Vec2::new(300.0, want_height), |ui| {
@@ -1380,16 +1458,23 @@ impl Editor {
     fn clear_sorted_ids(&mut self) {
         self.sorted_room_ids.clear();
         self.sorted_animation_ids.clear();
+        self.sorted_sfx_ids.clear();
     }
 
     fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
-        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||  self.sorted_room_ids.len() != asset_ids.rooms.len() {
+        if self.sorted_animation_ids.len() != asset_ids.animations.len() ||
+            self.sorted_room_ids.len() != asset_ids.rooms.len() ||
+            self.sorted_sfx_ids.len() != asset_ids.sfxs.len() {
             self.clear_sorted_ids();
         }
 
         if self.sorted_animation_ids.is_empty() {
             asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
             data_store::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+        }
+        if self.sorted_sfx_ids.is_empty() {
+            asset_ids.sfxs.copy_to(&mut self.sorted_sfx_ids);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_sfx_ids, assets.sfxs);
         }
         if self.sorted_room_ids.is_empty() {
             asset_ids.rooms.copy_to(&mut self.sorted_room_ids);

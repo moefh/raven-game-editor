@@ -411,10 +411,12 @@ impl AssetCollection {
                     RoomTriggerType::UnblockTiles {..} |
                     RoomTriggerType::DisableAnimation {..} |
                     RoomTriggerType::ChangeTiles {..} |
-                    RoomTriggerType::RemoveEnemy {..} => { false }
+                    RoomTriggerType::RemoveEnemy {..} |
+                    RoomTriggerType::StopSfx {..} => { false }
 
                     RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
                     RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }
+                    RoomTriggerType::PlaySfx { sfx_id, .. } => { sfx_id == id }
                 }
             }) {
                 return true;

@@ -217,6 +217,12 @@ fn check_room_project_table_refs(
             RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
+            RoomTriggerType::PlaySfx { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::StopSfx { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+            }
             RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                 check_room_trigger_upgrade(get_upgrade_id, tables, trigger_index, errors);
             }

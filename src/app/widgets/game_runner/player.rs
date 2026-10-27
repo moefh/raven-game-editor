@@ -18,6 +18,7 @@ use super::{
     Direction,
     WindowContext,
     GameRunnerState,
+    GameRunnerAction,
     Enemy,
 };
 use super::consts::{*};
@@ -364,11 +365,18 @@ impl Player {
                         game_state.get_collectable(get_collectable_id, room, store);
                     }
                 }
-                RoomTriggerType::GetPickup { respawn_delay, .. } => {
+                RoomTriggerType::GetPickup { respawn_delay, sfx_id, .. } => {
                     let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                     let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
-                    if player_rect.intersects_rect(&trigger_rect) {
+                    if game_state.is_pickup_available(trigger.trigger_id) && player_rect.intersects_rect(&trigger_rect) {
                         game_state.get_pickup(trigger.trigger_id, respawn_delay, room, store);
+                        if let Some(sfx_id) = sfx_id {
+                            game_state.actions.push(GameRunnerAction::PlaySfx {
+                                sfx_id,
+                                volume: 0x100,
+                                pitch_shift: 1<<12,
+                            });
+                        }
                     }
                 }
                 _ => {}

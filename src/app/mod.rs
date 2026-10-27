@@ -1031,15 +1031,16 @@ impl RavenEditorApp {
         }
         for room in self.store.assets.rooms.iter_mut() {
             if let Some(editor) = self.editors.rooms.get_mut(&room.asset.id) {
-                let assets = editors::RoomEditorAssetLists::new(
-                    &self.store.assets.maps,
-                    &self.store.assets.tilesets,
-                    &self.store.assets.tile_anims,
-                    &self.store.assets.animations,
-                    &self.store.assets.sprites,
-                    &self.editors.room_names,
-                    &self.store.tables,
-                );
+                let assets = editors::RoomEditorAssetLists {
+                    maps: &self.store.assets.maps,
+                    tilesets: &self.store.assets.tilesets,
+                    tile_anims: &self.store.assets.tile_anims,
+                    animations: &self.store.assets.animations,
+                    sprites: &self.store.assets.sprites,
+                    sfxs: &self.store.assets.sfxs,
+                    room_names: &self.editors.room_names,
+                    tables: &self.store.tables,
+                };
                 editor.show(&mut win_ctx, room, &self.store.asset_ids, &assets);
             }
         }

@@ -67,6 +67,11 @@ pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
     frame_speed: 64,
 };
 
+pub enum GameRunnerAction {
+    PlaySfx { sfx_id: DataAssetId, volume: u16, pitch_shift: u16 },
+    StopSfx,
+}
+
 pub struct GameRunnerRoomState {
     pub width: u32,
     pub height: u32,
@@ -163,6 +168,7 @@ pub struct GameRunnerState {
     pub acquired_collectable_ids: HashSet<u16>,
     pub acquired_flag_ids: HashSet<u16>,
     pub acquired_pickups: HashMap<u16,u16>,   // trigger_id -> respawn_delay
+    pub actions: Vec<GameRunnerAction>,
 }
 
 impl GameRunnerState {
@@ -174,6 +180,7 @@ impl GameRunnerState {
             acquired_collectable_ids: HashSet::new(),
             acquired_flag_ids: HashSet::new(),
             acquired_pickups: HashMap::new(),
+            actions: Vec::new(),
             room: GameRunnerRoomState {
                 width: 0,
                 height: 0,
@@ -190,6 +197,7 @@ impl GameRunnerState {
         self.acquired_collectable_ids.clear();
         self.acquired_flag_ids.clear();
         self.acquired_pickups.clear();
+        self.actions.clear();
     }
 
     fn spawn_pickups(&mut self, room: &Room) {
@@ -206,6 +214,10 @@ impl GameRunnerState {
 
     pub fn get_collectable(&mut self, collectable_id: u16, _room: &Room, _store: &DataStore) {
         self.acquired_collectable_ids.insert(collectable_id);
+    }
+
+    pub fn is_pickup_available(&self, trigger_id: u16) -> bool {
+        self.acquired_pickups.get(&trigger_id).copied().unwrap_or(u16::MAX) == 0
     }
 
     pub fn get_pickup(&mut self, trigger_id: u16, respawn: u16, _room: &Room, _store: &DataStore) {
@@ -288,6 +300,18 @@ impl GameRunnerState {
 
                 RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } if on_effect_id == effect_id => {
                     enemies.retain(|e| e.id != enemy_id);
+                }
+
+                RoomTriggerType::PlaySfx { sfx_id, volume, pitch_shift, on_effect_id, .. } if on_effect_id == effect_id => {
+                    self.actions.push(GameRunnerAction::PlaySfx {
+                        sfx_id,
+                        volume,
+                        pitch_shift,
+                    });
+                }
+
+                RoomTriggerType::StopSfx { on_effect_id, .. } if on_effect_id == effect_id => {
+                    self.actions.push(GameRunnerAction::StopSfx);
                 }
 
                 _ => {}
@@ -413,10 +437,13 @@ impl GameRunnerWidget {
 
     fn tick_engine(
         &mut self,
+        wc: &mut WindowContext,
         room: &Room,
         player_assets: &PlayerAssets,
         store: &DataStore
     ) -> bool {
+        self.state.actions.clear();
+
         for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
         }
@@ -424,7 +451,24 @@ impl GameRunnerWidget {
         for enemy in self.enemies.iter_mut() {
             enemy.tick_engine(room, &self.player, store, &mut self.state);
         }
-        self.process_room_triggers(room, player_assets.bunny_anim, store)
+        let room_changed = self.process_room_triggers(room, player_assets.bunny_anim, store);
+
+        for action in &self.state.actions {
+            match action {
+                GameRunnerAction::PlaySfx { sfx_id, volume, pitch_shift, .. } => {
+                    if let Some(sfx) = store.assets.sfxs.get(sfx_id) {
+                        wc.sound_player.play_s16(
+                            &sfx.samples,
+                            11050.0 * *pitch_shift as f32 / (1<<12) as f32,
+                            *volume as f32 / 256.0
+                        );
+                    }
+                }
+                GameRunnerAction::StopSfx => {}
+            }
+        }
+
+        room_changed
     }
 
     pub fn reset(&mut self) {
@@ -724,7 +768,7 @@ impl GameRunnerWidget {
                 self.controller.update(ui, wc);
             }
             self.player.control(&self.controller);
-            if self.tick_engine(room, &player_assets, store) {
+            if self.tick_engine(wc, room, &player_assets, store) {
                 // room changed; don't show this frame
                 return;
             }

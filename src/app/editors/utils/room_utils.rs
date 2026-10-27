@@ -125,6 +125,8 @@ pub enum RoomTriggerTypeSel {
     DisableAnimation,
     ChangeTiles,
     RemoveEnemy,
+    PlaySfx,
+    StopSfx,
     GetUpgrade,
     GetCollectable,
     GetPickup,
@@ -143,6 +145,8 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeSel::DisableAnimation }
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeSel::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
+            RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeSel::PlaySfx }
+            RoomTriggerType::StopSfx {..} => { RoomTriggerTypeSel::StopSfx }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeSel::GetCollectable }
             RoomTriggerType::GetPickup {..} => { RoomTriggerTypeSel::GetPickup }
@@ -152,7 +156,16 @@ impl RoomTriggerTypeSel {
     pub fn convert_trigger_type(&self, trigger_type: &mut RoomTriggerType, asset_ids: &AssetIdCollection) -> bool {
         match self {
             RoomTriggerTypeSel::Unknown if ! matches!(trigger_type, RoomTriggerType::Unknown {..}) => {
-                *trigger_type = RoomTriggerType::Unknown { data0: 0, data1: 0, data2: 0, data3: 0, data4: 0, data5: 0 };
+                *trigger_type = RoomTriggerType::Unknown {
+                    data0: 0,
+                    data1: 0,
+                    data2: 0,
+                    data3: 0,
+                    data4: 0,
+                    data5: 0,
+                    data6: 0,
+                    data7: 0,
+                };
                 true
             }
             RoomTriggerTypeSel::PlayerSpawn if ! matches!(trigger_type, RoomTriggerType::PlayerSpawn {..}) => {
@@ -207,7 +220,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::UnblockTiles {
                     width: 64,
                     height: 64,
-                    on_effect_id: u16::MAX
+                    on_effect_id: u16::MAX,
                 };
                 true
             }
@@ -215,7 +228,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::DisableAnimation {
                     width: 64,
                     height: 64,
-                    on_effect_id: u16::MAX
+                    on_effect_id: u16::MAX,
                 };
                 true
             }
@@ -224,26 +237,48 @@ impl RoomTriggerTypeSel {
                     map_index: 0,
                     tile_change_index: 0,
                     map_layer: RoomTriggerMapLayer::Background2,
-                    on_effect_id: u16::MAX
+                    on_effect_id: u16::MAX,
                 };
                 true
             }
             RoomTriggerTypeSel::RemoveEnemy if ! matches!(trigger_type, RoomTriggerType::RemoveEnemy {..}) => {
                 *trigger_type = RoomTriggerType::RemoveEnemy {
                     enemy_id: 0,
-                    on_effect_id: u16::MAX
+                    on_effect_id: u16::MAX,
+                };
+                true
+            }
+            RoomTriggerTypeSel::PlaySfx if ! matches!(trigger_type, RoomTriggerType::PlaySfx {..}) => {
+                if let Some(sfx_id) = asset_ids.sfxs.get_first() {
+                    *trigger_type = RoomTriggerType::PlaySfx {
+                        sfx_id,
+                        sound_id: 0,
+                        volume: 0x100,
+                        pitch_shift: 1<<12,
+                        play_loop: 0,
+                        on_effect_id: u16::MAX,
+                    };
+                    true
+                } else {
+                    false
+                }
+            }
+            RoomTriggerTypeSel::StopSfx if ! matches!(trigger_type, RoomTriggerType::StopSfx {..}) => {
+                *trigger_type = RoomTriggerType::StopSfx {
+                    sound_id: 0,
+                    on_effect_id: u16::MAX,
                 };
                 true
             }
             RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::GetUpgrade {..}) => {
                 *trigger_type = RoomTriggerType::GetUpgrade {
-                    get_upgrade_id: u16::MAX
+                    get_upgrade_id: u16::MAX,
                 };
                 true
             }
             RoomTriggerTypeSel::GetCollectable if ! matches!(trigger_type, RoomTriggerType::GetCollectable {..}) => {
                 *trigger_type = RoomTriggerType::GetCollectable {
-                    get_collectable_id: u16::MAX
+                    get_collectable_id: u16::MAX,
                 };
                 true
             }
@@ -251,6 +286,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::GetPickup {
                     get_pickup_id: u16::MAX,
                     respawn_delay: 0,
+                    sfx_id: None,
                 };
                 true
             }
@@ -270,6 +306,8 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::DisableAnimation => { "disable animation" }
             RoomTriggerTypeSel::ChangeTiles => { "change tiles" }
             RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
+            RoomTriggerTypeSel::PlaySfx => { "play sfx" }
+            RoomTriggerTypeSel::StopSfx => { "stop sfx" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }
             RoomTriggerTypeSel::GetPickup => { "pickup" }

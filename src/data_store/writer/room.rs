@@ -39,8 +39,18 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
         writer.write("  {  ");
         writer.write(format!("{}_{}, {}, {}, {}, ", writer.ident.prefix_upper, enum_type_ident, trg.trigger_id, trg.x, trg.y));
         match trg.trigger_type {
-            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
-                writer.write(format!(".any = {{ {}, {}, {}, {}, {}, {} }}", data0, data1, data2, data3, data4, data5));
+            RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5, data6, data7 } => {
+                writer.write(format!(
+                    ".any = {{ {}, {}, {}, {}, {}, {}, {}, {} }}",
+                    data0,
+                    data1,
+                    data2,
+                    data3,
+                    data4,
+                    data5,
+                    data6,
+                    data7,
+                ));
             }
             RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
                 let dest_room_index = writer.ident.get_asset_index(DataAssetType::Room, dest_room_id)?;
@@ -111,14 +121,41 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
                 writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_id, on_effect_id));
             }
+            RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
+                let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
+                writer.write(format!(
+                    ".play_sfx = {{ &{}_sfxs[{}], {}, {}, {}, {}, {} }}",
+                    writer.ident.prefix_lower,
+                    sfx_index,
+                    sound_id,
+                    volume,
+                    pitch_shift,
+                    play_loop,
+                    on_effect_id,
+                ));
+            }
+            RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
+                writer.write(format!(".stop_sfx = {{ {}, {} }}", sound_id, on_effect_id));
+            }
             RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                 writer.write(format!(".get_upgrade = {{ {} }}", get_upgrade_id));
             }
             RoomTriggerType::GetCollectable { get_collectable_id } => {
                 writer.write(format!(".get_collectable = {{ {} }}", get_collectable_id));
             }
-            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
-                writer.write(format!(".get_pickup = {{ {}, {} }}", get_pickup_id, respawn_delay));
+            RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
+                if let Some(sfx_id) = sfx_id {
+                    let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
+                    writer.write(format!(
+                        ".get_pickup = {{ {}, {}, &{}_sfxs[{}], }}",
+                        get_pickup_id,
+                        respawn_delay,
+                        writer.ident.prefix_lower,
+                        sfx_index,
+                    ));
+                } else {
+                    writer.write(format!(".get_pickup = {{ {}, {}, NULL }}", get_pickup_id, respawn_delay));
+                }
             }
         }
         writer.write(" },\n");

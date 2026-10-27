@@ -250,6 +250,12 @@ pub fn fix_after_data_table_item_removed(
                 RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                 }
+                RoomTriggerType::PlaySfx { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, data_table_ref, index);
+                }
+                RoomTriggerType::StopSfx { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, data_table_ref, index);
+                }
                 RoomTriggerType::GetUpgrade { get_upgrade_id } => {
                     fix_removed_upgrade(get_upgrade_id, data_table_ref, index);
                 }
@@ -341,6 +347,12 @@ pub fn fix_after_data_table_items_swapped(
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
+                    fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
+                }
+                RoomTriggerType::PlaySfx { on_effect_id, .. } => {
+                    fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
+                }
+                RoomTriggerType::StopSfx { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::GetUpgrade { get_upgrade_id } => {

@@ -100,22 +100,24 @@ pub enum RoomTriggerType {
         data2: u16,
         data3: u16,
         data4: u16,
-        data5: u16
+        data5: u16,
+        data6: u16,
+        data7: u16,
     },
     PlayerSpawn {
-        direction: RoomEntityDirection
+        direction: RoomEntityDirection,
     },
     EnemySpawn {
         animation_id: DataAssetId,
         enemy_id: u16,
         enemy_type: RoomEnemyType,
         direction: RoomEntityDirection,
-        req_flag_id: u16
+        req_flag_id: u16,
     },
     Door {
         dest_room_id: DataAssetId,
         dest_trigger_id: u16,
-        req_flag_id: u16
+        req_flag_id: u16,
     },
     WallButton {
         width: u16,
@@ -123,7 +125,7 @@ pub enum RoomTriggerType {
         set_effect_id: u16,
         set_flag_id: u16,
         req_flag_id: u16,
-        req_collectable_id: u16
+        req_collectable_id: u16,
     },
     DetectorButton {
         width: u16,
@@ -131,37 +133,50 @@ pub enum RoomTriggerType {
         set_effect_id: u16,
         set_flag_id: u16,
         req_flag_id: u16,
-        req_collectable_id: u16
+        req_collectable_id: u16,
     },
     UnblockTiles {
         width: u16,
         height: u16,
-        on_effect_id: u16
+        on_effect_id: u16,
     },
     DisableAnimation {
         width: u16,
         height: u16,
-        on_effect_id: u16
+        on_effect_id: u16,
     },
     ChangeTiles {
         map_index: u16,
         tile_change_index: u16,
         map_layer: RoomTriggerMapLayer,
-        on_effect_id: u16
+        on_effect_id: u16,
     },
     RemoveEnemy {
         enemy_id: u16,
-        on_effect_id: u16
+        on_effect_id: u16,
+    },
+    PlaySfx {
+        sfx_id: DataAssetId,
+        sound_id: u16,
+        volume: u16,
+        pitch_shift: u16,
+        play_loop: u8,
+        on_effect_id: u16,
+    },
+    StopSfx {
+        sound_id: u16,
+        on_effect_id: u16,
     },
     GetUpgrade {
-        get_upgrade_id: u16
+        get_upgrade_id: u16,
     },
     GetCollectable {
-        get_collectable_id: u16
+        get_collectable_id: u16,
     },
     GetPickup {
         get_pickup_id: u16,
-        respawn_delay: u16
+        respawn_delay: u16,
+        sfx_id: Option<DataAssetId>,
     },
 }
 
@@ -230,7 +245,7 @@ impl super::HashedData for Room {
             hasher.add_i16(trigger.x);
             hasher.add_i16(trigger.y);
             match trigger.trigger_type {
-                RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5 } => {
+                RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5, data6, data7 } => {
                     hasher.add_u8(0);
                     hasher.add_u16(data0);
                     hasher.add_u16(data1);
@@ -238,6 +253,8 @@ impl super::HashedData for Room {
                     hasher.add_u16(data3);
                     hasher.add_u16(data4);
                     hasher.add_u16(data5);
+                    hasher.add_u16(data6);
+                    hasher.add_u16(data7);
                 }
                 RoomTriggerType::PlayerSpawn { direction } => {
                     hasher.add_u8(1);
@@ -299,18 +316,38 @@ impl super::HashedData for Room {
                     hasher.add_u16(enemy_id);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
                     hasher.add_u8(11);
+                    hasher.add_asset_id(sfx_id);
+                    hasher.add_u16(sound_id);
+                    hasher.add_u16(volume);
+                    hasher.add_u16(pitch_shift);
+                    hasher.add_u8(play_loop);
+                    hasher.add_u16(on_effect_id);
+                }
+                RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
+                    hasher.add_u8(12);
+                    hasher.add_u16(sound_id);
+                    hasher.add_u16(on_effect_id);
+                }
+                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                    hasher.add_u8(13);
                     hasher.add_u16(get_upgrade_id);
                 }
                 RoomTriggerType::GetCollectable { get_collectable_id } => {
-                    hasher.add_u8(12);
+                    hasher.add_u8(14);
                     hasher.add_u16(get_collectable_id);
                 }
-                RoomTriggerType::GetPickup { get_pickup_id, respawn_delay } => {
-                    hasher.add_u8(13);
+                RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
+                    hasher.add_u8(15);
                     hasher.add_u16(get_pickup_id);
                     hasher.add_u16(respawn_delay);
+                    if let Some(sfx_id) = sfx_id {
+                        hasher.add_u32(1);
+                        hasher.add_asset_id(sfx_id);
+                    } else {
+                        hasher.add_u32(0);
+                    }
                 }
             }
         }
@@ -340,8 +377,8 @@ impl super::GenericAsset for Room {
         // map[0..num_maps]: u16(2) * (x, y) + map<ptr>(4)
         let maps = self.maps.len() * (2usize * 2 + 4usize);
 
-        // trigger[0..num_triggers]: u16(2)*(type,id,x,y) + u16(2)*6
-        let triggers = self.triggers.len() * (2usize * 4 + 2usize * 6);
+        // trigger[0..num_triggers]: u16(2)*(type,id,x,y) + u16(2)*8
+        let triggers = self.triggers.len() * (2usize * 4 + 2usize * 8);
 
         // parallax:
         //   header: tileset<ptr>(4) + u16(2) * (width, height) + tiles<ptr>(4)
@@ -363,6 +400,8 @@ pub enum RoomTriggerTypeIdent {
     DisableAnimation,
     ChangeTiles,
     RemoveEnemy,
+    PlaySfx,
+    StopSfx,
     GetUpgrade,
     GetCollectable,
     GetPickup,
@@ -381,6 +420,8 @@ impl RoomTriggerTypeIdent {
             RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeIdent::DisableAnimation }
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeIdent::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeIdent::RemoveEnemy }
+            RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeIdent::PlaySfx }
+            RoomTriggerType::StopSfx {..} => { RoomTriggerTypeIdent::StopSfx }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeIdent::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeIdent::GetCollectable }
             RoomTriggerType::GetPickup {..} => { RoomTriggerTypeIdent::GetPickup }
@@ -399,6 +440,8 @@ impl RoomTriggerTypeIdent {
             RoomTriggerTypeIdent::DisableAnimation => { "ROOM_TRIGGER_TYPE_DISABLE_ANIMATION" }
             RoomTriggerTypeIdent::ChangeTiles => { "ROOM_TRIGGER_TYPE_CHANGE_TILES" }
             RoomTriggerTypeIdent::RemoveEnemy => { "ROOM_TRIGGER_TYPE_REMOVE_ENEMY" }
+            RoomTriggerTypeIdent::PlaySfx => { "ROOM_TRIGGER_TYPE_PLAY_SFX" }
+            RoomTriggerTypeIdent::StopSfx => { "ROOM_TRIGGER_TYPE_STOP_SFX" }
             RoomTriggerTypeIdent::GetUpgrade => { "ROOM_TRIGGER_TYPE_GET_UPGRADE" }
             RoomTriggerTypeIdent::GetCollectable => { "ROOM_TRIGGER_TYPE_GET_COLLECTABLE" }
             RoomTriggerTypeIdent::GetPickup => { "ROOM_TRIGGER_TYPE_GET_PICKUP" }
