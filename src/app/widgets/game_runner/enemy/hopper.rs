@@ -41,11 +41,12 @@ impl State {
 }
 
 fn check_player_seen(enemy: &EnemyInfo, player: &Player, enemy_anim: &SpriteAnimation, store: &DataStore) -> Option<Direction> {
-    if let Some(player_anim_id) = player.anim_id && let Some(player_anim) = store.assets.animations.get(&player_anim_id) {
-        enemy.check_player_seen(player, enemy_anim, player_anim)
-    } else {
-        None
-    }
+    if let Some(player_anim_id) = player.asset_ids.as_ref().map(|ids| ids.bunny_anim_id) &&
+        let Some(player_anim) = store.assets.animations.get(&player_anim_id) {
+            enemy.check_player_seen(player, enemy_anim, player_anim)
+        } else {
+            None
+        }
 }
 
 pub struct Hopper {

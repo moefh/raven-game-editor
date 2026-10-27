@@ -53,7 +53,10 @@ use super::super::editors::{
 
 use controller::{*};
 use collision::{*};
-use player::Player;
+use player::{
+    Player,
+    PlayerAssets,
+};
 use enemy::Enemy;
 use util::{*};
 
@@ -114,7 +117,7 @@ impl GameRunnerRoomState {
     ) -> Option<DrawMapLayerData<'a>> {
         let tileset = store.assets.tilesets.get(&map_data.tileset_id)?;
         let (tile_anim, anim_tileset) = if
-            let Some(tile_anim) = map_data.tile_anim_id.and_then(|tile_anim_id| store.assets.tile_anims.get(&tile_anim_id)) &&
+            let Some(tile_anim) = map_data.tile_anim_id.as_ref().and_then(|tile_anim_id| store.assets.tile_anims.get(tile_anim_id)) &&
             let Some(anim_tileset) = store.assets.tilesets.get(&tile_anim.anim_tileset_id) {
                 (Some(tile_anim), Some(anim_tileset))
             } else {
@@ -329,7 +332,9 @@ impl GameRunnerWidget {
     pub const HEIGHT: i32 = 240;
     pub const SCREEN_SIZE: Vec2 = Vec2 { x: Self::WIDTH as f32, y: Self::HEIGHT as f32 };
     pub const SCREEN_HEADER_HEIGHT: i32 = 32;
-    const PLAYER_ANIMATION: &str = "bunny";
+    const BUNNY_ANIMATION: &str = "bunny";
+    const GUN_ANIMATION: &str = "weapons/gun";
+    const THROW_ANIMATION: &str = "weapons/throw";
 
     pub fn new() -> Self {
         GameRunnerWidget {
@@ -409,18 +414,17 @@ impl GameRunnerWidget {
     fn tick_engine(
         &mut self,
         room: &Room,
-        _player_sprite: &Sprite,
-        player_anim: &SpriteAnimation,
+        player_assets: &PlayerAssets,
         store: &DataStore
     ) -> bool {
         for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
         }
-        self.player.tick_engine(room, player_anim, store, &self.controller, &mut self.state, &mut self.enemies);
+        self.player.tick_engine(room, player_assets, store, &self.controller, &mut self.state, &mut self.enemies);
         for enemy in self.enemies.iter_mut() {
             enemy.tick_engine(room, &self.player, store, &mut self.state);
         }
-        self.process_room_triggers(room, player_anim, store)
+        self.process_room_triggers(room, player_assets.bunny_anim, store)
     }
 
     pub fn reset(&mut self) {
@@ -440,14 +444,15 @@ impl GameRunnerWidget {
         self.screen_ui.setup(store);
         if let Some(room_id) = room_id &&
             let Some(room) = store.assets.rooms.get(&room_id) &&
-            let Some(anim) = get_sprite_animation_by_name(store, Self::PLAYER_ANIMATION) {
+            let Some(bunny) = get_sprite_animation_by_name(store, Self::BUNNY_ANIMATION) &&
+            let Some(throw) = get_sprite_animation_by_name(store, Self::THROW_ANIMATION) &&
+            let Some(gun) = get_sprite_animation_by_name(store, Self::GUN_ANIMATION) {
                 self.load_room(room, store);
-                self.player.anim_id = Some(anim.asset.id);
-                self.player.move_to_spawn(room, anim);
+                self.player.set_assets(bunny, throw, gun);
+                self.player.move_to_spawn(room, bunny);
             } else {
                 // room id with no player animation will show an error message
                 self.room_id = room_id;
-                self.player.anim_id = None;
             }
     }
 
@@ -631,8 +636,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
-        player_sprite: &Sprite,
-        player_anim: &SpriteAnimation,
+        player_assets: &PlayerAssets,
         store: &DataStore
     ) {
         let min_size = Self::SCREEN_SIZE.max(ui.available_size());
@@ -646,7 +650,7 @@ impl GameRunnerWidget {
         let screen_rect = Rect::from_min_size(screen_pos, screen_size);
         ui.shrink_clip_rect(screen_rect);
 
-        self.follow_player(player_anim);
+        self.follow_player(player_assets.bunny_anim);
         self.clip_scroll(room_size);
 
         // room
@@ -670,7 +674,7 @@ impl GameRunnerWidget {
 
         self.draw_room_bg(ui, wc, room, store, &draw_map_info, &draw_room_info);
         self.draw_room_triggers(ui, wc, room, store, draw_map_info.pos, zoom);
-        self.player.draw(ui, wc, player_sprite, player_anim, draw_map_info.pos, zoom);
+        self.player.draw(ui, wc, player_assets, draw_map_info.pos, zoom);
         for enemy in self.enemies.iter_mut() {
             enemy.draw(ui, wc, draw_map_info.pos, zoom, store);
         }
@@ -707,25 +711,25 @@ impl GameRunnerWidget {
             }
         };
 
-        if let Some(player_anim) = self.player.anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
-            if let Some(player_sprite) = store.assets.sprites.get(&player_anim.sprite_id) {
-                if self.advance_frame_counter(wc) {
-                    if wc.is_window_on_top(window_id) {
-                        self.controller.update(ui, wc);
-                    }
-                    self.player.control(&self.controller);
-                    if self.tick_engine(room, player_sprite, player_anim, store) {
-                        // room changed; don't show this frame
-                        return;
-                    }
-                }
-                self.draw_screen(ui, wc, room, player_sprite, player_anim, store);
-                wc.request_game_run_repaint();
-            } else {
+        let player_assets = match self.player.asset_ids.as_ref().and_then(|ids| PlayerAssets::load(ids, store)) {
+            Some(assets) => { assets }
+            None => {
                 ui.label("Required assets not found!");
+                return;
             }
-        } else {
-            ui.label(format!("Sprite animation '{}' doesn't exist!", Self::PLAYER_ANIMATION));
+        };
+
+        if self.advance_frame_counter(wc) {
+            if wc.is_window_on_top(window_id) {
+                self.controller.update(ui, wc);
+            }
+            self.player.control(&self.controller);
+            if self.tick_engine(room, &player_assets, store) {
+                // room changed; don't show this frame
+                return;
+            }
         }
+        self.draw_screen(ui, wc, room, &player_assets, store);
+        wc.request_game_run_repaint();
     }
 }
