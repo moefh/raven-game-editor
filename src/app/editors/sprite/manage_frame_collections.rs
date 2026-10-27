@@ -105,8 +105,9 @@ impl ManageFrameCollectionsDialog {
     }
 
     fn draw_frame(&self, ui: &mut egui::Ui, wc: &mut WindowContext, image: &impl ImageCollection, index: u32, selected: bool) -> bool {
+        const TEXT_WIDTH: f32 = 100.0;
         let image_size = self.frame_zoom * image.get_item_size();
-        let (rect, resp) = ui.allocate_at_least(image_size + egui::Vec2::new(20.0, 0.0), egui::Sense::CLICK);
+        let (rect, resp) = ui.allocate_at_least(image_size + egui::Vec2::new(TEXT_WIDTH, 0.0), egui::Sense::CLICK);
         let image_rect = egui::Rect::from_min_size(rect.min, image_size);
         let uv = image.get_item_uv(index);
         let slot = image.texture_slot(false, false);
@@ -116,6 +117,13 @@ impl ManageFrameCollectionsDialog {
         image.paint_at(ui, image_rect);
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(255,255,255));
         ui.painter().rect_stroke(image_rect, egui::CornerRadius::ZERO, stroke, egui::StrokeKind::Inside);
+
+        let text_rect = egui::Rect::from_min_size(
+            rect.min + egui::Vec2::new(image_size.x + 5.0, image_size.y * 0.5 - 10.0),
+            egui::Vec2::new(48.0, 0.0),
+        );
+        ui.place(text_rect, egui::Label::new(format!("{}", index)));
+
         resp.clicked()
     }
 

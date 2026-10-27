@@ -77,7 +77,12 @@ impl AddFramesDialog {
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         ui.label("Num frames:");
-                        ui.add(egui::Slider::new(&mut self.num_frames, 1..=16));
+                        let max_frames = 256_u32.saturating_sub(sprite.num_frames);
+                        if max_frames == 0 {
+                            ui.label("sprite is full");
+                        } else {
+                            ui.add(egui::Slider::new(&mut self.num_frames, 1..=max_frames));
+                        }
                         ui.end_row();
 
                         ui.label("Insert at:");

@@ -30,7 +30,7 @@ impl RemoveFramesDialog {
 
     pub fn set_open(&mut self, wc: &mut WindowContext, sprite: &Sprite, sel_frame: u32) {
         if sprite.num_frames <= 1 || sprite.num_frames <= sel_frame { return; }
-        self.max_frames = (sprite.num_frames - sel_frame).min(sprite.num_frames - 1);
+        self.max_frames = sprite.num_frames.saturating_sub(sel_frame).min(sprite.num_frames.saturating_sub(1));
         self.num_frames = 1;
         self.sel_frame = sel_frame;
         self.open = true;
@@ -74,7 +74,7 @@ impl RemoveFramesDialog {
                     .spacing([8.0, 8.0])
                     .show(ui, |ui| {
                         ui.label("Num frames:");
-                        ui.add(egui::Slider::new(&mut self.num_frames, 1..=16.min(self.max_frames)));
+                        ui.add(egui::Slider::new(&mut self.num_frames, 1..=255.min(self.max_frames)));
                         ui.end_row();
                     });
             });
