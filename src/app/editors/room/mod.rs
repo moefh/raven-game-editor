@@ -49,7 +49,7 @@ use super::widgets::{
 };
 use super::super::menu_item;
 use super::super::widgets::{
-    TreeView,
+    TreeViewWidget,
     TreeViewItem,
     TreeViewFolder,
     TreeViewFolderId,
@@ -276,7 +276,7 @@ struct Editor {
     import_sys_dlg_id: String,
     selected_tab: EditorTab,
     room_editor: RoomEditorWidget,
-    trigger_tree: TreeView,
+    trigger_tree: TreeViewWidget,
     tile_picker: ImagePickerWidget,
     tile_picker_popup: TilePickerPopupWidget,
     para_editor: RoomParallaxEditorWidget,
@@ -296,7 +296,7 @@ impl Editor {
             tile_picker: ImagePickerWidget::new().use_as_palette(true),
             tile_picker_popup: TilePickerPopupWidget::new(egui::Id::unique(format!("editor_{}_tile_picker_popup", asset_id))),
             para_editor: RoomParallaxEditorWidget::new(),
-            trigger_tree: TreeView::new(format!("editor_{}_trigger_tree", asset_id), "Triggers"),
+            trigger_tree: TreeViewWidget::new(format!("editor_{}_trigger_tree", asset_id), "Triggers"),
         }
     }
 

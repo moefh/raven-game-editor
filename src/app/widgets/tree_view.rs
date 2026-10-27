@@ -157,10 +157,10 @@ impl TreeViewFolder {
     fn update_tree(&mut self, items: &[impl TreeViewItemTrait], id_generator: &mut TreeViewFolderIdGenerator) {
         for (item_id, item) in items.iter().enumerate() {
             let item_name = item.name();
-            if ! item_name.contains(TreeView::PATH_SEPARATOR) {  // avoid splitting the string if we can
+            if ! item_name.contains(TreeViewWidget::PATH_SEPARATOR) {  // avoid splitting the string if we can
                 self.insert_item(item_id, item_name, item_name);
             } else {
-                let name_parts: Vec<&str> = item_name.split(TreeView::PATH_SEPARATOR).collect();
+                let name_parts: Vec<&str> = item_name.split(TreeViewWidget::PATH_SEPARATOR).collect();
                 self.insert(item_id, item_name, &name_parts, id_generator);
             }
         }
@@ -181,7 +181,7 @@ impl TreeViewFolder {
     fn get_node_name(&self, node_id: TreeViewFolderId) -> Option<String> {
         let mut parts = Vec::new();
         if self.get_node_name_parts(node_id, &mut parts) && ! parts.is_empty() {
-            Some(parts.into_iter().rev().collect::<Vec<String>>().join(TreeView::PATH_SEPARATOR))
+            Some(parts.into_iter().rev().collect::<Vec<String>>().join(TreeViewWidget::PATH_SEPARATOR))
         } else {
             None
         }
@@ -217,12 +217,12 @@ impl TreeViewFolder {
     }
 }
 
-pub struct TreeView {
+pub struct TreeViewWidget {
     root: TreeViewFolder,
     id_generator: TreeViewFolderIdGenerator,
 }
 
-impl TreeView {
+impl TreeViewWidget {
     pub const PATH_SEPARATOR: &str = "/";
 
     pub fn new(egui_id_salt: impl AsRef<str>, root_display_name: impl Into<String>) -> Self {
@@ -233,7 +233,7 @@ impl TreeView {
             root_display_name.into(),
             0
         );
-        TreeView {
+        TreeViewWidget {
             root,
             id_generator,
         }
