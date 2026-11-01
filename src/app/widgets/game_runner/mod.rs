@@ -536,7 +536,7 @@ impl GameRunnerWidget {
                     if let Some(sfx) = store.assets.sfxs.get(sfx_id) {
                         wc.sound_player.play_s16(
                             &sfx.samples,
-                            11050.0 * *pitch_shift as f32 / (1<<12) as f32,
+                            44100.0 * *pitch_shift as f32 / (1<<12) as f32,
                             *volume as f32 / 256.0
                         );
                     }

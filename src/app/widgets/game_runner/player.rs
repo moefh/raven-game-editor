@@ -118,7 +118,7 @@ impl Player {
             dy: 0,
             state: PlayerState::Stand,
             bunny_anim: Animation::new(asset_ids.bunny_anim_id),
-            weapon_anim: Animation::new(asset_ids.bunny_anim_id),
+            weapon_anim: Animation::new(asset_ids.gun_anim_id),
             weapon_frames: 0,
             weapon: PlayerWeapon::None,
             shoot: false,
@@ -294,7 +294,7 @@ impl Player {
                             game_state.actions.push(GameRunnerAction::PlaySfx {
                                 sfx_id,
                                 volume: 0x100,
-                                pitch_shift: 1<<12,
+                                pitch_shift: 1<<10,
                             });
                         }
                     }

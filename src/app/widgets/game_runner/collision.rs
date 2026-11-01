@@ -59,6 +59,7 @@ pub fn get_room_tile_at(room: &GameRunnerRoomState, x: i32, y: i32) -> u8 {
 }
 
 pub fn room_tiles_block_point(room: &GameRunnerRoomState, x: i32, y: i32) -> bool {
+    if x < 0 || y < 0 { return true; }
     let tile = get_room_tile_at(room, x/TILE_SIZE, y/TILE_SIZE);
     match tile {
         TILE_BLOCK => { true }
