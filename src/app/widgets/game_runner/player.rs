@@ -89,6 +89,7 @@ pub struct Player {
     pub direction: Direction,
     pub weapon_frames: u32,
     pub weapon: PlayerWeapon,
+    pub shoot_wait: u32,
     pub shoot: bool,
     pub last_shot_frame: u32,
     pub bunny_anim: Animation,
@@ -121,6 +122,7 @@ impl Player {
             weapon_anim: Animation::new(asset_ids.gun_anim_id),
             weapon_frames: 0,
             weapon: PlayerWeapon::None,
+            shoot_wait: 0,
             shoot: false,
             last_shot_frame: 0,
         }
@@ -145,12 +147,20 @@ impl Player {
             }
         }
         if pad.pressed(THROW_BUTTON) {
-            self.weapon_frames = 12;
+            self.weapon_frames = 45;
             if self.weapon != PlayerWeapon::Throw {
                 self.weapon = PlayerWeapon::Throw;
                 self.weapon_anim.reset();
             }
-            self.shoot = true;
+            self.shoot_wait = 30;
+            self.shoot = false;
+        }
+
+        if self.shoot_wait > 0 {
+            self.shoot_wait -= 1;
+            if self.shoot_wait == 0 {
+                self.shoot = true;
+            }
         }
 
         // walk
