@@ -296,9 +296,9 @@ impl Enemy {
         &mut self,
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
+        store: &DataStore,
         screen_pos: egui::Pos2,
         zoom: f32,
-        store: &DataStore,
     ) {
         if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) &&
             let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {

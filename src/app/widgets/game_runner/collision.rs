@@ -58,6 +58,14 @@ pub fn get_room_tile_at(room: &GameRunnerRoomState, x: i32, y: i32) -> u8 {
     }
 }
 
+pub fn room_tiles_block_point(room: &GameRunnerRoomState, x: i32, y: i32) -> bool {
+    let tile = get_room_tile_at(room, x/TILE_SIZE, y/TILE_SIZE);
+    match tile {
+        TILE_BLOCK => { true }
+        _ => { false } // TODO
+    }
+}
+
 fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 {
     if rect.x + sx < 0 {
         rect.x = 0;

@@ -12,7 +12,9 @@ use super::{
 };
 use super::super::consts::{*};
 use super::super::collision::{*};
-use super::super::GameRunnerState;
+use super::super::{
+    GameRunnerState,
+};
 
 pub enum State {
     AmbushWait,
@@ -40,13 +42,18 @@ impl State {
     }
 }
 
-fn check_player_seen(enemy: &EnemyInfo, player: &Player, enemy_anim: &SpriteAnimation, store: &DataStore) -> Option<Direction> {
-    if let Some(player_anim_id) = player.asset_ids.as_ref().map(|ids| ids.bunny_anim_id) &&
-        let Some(player_anim) = store.assets.animations.get(&player_anim_id) {
-            enemy.check_player_seen(player, enemy_anim, player_anim)
-        } else {
-            None
-        }
+fn check_player_seen(
+    enemy: &EnemyInfo,
+    player: &Player,
+    enemy_anim: &SpriteAnimation,
+    game_state: &GameRunnerState,
+    store: &DataStore
+) -> Option<Direction> {
+    if let Some(asset_ids) = &game_state.asset_ids && let Some(player_anim) = store.assets.animations.get(&asset_ids.bunny_anim_id) {
+        enemy.check_player_seen(player, enemy_anim, player_anim)
+    } else {
+        None
+    }
 }
 
 pub struct Hopper {
@@ -85,7 +92,7 @@ impl Hopper {
     ) {
         match self.state {
             State::AmbushWait => {
-                if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                     self.go_state(State::AmbushPlunge, enemy, 0);
                     enemy.direction = dir;
                     self.dx = dir.dx() * 0x80;
@@ -104,7 +111,7 @@ impl Hopper {
 
             State::Splat => {
                 if enemy.is_at_animation_end(anim) {
-                    if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                    if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                         self.go_state(State::PouncePrep, enemy, 0);
                         enemy.direction = dir;
                     } else {
@@ -116,7 +123,7 @@ impl Hopper {
             }
 
             State::PatrolWalk => {
-                if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                     self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else {
@@ -128,7 +135,7 @@ impl Hopper {
             }
 
             State::PatrolBlink => {
-                if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                     self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else if enemy.is_at_animation_end(anim) {
@@ -137,7 +144,7 @@ impl Hopper {
             }
 
             State::PatrolLook => {
-                if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                     self.go_state(State::PouncePrep, enemy, 0);
                     enemy.direction = dir;
                 } else if enemy.is_at_animation_end(anim) {
@@ -150,7 +157,7 @@ impl Hopper {
             State::PouncePrep => {
                 if enemy.is_at_animation_end(anim) {
                     self.go_state(State::PounceJump, enemy, 0);
-                    if let Some(dir) = check_player_seen(enemy, player, anim, store) {
+                    if let Some(dir) = check_player_seen(enemy, player, anim, game_state, store) {
                         enemy.direction = dir;
                     }
                     self.dx = enemy.direction.dx() * 0x200;
