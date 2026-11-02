@@ -52,6 +52,7 @@ pub struct ImagePickerWidget {
     selected_image_r: HashMap<usize, ImagePickerSelection>,
     selected_image_l_changed: bool,
     selected_image_r_changed: bool,
+    id_salt: Option<egui::IdSalt>,
 }
 
 impl ImagePickerWidget {
@@ -59,6 +60,7 @@ impl ImagePickerWidget {
 
     pub fn new() -> Self {
         ImagePickerWidget {
+            id_salt: None,
             num_empty_selections: 0,
             allow_r_selection: false,
             zoom: None,
@@ -76,6 +78,10 @@ impl ImagePickerWidget {
             display: ImageDisplay::new(0),
             custom_bg_color: None,
         }
+    }
+
+    pub fn set_id_salt(&mut self, id_salt: &str) {
+        self.id_salt = Some(egui::IdSalt::new(id_salt));
     }
 
     pub fn use_as_palette(mut self, use_as_palette: bool) -> Self {
@@ -208,11 +214,15 @@ impl ImagePickerWidget {
             drag: egui::scroll_area::DragScroll::Never,
             mouse_wheel: true,
         };
-        let mut scroll_area = egui::ScrollArea::vertical().auto_shrink([true, true]).scroll_source(source);
+        let mut scroll_area = egui::ScrollArea::vertical().animated(false).auto_shrink([true, true]).scroll_source(source);
         let zoom = self.zoom.unwrap_or(get_setting_zoom(wc.settings.tile_picker_zoom));
         let image_item_size = image.get_item_size();
         let zoomed_item_size = zoom * image_item_size;
         let shown_image_size = Vec2::new(image.width() as f32, num_items_shown as f32 * image.height() as f32);
+
+        if let Some(id_salt) = self.id_salt {
+            scroll_area = scroll_area.id_salt(id_salt);
+        }
 
         // scroll to selected image if changed
         if let Some(scroll_to_pos) = if self.selected_image_l_changed {
@@ -303,7 +313,7 @@ impl ImagePickerWidget {
             if pos.x >= 0.0 && pos.x <= resp.inner_rect.width() {
                 let frame_size = zoom * image.get_item_size();
                 let selection = self.ui_pos_to_selection(
-                    f32::min((pos.y / frame_size.y).floor(), (num_items_shown - 1) as f32),
+                    f32::min((pos.y / frame_size.y).floor(), (num_items_shown + self.num_empty_selections - 1) as f32),
                     image_indices
                 );
                 if resp.inner.dragged_by(egui::PointerButton::Primary) {

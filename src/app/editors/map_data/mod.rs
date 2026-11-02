@@ -763,18 +763,14 @@ impl Editor {
             match self.map_editor.edit_layer {
                 MapLayer::Effects => {
                     let tiles = STATIC_IMAGES.fx_tiles();
-                    if self.tile_picker.selection_set != 1 {
-                        self.tile_picker.selection_set = 1;
-                        self.tile_picker.force_selection_into_visibility();
-                    }
+                    self.tile_picker.selection_set = 1;
+                    self.tile_picker.set_id_salt("effects");
                     self.tile_picker.show(ui, wc, tiles, None);
                 }
                 MapLayer::Animation => {
                     let tiles = STATIC_IMAGES.anim_tiles();
-                    if self.tile_picker.selection_set != 2 {
-                        self.tile_picker.selection_set = 2;
-                        self.tile_picker.force_selection_into_visibility();
-                    }
+                    self.tile_picker.selection_set = 2;
+                    self.tile_picker.set_id_salt("animation");
                     self.tile_picker.show(ui, wc, tiles, None);
                 }
                 _ => {
@@ -789,10 +785,8 @@ impl Editor {
                             self.tile_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
                         }
 
-                        if self.tile_picker.selection_set != 0 {
-                            self.tile_picker.selection_set = 0;
-                            self.tile_picker.force_selection_into_visibility();
-                        }
+                        self.tile_picker.selection_set = 0;
+                        self.tile_picker.set_id_salt("tiles");
                         self.tile_picker.show(ui, wc, tileset, None);
                     }
                 }
@@ -987,10 +981,7 @@ impl Editor {
                     self.tile_change_picker.set_selected_image_l(ImagePickerSelection::Some(tile));
                 }
 
-                if self.tile_change_picker.selection_set != 0 {
-                    self.tile_change_picker.selection_set = 0;
-                    self.tile_change_picker.force_selection_into_visibility();
-                }
+                self.tile_change_picker.selection_set = 0;
                 self.tile_change_picker.show(ui, wc, tileset, None);
             }
             self.tile_change_editor.left_draw_tile = self.tile_change_picker.get_selected_image_l();
