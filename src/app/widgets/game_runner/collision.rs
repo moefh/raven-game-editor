@@ -10,15 +10,20 @@ pub const COLLISION_FLAGS_UP : u32     =  1<<2;
 pub const COLLISION_FLAGS_LEFT : u32   =  1<<3;
 pub const COLLISION_FLAGS_RIGHT : u32  =  1<<4;
 
-pub const TILE_BLOCK: u8        =  0;
-pub const TILE_L_RAMP_FULL: u8  =  1;
-pub const TILE_R_RAMP_FULL: u8  =  2;
-pub const TILE_L_RAMP_BOT: u8   =  3;
-pub const TILE_L_RAMP_TOP: u8   =  4;
-pub const TILE_R_RAMP_BOT: u8   =  5;
-pub const TILE_R_RAMP_TOP: u8   =  6;
+pub const TILE_BLOCK: u8        =  0;  //  []
+pub const TILE_L_RAMP_FULL: u8  =  1;  //  /
+pub const TILE_R_RAMP_FULL: u8  =  2;  //  \
+pub const TILE_L_RAMP_BOT: u8   =  3;  //  /
+pub const TILE_L_RAMP_TOP: u8   =  4;  //  /
+pub const TILE_R_RAMP_BOT: u8   =  5;  //  \
+pub const TILE_R_RAMP_TOP: u8   =  6;  //  \
 
 const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
+
+const VERTICAL_STEP: i32   = 0x100;  // 0x100
+const HORIZONTAL_STEP: i32 = 0x100;  // 0x100
+const FULL_RAMP_STEP: i32  = 0x16a;  // 0x100 * sqrt(2)
+const HALF_RAMP_STEP: i32  = 0x11e;  // 0x100 * sqrt(1.25)
 
 #[derive(Copy, Clone, Debug)]
 pub struct CollisionRect {
@@ -67,9 +72,10 @@ pub fn room_tiles_block_point(room: &GameRunnerRoomState, x: i32, y: i32) -> boo
     }
 }
 
-fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 {
+fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32, steps: &mut i32) -> u32 {
     if rect.x + sx < 0 {
         rect.x = 0;
+        *steps -= HORIZONTAL_STEP;
         return COLLISION_FLAGS_LEFT;
     }
 
@@ -82,6 +88,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
         let tile = get_room_tile_at(room, tx, ty);
         match tile {
             TILE_BLOCK => {
+                *steps -= HORIZONTAL_STEP;
                 return if sx > 0 { COLLISION_FLAGS_RIGHT } else { COLLISION_FLAGS_LEFT };
             }
 
@@ -98,6 +105,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x += 1;
                     rect.y -= 1;
+                    *steps -= FULL_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -116,6 +124,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x -= 1;
                     rect.y -= 1;
+                    *steps -= FULL_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -134,6 +143,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x += 1;
                     rect.y -= 1;
+                    *steps -= HALF_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -152,6 +162,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x += 1;
                     rect.y -= 1;
+                    *steps -= HALF_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -170,6 +181,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x -= 1;
                     rect.y -= 1;
+                    *steps -= HALF_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -188,6 +200,7 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
                     }
                     rect.x -= 1;
                     rect.y -= 1;
+                    *steps -= HALF_RAMP_STEP;
                     return COLLISION_FLAGS_RAMP;
                 }
             }
@@ -197,10 +210,13 @@ fn h_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sx: i32) -> u32 
     }
 
     rect.x += sx;
+    *steps -= HORIZONTAL_STEP;
     0
 }
 
-fn v_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sy: i32) -> u32 {
+fn v_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, sy: i32, steps: &mut i32) -> u32 {
+    *steps -= VERTICAL_STEP;
+
     if rect.y + sy < 0 {
         rect.y = 0;
         return COLLISION_FLAGS_UP;
@@ -317,40 +333,36 @@ pub fn collision_move(rect: &mut CollisionRect, room: &GameRunnerRoomState, dx: 
 
     if dx == 0 {
         let mut flags = 0;
-        for _y in 0..dy.abs() {
-            flags |= v_move(rect, room, sy);
+        let mut steps = dy.abs() << 8;
+        while steps > 0 {
+            flags |= v_move(rect, room, sy, &mut steps);
         }
         return flags;
     }
 
     if dy == 0 {
         let mut flags = 0;
-        for _x in 0..dx.abs() {
-            flags |= h_move(rect, room, sx);
+        let mut steps = dx.abs() << 8;
+        while steps > 0 {
+            flags |= h_move(rect, room, sx, &mut steps);
         }
         return flags;
     }
 
-    let x_end = dx;
-    let y_end = dy;
     let dx = if dx < 0 { -dx } else { dx };
     let dy = if dy > 0 { -dy } else { dy };
     let mut error = dx + dy;
-    let mut x = 0;
-    let mut y = 0;
     let mut flags = 0;
-    loop {
-        if x == x_end && y == y_end { break; }
+    let mut steps = (dx - dy) << 8;
+    while steps > 0 {
         let e2 = 2 * error;
         if e2 >= dy {
             error += dy;
-            flags |= h_move(rect, room, sx);
-            x += sx;
+            flags |= h_move(rect, room, sx, &mut steps);
         }
         if e2 <= dx {
             error += dx;
-            flags |= v_move(rect, room, sy);
-            y += sy;
+            flags |= v_move(rect, room, sy, &mut steps);
         }
     }
     flags

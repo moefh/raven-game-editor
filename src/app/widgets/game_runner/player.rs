@@ -152,7 +152,9 @@ impl Player {
                 self.weapon = PlayerWeapon::Throw;
                 self.weapon_anim.reset();
             }
-            self.shoot_wait = 30;
+            if self.shoot_wait == 0 {
+                self.shoot_wait = 30;
+            }
             self.shoot = false;
         }
 
@@ -323,13 +325,17 @@ impl Player {
 
     fn create_shot(&self, game_state: &GameRunnerState, crouch: bool) -> Option<Bullet> {
         let asset_ids = game_state.asset_ids.as_ref()?;
-        let (sprite_anim_id, x, y, dx, dy) = match self.weapon {
+        let (sprite_anim_id, effect_anim_id, x, y, dx, dy) = match self.weapon {
             PlayerWeapon::None => { None }
-            PlayerWeapon::Gun => { Some((asset_ids.bullet_anim_id, BULLET_X, BULLET_Y, BULLET_DX, BULLET_DY)) }
-            PlayerWeapon::Throw => { Some((asset_ids.test_tube_anim_id, TEST_TUBE_X, TEST_TUBE_Y, TEST_TUBE_DX, TEST_TUBE_DY)) }
+            PlayerWeapon::Gun => { Some(
+                (asset_ids.bullet_anim_id, asset_ids.bullet_effect_anim_id, BULLET_X, BULLET_Y, BULLET_DX, BULLET_DY)
+            ) }
+            PlayerWeapon::Throw => { Some(
+                (asset_ids.test_tube_anim_id, asset_ids.test_tube_effect_anim_id, TEST_TUBE_X, TEST_TUBE_Y, TEST_TUBE_DX, TEST_TUBE_DY)
+            ) }
         }?;
         let (x, y) = if crouch { (x - 3, y + 3) } else { (x, y) };
-        Some(Bullet::new(self.x + x, self.y + y, self.direction.dx() * dx, dy, sprite_anim_id))
+        Some(Bullet::new(self.x + x, self.y + y, self.direction.dx() * dx, dy, sprite_anim_id, effect_anim_id))
     }
 
     pub fn tick_engine(

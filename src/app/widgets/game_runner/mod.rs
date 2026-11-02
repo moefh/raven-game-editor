@@ -85,7 +85,8 @@ pub struct GameRunnerAssetIds {
     pub test_tube_anim_id: DataAssetId,
     pub gun_anim_id: DataAssetId,
     pub bullet_anim_id: DataAssetId,
-    pub explosion_anim_id: DataAssetId,
+    pub test_tube_effect_anim_id: DataAssetId,
+    pub bullet_effect_anim_id: DataAssetId,
 }
 
 impl GameRunnerAssetIds {
@@ -94,7 +95,8 @@ impl GameRunnerAssetIds {
     const THROW_ANIMATION: &str = "weapons/throw";
     const TEST_TUBE_ANIMATION: &str = "bullets/test_tube";
     const BULLET_ANIMATION: &str = "bullets/missile";
-    const EXPLOSION_ANIMATION: &str = "weapons/explosion";
+    const BULLET_EFFECT_ANIMATION: &str = "effects/explosion";
+    const TEST_TUBE_EFFECT_ANIMATION: &str = "effects/test_tube_splash";
 
     pub fn load(store: &DataStore) -> Result<GameRunnerAssetIds, String> {
         let bunny = get_sprite_animation_by_name(store, Self::BUNNY_ANIMATION)
@@ -107,15 +109,18 @@ impl GameRunnerAssetIds {
             .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::GUN_ANIMATION))?;
         let bullet = get_sprite_animation_by_name(store, Self::BULLET_ANIMATION)
             .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::BULLET_ANIMATION))?;
-        let explosion = get_sprite_animation_by_name(store, Self::EXPLOSION_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::EXPLOSION_ANIMATION))?;
+        let bullet_effect = get_sprite_animation_by_name(store, Self::BULLET_EFFECT_ANIMATION)
+            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::BULLET_EFFECT_ANIMATION))?;
+        let test_tube_effect = get_sprite_animation_by_name(store, Self::TEST_TUBE_EFFECT_ANIMATION)
+            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::TEST_TUBE_EFFECT_ANIMATION))?;
         Ok(GameRunnerAssetIds {
             bunny_anim_id: bunny.asset.id,
             throw_anim_id: throw.asset.id,
             test_tube_anim_id: test_tube.asset.id,
             gun_anim_id: gun.asset.id,
             bullet_anim_id: bullet.asset.id,
-            explosion_anim_id: explosion.asset.id,
+            bullet_effect_anim_id: bullet_effect.asset.id,
+            test_tube_effect_anim_id: test_tube_effect.asset.id,
         })
     }
 }
@@ -514,14 +519,12 @@ impl GameRunnerWidget {
         self.bullets.retain_mut(|bullet| {
             let collided = bullet.tick_engine(room, &self.enemies, store, &mut self.state);
             if collided &&
-                let Some(asset_ids) = &self.state.asset_ids &&
                 let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
-                let Some(explosion_anim) = store.assets.animations.get(&asset_ids.explosion_anim_id) {
+                let Some(effect_anim) = store.assets.animations.get(&bullet.effect_anim_id) {
                     let direction = Direction::from_dx(bullet.dx);
-                    let explosion_anim_id = explosion_anim.asset.id;
-                    let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - explosion_anim.clip_rect.w/2;
-                    let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - explosion_anim.clip_rect.h/2;
-                    self.fx_display.push(EffectDisplay::new(x, y, direction, explosion_anim_id));
+                    let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
+                    let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - effect_anim.clip_rect.h/2;
+                    self.fx_display.push(EffectDisplay::new(x, y, direction, effect_anim.asset.id));
                 }
             ! collided  // retain if not collided
         });
