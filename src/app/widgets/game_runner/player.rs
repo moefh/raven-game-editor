@@ -1,5 +1,6 @@
 use crate::data_store::{
     DataStore,
+    PlayerChar,
     Room,
     Tileset,
     SpriteAnimation,
@@ -11,7 +12,6 @@ use super::{
     WindowContext,
     GameRunnerState,
     GameRunnerAction,
-    GameRunnerAssetIds,
     Enemy,
     Bullet,
     Animation,
@@ -27,18 +27,19 @@ const SHOOT_BUTTON: u32 = GAMEPAD_SNES_A;
 const THROW_BUTTON: u32 = GAMEPAD_SNES_Y;
 const INTERACT_BUTTON: u32 = GAMEPAD_SNES_X;
 
-pub struct PlayerAssets<'a> {
-    pub bunny_anim: &'a SpriteAnimation,
-    pub throw_anim: &'a SpriteAnimation,
-    pub gun_anim: &'a SpriteAnimation,
+pub struct PlayerCharAssets<'a> {
+    pub player_char: &'a PlayerChar,
+    pub char_anim: &'a SpriteAnimation,
 }
 
-impl<'a> PlayerAssets<'a> {
-    pub fn load(ids: &GameRunnerAssetIds, store: &'a DataStore) -> Option<Self> {
-        Some(PlayerAssets {
-            bunny_anim: store.assets.animations.get(&ids.bunny_anim_id)?,
-            throw_anim: store.assets.animations.get(&ids.throw_anim_id)?,
-            gun_anim: store.assets.animations.get(&ids.gun_anim_id)?,
+impl<'a> PlayerCharAssets<'a> {
+    pub fn load(store: &'a DataStore) -> Option<Self> {
+        let player_char_id = store.asset_ids.player_chars.get_first()?;
+        let player_char = store.assets.player_chars.get(&player_char_id)?;
+        let suit = player_char.suits.first()?;
+        Some(PlayerCharAssets {
+            player_char,
+            char_anim: store.assets.animations.get(&suit.anim_id)?,
         })
     }
 }
@@ -67,19 +68,6 @@ impl PlayerState {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum PlayerWeapon {
-    None,
-    Throw,
-    Gun,
-}
-
-impl PlayerWeapon {
-    pub fn is_some(self) -> bool {
-        self != PlayerWeapon::None
-    }
-}
-
 pub struct Player {
     pub x: i32,
     pub y: i32,
@@ -87,20 +75,20 @@ pub struct Player {
     pub dy: i32,              // 24.8 fixpoint
     pub state: PlayerState,
     pub direction: Direction,
-    pub weapon_frames: u32,
-    pub weapon: PlayerWeapon,
+    pub weapon_frames_left: u32,
+    pub weapon: Option<usize>,
     pub shoot_wait: u32,
     pub shoot: bool,
     pub last_shot_frame: u32,
-    pub bunny_anim: Animation,
+    pub char_anim: Animation,
     pub weapon_anim: Animation,
 }
 
 impl Player {
-    pub fn new(room: &Room, anim: &SpriteAnimation, asset_ids: &GameRunnerAssetIds) -> Self {
+    pub fn new(room: &Room, assets: &PlayerCharAssets) -> Self {
         let (x, y, direction) = if let Some(player_spawn) = get_room_player_spawn(room) {
-            let x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.w) / 2;
-            let y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - anim.clip_rect.h;
+            let x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - assets.char_anim.clip_rect.w) / 2;
+            let y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - assets.char_anim.clip_rect.h;
             let direction = if let RoomTriggerType::PlayerSpawn { direction } = player_spawn.trigger_type {
                 direction.value().into()
             } else {
@@ -118,10 +106,10 @@ impl Player {
             dx: 0,
             dy: 0,
             state: PlayerState::Stand,
-            bunny_anim: Animation::new(asset_ids.bunny_anim_id),
-            weapon_anim: Animation::new(asset_ids.gun_anim_id),
-            weapon_frames: 0,
-            weapon: PlayerWeapon::None,
+            char_anim: Animation::new(assets.char_anim.asset.id),
+            weapon_anim: Animation::new(assets.char_anim.asset.id),
+            weapon_frames_left: 0,
+            weapon: None,
             shoot_wait: 0,
             shoot: false,
             last_shot_frame: 0,
@@ -130,37 +118,32 @@ impl Player {
 
     pub fn set_state(&mut self, state: PlayerState) {
         self.state = state;
-        self.bunny_anim.frame = 0;
+        self.char_anim.frame = 0;
     }
 
-    pub fn control(&mut self, pad: &Controller, frame_counter: u32) {
+    pub fn control(&mut self, pad: &Controller, frame_counter: u32, assets: &PlayerCharAssets) {
         // weapons
-        if pad.held(SHOOT_BUTTON) {
-            self.weapon_frames = 8;
-            if self.weapon != PlayerWeapon::Gun {
-                self.weapon = PlayerWeapon::Gun;
+        let weapon_index = if pad.held(THROW_BUTTON) { Some(0) } else if pad.held(SHOOT_BUTTON) { Some(1) } else { None };
+        if let Some(weapon_index) = weapon_index && let Some(weapon) = assets.player_char.weapons.get(weapon_index) {
+            self.weapon_frames_left = weapon.shoot.anim_len as u32;
+            if self.weapon.is_none_or(|w| w != weapon_index) {
+                self.weapon = Some(weapon_index);
+                self.weapon_anim.sprite_anim_id = weapon.shoot.anim_id;
                 self.weapon_anim.reset();
             }
-            if frame_counter.saturating_sub(self.last_shot_frame) > 10 {
-                self.last_shot_frame = frame_counter;
-                self.shoot = true;
+            if self.shoot_wait == 0 && frame_counter.saturating_sub(self.last_shot_frame) > weapon.bullet.interval as u32 {
+                if weapon.bullet.initial_delay as u32 > 0 {
+                    self.shoot_wait = weapon.bullet.initial_delay as u32;
+                } else {
+                    self.shoot_wait = 1;  // will shoot immediatelly below
+                }
             }
-        }
-        if pad.pressed(THROW_BUTTON) {
-            self.weapon_frames = 45;
-            if self.weapon != PlayerWeapon::Throw {
-                self.weapon = PlayerWeapon::Throw;
-                self.weapon_anim.reset();
-            }
-            if self.shoot_wait == 0 {
-                self.shoot_wait = 30;
-            }
-            self.shoot = false;
         }
 
         if self.shoot_wait > 0 {
             self.shoot_wait -= 1;
             if self.shoot_wait == 0 {
+                self.last_shot_frame = frame_counter;
                 self.shoot = true;
             }
         }
@@ -323,25 +306,22 @@ impl Player {
         rect.contains_point(px, py1) || rect.contains_point(px, py2)
     }
 
-    fn create_shot(&self, game_state: &GameRunnerState, crouch: bool) -> Option<Bullet> {
-        let asset_ids = game_state.asset_ids.as_ref()?;
-        let (sprite_anim_id, effect_anim_id, x, y, dx, dy) = match self.weapon {
-            PlayerWeapon::None => { None }
-            PlayerWeapon::Gun => { Some(
-                (asset_ids.bullet_anim_id, asset_ids.bullet_effect_anim_id, BULLET_X, BULLET_Y, BULLET_DX, BULLET_DY)
-            ) }
-            PlayerWeapon::Throw => { Some(
-                (asset_ids.test_tube_anim_id, asset_ids.test_tube_effect_anim_id, TEST_TUBE_X, TEST_TUBE_Y, TEST_TUBE_DX, TEST_TUBE_DY)
-            ) }
-        }?;
-        let (x, y) = if crouch { (x - 3, y + 3) } else { (x, y) };
-        Some(Bullet::new(self.x + x, self.y + y, self.direction.dx() * dx, dy, sprite_anim_id, effect_anim_id))
+    fn create_shot(&self, crouch: bool, assets: &PlayerCharAssets) -> Option<Bullet> {
+        let weapon = self.weapon.and_then(|index| assets.player_char.weapons.get(index))?;
+        let sprite_anim_id = weapon.bullet.anim_id;
+        let effect_anim_id = weapon.bullet.hit_anim_id;
+        let x = weapon.bullet.x as i32 + if crouch { weapon.shoot.crouch_x as i32 } else { 0 };
+        let y = weapon.bullet.y as i32 + if crouch { weapon.shoot.crouch_y as i32 } else { 0 };
+        let dx = weapon.bullet.dx as i32;
+        let dy = weapon.bullet.dy as i32;
+        let direction_dx = self.direction.dx();
+        Some(Bullet::new(self.x + direction_dx * x, self.y + y, direction_dx * dx, dy, sprite_anim_id, effect_anim_id))
     }
 
     pub fn tick_engine(
         &mut self,
         room: &Room,
-        assets: &PlayerAssets,
+        assets: &PlayerCharAssets,
         store: &DataStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
@@ -353,8 +333,8 @@ impl Player {
         let mut rect = CollisionRect {
             x: self.x,
             y: self.y,
-            w: assets.bunny_anim.clip_rect.w,
-            h: assets.bunny_anim.clip_rect.h,
+            w: assets.char_anim.clip_rect.w,
+            h: assets.char_anim.clip_rect.h,
         };
         let col_flags = collision_move(&mut rect, &game_state.room, dx, dy);
         if (col_flags & COLLISION_FLAGS_DOWN) != 0 {
@@ -379,33 +359,28 @@ impl Player {
 
         self.x = rect.x;
         self.y = rect.y;
-        if self.weapon_frames != 0 {
-            self.weapon_frames -= 1;
-            if self.weapon_frames == 0 { self.weapon = PlayerWeapon::None; }
+        if self.weapon_frames_left != 0 {
+            self.weapon_frames_left -= 1;
+            if self.weapon_frames_left == 0 { self.weapon = None; }
         }
-        match self.weapon {
-            PlayerWeapon::Throw => {
+        if let Some(weapon_index) = self.weapon &&
+            let Some(weapon) = assets.player_char.weapons.get(weapon_index) &&
+            let Some(shoot_anim) = store.assets.animations.get(&weapon.shoot.anim_id) {
                 self.weapon_anim.aloop = self.state.get_anim_loop(false);
-                self.weapon_anim.advance(assets.throw_anim);
+                self.weapon_anim.advance(shoot_anim);
             }
-            PlayerWeapon::Gun => {
-                self.weapon_anim.aloop = self.state.get_anim_loop(false);
-                self.weapon_anim.advance(assets.gun_anim);
-            }
-            PlayerWeapon::None => {}
-        }
-        self.bunny_anim.aloop = self.state.get_anim_loop(self.weapon.is_some());
-        if let Some(cur_loop) = self.bunny_anim.advance(assets.bunny_anim) &&
+        self.char_anim.aloop = self.state.get_anim_loop(self.weapon.is_some());
+        if let Some(cur_loop) = self.char_anim.advance(assets.char_anim) &&
             self.state == PlayerState::Fall &&
-            (self.bunny_anim.frame >> 8) as usize >= cur_loop.frame_indices.len() {
+            (self.char_anim.frame >> 8) as usize >= cur_loop.frame_indices.len() {
                 // reaching end of animation in the "Fall" state moves to the "Fall2" state
                 self.set_state(PlayerState::Fall2);
             }
-        self.collect_items(room, assets.bunny_anim, store, pad, game_state, enemies);
+        self.collect_items(room, assets.char_anim, store, pad, game_state, enemies);
 
         if self.shoot {
             self.shoot = false;
-            if let Some(bullet) = self.create_shot(game_state, self.state == PlayerState::Crouch) {
+            if let Some(bullet) = self.create_shot(self.state == PlayerState::Crouch, assets) {
                 bullets.push(bullet);
             }
         }
@@ -424,7 +399,7 @@ impl Player {
             y: self.y,
             direction: self.direction,
         };
-        self.bunny_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
+        self.char_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
     }
 
     pub fn draw_weapon(
@@ -432,7 +407,7 @@ impl Player {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         store: &DataStore,
-        asset_ids: &GameRunnerAssetIds,
+        assets: &PlayerCharAssets,
         screen_pos: egui::Pos2,
         zoom: f32,
     ) {
@@ -441,16 +416,9 @@ impl Player {
             y: self.y,
             direction: self.direction,
         };
-        match self.weapon {
-            PlayerWeapon::Gun => {
-                self.weapon_anim.sprite_anim_id = asset_ids.gun_anim_id;
-                self.weapon_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
-            }
-            PlayerWeapon::Throw => {
-                self.weapon_anim.sprite_anim_id = asset_ids.throw_anim_id;
-                self.weapon_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
-            }
-            PlayerWeapon::None => {}
+        if let Some(weapon) = self.weapon.and_then(|index| assets.player_char.weapons.get(index)) {
+            self.weapon_anim.sprite_anim_id = weapon.shoot.anim_id;
+            self.weapon_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
         }
     }
 

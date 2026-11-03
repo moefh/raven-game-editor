@@ -26,7 +26,6 @@ impl Walker {
         _player: &Player,
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        _store: &DataStore,
     ) {
         enemy.walk_but_turn_on_bump_or_edge(enemy.direction.dx(), 0, game_state, anim);
     }

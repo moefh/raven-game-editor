@@ -20,11 +20,11 @@ pub struct Bullet {
     pub dx: i32,         // 24.8 fixpoint
     pub dy: i32,         // 24.8 fixpoint
     pub anim: Animation,
-    pub effect_anim_id: DataAssetId,
+    pub effect_anim_id: Option<DataAssetId>,
 }
 
 impl Bullet {
-    pub fn new(x: i32, y: i32, dx: i32, dy: i32, sprite_anim_id: DataAssetId, effect_anim_id: DataAssetId) -> Self {
+    pub fn new(x: i32, y: i32, dx: i32, dy: i32, sprite_anim_id: DataAssetId, effect_anim_id: Option<DataAssetId>) -> Self {
         Bullet {
             x: x << 8,
             y: y << 8,

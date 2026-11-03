@@ -59,7 +59,7 @@ use controller::{*};
 use collision::{*};
 use player::{
     Player,
-    PlayerAssets,
+    PlayerCharAssets,
 };
 use enemy::{
     Enemy,
@@ -78,52 +78,6 @@ pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
     dont_loop: false,
     frame_speed: 64,
 };
-
-pub struct GameRunnerAssetIds {
-    pub bunny_anim_id: DataAssetId,
-    pub throw_anim_id: DataAssetId,
-    pub test_tube_anim_id: DataAssetId,
-    pub gun_anim_id: DataAssetId,
-    pub bullet_anim_id: DataAssetId,
-    pub test_tube_effect_anim_id: DataAssetId,
-    pub bullet_effect_anim_id: DataAssetId,
-}
-
-impl GameRunnerAssetIds {
-    const BUNNY_ANIMATION: &str = "bunny";
-    const GUN_ANIMATION: &str = "weapons/gun";
-    const THROW_ANIMATION: &str = "weapons/throw";
-    const TEST_TUBE_ANIMATION: &str = "bullets/test_tube";
-    const BULLET_ANIMATION: &str = "bullets/missile";
-    const BULLET_EFFECT_ANIMATION: &str = "effects/explosion";
-    const TEST_TUBE_EFFECT_ANIMATION: &str = "effects/test_tube_splash";
-
-    pub fn load(store: &DataStore) -> Result<GameRunnerAssetIds, String> {
-        let bunny = get_sprite_animation_by_name(store, Self::BUNNY_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::BUNNY_ANIMATION))?;
-        let throw = get_sprite_animation_by_name(store, Self::THROW_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::THROW_ANIMATION))?;
-        let test_tube = get_sprite_animation_by_name(store, Self::TEST_TUBE_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::TEST_TUBE_ANIMATION))?;
-        let gun = get_sprite_animation_by_name(store, Self::GUN_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::GUN_ANIMATION))?;
-        let bullet = get_sprite_animation_by_name(store, Self::BULLET_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::BULLET_ANIMATION))?;
-        let bullet_effect = get_sprite_animation_by_name(store, Self::BULLET_EFFECT_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::BULLET_EFFECT_ANIMATION))?;
-        let test_tube_effect = get_sprite_animation_by_name(store, Self::TEST_TUBE_EFFECT_ANIMATION)
-            .ok_or_else(|| format!("Sprite animation not found: '{}'", Self::TEST_TUBE_EFFECT_ANIMATION))?;
-        Ok(GameRunnerAssetIds {
-            bunny_anim_id: bunny.asset.id,
-            throw_anim_id: throw.asset.id,
-            test_tube_anim_id: test_tube.asset.id,
-            gun_anim_id: gun.asset.id,
-            bullet_anim_id: bullet.asset.id,
-            bullet_effect_anim_id: bullet_effect.asset.id,
-            test_tube_effect_anim_id: test_tube_effect.asset.id,
-        })
-    }
-}
 
 pub enum GameRunnerAction {
     PlaySfx { sfx_id: DataAssetId, volume: u16, pitch_shift: u16 },
@@ -222,7 +176,6 @@ pub struct GameRunnerState {
     pub room_x: i32,
     pub room_y: i32,
     pub room: GameRunnerRoomState,
-    pub asset_ids: Option<GameRunnerAssetIds>,
     pub acquired_upgrade_ids: HashSet<u16>,
     pub acquired_collectable_ids: HashSet<u16>,
     pub acquired_flag_ids: HashSet<u16>,
@@ -235,7 +188,6 @@ impl GameRunnerState {
         GameRunnerState {
             room_x: 0,
             room_y: 0,
-            asset_ids: None,
             acquired_upgrade_ids: HashSet::new(),
             acquired_collectable_ids: HashSet::new(),
             acquired_flag_ids: HashSet::new(),
@@ -502,7 +454,7 @@ impl GameRunnerWidget {
         &mut self,
         wc: &mut WindowContext,
         room: &Room,
-        player_assets: &PlayerAssets,
+        player_assets: &PlayerCharAssets,
         store: &DataStore
     ) -> bool {
         self.state.actions.clear();
@@ -513,14 +465,14 @@ impl GameRunnerWidget {
         if let Some(player) = &mut self.player {
             player.tick_engine(room, player_assets, store, &self.controller, &mut self.state, &mut self.enemies, &mut self.bullets);
             for enemy in self.enemies.iter_mut() {
-                enemy.tick_engine(room, player, store, &mut self.state);
+                enemy.tick_engine(room, player, store, &mut self.state, player_assets);
             }
         }
         self.bullets.retain_mut(|bullet| {
             let collided = bullet.tick_engine(room, &self.enemies, store, &mut self.state);
             if collided &&
                 let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
-                let Some(effect_anim) = store.assets.animations.get(&bullet.effect_anim_id) {
+                let Some(effect_anim) = bullet.effect_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
                     let direction = Direction::from_dx(bullet.dx);
                     let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
                     let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - effect_anim.clip_rect.h/2;
@@ -531,7 +483,7 @@ impl GameRunnerWidget {
         self.fx_display.retain_mut(|fx_display| {
             ! fx_display.tick_engine(store)
         });
-        let room_changed = self.process_room_triggers(room, player_assets.bunny_anim, store);
+        let room_changed = self.process_room_triggers(room, player_assets.char_anim, store);
 
         for action in &self.state.actions {
             match action {
@@ -576,14 +528,12 @@ impl GameRunnerWidget {
     }
 
     fn load_asset_ids(&mut self, room_id: DataAssetId, store: &DataStore) -> Result<(), String> {
-        let asset_ids = GameRunnerAssetIds::load(store)?;
         let room = store.assets.rooms.get(&room_id)
             .ok_or_else(|| String::from("invalid room"))?;
-        let bunny_anim = store.assets.animations.get(&asset_ids.bunny_anim_id)
-            .ok_or_else(|| String::from("invalid bunny animation"))?;
+        let player_assets = PlayerCharAssets::load(store)
+            .ok_or_else(|| String::from("error loading player character assets"))?;
         self.load_room(room, store);
-        self.player = Some(Player::new(room, bunny_anim, &asset_ids));
-        self.state.asset_ids = Some(asset_ids);
+        self.player = Some(Player::new(room, &player_assets));
         Ok(())
     }
 
@@ -771,7 +721,7 @@ impl GameRunnerWidget {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         room: &Room,
-        player_assets: &PlayerAssets,
+        player_assets: &PlayerCharAssets,
         store: &DataStore
     ) {
         let min_size = Self::SCREEN_SIZE.max(ui.available_size());
@@ -785,7 +735,7 @@ impl GameRunnerWidget {
         let screen_rect = Rect::from_min_size(screen_pos, screen_size);
         ui.shrink_clip_rect(screen_rect);
 
-        self.follow_player(player_assets.bunny_anim);
+        self.follow_player(player_assets.char_anim);
         self.clip_scroll(room_size);
 
         // room
@@ -815,8 +765,8 @@ impl GameRunnerWidget {
         for bullet in self.bullets.iter_mut() {
             bullet.draw(ui, wc, store, draw_map_info.pos, zoom);
         }
-        if let Some(player) = &mut self.player && let Some(asset_ids) = &self.state.asset_ids {
-            player.draw_weapon(ui, wc, store, asset_ids, draw_map_info.pos, zoom);
+        if let Some(player) = &mut self.player {
+            player.draw_weapon(ui, wc, store, player_assets, draw_map_info.pos, zoom);
         }
         for enemy in self.enemies.iter_mut() {
             enemy.draw(ui, wc, store, draw_map_info.pos, zoom);
@@ -858,7 +808,7 @@ impl GameRunnerWidget {
             }
         };
 
-        let player_assets = match self.state.asset_ids.as_ref().and_then(|ids| PlayerAssets::load(ids, store)) {
+        let player_assets = match PlayerCharAssets::load(store) {
             Some(assets) => { assets }
             None => {
                 let message = self.required_assets_message.as_deref().unwrap_or("Required assets not found");
@@ -872,7 +822,7 @@ impl GameRunnerWidget {
                 self.controller.update(ui, wc);
             }
             if let Some(player) = &mut self.player {
-                player.control(&self.controller, self.frame_counter);
+                player.control(&self.controller, self.frame_counter, &player_assets);
             }
             if self.tick_engine(wc, room, &player_assets, store) {
                 // room changed; don't show this frame

@@ -55,7 +55,6 @@ impl Chiller {
         _player: &Player,
         game_state: &GameRunnerState,
         anim: &SpriteAnimation,
-        _store: &DataStore,
     ) {
         match self.state {
             State::Look => {

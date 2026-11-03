@@ -34,7 +34,6 @@ impl Floater {
         _player: &Player,
         _game_dtate: &GameRunnerState,
         _anim: &SpriteAnimation,
-        _store: &DataStore
     ) {
         self.float_frame += 16;
         if (self.float_frame >> 8) >= Self::FLOAT_DY.len() {

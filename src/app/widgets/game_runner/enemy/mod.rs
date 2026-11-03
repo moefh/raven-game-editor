@@ -23,6 +23,7 @@ use super::{
     Direction,
     Player,
     GameRunnerState,
+    PlayerCharAssets,
 };
 use super::collision::{*};
 
@@ -92,15 +93,15 @@ impl EnemyBehavior {
         enemy: &mut EnemyInfo,
         player: &Player,
         game_state: &GameRunnerState,
+        player_assets: &PlayerCharAssets,
         anim: &SpriteAnimation,
         room: &Room,
-        store: &DataStore
     ) {
         match self {
-            EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, game_state, anim, store); }
-            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, game_state, anim, store); }
-            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, game_state, anim, store); }
-            EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, game_state, anim, store); }
+            EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, game_state, anim); }
+            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, game_state, anim); }
+            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, game_state, player_assets, anim); }
+            EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, game_state, anim); }
             EnemyBehavior::Unknown => {}
         }
     }
@@ -283,9 +284,16 @@ impl Enemy {
         }
     }
 
-    pub fn tick_engine(&mut self, room: &Room, player: &Player, store: &DataStore, game_state: &mut GameRunnerState) {
+    pub fn tick_engine(
+        &mut self,
+        room: &Room,
+        player: &Player,
+        store: &DataStore,
+        game_state: &mut GameRunnerState,
+        player_assets: &PlayerCharAssets
+    ) {
         if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) {
-            self.behavior.tick(&mut self.enemy, player, game_state, anim, room, store);
+            self.behavior.tick(&mut self.enemy, player, game_state, player_assets, anim, room);
             if let Some(cur_loop) = anim.loops.get(self.enemy.anim_loop.index()) {
                 self.enemy.anim_frame += cur_loop.frame_speed as u32;
             }
