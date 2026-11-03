@@ -53,6 +53,7 @@ pub fn get_asset_type_image(asset_type: DataAssetType) -> ImageRef {
         DataAssetType::ModData => IMAGE_REFS.mod_data,
         DataAssetType::Font => IMAGE_REFS.font,
         DataAssetType::PropFont => IMAGE_REFS.prop_font,
+        DataAssetType::PlayerChar => IMAGE_REFS.player_char,
     }
 }
 
@@ -176,4 +177,5 @@ image_table! {
     mod_data: "../../assets/MODicon.png",
     font: "../../assets/FwFontIcon.png",
     prop_font: "../../assets/FontIcon.png",
+    player_char: "../../assets/PlayerCharIcon.png",
 }

@@ -324,6 +324,9 @@ impl RavenEditorApp {
         for pfont in self.store.assets.prop_fonts.iter_mut() {
             if let Some(editor) = self.editors.prop_fonts.get_mut(&pfont.asset.id) { editor.prepare_for_saving(pfont); }
         }
+        for pchar in self.store.assets.player_chars.iter_mut() {
+            if let Some(editor) = self.editors.player_chars.get_mut(&pchar.asset.id) { editor.prepare_for_saving(pchar); }
+        }
     }
 
     fn write_project(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
@@ -527,6 +530,9 @@ impl RavenEditorApp {
             }
             DataAssetType::PropFont => {
                 self.store.add_prop_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_prop_font(id)))
+            }
+            DataAssetType::PlayerChar => {
+                self.store.add_player_char(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_player_char(id)))
             }
         };
 
@@ -1093,6 +1099,17 @@ impl RavenEditorApp {
         for pfont in self.store.assets.prop_fonts.iter_mut() {
             if let Some(editor) = self.editors.prop_fonts.get_mut(&pfont.asset.id) {
                 editor.show(&mut win_ctx, pfont);
+            }
+        }
+        for pchar in self.store.assets.player_chars.iter_mut() {
+            if let Some(editor) = self.editors.player_chars.get_mut(&pchar.asset.id) {
+                let assets = editors::PlayerCharEditorAssetLists {
+                    animations: &self.store.assets.animations,
+                    sfxs: &self.store.assets.sfxs,
+                    asset_ids: &self.store.asset_ids,
+                    tables: &self.store.tables,
+                };
+                editor.show(&mut win_ctx, pchar, &assets);
             }
         }
 

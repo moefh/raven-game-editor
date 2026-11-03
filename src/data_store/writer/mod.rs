@@ -12,6 +12,7 @@ mod sfx;
 mod tileset;
 mod sprite;
 mod world;
+mod player_char;
 
 use std::cell::RefCell;
 use std::io::Result;
@@ -216,6 +217,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.write_asset_ids_for(self.store.asset_ids.animations.iter(), DataAssetType::SpriteAnimation, "SPRITE_ANIMATION")?;
         self.write_asset_ids_for(self.store.asset_ids.rooms.iter(), DataAssetType::Room, "ROOM")?;
         self.write_asset_ids_for(self.store.asset_ids.worlds.iter(), DataAssetType::World, "WORLD")?;
+        self.write_asset_ids_for(self.store.asset_ids.player_chars.iter(), DataAssetType::PlayerChar, "PLAYER_CHAR")?;
         self.write_asset_ids_for(self.store.asset_ids.tile_anims.iter(), DataAssetType::TileAnimation, "TILE_ANIMATION")?;
 
         Ok(())
@@ -421,6 +423,7 @@ impl<'a> ProjectDataWriter<'a> {
         self.ident.add_assets(DataAssetType::ModData, self.store);
         self.ident.add_assets(DataAssetType::Font, self.store);
         self.ident.add_assets(DataAssetType::PropFont, self.store);
+        self.ident.add_assets(DataAssetType::PlayerChar, self.store);
         Ok(())
     }
 
@@ -440,6 +443,7 @@ impl<'a> ProjectDataWriter<'a> {
         tile_animation::write_tile_animations(&self, &self.store.asset_ids.tile_anims.store)?;
         room::write_rooms(&self, &self.store.asset_ids.rooms.store)?;
         world::write_worlds(&self, &self.store.asset_ids.worlds.store)?;
+        player_char::write_player_chars(&self, &self.store.asset_ids.player_chars.store)?;
 
         self.write_tables()?;
 
@@ -451,6 +455,7 @@ impl<'a> ProjectDataWriter<'a> {
         map_data::write_map_item_names(&self, &self.store.asset_ids.maps.store)?;
         room::write_room_item_names(&self, &self.store.asset_ids.rooms.store)?;
         world::write_world_item_names(&self, &self.store.asset_ids.worlds.store)?;
+        player_char::write_player_char_names(&self, &self.store.asset_ids.player_chars.store)?;
         self.write_asset_ids()?;
         self.write_sprite_sizes()?;
 

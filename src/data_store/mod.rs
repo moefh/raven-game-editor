@@ -10,6 +10,8 @@ mod sfx;
 mod mod_data;
 mod font;
 mod prop_font;
+mod player_char;
+mod tables;
 mod reader;
 mod writer;
 mod header_def;
@@ -88,6 +90,18 @@ pub use mod_data::{
 };
 pub use font::Font;
 pub use prop_font::PropFont;
+pub use player_char::{
+    PlayerChar,
+    PlayerCharSuit,
+    PlayerCharWeapon,
+    PlayerCharWeaponShoot,
+    PlayerCharWeaponBullet,
+};
+pub use tables::{
+    DataStoreEffectTable,
+    DataStoreItemTable,
+    DataStoreTableItem,
+};
 pub use header_def::write_header_def;
 
 pub struct StringLogger {
@@ -155,6 +169,7 @@ pub enum DataAssetType {
     ModData,
     Font,
     PropFont,
+    PlayerChar,
 }
 
 impl DataAssetType {
@@ -172,6 +187,7 @@ impl DataAssetType {
             DataAssetType::ModData => "mod",
             DataAssetType::Font => "font",
             DataAssetType::PropFont => "prop_font",
+            DataAssetType::PlayerChar => "player_char",
         }
     }
 }
@@ -327,6 +343,7 @@ pub struct AssetCollection {
     pub mods: DataAssetList<ModData>,
     pub fonts: DataAssetList<Font>,
     pub prop_fonts: DataAssetList<PropFont>,
+    pub player_chars: DataAssetList<PlayerChar>,
 }
 
 impl AssetCollection {
@@ -344,6 +361,7 @@ impl AssetCollection {
             mods: DataAssetList::new(),
             fonts: DataAssetList::new(),
             prop_fonts: DataAssetList::new(),
+            player_chars: DataAssetList::new(),
         }
     }
 
@@ -360,6 +378,7 @@ impl AssetCollection {
         if let Some(v) = self.mods.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.fonts.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.prop_fonts.get(&asset_id) { return Some(&v.asset); }
+        if let Some(v) = self.player_chars.get(&asset_id) { return Some(&v.asset); }
         None
     }
 
@@ -376,6 +395,7 @@ impl AssetCollection {
         if let Some(v) = self.mods.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.prop_fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
+        if let Some(v) = self.player_chars.get_mut(&asset_id) { return Some(&mut v.asset); }
         None
     }
 
@@ -429,6 +449,16 @@ impl AssetCollection {
                 }
             }
         }
+        for pchar in self.player_chars.iter() {
+            for suit in pchar.suits.iter() {
+                if suit.anim_id == id { return true; }
+            }
+            for weapon in pchar.weapons.iter() {
+                if weapon.shoot.anim_id == id || weapon.bullet.anim_id == id { return true; }
+                if weapon.shoot.sfx_id.is_some_and(|sfx_id| sfx_id == id) { return true; }
+                if weapon.bullet.hit_sfx_id.is_some_and(|sfx_id| sfx_id == id) { return true; }
+            }
+        }
         false
     }
 
@@ -444,7 +474,8 @@ impl AssetCollection {
         let sum = self.sfxs.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.mods.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.fonts.iter().fold(sum, |sum, a| sum + a.data_size());
-        self.prop_fonts.iter().fold(sum, |sum, a| sum + a.data_size())
+        let sum = self.prop_fonts.iter().fold(sum, |sum, a| sum + a.data_size());
+        self.player_chars.iter().fold(sum, |sum, a| sum + a.data_size())
     }
 }
 
@@ -461,6 +492,7 @@ pub struct AssetIdCollection {
     pub mods: DataAssetIdList,
     pub fonts: DataAssetIdList,
     pub prop_fonts: DataAssetIdList,
+    pub player_chars: DataAssetIdList,
 }
 
 impl AssetIdCollection {
@@ -478,6 +510,7 @@ impl AssetIdCollection {
             mods: DataAssetIdList::new(),
             fonts: DataAssetIdList::new(),
             prop_fonts: DataAssetIdList::new(),
+            player_chars: DataAssetIdList::new(),
         }
     }
 
@@ -495,6 +528,7 @@ impl AssetIdCollection {
             DataAssetType::ModData => self.mods.iter(),
             DataAssetType::Font => self.fonts.iter(),
             DataAssetType::PropFont => self.prop_fonts.iter(),
+            DataAssetType::PlayerChar => self.player_chars.iter(),
         }
     }
 }
@@ -514,53 +548,6 @@ impl DataAssetIdGenerator {
         let id = self.next_id;
         self.next_id += 1;
         DataAssetId { id }
-    }
-}
-
-pub struct DataStoreEffectTable {
-    pub names: Vec<String>,
-}
-
-impl DataStoreEffectTable {
-    pub fn new() -> Self {
-        DataStoreEffectTable {
-            names: Vec::new(),
-        }
-    }
-
-    pub fn data_hash(&self, hasher: &mut DataHasher) {
-        for name in &self.names {
-            hasher.add_str(name);
-        }
-    }
-}
-
-pub struct DataStoreItem {
-    pub name: String,
-    pub sprite_id: DataAssetId,
-}
-
-pub struct DataStoreItemTable {
-    pub items: Vec<DataStoreItem>,
-}
-
-impl DataStoreItemTable {
-    pub fn new() -> Self {
-        DataStoreItemTable {
-            items: Vec::new(),
-        }
-    }
-
-    pub fn data_hash(&self, hasher: &mut DataHasher) {
-        for item in &self.items {
-            hasher.add_str(&item.name);
-            hasher.add_asset_id(item.sprite_id);
-        }
-    }
-
-    pub fn data_size(&self) -> usize {
-        // ptr<4> * num_items
-        4 * self.items.len()
     }
 }
 
@@ -604,8 +591,8 @@ pub struct DataStore {
 }
 
 impl DataStore {
-    pub const VERSION: u32 = 12;
-    pub const VERSION_DATE: &str = "2026-10-24";
+    pub const VERSION: u32 = 13;
+    pub const VERSION_DATE: &str = "2026-11-03";
 
     pub fn new() -> Self {
         DataStore {
@@ -689,7 +676,8 @@ impl DataStore {
             self.assets.sfxs.store.len() +
             self.assets.mods.store.len() +
             self.assets.fonts.store.len() +
-            self.assets.prop_fonts.store.len()
+            self.assets.prop_fonts.store.len() +
+            self.assets.player_chars.store.len()
     }
 
     pub fn data_size(&self) -> usize {
@@ -721,6 +709,7 @@ impl DataStore {
         if let Some(v) = self.assets.mods.remove(&id) { self.asset_ids.mods.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.fonts.remove(&id) { self.asset_ids.fonts.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.prop_fonts.remove(&id) { self.asset_ids.prop_fonts.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.player_chars.remove(&id) { self.asset_ids.player_chars.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sprites.remove(&id) {
             self.asset_ids.sprites.remove_id(id);
             metadata.remove_sprite(id);
@@ -777,6 +766,10 @@ impl DataStore {
         }
         if let Some(dup_id) = self.assets.prop_fonts.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.prop_fonts.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.player_chars.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.player_chars.push(dup_id);
             return Some(dup_id);
         }
         None
@@ -877,6 +870,13 @@ impl DataStore {
         let id = self.gen_id();
         self.asset_ids.prop_fonts.push(id);
         self.assets.prop_fonts.insert(id, PropFont::new(id, name));
+        Some(id)
+    }
+
+    pub fn add_player_char(&mut self, name: String) -> Option<DataAssetId> {
+        let id = self.gen_id();
+        self.asset_ids.player_chars.push(id);
+        self.assets.player_chars.insert(id, PlayerChar::new(id, name));
         Some(id)
     }
 }

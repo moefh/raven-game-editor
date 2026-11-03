@@ -10,6 +10,7 @@ mod mod_data;
 mod sfx;
 mod font;
 mod prop_font;
+mod player_char;
 mod base;
 mod utils;
 
@@ -26,6 +27,7 @@ pub use mod_data::{*};
 pub use sfx::{*};
 pub use font::{*};
 pub use prop_font::{*};
+pub use player_char::{*};
 pub use base::{*};
 
 use crate::data_store::{
@@ -43,6 +45,7 @@ use crate::data_store::{
     Sfx,
     Font,
     PropFont,
+    PlayerChar,
 };
 
 pub fn get_tileset_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Tileset> {
@@ -80,6 +83,9 @@ pub fn get_font_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Font
 }
 pub fn get_prop_font_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a PropFont> {
     store.assets.prop_fonts.iter().find(|asset| asset.asset.name == name)
+}
+pub fn get_player_char_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a PlayerChar> {
+    store.assets.player_chars.iter().find(|asset| asset.asset.name == name)
 }
 
 #[derive(Clone, Copy)]
@@ -126,6 +132,7 @@ pub struct ProjectComparer {
     pub sfxs: SfxListDiff,
     pub fonts: FontListDiff,
     pub prop_fonts: PropFontListDiff,
+    pub player_chars: PlayerCharListDiff,
 }
 
 impl ProjectComparer {
@@ -144,6 +151,7 @@ impl ProjectComparer {
             sfxs: SfxListDiff::new(),
             fonts: FontListDiff::new(),
             prop_fonts: PropFontListDiff::new(),
+            player_chars: PlayerCharListDiff::new(),
         }
     }
 
@@ -159,7 +167,8 @@ impl ProjectComparer {
             self.mods.is_empty() &&
             self.sfxs.is_empty() &&
             self.fonts.is_empty() &&
-            self.prop_fonts.is_empty())
+            self.prop_fonts.is_empty() &&
+            self.player_chars.is_empty())
     }
 
     pub fn has_asset_differences(&self, asset_type: DataAssetType) -> bool {
@@ -176,6 +185,7 @@ impl ProjectComparer {
             DataAssetType::Sfx => { ! self.sfxs.is_empty() }
             DataAssetType::Font => { ! self.fonts.is_empty() }
             DataAssetType::PropFont => { ! self.prop_fonts.is_empty() }
+            DataAssetType::PlayerChar => { ! self.player_chars.is_empty() }
         }
     }
 
@@ -193,6 +203,7 @@ impl ProjectComparer {
         self.sfxs.clear();
         self.fonts.clear();
         self.prop_fonts.clear();
+        self.player_chars.clear();
     }
 
     pub fn run(&mut self, cur_store: &DataStore, other_store: &DataStore) {
@@ -209,5 +220,6 @@ impl ProjectComparer {
         self.sfxs.compare(cur_store, other_store);
         self.fonts.compare(cur_store, other_store);
         self.prop_fonts.compare(cur_store, other_store);
+        self.player_chars.compare(cur_store, other_store);
     }
 }

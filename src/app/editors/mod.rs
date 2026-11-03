@@ -16,6 +16,7 @@ mod sfx;
 mod mod_data;
 mod font;
 mod prop_font;
+mod player_char;
 
 pub use store::EditorStore;
 pub use actions::EditorAction;
@@ -43,6 +44,10 @@ pub use sfx::SfxEditor;
 pub use mod_data::ModDataEditor;
 pub use font::FontEditor;
 pub use prop_font::PropFontEditor;
+pub use player_char::{
+    PlayerCharEditor,
+    PlayerCharEditorAssetLists,
+};
 
 pub use widgets::ColorPickerPopupWidget;
 

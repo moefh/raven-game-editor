@@ -1,6 +1,6 @@
 use crate::data_store::{
     DataStore,
-    DataStoreItem,
+    DataStoreTableItem,
     DataStoreItemTable,
     DataStoreEffectTable,
     RoomTriggerType,
@@ -72,7 +72,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item(self, store: &DataStore, index: usize) -> Option<&DataStoreItem> {
+    pub fn get_store_item(self, store: &DataStore, index: usize) -> Option<&DataStoreTableItem> {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get(index) }
@@ -81,7 +81,7 @@ impl DataTableReference {
         }
     }
 
-    pub fn get_store_item_mut(self, store: &mut DataStore, index: usize) -> Option<&mut DataStoreItem> {
+    pub fn get_store_item_mut(self, store: &mut DataStore, index: usize) -> Option<&mut DataStoreTableItem> {
         match self {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get_mut(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get_mut(index) }

@@ -15,6 +15,7 @@ mod sfx;
 mod mod_data;
 mod font;
 mod prop_font;
+mod player_char;
 
 use std::io::{Result, Error};
 use std::collections::{HashMap, HashSet};
@@ -37,7 +38,7 @@ use super::{
     DataStore,
     DataAssetIdGenerator,
     DataStoreTables,
-    DataStoreItem,
+    DataStoreTableItem,
     DataStoreItemTable,
     DataStoreEffectTable,
     AssetCollection,
@@ -99,6 +100,7 @@ static ASSET_TYPES_BY_ARRAY_NAME: LazyLock<HashMap<String, DataAssetType>> = Laz
         (String::from("pal_sprites"), DataAssetType::PalSprite),
         (String::from("sprite_animations"), DataAssetType::SpriteAnimation),
         (String::from("tile_animations"), DataAssetType::TileAnimation),
+        (String::from("player_chars"), DataAssetType::PlayerChar),
     ])
 });
 
@@ -116,6 +118,7 @@ static ASSET_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::
         (String::from("PAL_SPRITE"), pal_sprite::get_asset_def()),
         (String::from("SPRITE_ANIMATION"), sprite_animation::get_asset_def()),
         (String::from("TILE_ANIMATION"), tile_animation::get_asset_def()),
+        (String::from("PLAYER_CHAR"), player_char::get_asset_def()),
     ])
 });
 
@@ -133,6 +136,7 @@ static GLOBAL_STRUCT_DEFS: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::
         room::get_global_struct_defs,
         world::get_global_struct_defs,
         map_data::get_global_struct_defs,
+        player_char::get_global_struct_defs,
     ];
     let mut struct_defs = HashMap::new();
     for global_struct_defs_gen in global_struct_defs_gen_table {
@@ -187,6 +191,7 @@ fn get_asset_type_upper_name(asset_type: DataAssetType) -> &'static str {
         DataAssetType::PalSprite => { "PAL_SPRITE" }
         DataAssetType::SpriteAnimation => { "SPRITE_ANIMATION" }
         DataAssetType::TileAnimation => { "TILE_ANIMATION" }
+        DataAssetType::PlayerChar => { "PLAYER_CHAR" }
     }
 }
 
@@ -904,7 +909,7 @@ impl<'a> ProjectDataReader<'a> {
                 });
                 let sprite_ref = data.get_asset_ref("sprite")?;
                 let sprite_id = sprite_ref.get_asset_id(&self.data)?;
-                items.push(DataStoreItem { name, sprite_id });
+                items.push(DataStoreTableItem { name, sprite_id });
             }
         }
         Ok(DataStoreItemTable { items })
@@ -1017,6 +1022,12 @@ impl<'a> ProjectDataReader<'a> {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.prop_fonts.push(id);
                                 assets.prop_fonts.insert(id, prop_font::create(id, asset_struct, &self.data)?);
+                            }
+                        }
+                        DataAssetType::PlayerChar => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.player_chars.push(id);
+                                assets.player_chars.insert(id, player_char::create(id, asset_struct, &self.data)?);
                             }
                         }
                     }

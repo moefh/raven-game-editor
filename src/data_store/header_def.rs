@@ -321,6 +321,42 @@ struct $<PREFIX>_TILE_ANIMATION {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_TILE_ANIMATION */
 
+#ifndef $<PREFIX>_SKIP_STRUCTS_PLAYER_CHAR
+
+struct $<PREFIX>_PLAYER_CHAR_SUIT {
+    const struct $<PREFIX>_SPRITE_ANIMATION *animation;
+    uint16_t req_upgrade_id;
+};
+
+struct $<PREFIX>_PLAYER_CHAR_WEAPON {
+    const struct $<PREFIX>_SPRITE_ANIMATION *shoot_anim;
+    const struct $<PREFIX>_SPRITE_ANIMATION *shoot_sfx;
+    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_anim;
+    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_hit_sfx;
+
+    uint16_t req_collectable_id;
+    uint16_t ammo_pickup_id;
+    int8_t crouch_x;
+    int8_t crouch_y;
+    int8_t bullet_x;
+    int8_t bullet_y;
+    int16_t bullet_dx;
+    int16_t bullet_dy;
+    uint16_t damage;
+    uint8_t bullet_initial_delay;
+    uint8_t bullet_interval;
+    uint8_t shoot_anim_len;
+};
+
+struct $<PREFIX>_PLAYER_CHAR {
+    uint16_t num_suits;
+    uint16_t num_weapons;
+    const struct $<PREFIX>_PLAYER_CHAR_SUIT *suits;
+    const struct $<PREFIX>_PLAYER_CHAR_WEAPON *weapons;
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_PLAYER_CHAR */
+
 #ifndef $<PREFIX>_SKIP_STRUCTS_DATA_TABLES
 
 struct $<PREFIX>_TABLE_ITEM {

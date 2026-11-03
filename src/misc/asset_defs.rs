@@ -92,6 +92,17 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.animation,
     },
     AssetDef {
+        asset_type: DataAssetType::PlayerChar,
+        default_name_prefix: "char",
+        type_name: "Character",
+        add_menu_item: " Add Character",
+        duplicate_menu_item: " Duplicate Character",
+        remove_menu_item: " Delete Character",
+        rename_menu_item: " Rename Character",
+        tree_root_item: "Characters",
+        image: IMAGE_REFS.player_char,
+    },
+    AssetDef {
         asset_type: DataAssetType::PalSprite,
         default_name_prefix: "pal_sprite",
         type_name: "Paletted Sprite",

@@ -10,6 +10,7 @@ mod mod_data;
 mod sfx;
 mod font;
 mod prop_font;
+mod player_char;
 mod base;
 
 use crate::include_ref_image;
@@ -232,6 +233,7 @@ impl ProjectComparerDisplay {
             DataAssetType::Sfx => { sfx::show_sfxs(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::Font => { font::show_fonts(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::PropFont => { prop_font::show_prop_fonts(ui, wc, &self.comparer, store, other_store) }
+            DataAssetType::PlayerChar => { player_char::show_player_chars(ui, wc, &self.comparer, store, other_store) }
         };
 
         if ! diff_state.has_differences {
@@ -333,18 +335,6 @@ impl ProjectComparerDisplay {
                     let asset_diff_state = match asset_type {
                         DataAssetType::Tileset => { self.tileset_diff.show(ui, wc, &self.comparer, diff_ref, store, other_store) }
                         DataAssetType::Sprite => { self.sprite_diff.show(ui, wc, &self.comparer, diff_ref, store, other_store) }
-                        /*
-                        DataAssetType::TileAnimation => { tile_animation::show_tile_anims(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::MapData => { map_data::show_maps(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::Room => { room::show_rooms(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::World => { world::show_worlds(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::PalSprite => { pal_sprite::show_pal_sprites(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::SpriteAnimation => { sprite_animation::show_animations(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::ModData => { mod_data::show_mods(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::Sfx => { sfx::show_sfxs(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::Font => { font::show_fonts(ui, wc, &self.comparer, store, other_store) }
-                        DataAssetType::PropFont => { prop_font::show_prop_fonts(ui, wc, &self.comparer, store, other_store) }
-                         */
                         _ => { DiffState::EMPTY }
                     };
                     diff_state.merge(asset_diff_state);

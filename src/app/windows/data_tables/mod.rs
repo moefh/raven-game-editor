@@ -18,7 +18,7 @@ use super::super::{
 
 use crate::misc::IMAGES;
 use crate::data_store::{
-    DataStoreItem,
+    DataStoreTableItem,
     DataStore,
 };
 
@@ -164,7 +164,7 @@ impl Editor {
                 if ui.add(egui::Button::new(self.table_ref.add_item_label())).clicked() &&
                     let Some(table) = self.table_ref.get_store_item_table_mut(store) {
                         if let Some(new_sprite_id) = new_sprite_id {
-                            table.items.push(DataStoreItem {
+                            table.items.push(DataStoreTableItem {
                                 name: String::from(self.table_ref.new_item_name()),
                                 sprite_id: new_sprite_id,
                             });
