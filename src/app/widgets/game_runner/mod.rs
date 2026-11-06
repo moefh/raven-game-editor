@@ -469,7 +469,7 @@ impl GameRunnerWidget {
             }
         }
         self.bullets.retain_mut(|bullet| {
-            let collided = bullet.tick_engine(room, &self.enemies, store, &mut self.state);
+            let collided = bullet.tick_engine(room, &mut self.enemies, store, &mut self.state);
             if collided &&
                 let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
                 let Some(effect_anim) = bullet.effect_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {

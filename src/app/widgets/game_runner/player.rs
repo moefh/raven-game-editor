@@ -315,7 +315,8 @@ impl Player {
         let dx = weapon.bullet.dx as i32;
         let dy = weapon.bullet.dy as i32;
         let direction_dx = self.direction.dx();
-        Some(Bullet::new(self.x + direction_dx * x, self.y + y, direction_dx * dx, dy, sprite_anim_id, effect_anim_id))
+        let damage = weapon.bullet.damage;
+        Some(Bullet::new(self.x + direction_dx * x, self.y + y, direction_dx * dx, dy, damage, sprite_anim_id, effect_anim_id))
     }
 
     pub fn tick_engine(

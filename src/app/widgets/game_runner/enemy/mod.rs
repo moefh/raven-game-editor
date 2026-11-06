@@ -45,6 +45,7 @@ pub enum EnemyAnimLoop {
     PrepJump,
     Explode,
     Float,
+    Die,
 }
 
 impl EnemyAnimLoop {
@@ -60,6 +61,7 @@ impl EnemyAnimLoop {
             EnemyAnimLoop::PrepJump => { 7 }
             EnemyAnimLoop::Explode  => { 8 }
             EnemyAnimLoop::Float    => { 9 }
+            EnemyAnimLoop::Die      => { 10 }
         }
     }
 }
@@ -111,12 +113,27 @@ pub struct EnemyInfo {
     pub x: i32,
     pub y: i32,
     pub direction: Direction,
+    pub health: u16,
+    pub damage_frames_left: u16,
     pub anim_id: DataAssetId,
     pub anim_loop: EnemyAnimLoop,
     pub anim_frame: u32,  // 24.8 fixpoint
 }
 
 impl EnemyInfo {
+    pub fn new(x: i32, y: i32, direction: Direction, anim_id: DataAssetId) -> EnemyInfo {
+        EnemyInfo {
+            x,
+            y,
+            direction,
+            anim_id,
+            health: 6,
+            damage_frames_left: 0,
+            anim_loop: EnemyAnimLoop::Stand,
+            anim_frame: 0,
+        }
+    }
+
     fn check_player_seen(&self, player: &Player, enemy_anim: &SpriteAnimation, player_anim: &SpriteAnimation) -> Option<Direction> {
         const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
 
@@ -247,13 +264,18 @@ impl EnemyInfo {
             zoom * sprite_size
         );
         let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-        egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
+        let image = egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv);
+        if self.damage_frames_left != 0 && self.health != 0 {
+            image.tint(egui::Color32::RED).paint_at(ui, draw_rect);
+        } else {
+            image.paint_at(ui, draw_rect);
+        }
     }
 }
 
 pub struct Enemy {
     pub id: u16,
-    enemy: EnemyInfo,
+    pub info: EnemyInfo,
     behavior: EnemyBehavior,
 }
 
@@ -267,20 +289,24 @@ impl Enemy {
         room: &Room,
         store: &DataStore
     ) -> Self {
-        let mut enemy = EnemyInfo {
-            x: pos.0 as i32,
-            y: pos.1 as i32,
-            direction: direction.into(),
-            anim_id,
-            anim_loop: EnemyAnimLoop::Stand,
-            anim_frame: 0,
-        };
-        let behavior = EnemyBehavior::new(enemy_type, &mut enemy, room, store);
+        let mut info = EnemyInfo::new(pos.0 as i32, pos.1 as i32, direction.into(), anim_id);
+        let behavior = EnemyBehavior::new(enemy_type, &mut info, room, store);
 
         Enemy {
             id,
-            enemy,
+            info,
             behavior,
+        }
+    }
+
+    pub fn damage(&mut self, damage: u16) {
+        if self.info.health != 0 {
+            self.info.health = self.info.health.saturating_sub(damage);
+            if self.info.health == 0 {
+                self.info.damage_frames_left = 120;
+            } else {
+                self.info.damage_frames_left = 12;
+            }
         }
     }
 
@@ -292,10 +318,17 @@ impl Enemy {
         game_state: &mut GameRunnerState,
         player_assets: &PlayerCharAssets
     ) {
-        if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) {
-            self.behavior.tick(&mut self.enemy, player, game_state, player_assets, anim, room);
-            if let Some(cur_loop) = anim.loops.get(self.enemy.anim_loop.index()) {
-                self.enemy.anim_frame += cur_loop.frame_speed as u32;
+        if self.info.damage_frames_left != 0 {
+            self.info.damage_frames_left -= 1;
+        }
+        if let Some(anim) = store.assets.animations.get(&self.info.anim_id) {
+            if self.info.health == 0 {
+                self.info.anim_loop = EnemyAnimLoop::Die;
+            } else {
+                self.behavior.tick(&mut self.info, player, game_state, player_assets, anim, room);
+            }
+            if let Some(cur_loop) = anim.loops.get(self.info.anim_loop.index()) {
+                self.info.anim_frame += cur_loop.frame_speed as u32;
             }
         }
     }
@@ -308,9 +341,9 @@ impl Enemy {
         screen_pos: egui::Pos2,
         zoom: f32,
     ) {
-        if let Some(anim) = store.assets.animations.get(&self.enemy.anim_id) &&
+        if let Some(anim) = store.assets.animations.get(&self.info.anim_id) &&
             let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
-                self.enemy.draw(ui, wc, sprite, anim, screen_pos, zoom);
+                self.info.draw(ui, wc, sprite, anim, screen_pos, zoom);
             }
     }
 }
