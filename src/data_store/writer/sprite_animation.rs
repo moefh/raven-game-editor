@@ -36,15 +36,16 @@ fn write_animation_frames(writer: &ProjectDataWriter, anim: &SpriteAnimation, na
     for (loop_index, aloop) in anim.loops.iter().enumerate() {
         let use_loop_name_id = if aloop.name_id == "names" { "names0" } else { &aloop.name_id };
         IdentStore::add_unique_name_id(loop_index, use_loop_name_id, &mut loop_index_to_name_id);
-        if aloop.frame_indices.is_empty() { continue; }
-        writer.write(format!("  // {}\n  ", aloop.name_id));
-        for frame in aloop.frame_indices.iter() {
-            writer.write(format!("{:#04x},", frame.head_index.unwrap_or(0xff)));
-            if add_foot {
-                writer.write(format!("{:#04x},", frame.foot_index.unwrap_or(0xff)));
+        if ! aloop.frame_indices.is_empty() {
+            writer.write(format!("  // {}\n  ", aloop.name_id));
+            for frame in aloop.frame_indices.iter() {
+                writer.write(format!("{:#04x},", frame.head_index.unwrap_or(0xff)));
+                if add_foot {
+                    writer.write(format!("{:#04x},", frame.foot_index.unwrap_or(0xff)));
+                }
             }
+            writer.write("\n");
         }
-        writer.write("\n");
         loop_offsets.push(offset);
         offset += aloop.frame_indices.len() * if add_foot { 2 } else { 1 };
     }
