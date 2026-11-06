@@ -654,6 +654,12 @@ impl Editor {
                             });
                             ui.end_row();
 
+                            ui.label("   Damage:");
+                            ui.horizontal(|ui| {
+                                Self::show_number_editor(ui, &mut weapon.bullet.damage, 0..=u16::MAX);
+                            });
+                            ui.end_row();
+
                             ui.label("   Spawn X:");
                             ui.horizontal(|ui| {
                                 Self::show_number_editor(ui, &mut weapon.bullet.x, i8::MIN..=i8::MAX);
