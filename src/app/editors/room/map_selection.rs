@@ -10,6 +10,7 @@ use crate::data_store::{
 };
 
 use super::super::{
+    EMPTY_FRAME,
     sorted_assets,
     AssetEditorBase,
     WindowContext,
@@ -76,25 +77,35 @@ impl MapSelectionDialog {
         changed
     }
 
-    pub fn show(&mut self, wc: &mut WindowContext, room: &mut Room, maps: &DataAssetList<MapData>, tilesets: &DataAssetList<Tileset>) -> bool {
+    pub fn show(
+        &mut self,
+        wc: &mut WindowContext,
+        room: &mut Room,
+        maps: &DataAssetList<MapData>,
+        tilesets: &DataAssetList<Tileset>
+    ) -> bool {
         let mut maps_changed = false;
         let modal_response = AssetEditorBase::show_dialog_window(wc, self.dlg_id, 550.0, "Room Properties", |ui, wc| {
             let asset_id = room.asset.id;
 
-            egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
-                ui.add_space(5.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        maps_changed = self.confirm(room);
-                        ui.close();
-                    }
+            egui::Panel::bottom(format!("editor_panel_{}_maps_bot", asset_id))
+                .frame(EMPTY_FRAME)
+                .show_separator_line(false)
+                .show(ui, |ui| {
+                    ui.add_space(5.0);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                        if ui.button("Cancel").clicked() {
+                            ui.close();
+                        }
+                        if ui.button("Ok").clicked() {
+                            maps_changed = self.confirm(room);
+                            ui.close();
+                        }
+                    });
                 });
-            });
 
             egui::Panel::left(format!("editor_panel_{}_maps_left", asset_id))
+                .frame(EMPTY_FRAME)
                 .resizable(false)
                 .show_separator_line(false)
                 .min_size(200.0)
@@ -133,7 +144,7 @@ impl MapSelectionDialog {
                     if display_map.is_some() { self.display_map_id = display_map; }
                 });
 
-            egui::CentralPanel::default().show(ui, |ui| {
+            egui::CentralPanel::default().frame(EMPTY_FRAME).show(ui, |ui| {
                 if let Some(map_data) = self.display_map_id.and_then(|map_id| maps.get(&map_id)) &&
                     let Some(tileset) = tilesets.get(&map_data.tileset_id) {
                         ui.label(format!("Map: {} ({}x{})", map_data.asset.name, map_data.width, map_data.height));

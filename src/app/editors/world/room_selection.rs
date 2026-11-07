@@ -13,6 +13,7 @@ use crate::data_store::{
 
 use super::WorldEditorAssetLists;
 use super::super::{
+    EMPTY_FRAME,
     sorted_assets,
     RoomSize,
     AssetEditorBase,
@@ -108,20 +109,24 @@ impl RoomSelectionDialog {
         let modal_response = AssetEditorBase::show_dialog_window(wc, self.dlg_id, 550.0, "World Region Rooms", |ui, wc| {
             let asset_id = world.asset.id;
 
-            egui::Panel::bottom(format!("editor_panel_{}_rooms_bot", asset_id)).show_separator_line(false).show(ui, |ui| {
-                ui.add_space(5.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    if ui.button("Cancel").clicked() {
-                        ui.close();
-                    }
-                    if ui.button("Ok").clicked() {
-                        rooms_changed = self.confirm(world);
-                        ui.close();
-                    }
+            egui::Panel::bottom(format!("editor_panel_{}_rooms_bot", asset_id))
+                .frame(EMPTY_FRAME)
+                .show_separator_line(false)
+                .show(ui, |ui| {
+                    ui.add_space(5.0);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                        if ui.button("Cancel").clicked() {
+                            ui.close();
+                        }
+                        if ui.button("Ok").clicked() {
+                            rooms_changed = self.confirm(world);
+                            ui.close();
+                        }
+                    });
                 });
-            });
 
             egui::Panel::left(format!("editor_panel_{}_rooms_left", asset_id))
+                .frame(EMPTY_FRAME)
                 .resizable(false)
                 .show_separator_line(false)
                 .min_size(200.0)
@@ -160,7 +165,7 @@ impl RoomSelectionDialog {
                     if display_room.is_some() { self.display_room_id = display_room; }
                 });
 
-            egui::CentralPanel::default().show(ui, |ui| {
+            egui::CentralPanel::default().frame(EMPTY_FRAME).show(ui, |ui| {
                 if let Some(room) = self.display_room_id.and_then(|room_id| assets.rooms.get(&room_id)) {
                     let room_size = RoomSize::from_room(room, assets.maps);
                     ui.label(format!("Room: {} ({}x{})", room.asset.name, room_size.width, room_size.height));

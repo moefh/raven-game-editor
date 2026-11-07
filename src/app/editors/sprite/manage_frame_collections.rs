@@ -6,6 +6,7 @@ use crate::data_store::{
 };
 
 use super::super::{
+    EMPTY_FRAME,
     AssetEditorBase,
     WindowContext,
 };
@@ -138,7 +139,7 @@ impl ManageFrameCollectionsDialog {
         if ! self.open { return false; }
 
         if AssetEditorBase::show_dialog_window(wc, self.dlg_id, 600.0, "Sprite Frame Collections", |ui, wc| {
-            egui::Panel::bottom("dlg_sprite_manage_frame_collections_buttons").show(ui, |ui| {
+            egui::Panel::bottom("dlg_sprite_manage_frame_collections_buttons").frame(EMPTY_FRAME).show(ui, |ui| {
                 ui.add_space(5.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     if ui.button("Cancel").clicked() {
@@ -151,6 +152,7 @@ impl ManageFrameCollectionsDialog {
                 });
             });
             egui::Panel::left("dlg_sprite_manage_frame_collections_list")
+                .frame(EMPTY_FRAME)
                 .resizable(false)
                 .exact_size(260.0)
                 .show(ui, |ui| {
@@ -182,7 +184,7 @@ impl ManageFrameCollectionsDialog {
                     });
                 });
 
-            egui::CentralPanel::default().show(ui, |ui| {
+            egui::CentralPanel::default().frame(EMPTY_FRAME).show(ui, |ui| {
                 if let Some(col) = self.sel_frame.and_then(|i| self.frames.get_mut(i)) {
                     ui.horizontal(|ui| {
                         ui.label("Name: ");
