@@ -521,6 +521,10 @@ impl Editor {
     fn show_trigger_tree(&mut self, ui: &mut egui::Ui, room: &Room) -> TriggerTreeAction {
         self.trigger_tree.update_items(&room.triggers);
 
+        if self.room_editor.has_selected_item_changed() && let RoomItemRef::Trigger(index) = self.room_editor.get_selected_item() {
+            self.trigger_tree.expand_to_show_item(index);
+        }
+
         let is_folder_open = |folder: &TreeViewFolder| { folder.level == 0 };
         let mut folder_action = TriggerTreeAction::None;
         let mut show_folder = |ui: &mut egui::Ui, folder: &TreeViewFolder| -> egui::Response {
@@ -534,7 +538,7 @@ impl Editor {
         };
         let mut clear_sorted_ids = false;
         let mut item_action = TriggerTreeAction::None;
-        let mut show_item = |ui: &mut egui::Ui, _folder: &TreeViewFolder, item: &TreeViewItem| {
+        let mut show_item = |ui: &mut egui::Ui, _folder: &TreeViewFolder, item: &TreeViewItem, scroll_to_expanded: bool| {
             if let Some(trg) = room.triggers.get(item.item_id) {
                 let mut selected = self.room_editor.get_selected_item().is_the_trigger(item.item_id);
                 let button = egui::Button::image_and_text(get_trigger_image(trg), &item.display_name)
@@ -550,7 +554,7 @@ impl Editor {
                         item_action = TriggerTreeAction::Remove(item.item_id);
                     }
                 });
-                if selected && self.room_editor.has_selected_item_changed() {
+                if selected && self.room_editor.has_selected_item_changed() || scroll_to_expanded {
                     clear_sorted_ids = true;
                     resp.scroll_to_me(None);
                 }
@@ -560,6 +564,7 @@ impl Editor {
         if clear_sorted_ids {
             self.clear_sorted_ids();
         }
+        self.room_editor.clear_selected_item_changed();
         if ! matches!(item_action, TriggerTreeAction::None) {
             item_action
         } else {
@@ -1261,14 +1266,13 @@ impl Editor {
         self.show_maps_toolbar(ui, wc, room);
 
         // properties panel:
-        egui::Panel::left(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).exact_size(250.0).show(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).exact_size(300.0).show(ui, |ui| {
             ui.add_space(5.0);
             let want_height = 70.0_f32.max(ui.available_height() / 2.0);
             ui.allocate_ui(egui::Vec2::new(300.0, want_height), |ui| {
                 egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                     let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
                     let trigger_action = self.show_trigger_tree(ui, room);
-                    self.room_editor.clear_selected_item_changed();
 
                     if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
                     if let Some(map_index) = sel_map {

@@ -629,9 +629,6 @@ impl RoomEditorWidget {
             let rect = self.get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if self.is_item_displayed(item, room) && rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item, false);
-                if resp.drag_started() {
-                    self.drag_start(rect.min, mouse_pos);
-                }
                 return;
             }
         }
@@ -641,9 +638,6 @@ impl RoomEditorWidget {
             let rect = self.screen_pos.get_rect();
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(RoomItemRef::Screen, false);
-                if resp.drag_started() {
-                    self.drag_start(rect.min, mouse_pos);
-                }
                 return;
             }
         }
@@ -665,9 +659,6 @@ impl RoomEditorWidget {
             let rect = self.get_item_rect(item, room, assets).unwrap_or(Rect::NOTHING);
             if rect.contains(mouse_pos) && resp.dragged_by(egui::PointerButton::Primary) {
                 self.set_selected_item(item, false);
-                if resp.drag_started() {
-                    self.drag_start(rect.min, mouse_pos);
-                }
                 return;
             }
         }
