@@ -8,7 +8,6 @@ use crate::data_store::{
     MapData,
     Room,
     RoomParallax,
-    RoomEnemyType,
     RoomTrigger,
     RoomTriggerType,
     RoomEntityDirection,
@@ -65,51 +64,6 @@ impl RoomSize {
                 None => { max }
             }
         })
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum RoomEnemyTypeSel {
-    Walker,
-    Chiller,
-    Hopper,
-    Floater,
-    Other,
-}
-
-impl RoomEnemyTypeSel {
-    pub fn text(&self) -> &'static str {
-        match self {
-            RoomEnemyTypeSel::Walker  => { "walker" }
-            RoomEnemyTypeSel::Chiller => { "chiller" }
-            RoomEnemyTypeSel::Hopper  => { "hopper" }
-            RoomEnemyTypeSel::Floater => { "floater" }
-            RoomEnemyTypeSel::Other   => { "other..." }
-        }
-    }
-}
-
-impl From<RoomEnemyType> for RoomEnemyTypeSel {
-    fn from(value: RoomEnemyType) -> Self {
-        match value {
-            RoomEnemyType::Walker   => { RoomEnemyTypeSel::Walker }
-            RoomEnemyType::Chiller  => { RoomEnemyTypeSel::Chiller }
-            RoomEnemyType::Hopper   => { RoomEnemyTypeSel::Hopper }
-            RoomEnemyType::Floater  => { RoomEnemyTypeSel::Floater }
-            RoomEnemyType::Other(_) => { RoomEnemyTypeSel::Other }
-        }
-    }
-}
-
-impl From<RoomEnemyTypeSel> for RoomEnemyType {
-    fn from(value: RoomEnemyTypeSel) -> Self {
-        match value {
-            RoomEnemyTypeSel::Walker   => { RoomEnemyType::Walker }
-            RoomEnemyTypeSel::Chiller  => { RoomEnemyType::Chiller }
-            RoomEnemyTypeSel::Hopper   => { RoomEnemyType::Hopper }
-            RoomEnemyTypeSel::Floater  => { RoomEnemyType::Floater }
-            RoomEnemyTypeSel::Other    => { RoomEnemyType::Other(4) }
-        }
     }
 }
 
@@ -173,11 +127,10 @@ impl RoomTriggerTypeSel {
                 true
             }
             RoomTriggerTypeSel::EnemySpawn if ! matches!(trigger_type, RoomTriggerType::EnemySpawn {..}) => {
-                if let Some(animation_id) = asset_ids.animations.get_first() {
+                if let Some(enemy_id) = asset_ids.enemies.get_first() {
                     *trigger_type = RoomTriggerType::EnemySpawn {
-                        enemy_id: 0,
-                        enemy_type: RoomEnemyType::Walker,
-                        animation_id,
+                        enemy_num: 0,
+                        enemy_id,
                         direction: RoomEntityDirection::Right,
                         req_flag_id: u16::MAX,
                     };
@@ -243,7 +196,7 @@ impl RoomTriggerTypeSel {
             }
             RoomTriggerTypeSel::RemoveEnemy if ! matches!(trigger_type, RoomTriggerType::RemoveEnemy {..}) => {
                 *trigger_type = RoomTriggerType::RemoveEnemy {
-                    enemy_id: 0,
+                    enemy_num: 0,
                     on_effect_id: u16::MAX,
                 };
                 true

@@ -52,39 +52,6 @@ impl From<u8> for RoomTriggerMapLayer {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-pub enum RoomEnemyType {
-    Walker,
-    Chiller,
-    Hopper,
-    Floater,
-    Other(u16),
-}
-
-impl RoomEnemyType {
-    pub fn value(self) -> u16 {
-        match self {
-            RoomEnemyType::Walker   => { 0 }
-            RoomEnemyType::Chiller  => { 1 }
-            RoomEnemyType::Hopper   => { 2 }
-            RoomEnemyType::Floater  => { 3 }
-            RoomEnemyType::Other(n) => { n }
-        }
-    }
-}
-
-impl From<u16> for RoomEnemyType {
-    fn from(value: u16) -> Self {
-        match value {
-            0 => { RoomEnemyType::Walker }
-            1 => { RoomEnemyType::Chiller }
-            2 => { RoomEnemyType::Hopper }
-            3 => { RoomEnemyType::Floater }
-            n => { RoomEnemyType::Other(n) }
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct RoomMap {
     pub x: u16,
@@ -108,9 +75,8 @@ pub enum RoomTriggerType {
         direction: RoomEntityDirection,
     },
     EnemySpawn {
-        animation_id: DataAssetId,
-        enemy_id: u16,
-        enemy_type: RoomEnemyType,
+        enemy_id: DataAssetId,
+        enemy_num: u16,
         direction: RoomEntityDirection,
         req_flag_id: u16,
     },
@@ -152,7 +118,7 @@ pub enum RoomTriggerType {
         on_effect_id: u16,
     },
     RemoveEnemy {
-        enemy_id: u16,
+        enemy_num: u16,
         on_effect_id: u16,
     },
     PlaySfx {
@@ -260,11 +226,10 @@ impl super::HashedData for Room {
                     hasher.add_u8(1);
                     hasher.add_u8(direction.value());
                 }
-                RoomTriggerType::EnemySpawn { animation_id, enemy_id, enemy_type, direction, req_flag_id } => {
+                RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } => {
                     hasher.add_u8(2);
-                    hasher.add_asset_id(animation_id);
-                    hasher.add_u16(enemy_id);
-                    hasher.add_u16(enemy_type.value());
+                    hasher.add_asset_id(enemy_id);
+                    hasher.add_u16(enemy_num);
                     hasher.add_u8(direction.value());
                     hasher.add_u16(req_flag_id);
                 }
@@ -311,9 +276,9 @@ impl super::HashedData for Room {
                     hasher.add_u8(map_layer.value());
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
+                RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
                     hasher.add_u8(10);
-                    hasher.add_u16(enemy_id);
+                    hasher.add_u16(enemy_num);
                     hasher.add_u16(on_effect_id);
                 }
                 RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {

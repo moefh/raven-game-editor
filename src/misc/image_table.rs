@@ -54,6 +54,7 @@ pub fn get_asset_type_image(asset_type: DataAssetType) -> ImageRef {
         DataAssetType::Font => IMAGE_REFS.font,
         DataAssetType::PropFont => IMAGE_REFS.prop_font,
         DataAssetType::PlayerChar => IMAGE_REFS.player_char,
+        DataAssetType::Enemy => IMAGE_REFS.enemy,
     }
 }
 
@@ -178,4 +179,5 @@ image_table! {
     font: "../../assets/FwFontIcon.png",
     prop_font: "../../assets/FontIcon.png",
     player_char: "../../assets/PlayerCharIcon.png",
+    enemy: "../../assets/EnemyIcon.png",
 }

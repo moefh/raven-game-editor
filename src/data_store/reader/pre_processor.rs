@@ -169,6 +169,9 @@ fn handle_if(line: &str, data: &ProjectData, logger: &mut StringLogger) -> Resul
     if line == format!("#if {}ADD_ROOM_SCRIPTS", data.prefix_upper) { return Ok(()); }
     if line == format!("#endif /* {}ADD_ROOM_SCRIPTS */", data.prefix_upper) { return Ok(()); }
 
+    if line == format!("#if {}METADATA", data.prefix_upper) { return Ok(()); }
+    if line == format!("#endif /* {}METADATA */", data.prefix_upper) { return Ok(()); }
+
     logger.log(format!("-> ignoring pre-processor if line: {}", line));
     Ok(())
 }

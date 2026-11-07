@@ -23,33 +23,14 @@ pub struct Bullet {
     pub damage: u16,
     pub anim: Animation,
     pub effect_anim_id: Option<DataAssetId>,
+    pub hit_sfx_id: Option<DataAssetId>,
 }
 
 impl Bullet {
-    pub fn new(
-        x: i32,
-        y: i32,
-        dx: i32,
-        dy: i32,
-        damage: u16,
-        sprite_anim_id: DataAssetId,
-        effect_anim_id: Option<DataAssetId>
-    ) -> Self {
-        Bullet {
-            x: x << 8,
-            y: y << 8,
-            dx,
-            dy,
-            damage,
-            anim: Animation::new(sprite_anim_id),
-            effect_anim_id,
-        }
-    }
-
     pub fn tick_engine(
         &mut self,
         _room: &Room,
-        enemies: &mut Vec<Enemy>,
+        enemies: &mut [Enemy],
         store: &DataStore,
         game_state: &mut GameRunnerState
     ) -> bool {
@@ -62,13 +43,15 @@ impl Bullet {
 
             let rect = CollisionRect::new(x, y, sprite_anim.clip_rect.w, sprite_anim.clip_rect.h);
             for enemy in enemies.iter_mut() {
-                if enemy.info.health != 0 && let Some(e_anim) = store.assets.animations.get(&enemy.info.anim_id) {
-                    let e_rect = CollisionRect::new(enemy.info.x, enemy.info.y, e_anim.clip_rect.w, e_anim.clip_rect.h);
-                    if rect.intersects_rect(&e_rect) {
-                        enemy.damage(self.damage);
-                        return true;
+                if enemy.info.health != 0 &&
+                    enemy.info.health != u16::MAX &&
+                    let Some(e_anim) = store.assets.animations.get(&enemy.info.anim_id) {
+                        let e_rect = CollisionRect::new(enemy.info.x, enemy.info.y, e_anim.clip_rect.w, e_anim.clip_rect.h);
+                        if rect.intersects_rect(&e_rect) {
+                            enemy.damage(self.damage);
+                            return true;
+                        }
                     }
-                }
             }
 
             if room_tiles_block_point(&game_state.room, rect.x, rect.y) ||

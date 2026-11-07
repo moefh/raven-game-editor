@@ -67,15 +67,14 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::PlayerSpawn { direction } => {
                 writer.write(format!(".player_spawn = {{ {} }}", direction.value()));
             }
-            RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } => {
-                let animation_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, animation_id)?;
+            RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } => {
+                let enemy_index = writer.ident.get_asset_index(DataAssetType::Enemy, enemy_id)?;
                 writer.write(
                     format!(
-                        ".enemy_spawn = {{ {}, {}, &{}_sprite_animations[{}], {}, {} }}",
-                        enemy_id,
-                        enemy_type.value(),
+                        ".enemy_spawn = {{ {}, &{}_enemies[{}], {}, {} }}",
+                        enemy_num,
                         writer.ident.prefix_lower,
-                        animation_index,
+                        enemy_index,
                         direction.value(),
                         req_flag_id,
                     )
@@ -118,8 +117,8 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                     on_effect_id
                 ));
             }
-            RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
-                writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_id, on_effect_id));
+            RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
+                writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_num, on_effect_id));
             }
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
                 let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;

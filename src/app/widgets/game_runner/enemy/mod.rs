@@ -4,10 +4,11 @@ mod hopper;
 mod floater;
 
 use crate::data_store::{
+    self,
     DataStore,
     DataAssetId,
     Room,
-    RoomEnemyType,
+    EnemyType,
     RoomEntityDirection,
     Sprite,
     SpriteAnimation,
@@ -75,14 +76,14 @@ enum EnemyBehavior {
 }
 
 impl EnemyBehavior {
-    pub fn new(enemy_type: RoomEnemyType, enemy: &mut EnemyInfo, room: &Room, store: &DataStore) -> Self {
+    pub fn new(enemy_type: EnemyType, enemy: &mut EnemyInfo, room: &Room, store: &DataStore) -> Self {
         if let Some(anim) = store.assets.animations.get(&enemy.anim_id) {
             match enemy_type {
-                RoomEnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, room, anim, store)) }
-                RoomEnemyType::Chiller => { return EnemyBehavior::Chiller(Chiller::new(enemy, room, anim, store)) }
-                RoomEnemyType::Hopper => { return EnemyBehavior::Hopper(Hopper::new(enemy, room, anim, store)) }
-                RoomEnemyType::Floater => { return EnemyBehavior::Floater(Floater::new(enemy, room, anim, store)) }
-                RoomEnemyType::Other(_) => {}
+                EnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, room, anim, store)) }
+                EnemyType::Chiller => { return EnemyBehavior::Chiller(Chiller::new(enemy, room, anim, store)) }
+                EnemyType::Hopper => { return EnemyBehavior::Hopper(Hopper::new(enemy, room, anim, store)) }
+                EnemyType::Floater => { return EnemyBehavior::Floater(Floater::new(enemy, room, anim, store)) }
+                EnemyType::Other(_) => {}
             }
         }
         enemy.anim_loop = EnemyAnimLoop::Stand;
@@ -121,13 +122,13 @@ pub struct EnemyInfo {
 }
 
 impl EnemyInfo {
-    pub fn new(x: i32, y: i32, direction: Direction, anim_id: DataAssetId) -> EnemyInfo {
+    pub fn new(x: i32, y: i32, direction: Direction, enemy_data: &data_store::Enemy) -> EnemyInfo {
         EnemyInfo {
             x,
             y,
             direction,
-            anim_id,
-            health: 6,
+            anim_id: enemy_data.anim_id,
+            health: enemy_data.health,
             damage_frames_left: 0,
             anim_loop: EnemyAnimLoop::Stand,
             anim_frame: 0,
@@ -283,20 +284,20 @@ impl Enemy {
     pub fn new(
         id: u16,
         pos: (i16, i16),
-        anim_id: DataAssetId,
-        enemy_type: RoomEnemyType,
+        enemy_id: DataAssetId,
         direction: RoomEntityDirection,
         room: &Room,
         store: &DataStore
-    ) -> Self {
-        let mut info = EnemyInfo::new(pos.0 as i32, pos.1 as i32, direction.into(), anim_id);
-        let behavior = EnemyBehavior::new(enemy_type, &mut info, room, store);
+    ) -> Option<Self> {
+        let enemy_data = store.assets.enemies.get(&enemy_id)?;
+        let mut info = EnemyInfo::new(pos.0 as i32, pos.1 as i32, direction.into(), enemy_data);
+        let behavior = EnemyBehavior::new(enemy_data.enemy_type, &mut info, room, store);
 
-        Enemy {
+        Some(Enemy {
             id,
             info,
             behavior,
-        }
+        })
     }
 
     pub fn damage(&mut self, damage: u16) {

@@ -13,8 +13,9 @@ use crate::data_store::{
     RoomMap,
     RoomTrigger,
     RoomTriggerType,
-    RoomEnemyType,
     RoomEntityDirection,
+    Enemy,
+    EnemyType,
     MapData,
     Tileset,
     Sprite,
@@ -180,8 +181,9 @@ impl TriggerRect {
                 Some(TriggerRect::resizable(trigger.x, trigger.y, width, height))
             }
 
-            RoomTriggerType::EnemySpawn { animation_id, .. } => {
-                assets.animations.get(&animation_id)
+            RoomTriggerType::EnemySpawn { enemy_id, .. } => {
+                assets.enemies.get(&enemy_id)
+                    .and_then(|enemy| assets.animations.get(&enemy.anim_id))
                     .map(|animation| {
                         TriggerRect::rigid(
                             trigger.x,
@@ -713,13 +715,13 @@ impl RoomEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
-    fn get_enemy_sprite_frame(animation: &SpriteAnimation, enemy_type: RoomEnemyType) -> u32 {
-        let aloop = match enemy_type {
-            RoomEnemyType::Walker => { animation.loops.iter().find(|aloop| aloop.name_id == "run") }
-            RoomEnemyType::Chiller => { animation.loops.iter().find(|aloop| aloop.name_id == "stand") }
-            RoomEnemyType::Hopper => { animation.loops.iter().find(|aloop| aloop.name_id == "stand") }
-            RoomEnemyType::Floater => { animation.loops.iter().find(|aloop| aloop.name_id == "float") }
-            RoomEnemyType::Other(_) => { animation.loops.first() }
+    fn get_enemy_sprite_frame(enemy: &Enemy, animation: &SpriteAnimation) -> u32 {
+        let aloop = match enemy.enemy_type {
+            EnemyType::Walker => { animation.loops.iter().find(|aloop| aloop.name_id == "run") }
+            EnemyType::Chiller => { animation.loops.iter().find(|aloop| aloop.name_id == "stand") }
+            EnemyType::Hopper => { animation.loops.iter().find(|aloop| aloop.name_id == "stand") }
+            EnemyType::Floater => { animation.loops.iter().find(|aloop| aloop.name_id == "float") }
+            EnemyType::Other(_) => { animation.loops.first() }
         };
         aloop
             .or_else(|| animation.loops.first())
@@ -741,10 +743,11 @@ impl RoomEditorWidget {
         }
 
         match trigger.trigger_type {
-            RoomTriggerType::EnemySpawn { animation_id, direction, enemy_type, .. } => {
-                if let Some(animation) = assets.animations.get(&animation_id) &&
+            RoomTriggerType::EnemySpawn { enemy_id, direction, .. } => {
+                if let Some(enemy) = assets.enemies.get(&enemy_id) &&
+                    let Some(animation) = assets.animations.get(&enemy.anim_id) &&
                     let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
-                        let sprite_frame = Self::get_enemy_sprite_frame(animation, enemy_type);
+                        let sprite_frame = Self::get_enemy_sprite_frame(enemy, animation);
                         let x = trigger.x as f32 - if direction == RoomEntityDirection::Right {
                             animation.clip_rect.x as f32
                         } else {

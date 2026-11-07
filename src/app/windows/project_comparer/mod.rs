@@ -11,6 +11,7 @@ mod sfx;
 mod font;
 mod prop_font;
 mod player_char;
+mod enemy;
 mod base;
 
 use crate::include_ref_image;
@@ -234,6 +235,7 @@ impl ProjectComparerDisplay {
             DataAssetType::Font => { font::show_fonts(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::PropFont => { prop_font::show_prop_fonts(ui, wc, &self.comparer, store, other_store) }
             DataAssetType::PlayerChar => { player_char::show_player_chars(ui, wc, &self.comparer, store, other_store) }
+            DataAssetType::Enemy => { enemy::show_enemies(ui, wc, &self.comparer, store, other_store) }
         };
 
         if ! diff_state.has_differences {

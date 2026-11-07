@@ -11,6 +11,7 @@ mod mod_data;
 mod font;
 mod prop_font;
 mod player_char;
+mod enemy;
 mod tables;
 mod reader;
 mod writer;
@@ -57,7 +58,6 @@ pub use room::{
     RoomMap,
     RoomTrigger,
     RoomParallax,
-    RoomEnemyType,
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomTriggerMapLayer,
@@ -96,6 +96,10 @@ pub use player_char::{
     PlayerCharWeapon,
     PlayerCharWeaponShoot,
     PlayerCharWeaponBullet,
+};
+pub use enemy::{
+    Enemy,
+    EnemyType,
 };
 pub use tables::{
     DataStoreEffectTable,
@@ -170,6 +174,7 @@ pub enum DataAssetType {
     Font,
     PropFont,
     PlayerChar,
+    Enemy,
 }
 
 impl DataAssetType {
@@ -188,6 +193,7 @@ impl DataAssetType {
             DataAssetType::Font => "font",
             DataAssetType::PropFont => "prop_font",
             DataAssetType::PlayerChar => "player_char",
+            DataAssetType::Enemy => "enemy",
         }
     }
 }
@@ -344,6 +350,7 @@ pub struct AssetCollection {
     pub fonts: DataAssetList<Font>,
     pub prop_fonts: DataAssetList<PropFont>,
     pub player_chars: DataAssetList<PlayerChar>,
+    pub enemies: DataAssetList<Enemy>,
 }
 
 impl AssetCollection {
@@ -362,6 +369,7 @@ impl AssetCollection {
             fonts: DataAssetList::new(),
             prop_fonts: DataAssetList::new(),
             player_chars: DataAssetList::new(),
+            enemies: DataAssetList::new(),
         }
     }
 
@@ -379,6 +387,7 @@ impl AssetCollection {
         if let Some(v) = self.fonts.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.prop_fonts.get(&asset_id) { return Some(&v.asset); }
         if let Some(v) = self.player_chars.get(&asset_id) { return Some(&v.asset); }
+        if let Some(v) = self.enemies.get(&asset_id) { return Some(&v.asset); }
         None
     }
 
@@ -396,6 +405,7 @@ impl AssetCollection {
         if let Some(v) = self.fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.prop_fonts.get_mut(&asset_id) { return Some(&mut v.asset); }
         if let Some(v) = self.player_chars.get_mut(&asset_id) { return Some(&mut v.asset); }
+        if let Some(v) = self.enemies.get_mut(&asset_id) { return Some(&mut v.asset); }
         None
     }
 
@@ -434,7 +444,7 @@ impl AssetCollection {
                     RoomTriggerType::RemoveEnemy {..} |
                     RoomTriggerType::StopSfx {..} => { false }
 
-                    RoomTriggerType::EnemySpawn { animation_id, .. } => { animation_id == id }
+                    RoomTriggerType::EnemySpawn { enemy_id, .. } => { enemy_id == id }
                     RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }
                     RoomTriggerType::PlaySfx { sfx_id, .. } => { sfx_id == id }
                 }
@@ -459,6 +469,11 @@ impl AssetCollection {
                 if weapon.bullet.hit_sfx_id.is_some_and(|sfx_id| sfx_id == id) { return true; }
             }
         }
+        for enemy in self.enemies.iter() {
+            if enemy.anim_id == id {
+                return true;
+            }
+        }
         false
     }
 
@@ -475,7 +490,8 @@ impl AssetCollection {
         let sum = self.mods.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.fonts.iter().fold(sum, |sum, a| sum + a.data_size());
         let sum = self.prop_fonts.iter().fold(sum, |sum, a| sum + a.data_size());
-        self.player_chars.iter().fold(sum, |sum, a| sum + a.data_size())
+        let sum = self.player_chars.iter().fold(sum, |sum, a| sum + a.data_size());
+        self.enemies.iter().fold(sum, |sum, a| sum + a.data_size())
     }
 }
 
@@ -493,6 +509,7 @@ pub struct AssetIdCollection {
     pub fonts: DataAssetIdList,
     pub prop_fonts: DataAssetIdList,
     pub player_chars: DataAssetIdList,
+    pub enemies: DataAssetIdList,
 }
 
 impl AssetIdCollection {
@@ -511,6 +528,7 @@ impl AssetIdCollection {
             fonts: DataAssetIdList::new(),
             prop_fonts: DataAssetIdList::new(),
             player_chars: DataAssetIdList::new(),
+            enemies: DataAssetIdList::new(),
         }
     }
 
@@ -529,6 +547,7 @@ impl AssetIdCollection {
             DataAssetType::Font => self.fonts.iter(),
             DataAssetType::PropFont => self.prop_fonts.iter(),
             DataAssetType::PlayerChar => self.player_chars.iter(),
+            DataAssetType::Enemy => self.enemies.iter(),
         }
     }
 }
@@ -591,8 +610,8 @@ pub struct DataStore {
 }
 
 impl DataStore {
-    pub const VERSION: u32 = 13;
-    pub const VERSION_DATE: &str = "2026-11-03";
+    pub const VERSION: u32 = 14;
+    pub const VERSION_DATE: &str = "2026-11-07";
 
     pub fn new() -> Self {
         DataStore {
@@ -677,7 +696,8 @@ impl DataStore {
             self.assets.mods.store.len() +
             self.assets.fonts.store.len() +
             self.assets.prop_fonts.store.len() +
-            self.assets.player_chars.store.len()
+            self.assets.player_chars.store.len() +
+            self.assets.enemies.store.len()
     }
 
     pub fn data_size(&self) -> usize {
@@ -710,6 +730,7 @@ impl DataStore {
         if let Some(v) = self.assets.fonts.remove(&id) { self.asset_ids.fonts.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.prop_fonts.remove(&id) { self.asset_ids.prop_fonts.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.player_chars.remove(&id) { self.asset_ids.player_chars.remove_id(id); return Some(v.asset); }
+        if let Some(v) = self.assets.enemies.remove(&id) { self.asset_ids.enemies.remove_id(id); return Some(v.asset); }
         if let Some(v) = self.assets.sprites.remove(&id) {
             self.asset_ids.sprites.remove_id(id);
             metadata.remove_sprite(id);
@@ -770,6 +791,10 @@ impl DataStore {
         }
         if let Some(dup_id) = self.assets.player_chars.duplicate_asset(&id, dup_name, &mut self.id_generator) {
             self.asset_ids.player_chars.push(dup_id);
+            return Some(dup_id);
+        }
+        if let Some(dup_id) = self.assets.enemies.duplicate_asset(&id, dup_name, &mut self.id_generator) {
+            self.asset_ids.enemies.push(dup_id);
             return Some(dup_id);
         }
         None
@@ -877,6 +902,13 @@ impl DataStore {
         let id = self.gen_id();
         self.asset_ids.player_chars.push(id);
         self.assets.player_chars.insert(id, PlayerChar::new(id, name));
+        Some(id)
+    }
+
+    pub fn add_enemy(&mut self, name: String, anim_id: DataAssetId) -> Option<DataAssetId> {
+        let id = self.gen_id();
+        self.asset_ids.enemies.push(id);
+        self.assets.enemies.insert(id, Enemy::new(id, name, anim_id));
         Some(id)
     }
 }

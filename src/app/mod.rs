@@ -74,6 +74,15 @@ pub use crate::platform::{
     SoundPlayer,
 };
 
+pub const EMPTY_FRAME: egui::Frame = egui::Frame {
+    inner_margin: egui::Margin::same(8),
+    stroke: egui::Stroke::NONE,
+    fill: egui::Color32::TRANSPARENT,
+    corner_radius: egui::CornerRadius::ZERO,
+    outer_margin: egui::Margin::ZERO,
+    shadow: egui::Shadow::NONE,
+};
+
 enum ConfirmationDialogAction {
     NewProject,
     DeleteAsset(DataAssetId),
@@ -327,6 +336,9 @@ impl RavenEditorApp {
         for pchar in self.store.assets.player_chars.iter_mut() {
             if let Some(editor) = self.editors.player_chars.get_mut(&pchar.asset.id) { editor.prepare_for_saving(pchar); }
         }
+        for enemy in self.store.assets.enemies.iter_mut() {
+            if let Some(editor) = self.editors.enemies.get_mut(&enemy.asset.id) { editor.prepare_for_saving(enemy); }
+        }
     }
 
     fn write_project(&mut self, ctx: &egui::Context, file: SysDialogOpenFile) -> bool {
@@ -481,7 +493,9 @@ impl RavenEditorApp {
             }
             DataAssetType::MapData => {
                 if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
-                    self.store.add_map(self.new_asset_name(asset_type, name_prefix), tileset_id).map(|id| (id, self.editors.add_map(id)))
+                    self.store.add_map(self.new_asset_name(asset_type, name_prefix), tileset_id).map(|id| {
+                        (id, self.editors.add_map(id))
+                    })
                 } else {
                     self.open_message_box("No Tileset Available", "You must create a tileset first!");
                     None
@@ -497,7 +511,9 @@ impl RavenEditorApp {
                 self.store.add_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sprite(id)))
             }
             DataAssetType::PalSprite => {
-                self.store.add_pal_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_pal_sprite(id)))
+                self.store.add_pal_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| {
+                    (id, self.editors.add_pal_sprite(id))
+                })
             }
             DataAssetType::SpriteAnimation => {
                 if let Some(sprite_id) = self.store.asset_ids.sprites.get_first() {
@@ -529,10 +545,24 @@ impl RavenEditorApp {
                 self.store.add_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_font(id)))
             }
             DataAssetType::PropFont => {
-                self.store.add_prop_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_prop_font(id)))
+                self.store.add_prop_font(self.new_asset_name(asset_type, name_prefix)).map(|id| {
+                    (id, self.editors.add_prop_font(id))
+                })
             }
             DataAssetType::PlayerChar => {
-                self.store.add_player_char(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_player_char(id)))
+                self.store.add_player_char(self.new_asset_name(asset_type, name_prefix)).map(|id| {
+                    (id, self.editors.add_player_char(id))
+                })
+            }
+            DataAssetType::Enemy => {
+                if let Some(anim_id) = self.store.asset_ids.animations.get_first() {
+                    self.store.add_enemy(self.new_asset_name(asset_type, name_prefix), anim_id).map(|id| {
+                        (id, self.editors.add_enemy(id))
+                    })
+                } else {
+                    self.open_message_box("No Sprite Animation Available", "You must create a sprite animation first!");
+                    None
+                }
             }
         };
 
@@ -1041,6 +1071,7 @@ impl RavenEditorApp {
                     maps: &self.store.assets.maps,
                     tilesets: &self.store.assets.tilesets,
                     tile_anims: &self.store.assets.tile_anims,
+                    enemies: &self.store.assets.enemies,
                     animations: &self.store.assets.animations,
                     sprites: &self.store.assets.sprites,
                     sfxs: &self.store.assets.sfxs,
@@ -1110,6 +1141,15 @@ impl RavenEditorApp {
                     tables: &self.store.tables,
                 };
                 editor.show(&mut win_ctx, pchar, &assets);
+            }
+        }
+        for enemy in self.store.assets.enemies.iter_mut() {
+            if let Some(editor) = self.editors.enemies.get_mut(&enemy.asset.id) {
+                let assets = editors::EnemyEditorAssetLists {
+                    animations: &self.store.assets.animations,
+                    asset_ids: &self.store.asset_ids,
+                };
+                editor.show(&mut win_ctx, enemy, &assets);
             }
         }
 

@@ -13,6 +13,7 @@ use crate::data_store::{
     AssetIdCollection,
     GenericAsset,
     DataAssetList,
+    Enemy,
     Room,
     RoomMap,
     RoomTrigger,
@@ -34,7 +35,6 @@ use super::{
     SysDialogOpenFile,
     RoomSize,
     RoomTriggerTypeSel,
-    RoomEnemyTypeSel,
     EditorAction,
     MapTileFixer,
 };
@@ -97,6 +97,7 @@ pub struct RoomEditorAssetLists<'a> {
     pub maps: &'a DataAssetList<MapData>,
     pub tilesets: &'a DataAssetList<Tileset>,
     pub tile_anims: &'a DataAssetList<TileAnimation>,
+    pub enemies: &'a DataAssetList<Enemy>,
     pub animations: &'a DataAssetList<SpriteAnimation>,
     pub sprites: &'a DataAssetList<Sprite>,
     pub room_names: &'a HashMap<DataAssetId, String>,
@@ -262,6 +263,7 @@ struct Editor {
     tile_picker: ImagePickerWidget,
     tile_picker_popup: TilePickerPopupWidget,
     para_editor: RoomParallaxEditorWidget,
+    sorted_enemy_ids: Vec<DataAssetId>,
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_room_ids: Vec<DataAssetId>,
     sorted_sfx_ids: Vec<DataAssetId>,
@@ -274,6 +276,7 @@ impl Editor {
             import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
             selected_tab: EditorTab::Maps,
             room_editor: RoomEditorWidget::new(),
+            sorted_enemy_ids: Vec::new(),
             sorted_animation_ids: Vec::new(),
             sorted_room_ids: Vec::new(),
             sorted_sfx_ids: Vec::new(),
@@ -862,44 +865,14 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } => {
-                ui.label("Enemy Id:");
-                ui.add(egui::DragValue::new(enemy_id).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
-                ui.label("Behavior:");
-                let mut enemy_type_sel = RoomEnemyTypeSel::from(*enemy_type);
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_type", self.asset_id))
-                    .selected_text(enemy_type_sel.text())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Walker,  RoomEnemyTypeSel::Walker.text());
-                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Chiller, RoomEnemyTypeSel::Chiller.text());
-                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Hopper,  RoomEnemyTypeSel::Hopper.text());
-                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Floater, RoomEnemyTypeSel::Floater.text());
-                        ui.selectable_value(&mut enemy_type_sel, RoomEnemyTypeSel::Other,   RoomEnemyTypeSel::Other.text());
-                    });
-                ui.end_row();
-                if enemy_type_sel != RoomEnemyTypeSel::from(*enemy_type) {
-                    *enemy_type = enemy_type_sel.into();
-                }
-
-                if enemy_type_sel == RoomEnemyTypeSel::Other {
-                    let mut enemy_type_val = enemy_type.value();
-                    ui.label("   other:");
-                    ui.add(egui::DragValue::new(&mut enemy_type_val).speed(1.0).range(0..=u16::MAX));
-                    ui.end_row();
-                    if enemy_type_val != enemy_type.value() {
-                        *enemy_type = enemy_type_val.into();
-                    }
-                }
-
-                ui.label("Anim:");
+            RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } => {
+                ui.label("Enemy:");
                 self.show_asset_id_editor(
                     ui,
-                    "enemy_spawn_animation_asset_id",
-                    assets.animations,
-                    &self.sorted_animation_ids,
-                    animation_id
+                    "enemy_spawn_enemy_asset_id",
+                    assets.enemies,
+                    &self.sorted_enemy_ids,
+                    enemy_id
                 );
                 ui.end_row();
 
@@ -910,6 +883,10 @@ impl Editor {
                         ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
                         ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
                     });
+                ui.end_row();
+
+                ui.label("Enemy Num:");
+                ui.add(egui::DragValue::new(enemy_num).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
                 ui.label("Req Flag:");
@@ -1045,9 +1022,9 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } => {
-                ui.label("Enemy Id:");
-                ui.add(egui::DragValue::new(enemy_id).speed(1.0).range(0..=u16::MAX));
+            RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
+                ui.label("Enemy Num:");
+                ui.add(egui::DragValue::new(enemy_num).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
                 ui.label("On Effect:");
@@ -1458,11 +1435,13 @@ impl Editor {
     fn clear_sorted_ids(&mut self) {
         self.sorted_room_ids.clear();
         self.sorted_animation_ids.clear();
+        self.sorted_enemy_ids.clear();
         self.sorted_sfx_ids.clear();
     }
 
     fn sort_ids(&mut self, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         if self.sorted_animation_ids.len() != asset_ids.animations.len() ||
+            self.sorted_enemy_ids.len() != asset_ids.enemies.len() ||
             self.sorted_room_ids.len() != asset_ids.rooms.len() ||
             self.sorted_sfx_ids.len() != asset_ids.sfxs.len() {
             self.clear_sorted_ids();
@@ -1471,6 +1450,10 @@ impl Editor {
         if self.sorted_animation_ids.is_empty() {
             asset_ids.animations.copy_to(&mut self.sorted_animation_ids);
             data_store::utils::sort_asset_ids_by_name(&mut self.sorted_animation_ids, assets.animations);
+        }
+        if self.sorted_enemy_ids.is_empty() {
+            asset_ids.enemies.copy_to(&mut self.sorted_enemy_ids);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_enemy_ids, assets.enemies);
         }
         if self.sorted_sfx_ids.is_empty() {
             asset_ids.sfxs.copy_to(&mut self.sorted_sfx_ids);

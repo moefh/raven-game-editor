@@ -244,9 +244,9 @@ impl GameRunnerState {
 
     pub fn spawn_enemies_for_flag(&self, flag_id: u16, room: &Room, enemies: &mut Vec<Enemy>, store: &DataStore) {
         for trigger in &room.triggers {
-            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id }=trigger.trigger_type &&
-                req_flag_id == flag_id {
-                    let enemy = Enemy::new(enemy_id, (trigger.x, trigger.y), animation_id, enemy_type, direction, room, store);
+            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } = trigger.trigger_type &&
+                req_flag_id == flag_id &&
+                let Some(enemy) = Enemy::new(enemy_num, (trigger.x, trigger.y), enemy_id, direction, room, store) {
                     enemies.push(enemy);
                 }
         }
@@ -310,8 +310,8 @@ impl GameRunnerState {
                     }
                 }
 
-                RoomTriggerType::RemoveEnemy { enemy_id, on_effect_id } if on_effect_id == effect_id => {
-                    enemies.retain(|e| e.id != enemy_id);
+                RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } if on_effect_id == effect_id => {
+                    enemies.retain(|e| e.id != enemy_num);
                 }
 
                 RoomTriggerType::PlaySfx { sfx_id, volume, pitch_shift, on_effect_id, .. } if on_effect_id == effect_id => {
@@ -470,14 +470,18 @@ impl GameRunnerWidget {
         }
         self.bullets.retain_mut(|bullet| {
             let collided = bullet.tick_engine(room, &mut self.enemies, store, &mut self.state);
-            if collided &&
-                let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
-                let Some(effect_anim) = bullet.effect_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
-                    let direction = Direction::from_dx(bullet.dx);
-                    let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
-                    let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - effect_anim.clip_rect.h/2;
-                    self.fx_display.push(EffectDisplay::new(x, y, direction, effect_anim.asset.id));
+            if collided {
+                if let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
+                    let Some(effect_anim) = bullet.effect_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
+                        let direction = Direction::from_dx(bullet.dx);
+                        let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
+                        let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - effect_anim.clip_rect.h/2;
+                        self.fx_display.push(EffectDisplay::new(x, y, direction, effect_anim.asset.id));
+                    }
+                if let Some(sfx) = bullet.hit_sfx_id.and_then(|sfx_id| store.assets.sfxs.get(&sfx_id)) {
+                    wc.sound_player.play_s16(&sfx.samples, 44100.0, 1.0);
                 }
+            }
             ! collided  // retain if not collided
         });
         self.fx_display.retain_mut(|fx_display| {
@@ -552,12 +556,12 @@ impl GameRunnerWidget {
 
     fn spawn_enemies(&mut self, room: &Room, store: &DataStore) {
         for trigger in &room.triggers {
-            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_type, animation_id, direction, req_flag_id } = trigger.trigger_type {
+            if let RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } = trigger.trigger_type {
                 let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
-                if has_flag_requirements {
-                    let enemy = Enemy::new(enemy_id, (trigger.x, trigger.y), animation_id, enemy_type, direction, room, store);
-                    self.enemies.push(enemy);
-                }
+                if has_flag_requirements &&
+                    let Some(enemy) = Enemy::new(enemy_num, (trigger.x, trigger.y), enemy_id, direction, room, store) {
+                        self.enemies.push(enemy);
+                    }
             }
         }
     }

@@ -310,13 +310,23 @@ impl Player {
         let weapon = self.weapon.and_then(|index| assets.player_char.weapons.get(index))?;
         let sprite_anim_id = weapon.bullet.anim_id;
         let effect_anim_id = weapon.bullet.hit_anim_id;
+        let hit_sfx_id = weapon.bullet.hit_sfx_id;
         let x = weapon.bullet.x as i32 + if crouch { weapon.shoot.crouch_x as i32 } else { 0 };
         let y = weapon.bullet.y as i32 + if crouch { weapon.shoot.crouch_y as i32 } else { 0 };
         let dx = weapon.bullet.dx as i32;
         let dy = weapon.bullet.dy as i32;
         let direction_dx = self.direction.dx();
         let damage = weapon.bullet.damage;
-        Some(Bullet::new(self.x + direction_dx * x, self.y + y, direction_dx * dx, dy, damage, sprite_anim_id, effect_anim_id))
+        Some(Bullet {
+            x: (self.x + direction_dx * x) << 8,
+            y: (self.y + y) << 8,
+            dx: direction_dx * dx,
+            dy,
+            damage,
+            anim: Animation::new(sprite_anim_id),
+            effect_anim_id,
+            hit_sfx_id,
+        })
     }
 
     pub fn tick_engine(

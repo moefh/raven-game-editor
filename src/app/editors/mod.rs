@@ -17,6 +17,7 @@ mod mod_data;
 mod font;
 mod prop_font;
 mod player_char;
+mod enemy;
 
 pub use store::EditorStore;
 pub use actions::EditorAction;
@@ -48,6 +49,10 @@ pub use player_char::{
     PlayerCharEditor,
     PlayerCharEditorAssetLists,
 };
+pub use enemy::{
+    EnemyEditor,
+    EnemyEditorAssetLists,
+};
 
 pub use widgets::ColorPickerPopupWidget;
 
@@ -69,6 +74,7 @@ use crate::image::{
 };
 
 pub use super::{
+    EMPTY_FRAME,
     get_setting_zoom,
     WindowContext,
     SysDialogResponse,
@@ -367,7 +373,9 @@ impl AssetEditorBase {
                         ui.add_space(3.0);
                         ui.add(egui::Label::new(title).selectable(false));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.add(egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)).clicked() {
+                            if ui.add(
+                                egui::Button::image(IMAGES.close).sense(egui::Sense::CLICK).frame_when_inactive(false)
+                            ).clicked() {
                                 ui.close();
                             }
                         });

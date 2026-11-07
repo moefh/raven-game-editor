@@ -80,9 +80,8 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         ])),
 
         (String::from("enemy_spawn"), ValueDefStruct::new(vec![
-            (String::from("enemy_id"), ValueDef::U16),
-            (String::from("enemy_type"), ValueDef::U16),
-            (String::from("animation"), ValueDef::AssetRef),
+            (String::from("enemy_num"), ValueDef::U16),
+            (String::from("enemy"), ValueDef::AssetRef),
             (String::from("direction"), ValueDef::U8),
             (String::from("req_flag_id"), ValueDef::U16),
         ])),
@@ -139,7 +138,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         ])),
 
         (String::from("remove_enemy"), ValueDefStruct::new(vec![
-            (String::from("enemy_id"), ValueDef::U16),
+            (String::from("enemy_num"), ValueDef::U16),
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
@@ -250,16 +249,14 @@ fn conv_trigger_player_spawn(data: &ValueStruct, _project_data: &ProjectData) ->
 }
 
 fn conv_trigger_enemy_spawn(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
-    let enemy_id = data.get_u16("enemy_id")?;
-    let enemy_type = data.get_u16("enemy_type")?;
-    let animation_ref = data.get_asset_ref("animation")?;
+    let enemy_ref = data.get_asset_ref("enemy")?;
+    let enemy_num = data.get_u16("enemy_num")?;
     let direction = data.get_u8("direction")?;
     let req_flag_id = data.get_u16("req_flag_id")?;
     Ok(RoomTriggerType::EnemySpawn {
-        enemy_id,
-        enemy_type: enemy_type.into(),
-        animation_id: animation_ref.get_asset_id(project_data)?,
+        enemy_id: enemy_ref.get_asset_id(project_data)?,
         direction: RoomEntityDirection::from(direction),
+        enemy_num,
         req_flag_id,
     })
 }
@@ -313,7 +310,7 @@ fn conv_trigger_change_tiles(data: &ValueStruct, _project_data: &ProjectData) ->
 
 fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::RemoveEnemy {
-        enemy_id: data.get_u16("enemy_id")?,
+        enemy_num: data.get_u16("enemy_num")?,
         on_effect_id: data.get_u16("on_effect_id")?,
     })
 }

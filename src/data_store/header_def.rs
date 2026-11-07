@@ -357,6 +357,16 @@ struct $<PREFIX>_PLAYER_CHAR {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_PLAYER_CHAR */
 
+#if $<PREFIX>_SKIP_STRUCTS_ENEMY
+
+struct $<PREFIX>_ENEMY {
+    const struct $<PREFIX>_SPRITE_ANIMATION *anim;
+    uint16_t type;
+    uint16_t health;
+};
+
+#endif /* $<PREFIX>_SKIP_STRUCTS_ENEMY */
+
 #ifndef $<PREFIX>_SKIP_STRUCTS_DATA_TABLES
 
 struct $<PREFIX>_TABLE_ITEM {
@@ -389,6 +399,8 @@ extern const struct $<PREFIX>_MAP $<prefix>_maps[];
 extern const struct $<PREFIX>_SPRITE_ANIMATION $<prefix>_sprite_animations[];
 extern const struct $<PREFIX>_TILE_ANIMATION $<prefix>_tile_animations[];
 extern const struct $<PREFIX>_ROOM $<prefix>_rooms[];
+extern const struct $<PREFIX>_PLAYER_CHAR $<prefix>_player_chars[];
+extern const struct $<PREFIX>_ENEMY $<prefix>_enemies[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_upgrades[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_collectables[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_pickups[];

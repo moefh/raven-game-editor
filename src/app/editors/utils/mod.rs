@@ -1,6 +1,7 @@
 mod map_utils;
 mod room_utils;
 mod image_utils;
+mod enemy_utils;
 mod sprite_utils;
 mod tileset_utils;
 mod asset_id_holder;
@@ -12,6 +13,7 @@ pub mod world_grid;
 pub use map_utils::{*};
 pub use room_utils::{*};
 pub use image_utils::{*};
+pub use enemy_utils::{*};
 pub use sprite_utils::{*};
 pub use tileset_utils::{*};
 pub use asset_id_holder::{*};

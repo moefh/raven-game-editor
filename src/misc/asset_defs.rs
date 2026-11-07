@@ -103,6 +103,17 @@ pub const ASSET_DEFS : &[AssetDef] = &[
         image: IMAGE_REFS.player_char,
     },
     AssetDef {
+        asset_type: DataAssetType::Enemy,
+        default_name_prefix: "enemy",
+        type_name: "Enemy",
+        add_menu_item: " Add Enemy",
+        duplicate_menu_item: " Duplicate Enemy",
+        remove_menu_item: " Delete Enemy",
+        rename_menu_item: " Rename Enemy",
+        tree_root_item: "Enemies",
+        image: IMAGE_REFS.enemy,
+    },
+    AssetDef {
         asset_type: DataAssetType::PalSprite,
         default_name_prefix: "pal_sprite",
         type_name: "Paletted Sprite",

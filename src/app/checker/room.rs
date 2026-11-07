@@ -116,9 +116,9 @@ fn check_room_door_destinations(room: &Room, rooms: &DataAssetList<Room>, errors
     }
 }
 
-fn is_valid_enemy_id(room: &Room, check_enemy_id: u16) -> bool {
+fn is_valid_enemy_num(room: &Room, check_enemy_num: u16) -> bool {
     for trigger in &room.triggers {
-        if let RoomTriggerType::EnemySpawn { enemy_id, .. } = trigger.trigger_type && enemy_id == check_enemy_id {
+        if let RoomTriggerType::EnemySpawn { enemy_num, .. } = trigger.trigger_type && enemy_num == check_enemy_num {
             return true;
         }
     }
@@ -127,7 +127,7 @@ fn is_valid_enemy_id(room: &Room, check_enemy_id: u16) -> bool {
 
 fn check_room_enemies(room: &Room, _errors: &mut Vec<AssetError>, warn: &mut Vec<AssetWarning>) {
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
-        if let RoomTriggerType::RemoveEnemy { enemy_id, .. } = trigger.trigger_type && ! is_valid_enemy_id(room, enemy_id) {
+        if let RoomTriggerType::RemoveEnemy { enemy_num, .. } = trigger.trigger_type && ! is_valid_enemy_num(room, enemy_num) {
             warn.push(AssetWarning::RoomRemoveEnemyWithInvalidEnemy { trigger_index });
         }
     }

@@ -16,6 +16,7 @@ mod mod_data;
 mod font;
 mod prop_font;
 mod player_char;
+mod enemy;
 
 use std::io::{Result, Error};
 use std::collections::{HashMap, HashSet};
@@ -101,6 +102,7 @@ static ASSET_TYPES_BY_ARRAY_NAME: LazyLock<HashMap<String, DataAssetType>> = Laz
         (String::from("sprite_animations"), DataAssetType::SpriteAnimation),
         (String::from("tile_animations"), DataAssetType::TileAnimation),
         (String::from("player_chars"), DataAssetType::PlayerChar),
+        (String::from("enemies"), DataAssetType::Enemy),
     ])
 });
 
@@ -119,6 +121,7 @@ static ASSET_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLock::
         (String::from("SPRITE_ANIMATION"), sprite_animation::get_asset_def()),
         (String::from("TILE_ANIMATION"), tile_animation::get_asset_def()),
         (String::from("PLAYER_CHAR"), player_char::get_asset_def()),
+        (String::from("ENEMY"), enemy::get_asset_def()),
     ])
 });
 
@@ -192,6 +195,7 @@ fn get_asset_type_upper_name(asset_type: DataAssetType) -> &'static str {
         DataAssetType::SpriteAnimation => { "SPRITE_ANIMATION" }
         DataAssetType::TileAnimation => { "TILE_ANIMATION" }
         DataAssetType::PlayerChar => { "PLAYER_CHAR" }
+        DataAssetType::Enemy => { "ENEMY" }
     }
 }
 
@@ -1028,6 +1032,12 @@ impl<'a> ProjectDataReader<'a> {
                             if let Some(&id) = asset_ids_of_type.get(index) {
                                 asset_ids.player_chars.push(id);
                                 assets.player_chars.insert(id, player_char::create(id, asset_struct, &self.data)?);
+                            }
+                        }
+                        DataAssetType::Enemy => {
+                            if let Some(&id) = asset_ids_of_type.get(index) {
+                                asset_ids.enemies.push(id);
+                                assets.enemies.insert(id, enemy::create(id, asset_struct, &self.data)?);
                             }
                         }
                     }

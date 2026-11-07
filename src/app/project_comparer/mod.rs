@@ -11,6 +11,7 @@ mod sfx;
 mod font;
 mod prop_font;
 mod player_char;
+mod enemy;
 mod base;
 mod utils;
 
@@ -28,6 +29,7 @@ pub use sfx::{*};
 pub use font::{*};
 pub use prop_font::{*};
 pub use player_char::{*};
+pub use enemy::{*};
 pub use base::{*};
 
 use crate::data_store::{
@@ -46,6 +48,7 @@ use crate::data_store::{
     Font,
     PropFont,
     PlayerChar,
+    Enemy,
 };
 
 pub fn get_tileset_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Tileset> {
@@ -86,6 +89,9 @@ pub fn get_prop_font_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a
 }
 pub fn get_player_char_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a PlayerChar> {
     store.assets.player_chars.iter().find(|asset| asset.asset.name == name)
+}
+pub fn get_enemy_by_name<'a>(store: &'a DataStore, name: &str) -> Option<&'a Enemy> {
+    store.assets.enemies.iter().find(|asset| asset.asset.name == name)
 }
 
 #[derive(Clone, Copy)]
@@ -133,6 +139,7 @@ pub struct ProjectComparer {
     pub fonts: FontListDiff,
     pub prop_fonts: PropFontListDiff,
     pub player_chars: PlayerCharListDiff,
+    pub enemies: EnemyListDiff,
 }
 
 impl ProjectComparer {
@@ -152,23 +159,25 @@ impl ProjectComparer {
             fonts: FontListDiff::new(),
             prop_fonts: PropFontListDiff::new(),
             player_chars: PlayerCharListDiff::new(),
+            enemies: EnemyListDiff::new(),
         }
     }
 
     pub fn has_any_asset_differences(&self) -> bool {
         ! (self.tilesets.is_empty() &&
-            self.tile_anims.is_empty() &&
-            self.maps.is_empty() &&
-            self.rooms.is_empty() &&
-            self.worlds.is_empty() &&
-            self.sprites.is_empty() &&
-            self.animations.is_empty() &&
-            self.pal_sprites.is_empty() &&
-            self.mods.is_empty() &&
-            self.sfxs.is_empty() &&
-            self.fonts.is_empty() &&
-            self.prop_fonts.is_empty() &&
-            self.player_chars.is_empty())
+           self.tile_anims.is_empty() &&
+           self.maps.is_empty() &&
+           self.rooms.is_empty() &&
+           self.worlds.is_empty() &&
+           self.sprites.is_empty() &&
+           self.animations.is_empty() &&
+           self.pal_sprites.is_empty() &&
+           self.mods.is_empty() &&
+           self.sfxs.is_empty() &&
+           self.fonts.is_empty() &&
+           self.prop_fonts.is_empty() &&
+           self.player_chars.is_empty() &&
+           self.enemies.is_empty())
     }
 
     pub fn has_asset_differences(&self, asset_type: DataAssetType) -> bool {
@@ -186,6 +195,7 @@ impl ProjectComparer {
             DataAssetType::Font => { ! self.fonts.is_empty() }
             DataAssetType::PropFont => { ! self.prop_fonts.is_empty() }
             DataAssetType::PlayerChar => { ! self.player_chars.is_empty() }
+            DataAssetType::Enemy => { ! self.enemies.is_empty() }
         }
     }
 
@@ -204,6 +214,7 @@ impl ProjectComparer {
         self.fonts.clear();
         self.prop_fonts.clear();
         self.player_chars.clear();
+        self.enemies.clear();
     }
 
     pub fn run(&mut self, cur_store: &DataStore, other_store: &DataStore) {
@@ -221,5 +232,6 @@ impl ProjectComparer {
         self.fonts.compare(cur_store, other_store);
         self.prop_fonts.compare(cur_store, other_store);
         self.player_chars.compare(cur_store, other_store);
+        self.enemies.compare(cur_store, other_store);
     }
 }

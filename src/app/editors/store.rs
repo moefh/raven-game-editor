@@ -27,6 +27,7 @@ use super::{
     FontEditor,
     PropFontEditor,
     PlayerCharEditor,
+    EnemyEditor,
 };
 
 pub struct EditorStore {
@@ -44,6 +45,7 @@ pub struct EditorStore {
     pub fonts: HashMap<DataAssetId, FontEditor>,
     pub prop_fonts: HashMap<DataAssetId, PropFontEditor>,
     pub player_chars: HashMap<DataAssetId, PlayerCharEditor>,
+    pub enemies: HashMap<DataAssetId, EnemyEditor>,
     pub room_names: HashMap<DataAssetId, String>,
     pub cur_store_tables_hash: DataHash,
     pub saved_store_tables_hash: DataHash,
@@ -66,6 +68,7 @@ impl EditorStore {
             fonts: HashMap::new(),
             prop_fonts: HashMap::new(),
             player_chars: HashMap::new(),
+            enemies: HashMap::new(),
             room_names: HashMap::new(),
             cur_store_tables_hash: DataHash::EMPTY,
             saved_store_tables_hash: DataHash::EMPTY,
@@ -87,6 +90,7 @@ impl EditorStore {
         self.fonts.clear();
         self.prop_fonts.clear();
         self.player_chars.clear();
+        self.enemies.clear();
         self.room_names.clear();
         self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
         self.saved_store_tables_hash = self.cur_store_tables_hash;
@@ -106,6 +110,7 @@ impl EditorStore {
         for id in store.asset_ids.fonts.iter().copied() { self.add_font(id); }
         for id in store.asset_ids.prop_fonts.iter().copied() { self.add_prop_font(id); }
         for id in store.asset_ids.player_chars.iter().copied() { self.add_player_char(id); }
+        for id in store.asset_ids.enemies.iter().copied() { self.add_enemy(id); }
         self.clear_dirty_flags(store);
     }
 
@@ -123,6 +128,7 @@ impl EditorStore {
         if let Some(editor) = self.fonts.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.prop_fonts.get(&id) { return Some(&editor.base); }
         if let Some(editor) = self.player_chars.get(&id) { return Some(&editor.base); }
+        if let Some(editor) = self.enemies.get(&id) { return Some(&editor.base); }
         None
     }
 
@@ -140,6 +146,7 @@ impl EditorStore {
         if let Some(editor) = self.fonts.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.prop_fonts.get_mut(&id) { return Some(&mut editor.base); }
         if let Some(editor) = self.player_chars.get_mut(&id) { return Some(&mut editor.base); }
+        if let Some(editor) = self.enemies.get_mut(&id) { return Some(&mut editor.base); }
         None
     }
 
@@ -157,6 +164,7 @@ impl EditorStore {
         if let Some(editor) = self.fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.prop_fonts.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         if let Some(editor) = self.player_chars.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
+        if let Some(editor) = self.enemies.remove(&id) { self.egui_id_to_asset_id.remove(&editor.base.egui_id); return true; }
         false
     }
 
@@ -175,6 +183,7 @@ impl EditorStore {
             DataAssetType::Font => self.add_font(id),
             DataAssetType::PropFont => self.add_prop_font(id),
             DataAssetType::PlayerChar => self.add_player_char(id),
+            DataAssetType::Enemy => self.add_enemy(id),
         }
     }
 
@@ -282,6 +291,14 @@ impl EditorStore {
         egui_id
     }
 
+    pub fn add_enemy(&mut self, id: DataAssetId) -> egui::Id {
+        let editor = EnemyEditor::new(id, false);
+        let egui_id = editor.base.egui_id;
+        self.egui_id_to_asset_id.insert(egui_id, editor.base.id);
+        self.enemies.insert(id, editor);
+        egui_id
+    }
+
     pub fn update_dirty_flags(&mut self, store: &DataStore) {
         for tileset in store.assets.tilesets.iter() {
             if let Some(editor) = self.tilesets.get_mut(&tileset.asset.id) { editor.base.update_dirty_flag(tileset); }
@@ -321,6 +338,9 @@ impl EditorStore {
         }
         for pchar in store.assets.player_chars.iter() {
             if let Some(editor) = self.player_chars.get_mut(&pchar.asset.id) { editor.base.update_dirty_flag(pchar); }
+        }
+        for enemy in store.assets.enemies.iter() {
+            if let Some(editor) = self.enemies.get_mut(&enemy.asset.id) { editor.base.update_dirty_flag(enemy); }
         }
 
         self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
@@ -366,6 +386,9 @@ impl EditorStore {
         for pchar in store.assets.player_chars.iter() {
             if let Some(editor) = self.player_chars.get_mut(&pchar.asset.id) { editor.base.clear_dirty_flag(pchar); }
         }
+        for enemy in store.assets.enemies.iter() {
+            if let Some(editor) = self.enemies.get_mut(&enemy.asset.id) { editor.base.clear_dirty_flag(enemy); }
+        }
 
         self.cur_store_tables_hash = calc_store_tables_hash(&store.tables);
         self.saved_store_tables_hash = self.cur_store_tables_hash;
@@ -389,6 +412,7 @@ impl EditorStore {
             .chain(self.fonts.values().map(|e| &e.base))
             .chain(self.prop_fonts.values().map(|e| &e.base))
             .chain(self.player_chars.values().map(|e| &e.base))
+            .chain(self.enemies.values().map(|e| &e.base))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut AssetEditorBase> {
@@ -405,6 +429,7 @@ impl EditorStore {
             .chain(self.fonts.values_mut().map(|e| &mut e.base))
             .chain(self.prop_fonts.values_mut().map(|e| &mut e.base))
             .chain(self.player_chars.values_mut().map(|e| &mut e.base))
+            .chain(self.enemies.values_mut().map(|e| &mut e.base))
     }
 
     pub fn get_open_ids(&mut self) -> impl Iterator<Item = egui::Id> {
