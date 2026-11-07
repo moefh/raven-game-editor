@@ -266,18 +266,26 @@ impl Player {
                         }
                     }
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
-                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
-                    if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.get_upgrade(get_upgrade_id, room, store);
+                RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
+                    let has_flag_requirements = req_flag_id == u16::MAX ||
+                        game_state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_flag_requirements {
+                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
+                        if player_rect.intersects_rect(&trigger_rect) {
+                            game_state.get_upgrade(get_upgrade_id, room, store);
+                        }
                     }
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id } if pad.pressed(INTERACT_BUTTON) => {
-                    let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                    let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
-                    if player_rect.intersects_rect(&trigger_rect) {
-                        game_state.get_collectable(get_collectable_id, room, store);
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } if pad.pressed(INTERACT_BUTTON) => {
+                    let has_flag_requirements = req_flag_id == u16::MAX ||
+                        game_state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_flag_requirements {
+                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
+                        if player_rect.intersects_rect(&trigger_rect) {
+                            game_state.get_collectable(get_collectable_id, room, store);
+                        }
                     }
                 }
                 RoomTriggerType::GetPickup { respawn_delay, sfx_id, .. } => {

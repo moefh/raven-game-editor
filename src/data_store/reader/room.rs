@@ -144,10 +144,12 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("get_upgrade"), ValueDefStruct::new(vec![
             (String::from("get_upgrade_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
         ])),
 
         (String::from("get_collectable"), ValueDefStruct::new(vec![
             (String::from("get_collectable_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
         ])),
 
         (String::from("get_pickup"), ValueDefStruct::new(vec![
@@ -342,12 +344,14 @@ fn conv_trigger_stop_sfx(data: &ValueStruct, _project_data: &ProjectData) -> Res
 fn conv_trigger_get_upgrade(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetUpgrade {
         get_upgrade_id: data.get_u16("get_upgrade_id")?,
+        req_flag_id: data.get_u16("req_flag_id")?,
     })
 }
 
 fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetCollectable {
         get_collectable_id: data.get_u16("get_collectable_id")?,
+        req_flag_id: data.get_u16("req_flag_id")?,
     })
 }
 

@@ -135,9 +135,11 @@ pub enum RoomTriggerType {
     },
     GetUpgrade {
         get_upgrade_id: u16,
+        req_flag_id: u16,
     },
     GetCollectable {
         get_collectable_id: u16,
+        req_flag_id: u16,
     },
     GetPickup {
         get_pickup_id: u16,
@@ -295,13 +297,15 @@ impl super::HashedData for Room {
                     hasher.add_u16(sound_id);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
                     hasher.add_u8(13);
                     hasher.add_u16(get_upgrade_id);
+                    hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
                     hasher.add_u8(14);
                     hasher.add_u16(get_collectable_id);
+                    hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
                     hasher.add_u8(15);

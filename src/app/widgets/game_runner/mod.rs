@@ -624,15 +624,19 @@ impl GameRunnerWidget {
         for trigger in &room.triggers {
             let trigger_pos = Vec2::new(trigger.x as f32, trigger.y as f32);
             match trigger.trigger_type {
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
-                    if ! self.state.acquired_upgrade_ids.contains(&get_upgrade_id) &&
+                RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
+                    let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_flag_requirements &&
+                        ! self.state.acquired_upgrade_ids.contains(&get_upgrade_id) &&
                         let Some(item) = store.tables.upgrade.items.get(get_upgrade_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);
                         }
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id } => {
-                    if ! self.state.acquired_collectable_ids.contains(&get_collectable_id) &&
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+                    let has_flag_requirements = req_flag_id == u16::MAX || self.state.acquired_flag_ids.contains(&req_flag_id);
+                    if has_flag_requirements &&
+                        ! self.state.acquired_collectable_ids.contains(&get_collectable_id) &&
                         let Some(item) = store.tables.collectable.items.get(get_collectable_id as usize) &&
                         let Some(sprite) = store.assets.sprites.get(&item.sprite_id) {
                             self.draw_sprite(ui, wc, sprite, trigger_pos, screen_pos, zoom);

@@ -256,11 +256,13 @@ pub fn fix_after_data_table_item_removed(
                 RoomTriggerType::StopSfx { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
                     fix_removed_upgrade(get_upgrade_id, data_table_ref, index);
+                    fix_removed_flag(req_flag_id, data_table_ref, index);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
                     fix_removed_collectable(get_collectable_id, data_table_ref, index);
+                    fix_removed_flag(req_flag_id, data_table_ref, index);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, .. } => {
                     fix_removed_pickup(get_pickup_id, data_table_ref, index);
@@ -355,11 +357,13 @@ pub fn fix_after_data_table_items_swapped(
                 RoomTriggerType::StopSfx { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
                 }
-                RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+                RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
                     fix_swapped_upgrade(get_upgrade_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
                     fix_swapped_collectable(get_collectable_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, .. } => {
                     fix_swapped_pickup(get_pickup_id, data_table_ref, index1, index2);

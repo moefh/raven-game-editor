@@ -226,12 +226,14 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::GetUpgrade if ! matches!(trigger_type, RoomTriggerType::GetUpgrade {..}) => {
                 *trigger_type = RoomTriggerType::GetUpgrade {
                     get_upgrade_id: u16::MAX,
+                    req_flag_id: u16::MAX,
                 };
                 true
             }
             RoomTriggerTypeSel::GetCollectable if ! matches!(trigger_type, RoomTriggerType::GetCollectable {..}) => {
                 *trigger_type = RoomTriggerType::GetCollectable {
                     get_collectable_id: u16::MAX,
+                    req_flag_id: u16::MAX,
                 };
                 true
             }

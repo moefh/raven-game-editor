@@ -136,11 +136,11 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
                 writer.write(format!(".stop_sfx = {{ {}, {} }}", sound_id, on_effect_id));
             }
-            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
-                writer.write(format!(".get_upgrade = {{ {} }}", get_upgrade_id));
+            RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
+                writer.write(format!(".get_upgrade = {{ {}, {} }}", get_upgrade_id, req_flag_id));
             }
-            RoomTriggerType::GetCollectable { get_collectable_id } => {
-                writer.write(format!(".get_collectable = {{ {} }}", get_collectable_id));
+            RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+                writer.write(format!(".get_collectable = {{ {}, {} }}", get_collectable_id, req_flag_id));
             }
             RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
                 if let Some(sfx_id) = sfx_id {

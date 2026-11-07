@@ -1075,15 +1075,23 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+            RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
                 ui.label("Upgrade:");
                 self.show_item_id_editor(ui, "get_upgrade_id", get_upgrade_id, &assets.tables.upgrade);
                 ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "get_upgrade_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
             }
 
-            RoomTriggerType::GetCollectable { get_collectable_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
                 ui.label("Collectable:");
                 self.show_item_id_editor(ui, "get_collectable_id", get_collectable_id, &assets.tables.collectable);
+                ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "get_collectable_req_flag_id", req_flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 

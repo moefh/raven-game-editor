@@ -768,7 +768,7 @@ impl RoomEditorWidget {
                     }
             }
 
-            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+            RoomTriggerType::GetUpgrade { get_upgrade_id, .. } => {
                 if let Some(item) = assets.tables.upgrade.items.get(get_upgrade_id as usize) &&
                     let Some(sprite) = assets.sprites.get(&item.sprite_id) {
                         draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);
@@ -776,7 +776,7 @@ impl RoomEditorWidget {
                     }
             }
 
-            RoomTriggerType::GetCollectable { get_collectable_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id, .. } => {
                 if let Some(item) = assets.tables.collectable.items.get(get_collectable_id as usize) &&
                     let Some(sprite) = assets.sprites.get(&item.sprite_id) {
                         draw_trigger_sprite(ui, wc, to_canvas, trigger, sprite);

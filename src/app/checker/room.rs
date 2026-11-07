@@ -223,11 +223,13 @@ fn check_room_project_table_refs(
             RoomTriggerType::StopSfx { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
-            RoomTriggerType::GetUpgrade { get_upgrade_id } => {
+            RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
                 check_room_trigger_upgrade(get_upgrade_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
             }
-            RoomTriggerType::GetCollectable { get_collectable_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
                 check_room_trigger_collectable(get_collectable_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
             }
             RoomTriggerType::GetPickup { get_pickup_id, .. } => {
                 check_room_trigger_pickup(get_pickup_id, tables, trigger_index, errors);
