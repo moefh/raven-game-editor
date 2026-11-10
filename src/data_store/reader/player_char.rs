@@ -21,6 +21,8 @@ use super::super::{
 pub fn get_asset_def() -> ValueDefStruct
 {
     ValueDefStruct::new(vec![
+        (String::from("font"), ValueDef::AssetRef),
+        (String::from("gamepad_sprite"), ValueDef::AssetRef),
         (String::from("num_suits"), ValueDef::U16),
         (String::from("num_weapons"), ValueDef::U16),
         (String::from("suits"), ValueDef::ArrayRef),     // PLAYER_CHAR_SUIT
@@ -114,6 +116,8 @@ fn conv_weapon(weapon: &ValueStruct, name: String, project_data: &ProjectData) -
 }
 
 pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &ProjectData) -> Result<PlayerChar> {
+    let font_ref = asset_struct.get_asset_ref("font")?;
+    let gamepad_sprite_ref = asset_struct.get_asset_ref("gamepad_sprite")?;
     let num_suits = asset_struct.get_u16("num_suits")?;
     let suits_array = asset_struct.get_array_ref("suits")?;
 
@@ -154,6 +158,8 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
 
     Ok(PlayerChar {
         asset: DataAsset::new(DataAssetType::PlayerChar, asset_id, DataAsset::identifier_to_name(name)),
+        font_id: font_ref.get_asset_id(project_data)?,
+        gamepad_sprite_id: gamepad_sprite_ref.get_asset_id(project_data)?,
         suits,
         weapons,
     })

@@ -19,11 +19,11 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    FontPainter,
 };
 use super::widgets::{
     PropFontEditorWidget,
     FontViewWidget,
-    FontPainter,
 };
 use super::super::{
     menu_item,
@@ -46,7 +46,15 @@ impl FontPainter for PropFont {
         })
     }
 
-    fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: egui::Pos2, height: f32) -> f32 {
+    fn paint_char(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        ch: char,
+        pos: egui::Pos2,
+        height: f32,
+        color: egui::Color32,
+    ) -> f32 {
         if (ch as u32) < PropFont::FIRST_CHAR { return 0.0; }
         let char_index = (ch as u32).saturating_sub(PropFont::FIRST_CHAR);
         let char_width = self.char_widths.get(char_index as usize).copied().unwrap_or(0) as f32;
@@ -63,7 +71,10 @@ impl FontPainter for PropFont {
             min: Pos2::new(0.0, char_index as f32 / PropFont::NUM_CHARS as f32),
             max: Pos2::new(char_width / self.max_width as f32, (char_index+1) as f32 / PropFont::NUM_CHARS as f32),
         };
-        egui::Image::from_texture((texture.id(), image_size)).uv(uv).paint_at(ui, rect);
+        egui::Image::from_texture((texture.id(), image_size))
+            .uv(uv)
+            .tint(color)
+            .paint_at(ui, rect);
         width + zoom
     }
 }

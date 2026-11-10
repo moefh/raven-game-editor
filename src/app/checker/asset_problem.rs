@@ -82,6 +82,7 @@ pub enum AssetError {
     RoomTriggerWithInvalidUpgrade { trigger_index: usize },
     RoomTriggerWithInvalidCollectable { trigger_index: usize },
     RoomTriggerWithInvalidPickup { trigger_index: usize },
+    RoomTriggerWithInvalidInteractPrompt { trigger_index: usize },
     WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -245,6 +246,13 @@ impl AssetError {
                 if let Some(room) = store.assets.rooms.get(&asset_id) &&
                     let Some(trigger) = room.triggers.get(*trigger_index) {
                         ui.label(format!("  -> trigger '{}' has invalid pickup table item", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidInteractPrompt { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid interact prompt table item", trigger.name_id));
                     }
             }
 

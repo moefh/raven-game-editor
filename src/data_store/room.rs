@@ -88,6 +88,7 @@ pub enum RoomTriggerType {
     WallButton {
         width: u16,
         height: u16,
+        interact_prompt_id: u16,
         set_effect_id: u16,
         set_flag_id: u16,
         req_flag_id: u16,
@@ -139,6 +140,7 @@ pub enum RoomTriggerType {
     },
     GetCollectable {
         get_collectable_id: u16,
+        interact_prompt_id: u16,
         req_flag_id: u16,
     },
     GetPickup {
@@ -241,10 +243,19 @@ impl super::HashedData for Room {
                     hasher.add_u16(dest_trigger_id);
                     hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
+                RoomTriggerType::WallButton {
+                    width,
+                    height,
+                    interact_prompt_id,
+                    set_effect_id,
+                    set_flag_id,
+                    req_flag_id,
+                    req_collectable_id,
+                } => {
                     hasher.add_u8(5);
                     hasher.add_u16(width);
                     hasher.add_u16(height);
+                    hasher.add_u16(interact_prompt_id);
                     hasher.add_u16(set_effect_id);
                     hasher.add_u16(set_flag_id);
                     hasher.add_u16(req_flag_id);
@@ -302,9 +313,10 @@ impl super::HashedData for Room {
                     hasher.add_u16(get_upgrade_id);
                     hasher.add_u16(req_flag_id);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                     hasher.add_u8(14);
                     hasher.add_u16(get_collectable_id);
+                    hasher.add_u16(interact_prompt_id);
                     hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {

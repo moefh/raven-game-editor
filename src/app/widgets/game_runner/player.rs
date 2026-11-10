@@ -1,7 +1,5 @@
 use crate::data_store::{
     DataStore,
-    PlayerChar,
-    Room,
     Tileset,
     SpriteAnimation,
     RoomTriggerType,
@@ -10,12 +8,14 @@ use crate::data_store::{
 use super::{
     Direction,
     WindowContext,
+    GameAssets,
     GameRunnerState,
     GameRunnerAction,
     Enemy,
     Bullet,
     Animation,
     AnimationDrawInfo,
+    DrawInfo,
 };
 use super::consts::{*};
 use super::controller::{*};
@@ -26,23 +26,6 @@ const JUMP_BUTTON: u32 = GAMEPAD_SNES_B;
 const SHOOT_BUTTON: u32 = GAMEPAD_SNES_A;
 const THROW_BUTTON: u32 = GAMEPAD_SNES_Y;
 const INTERACT_BUTTON: u32 = GAMEPAD_SNES_X;
-
-pub struct PlayerCharAssets<'a> {
-    pub player_char: &'a PlayerChar,
-    pub char_anim: &'a SpriteAnimation,
-}
-
-impl<'a> PlayerCharAssets<'a> {
-    pub fn load(store: &'a DataStore) -> Option<Self> {
-        let player_char_id = store.asset_ids.player_chars.get_first()?;
-        let player_char = store.assets.player_chars.get(&player_char_id)?;
-        let suit = player_char.suits.first()?;
-        Some(PlayerCharAssets {
-            player_char,
-            char_anim: store.assets.animations.get(&suit.anim_id)?,
-        })
-    }
-}
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PlayerState {
@@ -85,8 +68,8 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(room: &Room, assets: &PlayerCharAssets) -> Self {
-        let (x, y, direction) = if let Some(player_spawn) = get_room_player_spawn(room) {
+    pub fn new(assets: &GameAssets) -> Self {
+        let (x, y, direction) = if let Some(player_spawn) = get_room_player_spawn(assets.room) {
             let x = player_spawn.x as i32 + (4 * Tileset::TILE_SIZE as i32 - assets.char_anim.clip_rect.w) / 2;
             let y = player_spawn.y as i32 + 4 * Tileset::TILE_SIZE as i32 - assets.char_anim.clip_rect.h;
             let direction = if let RoomTriggerType::PlayerSpawn { direction } = player_spawn.trigger_type {
@@ -121,7 +104,7 @@ impl Player {
         self.char_anim.frame = 0;
     }
 
-    pub fn control(&mut self, pad: &Controller, frame_counter: u32, assets: &PlayerCharAssets) {
+    pub fn control(&mut self, pad: &Controller, frame_counter: u32, assets: &GameAssets) {
         // weapons
         let weapon_index = if pad.held(THROW_BUTTON) { Some(0) } else if pad.held(SHOOT_BUTTON) { Some(1) } else { None };
         if let Some(weapon_index) = weapon_index && let Some(weapon) = assets.player_char.weapons.get(weapon_index) {
@@ -223,45 +206,49 @@ impl Player {
 
     fn collect_items(
         &mut self,
-        room: &Room,
-        player_anim: &SpriteAnimation,
+        game_assets: &GameAssets,
         store: &DataStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
         enemies: &mut Vec<Enemy>
     ) {
-        for trigger in &room.triggers {
+        let player_anim = game_assets.char_anim;
+        for trigger in &game_assets.room.triggers {
             match trigger.trigger_type {
-                RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
-                    let has_col_requirements = req_collectable_id == u16::MAX ||
-                        game_state.acquired_collectable_ids.contains(&req_collectable_id);
-                    let has_flag_requirements = req_flag_id == u16::MAX ||
-                        game_state.acquired_flag_ids.contains(&req_flag_id);
-                    if has_col_requirements && has_flag_requirements && pad.pressed(INTERACT_BUTTON) {
-                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
-                        if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.activate_effect(set_effect_id, room, enemies, store);
-                            if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id) {
-                                game_state.spawn_enemies_for_flag(set_flag_id, room, enemies, store);
-                                game_state.set_flag(set_flag_id, room, store);
+                RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                    if ! game_state.is_effect_activated(set_effect_id) {
+                        let has_col_requirements = req_collectable_id == u16::MAX ||
+                            game_state.acquired_collectable_ids.contains(&req_collectable_id);
+                        let has_flag_requirements = req_flag_id == u16::MAX ||
+                            game_state.acquired_flag_ids.contains(&req_flag_id);
+                        if has_col_requirements && has_flag_requirements && pad.pressed(INTERACT_BUTTON) {
+                            let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                            let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                            if player_rect.intersects_rect(&trigger_rect) {
+                                game_state.activate_effect(set_effect_id, game_assets, enemies, store);
+                                if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id) {
+                                    game_state.spawn_enemies_for_flag(set_flag_id, game_assets, enemies, store);
+                                    game_state.set_flag(set_flag_id, game_assets, store);
+                                }
                             }
                         }
                     }
                 }
                 RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
-                    let has_col_requirements = req_collectable_id == u16::MAX ||
-                        game_state.acquired_collectable_ids.contains(&req_collectable_id);
-                    let has_flag_requirements = req_flag_id == u16::MAX ||
-                        game_state.acquired_flag_ids.contains(&req_flag_id);
-                    if has_col_requirements && has_flag_requirements {
-                        let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
-                        let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
-                        if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.activate_effect(set_effect_id, room, enemies, store);
-                            if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id){
-                                game_state.spawn_enemies_for_flag(set_flag_id, room, enemies, store);
-                                game_state.set_flag(set_flag_id, room, store);
+                    if ! game_state.is_effect_activated(set_effect_id) {
+                        let has_col_requirements = req_collectable_id == u16::MAX ||
+                            game_state.acquired_collectable_ids.contains(&req_collectable_id);
+                        let has_flag_requirements = req_flag_id == u16::MAX ||
+                            game_state.acquired_flag_ids.contains(&req_flag_id);
+                        if has_col_requirements && has_flag_requirements {
+                            let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
+                            let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, width as i32, height as i32);
+                            if player_rect.intersects_rect(&trigger_rect) {
+                                game_state.activate_effect(set_effect_id, game_assets, enemies, store);
+                                if set_flag_id != u16::MAX && ! game_state.acquired_flag_ids.contains(&set_flag_id){
+                                    game_state.spawn_enemies_for_flag(set_flag_id, game_assets, enemies, store);
+                                    game_state.set_flag(set_flag_id, game_assets, store);
+                                }
                             }
                         }
                     }
@@ -273,18 +260,18 @@ impl Player {
                         let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
                         if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.get_upgrade(get_upgrade_id, room, store);
+                            game_state.get_upgrade(get_upgrade_id, game_assets, store);
                         }
                     }
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } if pad.pressed(INTERACT_BUTTON) => {
+                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id, .. } if pad.pressed(INTERACT_BUTTON) => {
                     let has_flag_requirements = req_flag_id == u16::MAX ||
                         game_state.acquired_flag_ids.contains(&req_flag_id);
                     if has_flag_requirements {
                         let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                         let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
                         if player_rect.intersects_rect(&trigger_rect) {
-                            game_state.get_collectable(get_collectable_id, room, store);
+                            game_state.get_collectable(get_collectable_id, game_assets, store);
                         }
                     }
                 }
@@ -292,7 +279,7 @@ impl Player {
                     let player_rect = CollisionRect::new(self.x, self.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
                     let trigger_rect = CollisionRect::new(trigger.x as i32, trigger.y as i32, 16, 16);
                     if game_state.is_pickup_available(trigger.trigger_id) && player_rect.intersects_rect(&trigger_rect) {
-                        game_state.get_pickup(trigger.trigger_id, respawn_delay, room, store);
+                        game_state.get_pickup(trigger.trigger_id, respawn_delay, game_assets, store);
                         if let Some(sfx_id) = sfx_id {
                             game_state.actions.push(GameRunnerAction::PlaySfx {
                                 sfx_id,
@@ -314,7 +301,7 @@ impl Player {
         rect.contains_point(px, py1) || rect.contains_point(px, py2)
     }
 
-    fn create_shot(&self, crouch: bool, assets: &PlayerCharAssets) -> Option<Bullet> {
+    fn create_shot(&self, crouch: bool, assets: &GameAssets) -> Option<Bullet> {
         let weapon = self.weapon.and_then(|index| assets.player_char.weapons.get(index))?;
         let sprite_anim_id = weapon.bullet.anim_id;
         let effect_anim_id = weapon.bullet.hit_anim_id;
@@ -339,8 +326,7 @@ impl Player {
 
     pub fn tick_engine(
         &mut self,
-        room: &Room,
-        assets: &PlayerCharAssets,
+        assets: &GameAssets,
         store: &DataStore,
         pad: &Controller,
         game_state: &mut GameRunnerState,
@@ -395,7 +381,7 @@ impl Player {
                 // reaching end of animation in the "Fall" state moves to the "Fall2" state
                 self.set_state(PlayerState::Fall2);
             }
-        self.collect_items(room, assets.char_anim, store, pad, game_state, enemies);
+        self.collect_items(assets, store, pad, game_state, enemies);
 
         if self.shoot {
             self.shoot = false;
@@ -410,15 +396,14 @@ impl Player {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         store: &DataStore,
-        screen_pos: egui::Pos2,
-        zoom: f32,
+        draw_info: &DrawInfo,
     ) {
-        let draw_info = AnimationDrawInfo {
+        let draw_anim_info = AnimationDrawInfo {
             x: self.x,
             y: self.y,
             direction: self.direction,
         };
-        self.char_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
+        self.char_anim.draw(ui, wc, &draw_anim_info, store, draw_info);
     }
 
     pub fn draw_weapon(
@@ -426,19 +411,17 @@ impl Player {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         store: &DataStore,
-        assets: &PlayerCharAssets,
-        screen_pos: egui::Pos2,
-        zoom: f32,
+        assets: &GameAssets,
+        draw_info: &DrawInfo,
     ) {
-        let draw_info = AnimationDrawInfo {
+        let draw_anim_info = AnimationDrawInfo {
             x: self.x,
             y: self.y,
             direction: self.direction,
         };
         if let Some(weapon) = self.weapon.and_then(|index| assets.player_char.weapons.get(index)) {
             self.weapon_anim.sprite_anim_id = weapon.shoot.anim_id;
-            self.weapon_anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
+            self.weapon_anim.draw(ui, wc, &draw_anim_info, store, draw_info);
         }
     }
-
 }

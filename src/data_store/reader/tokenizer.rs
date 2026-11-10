@@ -95,6 +95,14 @@ impl Token {
         matches!(self.data, TokenData::Ident(_))
     }
 
+    pub fn is_ident(&self, ident: &str) -> bool {
+        if let TokenData::Ident(id) = &self.data && id == ident {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_punct(&self, ch: char) -> bool {
         match self.data {
             TokenData::Punct(self_ch) => self_ch == ch,

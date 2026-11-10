@@ -3,6 +3,8 @@ use crate::data_store::{
     DataStoreTableItem,
     DataStoreItemTable,
     DataStoreEffectTable,
+    DataStoreStringTable,
+    DataStoreStringTableItem,
     RoomTriggerType,
 };
 use super::super::{
@@ -17,6 +19,7 @@ pub enum DataTableReference {
     Pickups,
     Effects,
     Flags,
+    InteractPrompts,
 }
 
 impl DataTableReference {
@@ -27,6 +30,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { store.tables.pickup.items.get(index).map(|item| item.name.as_str()) }
             DataTableReference::Effects => { store.tables.effect.names.get(index).map(|name| name.as_str()) }
             DataTableReference::Flags => { store.tables.flag.names.get(index).map(|name| name.as_str()) }
+            DataTableReference::InteractPrompts => { store.tables.interact_prompt.items.get(index).map(|item| item.name.as_str()) }
         }
     }
 
@@ -37,13 +41,14 @@ impl DataTableReference {
             DataTableReference::Pickups => { store.tables.pickup.items.remove(index); }
             DataTableReference::Effects => { store.tables.effect.names.remove(index); }
             DataTableReference::Flags => { store.tables.flag.names.remove(index); }
+            DataTableReference::InteractPrompts => { store.tables.interact_prompt.items.remove(index); }
         }
     }
 
     pub fn is_item_table(self) -> bool {
         match self {
             DataTableReference::Upgrades | DataTableReference::Collectables | DataTableReference::Pickups => { true }
-            DataTableReference::Effects | DataTableReference::Flags => { false }
+            DataTableReference::Effects | DataTableReference::Flags | DataTableReference::InteractPrompts => { false }
         }
     }
 
@@ -51,6 +56,15 @@ impl DataTableReference {
         match self {
             DataTableReference::Upgrades | DataTableReference::Collectables | DataTableReference::Pickups => { false }
             DataTableReference::Effects | DataTableReference::Flags => { true }
+            DataTableReference::InteractPrompts => { false }
+        }
+    }
+
+    pub fn is_string_table(self) -> bool {
+        match self {
+            DataTableReference::InteractPrompts => { true }
+            DataTableReference::Upgrades | DataTableReference::Collectables | DataTableReference::Pickups |
+            DataTableReference::Effects | DataTableReference::Flags => { false }
         }
     }
 
@@ -59,7 +73,7 @@ impl DataTableReference {
             DataTableReference::Upgrades => { Some(&store.tables.upgrade) }
             DataTableReference::Collectables => { Some(&store.tables.collectable) }
             DataTableReference::Pickups => { Some(&store.tables.pickup) }
-            DataTableReference::Effects | DataTableReference::Flags => { None }
+            DataTableReference::Effects | DataTableReference::Flags | DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -68,7 +82,7 @@ impl DataTableReference {
             DataTableReference::Upgrades => { Some(&mut store.tables.upgrade) }
             DataTableReference::Collectables => { Some(&mut store.tables.collectable) }
             DataTableReference::Pickups => { Some(&mut store.tables.pickup) }
-            DataTableReference::Effects | DataTableReference::Flags => { None }
+            DataTableReference::Effects | DataTableReference::Flags | DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -77,7 +91,7 @@ impl DataTableReference {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get(index) }
             DataTableReference::Pickups => { store.tables.pickup.items.get(index) }
-            DataTableReference::Effects | DataTableReference::Flags => { None }
+            DataTableReference::Effects | DataTableReference::Flags | DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -86,7 +100,7 @@ impl DataTableReference {
             DataTableReference::Upgrades => { store.tables.upgrade.items.get_mut(index) }
             DataTableReference::Collectables => { store.tables.collectable.items.get_mut(index) }
             DataTableReference::Pickups => { store.tables.pickup.items.get_mut(index) }
-            DataTableReference::Effects | DataTableReference::Flags => { None }
+            DataTableReference::Effects | DataTableReference::Flags | DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -97,6 +111,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { None }
             DataTableReference::Effects => { Some(&store.tables.effect) }
             DataTableReference::Flags => { Some(&store.tables.flag) }
+            DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -107,6 +122,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { None }
             DataTableReference::Effects => { Some(&mut store.tables.effect) }
             DataTableReference::Flags => { Some(&mut store.tables.flag) }
+            DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -117,6 +133,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { None }
             DataTableReference::Effects => { store.tables.effect.names.get(index) }
             DataTableReference::Flags => { store.tables.flag.names.get(index) }
+            DataTableReference::InteractPrompts => { None }
         }
     }
 
@@ -127,6 +144,51 @@ impl DataTableReference {
             DataTableReference::Pickups => { None }
             DataTableReference::Effects => { store.tables.effect.names.get_mut(index) }
             DataTableReference::Flags => { store.tables.flag.names.get_mut(index) }
+            DataTableReference::InteractPrompts => { None }
+        }
+    }
+
+    pub fn get_store_string_table(self, store: &DataStore) -> Option<&DataStoreStringTable> {
+        match self {
+            DataTableReference::Upgrades => { None }
+            DataTableReference::Collectables => { None }
+            DataTableReference::Pickups => { None }
+            DataTableReference::Effects => { None }
+            DataTableReference::Flags => { None }
+            DataTableReference::InteractPrompts => { Some(&store.tables.interact_prompt) }
+        }
+    }
+
+    pub fn get_store_string_table_mut(self, store: &mut DataStore) -> Option<&mut DataStoreStringTable> {
+        match self {
+            DataTableReference::Upgrades => { None }
+            DataTableReference::Collectables => { None }
+            DataTableReference::Pickups => { None }
+            DataTableReference::Effects => { None }
+            DataTableReference::Flags => { None }
+            DataTableReference::InteractPrompts => { Some(&mut store.tables.interact_prompt) }
+        }
+    }
+
+    pub fn get_store_string(self, store: &DataStore, index: usize) -> Option<&DataStoreStringTableItem> {
+        match self {
+            DataTableReference::Upgrades => { None }
+            DataTableReference::Collectables => { None }
+            DataTableReference::Pickups => { None }
+            DataTableReference::Effects => { None }
+            DataTableReference::Flags => { None }
+            DataTableReference::InteractPrompts => { store.tables.interact_prompt.items.get(index) }
+        }
+    }
+
+    pub fn get_store_string_mut(self, store: &mut DataStore, index: usize) -> Option<&mut DataStoreStringTableItem> {
+        match self {
+            DataTableReference::Upgrades => { None }
+            DataTableReference::Collectables => { None }
+            DataTableReference::Pickups => { None }
+            DataTableReference::Effects => { None }
+            DataTableReference::Flags => { None }
+            DataTableReference::InteractPrompts => { store.tables.interact_prompt.items.get_mut(index) }
         }
     }
 
@@ -137,6 +199,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { "Pickups" }
             DataTableReference::Effects => { "Effects" }
             DataTableReference::Flags => { "Flags" }
+            DataTableReference::InteractPrompts => { "Interact Prompts" }
         }
     }
 
@@ -147,6 +210,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { "new_pickup" }
             DataTableReference::Effects => { "new_effect" }
             DataTableReference::Flags => { "new_flag" }
+            DataTableReference::InteractPrompts => { "new_prompt" }
         }
     }
 
@@ -157,6 +221,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { "Add Pickup" }
             DataTableReference::Effects => { "Add Effect" }
             DataTableReference::Flags => { "Add Flag" }
+            DataTableReference::InteractPrompts => { "Add Prompt" }
         }
     }
 
@@ -167,6 +232,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { "Edit Pickup" }
             DataTableReference::Effects => { "Edit Effect" }
             DataTableReference::Flags => { "Edit Flag" }
+            DataTableReference::InteractPrompts => { "Edit Prompt" }
         }
     }
 
@@ -177,6 +243,7 @@ impl DataTableReference {
             DataTableReference::Pickups => { "Remove Pickup" }
             DataTableReference::Effects => { "Remove Effect" }
             DataTableReference::Flags => { "Remove Flag" }
+            DataTableReference::InteractPrompts => { "Remove Prompt" }
         }
     }
 }
@@ -216,6 +283,13 @@ fn fix_removed_pickup(pickup_id: &mut u16, data_table_ref: DataTableReference, i
     }
 }
 
+fn fix_removed_interact_prompt(prompt_id: &mut u16, data_table_ref: DataTableReference, index: usize) {
+    if data_table_ref == DataTableReference::InteractPrompts {
+        if *prompt_id > index as u16 { *prompt_id -= 1; }
+        else if *prompt_id == index as u16 { *prompt_id = u16::MAX; }
+    }
+}
+
 pub fn fix_after_data_table_item_removed(
     _wc: &mut WindowContext,
     store: &mut DataStore,
@@ -226,7 +300,15 @@ pub fn fix_after_data_table_item_removed(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                RoomTriggerType::WallButton {
+                    interact_prompt_id,
+                    set_effect_id,
+                    set_flag_id,
+                    req_flag_id,
+                    req_collectable_id,
+                    ..
+                } => {
+                    fix_removed_interact_prompt(interact_prompt_id, data_table_ref, index);
                     fix_removed_effect(set_effect_id, data_table_ref, index);
                     fix_removed_flag(set_flag_id, data_table_ref, index);
                     fix_removed_flag(req_flag_id, data_table_ref, index);
@@ -260,8 +342,9 @@ pub fn fix_after_data_table_item_removed(
                     fix_removed_upgrade(get_upgrade_id, data_table_ref, index);
                     fix_removed_flag(req_flag_id, data_table_ref, index);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                     fix_removed_collectable(get_collectable_id, data_table_ref, index);
+                    fix_removed_interact_prompt(interact_prompt_id, data_table_ref, index);
                     fix_removed_flag(req_flag_id, data_table_ref, index);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, .. } => {
@@ -316,6 +399,13 @@ fn fix_swapped_pickup(pickup_id: &mut u16, data_table_ref: DataTableReference, i
     }
 }
 
+fn fix_swapped_interact_prompt(prompt_id: &mut u16, data_table_ref: DataTableReference, index1: usize, index2: usize) {
+    if data_table_ref == DataTableReference::InteractPrompts {
+        if *prompt_id == index1 as u16 { *prompt_id = index2 as u16; }
+        else if *prompt_id == index2 as u16 { *prompt_id = index1 as u16; }
+    }
+}
+
 pub fn fix_after_data_table_items_swapped(
     _wc: &mut WindowContext,
     store: &mut DataStore,
@@ -327,7 +417,15 @@ pub fn fix_after_data_table_items_swapped(
     for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
-                RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                RoomTriggerType::WallButton {
+                    interact_prompt_id,
+                    set_effect_id,
+                    set_flag_id,
+                    req_flag_id,
+                    req_collectable_id,
+                    ..
+                } => {
+                    fix_swapped_interact_prompt(interact_prompt_id, data_table_ref, index1, index2);
                     fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
                     fix_swapped_flag(set_flag_id, data_table_ref, index1, index2);
                     fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
@@ -361,8 +459,9 @@ pub fn fix_after_data_table_items_swapped(
                     fix_swapped_upgrade(get_upgrade_id, data_table_ref, index1, index2);
                     fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
                 }
-                RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+                RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                     fix_swapped_collectable(get_collectable_id, data_table_ref, index1, index2);
+                    fix_swapped_interact_prompt(interact_prompt_id, data_table_ref, index1, index2);
                     fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, .. } => {

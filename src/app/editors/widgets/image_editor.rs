@@ -160,6 +160,7 @@ pub struct ImageEditorWidget<ImageAsset> {
     pub readonly: bool,
     pub custom_grid_color: Option<egui::Color32>,
     pub custom_bg_color: Option<egui::Color32>,
+    pub draw_tint: Option<egui::Color32>,
     last_zoom_level: f32,
     scroll: Vec2,
     tool: ImageDrawingTool,
@@ -205,6 +206,7 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
             last_zoom_level: 0.0,
             custom_grid_color: None,
             custom_bg_color: None,
+            draw_tint: None,
         }
     }
 
@@ -230,6 +232,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
 
     pub fn with_tool(mut self, tool: ImageDrawingTool) -> Self {
         self.tool = tool;
+        self
+    }
+
+    pub fn with_draw_tint(mut self, tint: egui::Color32) -> Self {
+        self.draw_tint = Some(tint);
         self
     }
 
@@ -966,7 +973,11 @@ impl<ImageAsset> ImageEditorWidget<ImageAsset> where ImageAsset: ImageCollection
         let slot = image.texture_slot(self.display.is_transparent(), false);
         let texture = image.texture(wc.tex_man, ui.ctx(), slot);
         let item_uv = image.get_item_uv(self.selected_image);
-        Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, paint_image_rect);
+        if let Some(tint) = self.draw_tint {
+            Image::from_texture((texture.id(), image_size)).uv(item_uv).tint(tint).paint_at(ui, paint_image_rect);
+        } else {
+            Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, paint_image_rect);
+        };
 
         // draw floating selection
         if let ImageSelection::Fragment(pos, frag) = &mut self.selection {

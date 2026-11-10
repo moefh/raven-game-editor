@@ -89,6 +89,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
         (String::from("wall_button"), ValueDefStruct::new(vec![
             (String::from("width"), ValueDef::U16),
             (String::from("height"), ValueDef::U16),
+            (String::from("interact_prompt_id"), ValueDef::U16),
             (String::from("set_effect_id"), ValueDef::U16),
             (String::from("set_flag_id"), ValueDef::U16),
             (String::from("req_flag_id"), ValueDef::U16),
@@ -149,6 +150,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("get_collectable"), ValueDefStruct::new(vec![
             (String::from("get_collectable_id"), ValueDef::U16),
+            (String::from("interact_prompt_id"), ValueDef::U16),
             (String::from("req_flag_id"), ValueDef::U16),
         ])),
 
@@ -267,6 +269,7 @@ fn conv_trigger_wall_button(data: &ValueStruct, _project_data: &ProjectData) -> 
     Ok(RoomTriggerType::WallButton {
         width: data.get_u16("width")?,
         height: data.get_u16("height")?,
+        interact_prompt_id: data.get_u16("interact_prompt_id")?,
         set_effect_id: data.get_u16("set_effect_id")?,
         set_flag_id: data.get_u16("set_flag_id")?,
         req_flag_id: data.get_u16("req_flag_id")?,
@@ -351,6 +354,7 @@ fn conv_trigger_get_upgrade(data: &ValueStruct, _project_data: &ProjectData) -> 
 fn conv_trigger_get_collectable(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
     Ok(RoomTriggerType::GetCollectable {
         get_collectable_id: data.get_u16("get_collectable_id")?,
+        interact_prompt_id: data.get_u16("interact_prompt_id")?,
         req_flag_id: data.get_u16("req_flag_id")?,
     })
 }

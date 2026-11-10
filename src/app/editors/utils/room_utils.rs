@@ -151,6 +151,7 @@ impl RoomTriggerTypeSel {
                 *trigger_type = RoomTriggerType::WallButton {
                     width: 16,
                     height: 16,
+                    interact_prompt_id: u16::MAX,
                     set_effect_id: u16::MAX,
                     set_flag_id: u16::MAX,
                     req_flag_id: u16::MAX,
@@ -233,6 +234,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::GetCollectable if ! matches!(trigger_type, RoomTriggerType::GetCollectable {..}) => {
                 *trigger_type = RoomTriggerType::GetCollectable {
                     get_collectable_id: u16::MAX,
+                    interact_prompt_id: u16::MAX,
                     req_flag_id: u16::MAX,
                 };
                 true

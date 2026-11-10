@@ -203,14 +203,14 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         } door;
         struct {
             uint16_t enemy_id;
-            uint16_t enemy_type;
-            const struct $<PREFIX>_SPRITE_ANIMATION *animation;
+            const struct $<PREFIX>_ENEMY *enemy;
             uint8_t direction;
             uint16_t req_flag_id;
         } enemy_spawn;
         struct {
             uint16_t width;
             uint16_t height;
+            uint16_t interact_prompt_id;
             uint16_t set_effect_id;
             uint16_t set_flag_id;
             uint16_t req_flag_id;
@@ -258,9 +258,12 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         } stop_sfx;
         struct {
             uint16_t get_upgrade_id;
+            uint16_t req_flag_id;
         } get_upgrade;
         struct {
             uint16_t get_collectable_id;
+            uint16_t interact_prompt_id;
+            uint16_t req_flag_id;
         } get_collectable;
         struct {
             uint16_t get_pickup_id;
@@ -330,9 +333,10 @@ struct $<PREFIX>_PLAYER_CHAR_SUIT {
 
 struct $<PREFIX>_PLAYER_CHAR_WEAPON {
     const struct $<PREFIX>_SPRITE_ANIMATION *shoot_anim;
-    const struct $<PREFIX>_SPRITE_ANIMATION *shoot_sfx;
+    const struct $<PREFIX>_SFX *shoot_sfx;
     const struct $<PREFIX>_SPRITE_ANIMATION *bullet_anim;
-    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_hit_sfx;
+    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_hit_anim;
+    const struct $<PREFIX>_SFX *bullet_hit_sfx;
 
     uint16_t req_collectable_id;
     uint16_t ammo_pickup_id;
@@ -349,6 +353,8 @@ struct $<PREFIX>_PLAYER_CHAR_WEAPON {
 };
 
 struct $<PREFIX>_PLAYER_CHAR {
+    const struct $<PREFIX>_FONT *font;
+    const struct $<PREFIX>_IMAGE *gamepad_sprite;
     uint16_t num_suits;
     uint16_t num_weapons;
     const struct $<PREFIX>_PLAYER_CHAR_SUIT *suits;
@@ -357,11 +363,11 @@ struct $<PREFIX>_PLAYER_CHAR {
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_PLAYER_CHAR */
 
-#if $<PREFIX>_SKIP_STRUCTS_ENEMY
+#ifndef $<PREFIX>_SKIP_STRUCTS_ENEMY
 
 struct $<PREFIX>_ENEMY {
-    const struct $<PREFIX>_SPRITE_ANIMATION *anim;
     uint16_t type;
+    const struct $<PREFIX>_SPRITE_ANIMATION *anim;
     uint16_t health;
 };
 
@@ -404,6 +410,7 @@ extern const struct $<PREFIX>_ENEMY $<prefix>_enemies[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_upgrades[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_collectables[];
 extern const struct $<PREFIX>_TABLE_ITEM $<prefix>_table_pickups[];
+extern const char *$<prefix>_table_interact_prompts[];
 
 #if $<PREFIX>_ADD_ROOM_SCRIPTS
 extern const struct $<PREFIX>_ROOM_SCRIPT *$<prefix>_room_script_table[];

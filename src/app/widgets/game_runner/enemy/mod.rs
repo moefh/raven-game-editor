@@ -7,7 +7,6 @@ use crate::data_store::{
     self,
     DataStore,
     DataAssetId,
-    Room,
     EnemyType,
     RoomEntityDirection,
     Sprite,
@@ -24,7 +23,7 @@ use super::{
     Direction,
     Player,
     GameRunnerState,
-    PlayerCharAssets,
+    GameAssets,
 };
 use super::collision::{*};
 
@@ -76,13 +75,13 @@ enum EnemyBehavior {
 }
 
 impl EnemyBehavior {
-    pub fn new(enemy_type: EnemyType, enemy: &mut EnemyInfo, room: &Room, store: &DataStore) -> Self {
+    pub fn new(enemy_type: EnemyType, enemy: &mut EnemyInfo, game_assets: &GameAssets, store: &DataStore) -> Self {
         if let Some(anim) = store.assets.animations.get(&enemy.anim_id) {
             match enemy_type {
-                EnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, room, anim, store)) }
-                EnemyType::Chiller => { return EnemyBehavior::Chiller(Chiller::new(enemy, room, anim, store)) }
-                EnemyType::Hopper => { return EnemyBehavior::Hopper(Hopper::new(enemy, room, anim, store)) }
-                EnemyType::Floater => { return EnemyBehavior::Floater(Floater::new(enemy, room, anim, store)) }
+                EnemyType::Walker => { return EnemyBehavior::Walker(Walker::new(enemy, game_assets, anim, store)) }
+                EnemyType::Chiller => { return EnemyBehavior::Chiller(Chiller::new(enemy, game_assets, anim, store)) }
+                EnemyType::Hopper => { return EnemyBehavior::Hopper(Hopper::new(enemy, game_assets, anim, store)) }
+                EnemyType::Floater => { return EnemyBehavior::Floater(Floater::new(enemy, game_assets, anim, store)) }
                 EnemyType::Other(_) => {}
             }
         }
@@ -96,15 +95,14 @@ impl EnemyBehavior {
         enemy: &mut EnemyInfo,
         player: &Player,
         game_state: &GameRunnerState,
-        player_assets: &PlayerCharAssets,
+        game_assets: &GameAssets,
         anim: &SpriteAnimation,
-        room: &Room,
     ) {
         match self {
-            EnemyBehavior::Walker(walker) => { walker.update(enemy, room, player, game_state, anim); }
-            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, room, player, game_state, anim); }
-            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, room, player, game_state, player_assets, anim); }
-            EnemyBehavior::Floater(floater) => { floater.update(enemy, room, player, game_state, anim); }
+            EnemyBehavior::Walker(walker) => { walker.update(enemy, player, game_state, game_assets, anim); }
+            EnemyBehavior::Chiller(chiller) => { chiller.update(enemy, player, game_state, game_assets, anim); }
+            EnemyBehavior::Hopper(hopper) => { hopper.update(enemy, player, game_state, game_assets, anim); }
+            EnemyBehavior::Floater(floater) => { floater.update(enemy, player, game_state, game_assets, anim); }
             EnemyBehavior::Unknown => {}
         }
     }
@@ -286,12 +284,12 @@ impl Enemy {
         pos: (i16, i16),
         enemy_id: DataAssetId,
         direction: RoomEntityDirection,
-        room: &Room,
+        game_assets: &GameAssets,
         store: &DataStore
     ) -> Option<Self> {
         let enemy_data = store.assets.enemies.get(&enemy_id)?;
         let mut info = EnemyInfo::new(pos.0 as i32, pos.1 as i32, direction.into(), enemy_data);
-        let behavior = EnemyBehavior::new(enemy_data.enemy_type, &mut info, room, store);
+        let behavior = EnemyBehavior::new(enemy_data.enemy_type, &mut info, game_assets, store);
 
         Some(Enemy {
             id,
@@ -313,11 +311,10 @@ impl Enemy {
 
     pub fn tick_engine(
         &mut self,
-        room: &Room,
         player: &Player,
         store: &DataStore,
         game_state: &mut GameRunnerState,
-        player_assets: &PlayerCharAssets
+        game_assets: &GameAssets,
     ) {
         if self.info.damage_frames_left != 0 {
             self.info.damage_frames_left -= 1;
@@ -326,7 +323,7 @@ impl Enemy {
             if self.info.health == 0 {
                 self.info.anim_loop = EnemyAnimLoop::Die;
             } else {
-                self.behavior.tick(&mut self.info, player, game_state, player_assets, anim, room);
+                self.behavior.tick(&mut self.info, player, game_state, game_assets, anim);
             }
             if let Some(cur_loop) = anim.loops.get(self.info.anim_loop.index()) {
                 self.info.anim_frame += cur_loop.frame_speed as u32;

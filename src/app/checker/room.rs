@@ -177,6 +177,12 @@ fn check_room_trigger_pickup(pickup_id: u16, tables: &DataStoreTables, trigger_i
     }
 }
 
+fn check_room_trigger_interact_prompt_id(prompt_id: u16, tables: &DataStoreTables, trigger_index: usize, errors: &mut Vec<AssetError>) {
+    if prompt_id != u16::MAX && prompt_id as usize >= tables.interact_prompt.items.len() {
+        errors.push(AssetError::RoomTriggerWithInvalidInteractPrompt { trigger_index });
+    }
+}
+
 fn check_room_project_table_refs(
     room: &Room,
     tables: &DataStoreTables,
@@ -193,7 +199,8 @@ fn check_room_project_table_refs(
             RoomTriggerType::Door { req_flag_id, .. } => {
                 check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
             }
-            RoomTriggerType::WallButton { set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+            RoomTriggerType::WallButton { interact_prompt_id, set_effect_id, set_flag_id, req_flag_id, req_collectable_id, .. } => {
+                check_room_trigger_interact_prompt_id(interact_prompt_id, tables, trigger_index, errors);
                 check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
                 check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
                 check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
@@ -227,8 +234,9 @@ fn check_room_project_table_refs(
                 check_room_trigger_upgrade(get_upgrade_id, tables, trigger_index, errors);
                 check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
             }
-            RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                 check_room_trigger_collectable(get_collectable_id, tables, trigger_index, errors);
+                check_room_trigger_interact_prompt_id(interact_prompt_id, tables, trigger_index, errors);
                 check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
             }
             RoomTriggerType::GetPickup { get_pickup_id, .. } => {

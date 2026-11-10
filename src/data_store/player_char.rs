@@ -2,6 +2,7 @@ use super::{
     DataAssetId,
 };
 
+#[derive(Clone)]
 pub struct PlayerCharSuit {
     pub name: String,
     pub anim_id: DataAssetId,
@@ -18,6 +19,7 @@ impl PlayerCharSuit {
     }
 }
 
+#[derive(Clone)]
 pub struct PlayerCharWeaponShoot {
     pub anim_id: DataAssetId,
     pub sfx_id: Option<DataAssetId>,
@@ -38,6 +40,7 @@ impl PlayerCharWeaponShoot {
     }
 }
 
+#[derive(Clone)]
 pub struct PlayerCharWeaponBullet {
     pub anim_id: DataAssetId,
     pub hit_anim_id: Option<DataAssetId>,
@@ -70,6 +73,7 @@ impl PlayerCharWeaponBullet {
     }
 }
 
+#[derive(Clone)]
 pub struct PlayerCharWeapon {
     pub name: String,
     pub req_collectable_id: u16,  // collectable table item or 0xffff
@@ -90,14 +94,18 @@ impl PlayerCharWeapon {
 
 pub struct PlayerChar {
     pub asset: super::DataAsset,
+    pub font_id: DataAssetId,
+    pub gamepad_sprite_id: DataAssetId,
     pub suits: Vec<PlayerCharSuit>,
     pub weapons: Vec<PlayerCharWeapon>,
 }
 
 impl PlayerChar {
-    pub fn new(id: super::DataAssetId, name: String) -> Self {
+    pub fn new(id: super::DataAssetId, name: String, font_id: DataAssetId, gamepad_sprite_id: DataAssetId) -> Self {
         PlayerChar {
             asset: super::DataAsset::new(super::DataAssetType::PlayerChar, id, name),
+            font_id,
+            gamepad_sprite_id,
             suits: Vec::new(),
             weapons: Vec::new(),
         }
@@ -107,6 +115,9 @@ impl PlayerChar {
 impl super::HashedData for PlayerChar {
     fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
+        hasher.add_asset_id(self.font_id);
+        hasher.add_asset_id(self.gamepad_sprite_id);
+
         for suit in &self.suits {
             hasher.add_str(&suit.name);
             hasher.add_asset_id(suit.anim_id);
@@ -141,8 +152,10 @@ impl super::DuplicableAsset<PlayerChar> for PlayerChar {
     fn duplicate(&self, dup_id: super::DataAssetId, dup_name: String) -> Self {
         PlayerChar {
             asset: self.asset.duplicate(dup_id, dup_name),
-            suits: Vec::new(),
-            weapons: Vec::new(),
+            font_id: self.font_id,
+            gamepad_sprite_id: self.gamepad_sprite_id,
+            suits: self.suits.clone(),
+            weapons: self.weapons.clone(),
         }
     }
 }
@@ -151,8 +164,8 @@ impl super::GenericAsset for PlayerChar {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: num_suits(2) + num_weapons(2) + (suits, weapons) * pointer(4)
-        let header = 2 + 2 + 4usize * 2;
+        // header: (font<ptr>, gamepad_sprite<ptr>)(4) + num_suits(2) + num_weapons(2) + (suits, weapons) * pointer(4)
+        let header = 4usize * 2 + 2 + 2 + 4usize * 2;
 
         // suit: animation<ptr>(4) + req_upgrade_id(2) + pad(2)
         let suits = (4 + 2 + 2) * self.suits.len();

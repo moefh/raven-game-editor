@@ -753,6 +753,7 @@ impl Editor {
         egui::CentralPanel::default().show(ui, |ui| {
             let colors = (self.color_picker.state.left_color, self.color_picker.state.right_color);
             self.tile_image_editor.show(ui, wc, tileset, colors);
+            self.grid_image_editor.set_tool(self.tile_image_editor.get_tool());
             if self.tile_image_editor.has_image_changed() {
                 self.grid_image_editor.set_image_changed();
             }
@@ -841,6 +842,7 @@ impl Editor {
 
             let grid_image = self.tile_grid.get_image_mut(tileset);
             self.grid_image_editor.show(ui, wc, grid_image, colors);
+            self.tile_image_editor.set_tool(self.grid_image_editor.get_tool());
             if self.grid_image_editor.has_image_changed() {
                 self.handle_grid_image_changed(wc, tileset);
             }

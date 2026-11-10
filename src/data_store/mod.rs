@@ -105,6 +105,8 @@ pub use tables::{
     DataStoreEffectTable,
     DataStoreItemTable,
     DataStoreTableItem,
+    DataStoreStringTable,
+    DataStoreStringTableItem,
 };
 pub use header_def::write_header_def;
 
@@ -460,6 +462,8 @@ impl AssetCollection {
             }
         }
         for pchar in self.player_chars.iter() {
+            if pchar.font_id == id { return true; }
+            if pchar.gamepad_sprite_id == id { return true; }
             for suit in pchar.suits.iter() {
                 if suit.anim_id == id { return true; }
             }
@@ -576,6 +580,7 @@ pub struct DataStoreTables {
     pub pickup: DataStoreItemTable,
     pub effect: DataStoreEffectTable,
     pub flag: DataStoreEffectTable,
+    pub interact_prompt: DataStoreStringTable,
 }
 
 impl DataStoreTables {
@@ -586,6 +591,7 @@ impl DataStoreTables {
             pickup: DataStoreItemTable::new(),
             effect: DataStoreEffectTable::new(),
             flag: DataStoreEffectTable::new(),
+            interact_prompt: DataStoreStringTable::new(),
         }
     }
 
@@ -595,6 +601,14 @@ impl DataStoreTables {
         self.pickup.data_hash(hasher);
         self.effect.data_hash(hasher);
         self.flag.data_hash(hasher);
+        self.interact_prompt.data_hash(hasher);
+    }
+
+    pub fn data_size(&self) -> usize {
+        self.upgrade.data_size() +
+            self.collectable.data_size() +
+            self.pickup.data_size() +
+            self.interact_prompt.data_size()
     }
 }
 
@@ -701,9 +715,7 @@ impl DataStore {
     }
 
     pub fn data_size(&self) -> usize {
-        let tables_data_size = self.tables.upgrade.data_size() + self.tables.collectable.data_size() + self.tables.pickup.data_size();
-        let assets_data_size = self.assets.data_size();
-        tables_data_size + assets_data_size
+        self.tables.data_size() + self.assets.data_size()
     }
 
     pub fn asset_has_dependents(&self, id: DataAssetId) -> bool {
@@ -898,10 +910,10 @@ impl DataStore {
         Some(id)
     }
 
-    pub fn add_player_char(&mut self, name: String) -> Option<DataAssetId> {
+    pub fn add_player_char(&mut self, name: String, font_id: DataAssetId, gamepad_sprite_id: DataAssetId) -> Option<DataAssetId> {
         let id = self.gen_id();
         self.asset_ids.player_chars.push(id);
-        self.assets.player_chars.insert(id, PlayerChar::new(id, name));
+        self.assets.player_chars.insert(id, PlayerChar::new(id, name, font_id, gamepad_sprite_id));
         Some(id)
     }
 

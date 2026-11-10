@@ -4,14 +4,16 @@ use crate::data_store::{
     SpriteAnimation,
     SpriteAnimationLoop,
 };
+use crate::image::{
+    ImageCollection,
+    TextureSlot,
+};
+
 use super::{
     EMPTY_ANIMATION_LOOP,
     Direction,
     WindowContext,
-};
-use crate::image::{
-    ImageCollection,
-    TextureSlot,
+    DrawInfo,
 };
 
 pub struct AnimationDrawInfo {
@@ -77,8 +79,7 @@ impl Animation {
         wc: &mut WindowContext,
         draw: &AnimationDrawInfo,
         store: &DataStore,
-        screen_pos: egui::Pos2,
-        zoom: f32,
+        draw_info: &DrawInfo,
     ) {
         if let Some(anim) = store.assets.animations.get(&self.sprite_anim_id) && let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
             let draw_x = match draw.direction {
@@ -103,8 +104,8 @@ impl Animation {
             };
 
             let draw_rect = egui::Rect::from_min_size(
-                screen_pos + zoom * egui::Vec2::new(draw_x as f32, draw_y as f32),
-                zoom * sprite_size
+                draw_info.pos + draw_info.zoom * egui::Vec2::new(draw_x as f32, draw_y as f32),
+                draw_info.zoom * sprite_size
             );
             let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
             egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);

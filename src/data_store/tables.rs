@@ -3,6 +3,37 @@ use super::{
     DataHasher,
 };
 
+pub struct DataStoreStringTableItem {
+    pub name: String,
+    pub value: String,
+}
+
+pub struct DataStoreStringTable {
+    pub items: Vec<DataStoreStringTableItem>,
+}
+
+impl DataStoreStringTable {
+    pub fn new() -> Self {
+        DataStoreStringTable {
+            items: Vec::new(),
+        }
+    }
+
+    pub fn data_hash(&self, hasher: &mut DataHasher) {
+        for item in &self.items {
+            hasher.add_str(&item.name);
+            hasher.add_str(&item.value);
+        }
+    }
+
+    pub fn data_size(&self) -> usize {
+        let pointers = 4 * self.items.len();
+        let strings = self.items.iter().fold(0, |size, item| size + item.value.len() + 1);
+
+        pointers + strings
+    }
+}
+
 pub struct DataStoreEffectTable {
     pub names: Vec<String>,
 }

@@ -10,6 +10,7 @@ use crate::data_store::{
     DataStoreTables,
     DataStoreItemTable,
     DataStoreEffectTable,
+    DataStoreStringTable,
     AssetIdCollection,
     GenericAsset,
     DataAssetList,
@@ -681,6 +682,39 @@ impl Editor {
         }
     }
 
+    fn show_string_id_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        item_id: &mut u16,
+        string_table: &DataStoreStringTable,
+    ) {
+        let mut show_other = false;
+        let item_name = string_table.items.get(*item_id as usize).map(|item| item.name.as_str()).unwrap_or_else(|| {
+            if *item_id == u16::MAX {
+                "(none)"
+            } else {
+                show_other = true;
+                "other..."
+            }
+        });
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(item_name)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(item_id, u16::MAX, "(none)");
+                for (index, item) in string_table.items.iter().enumerate() {
+                    ui.selectable_value(item_id, index as u16, &item.name);
+                }
+                ui.selectable_value(item_id, string_table.items.len() as u16, "other...");
+            });
+
+        if show_other || (*item_id != u16::MAX && *item_id as usize >= string_table.items.len()) {
+            ui.end_row();
+            ui.label("   other:");
+            ui.add(egui::DragValue::new(item_id).speed(1.0).range(0..=u16::MAX));
+        }
+    }
+
     fn show_trigger_map_index_editor(
         &self,
         ui: &mut egui::Ui,
@@ -925,13 +959,25 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::WallButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
+            RoomTriggerType::WallButton {
+                width,
+                height,
+                interact_prompt_id,
+                set_effect_id,
+                set_flag_id,
+                req_flag_id,
+                req_collectable_id
+            } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
 
                 ui.label("Height:");
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Prompt:");
+                self.show_string_id_editor(ui, "wall_button_prompt_id", interact_prompt_id, &assets.tables.interact_prompt);
                 ui.end_row();
 
                 ui.label("Req Flag:");
@@ -1085,9 +1131,13 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::GetCollectable { get_collectable_id, req_flag_id } => {
+            RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                 ui.label("Collectable:");
                 self.show_item_id_editor(ui, "get_collectable_id", get_collectable_id, &assets.tables.collectable);
+                ui.end_row();
+
+                ui.label("Prompt:");
+                self.show_string_id_editor(ui, "get_collectable_prompt_id", interact_prompt_id, &assets.tables.interact_prompt);
                 ui.end_row();
 
                 ui.label("Req Flag:");

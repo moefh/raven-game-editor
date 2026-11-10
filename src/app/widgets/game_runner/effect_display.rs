@@ -8,6 +8,7 @@ use super::{
     AnimationDrawInfo,
     Animation,
     Direction,
+    DrawInfo,
 };
 
 pub struct EffectDisplay {
@@ -41,14 +42,13 @@ impl EffectDisplay {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         store: &DataStore,
-        screen_pos: egui::Pos2,
-        zoom: f32,
+        draw_info: &DrawInfo,
     ) {
-        let draw_info = AnimationDrawInfo {
+        let draw_anim_info = AnimationDrawInfo {
             x: self.x,
             y: self.y,
             direction: self.direction,
         };
-        self.anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
+        self.anim.draw(ui, wc, &draw_anim_info, store, draw_info);
     }
 }

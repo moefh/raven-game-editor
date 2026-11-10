@@ -9,7 +9,7 @@ impl Font {
     pub const FIRST_CHAR: u32 = 32;
     pub const NUM_CHARS: u32 = 96;
     pub const BG_COLOR: u8 = 0b00_111_000;
-    pub const FG_COLOR: u8 = 0b11_000_000;
+    pub const FG_COLOR: u8 = 0b11_111_111;
 
     pub fn new(id: super::DataAssetId, name: String) -> Self {
         let width = 6;

@@ -42,6 +42,8 @@ use super::{
     DataStoreTableItem,
     DataStoreItemTable,
     DataStoreEffectTable,
+    DataStoreStringTable,
+    DataStoreStringTableItem,
     AssetCollection,
     AssetIdCollection,
 };
@@ -209,6 +211,7 @@ pub struct ProjectData {
     tiles_per_world_block: u32,
     room_names_with_scripts: HashSet<String>,
 
+    string_table_values: HashMap<String, Vec<String>>,
     asset_metadata: HashMap<DataAssetType, Vec<ValueStruct>>,
     enums: HashMap<String, Vec<String>>,
     item_tables: HashMap<ItemTableType, Vec<ValueStruct>>,
@@ -230,6 +233,7 @@ impl ProjectData {
             tiles_per_world_block: 22,
             room_names_with_scripts: HashSet::new(),
 
+            string_table_values: HashMap::new(),
             asset_metadata: HashMap::new(),
             data_arrays: HashMap::new(),
             struct_arrays: HashMap::new(),
@@ -801,7 +805,7 @@ impl<'a> ProjectDataReader<'a> {
         }
     }
 
-    fn read_global_data(&mut self) -> Result<()> {
+    fn read_global_struct(&mut self) -> Result<()> {
         self.expect_ident("struct")?;
         let mut struct_tag_token = self.expect_any_ident("struct tag")?;
         if let Some(struct_tag) = struct_tag_token.drain_ident() {
@@ -829,6 +833,44 @@ impl<'a> ProjectDataReader<'a> {
         } else {
             self.unexpected(&struct_tag_token)
         }
+    }
+
+    fn read_string_table(&mut self) -> Result<()> {
+        self.expect_ident("char")?;
+        self.expect_punct('*')?;
+        let mut name_token = self.expect_any_ident("string table name")?;
+        if let Some(name) = name_token.drain_ident() {
+            self.expect_punct('[')?;
+            self.expect_punct(']')?;
+            self.expect_punct('=')?;
+            self.expect_punct('{')?;
+            let mut strings = Vec::new();
+            while let Some(mut t) = self.read_loop()? {
+                if let Some(string) = t.drain_string() {
+                    strings.push(string);
+                } else {
+                    return error(format!("expected string, got '{}'", t), t.pos);
+                }
+            }
+            self.expect_punct(';')?;
+            self.data.string_table_values.insert(name, strings);
+            Ok(())
+        } else {
+            self.unexpected(&name_token)
+        }
+    }
+
+    fn read_global_data(&mut self) -> Result<()> {
+        let char_or_struct_token = self.expect_any_ident("'struct' or 'char'")?;
+        if char_or_struct_token.is_ident("struct") {
+            self.unread(char_or_struct_token)?;
+            return self.read_global_struct();
+        }
+        if char_or_struct_token.is_ident("char") {
+            self.unread(char_or_struct_token)?;
+            return self.read_string_table();
+        }
+        self.unexpected(&char_or_struct_token)
     }
 
     fn read_enum(&mut self) -> Result<()> {
@@ -903,6 +945,26 @@ impl<'a> ProjectDataReader<'a> {
     // =========================================================
     // === CONVERT DATA TO ASSET STORE
     // =========================================================
+
+    fn create_string_table(&self, name: &str) -> Result<DataStoreStringTable> {
+        let enum_name = format!("TABLE_{}", name.to_ascii_uppercase());
+        let names = self.data.get_enum_item_names(&enum_name);
+
+        let table_name = format!("{}table_{}s", self.data.prefix_lower, name);
+        if let Some(values) = self.data.string_table_values.get(&table_name) {
+            let mut items = Vec::new();
+            for (index, value) in values.iter().enumerate() {
+                let name = names.get(index).cloned().unwrap_or_else(|| format!("item{}", index));
+                items.push(DataStoreStringTableItem {
+                    name,
+                    value: value.clone(),
+                });
+            }
+            Ok(DataStoreStringTable { items })
+        } else {
+            Ok(DataStoreStringTable { items: Vec::new() })
+        }
+    }
 
     fn create_item_table(&self, item_table_type: ItemTableType) -> Result<DataStoreItemTable> {
         let mut items = Vec::new();
@@ -1046,12 +1108,14 @@ impl<'a> ProjectDataReader<'a> {
         }
 
         // create item tables
+        let interact_prompt = self.create_string_table("interact_prompt")?;
         let tables = DataStoreTables {
             upgrade: self.create_item_table(ItemTableType::Upgrades)?,
             collectable: self.create_item_table(ItemTableType::Collectables)?,
             pickup: self.create_item_table(ItemTableType::Pickups)?,
             effect: self.create_effect_table("TABLE_EFFECT"),
             flag: self.create_effect_table("TABLE_FLAG"),
+            interact_prompt,
         };
 
         Ok(DataStore {

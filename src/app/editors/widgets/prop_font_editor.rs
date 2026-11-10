@@ -18,6 +18,7 @@ use egui::{
 pub struct PropFontEditorWidget {
     pub selected_char: u32,
     pub image_changed: bool,
+    pub color: egui::Color32,
 }
 
 impl PropFontEditorWidget {
@@ -25,6 +26,7 @@ impl PropFontEditorWidget {
         PropFontEditorWidget {
             selected_char: 0,
             image_changed: false,
+            color: egui::Color32::from_rgb(0, 0, 255),
         }
     }
 
@@ -73,7 +75,7 @@ impl PropFontEditorWidget {
             min: Pos2::new(0.0, self.selected_char as f32 / PropFont::NUM_CHARS as f32),
             max: Pos2::new(char_width as f32 / prop_font.max_width as f32, (self.selected_char+1) as f32 / PropFont::NUM_CHARS as f32),
         };
-        Image::from_texture((texture.id(), image_size)).uv(item_uv).paint_at(ui, canvas_rect);
+        Image::from_texture((texture.id(), image_size)).uv(item_uv).tint(self.color).paint_at(ui, canvas_rect);
 
         // draw border
         let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);

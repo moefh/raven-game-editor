@@ -35,6 +35,31 @@ use super::metadata::{
 static TIMESTAMP_FORMAT: LazyLock<time::format_description::FormatDescriptionV3> = LazyLock::new(
     || time::format_description::parse_borrowed::<3>("[year][month][day]00[hour][minute][second]").unwrap());
 
+struct StringEscaper {
+    re: regex::Regex,
+}
+
+impl StringEscaper {
+    fn new() -> Result<Self> {
+        Ok(StringEscaper {
+            re: regex::Regex::new(r#"["\\]"#).map_err(std::io::Error::other)?,
+        })
+    }
+
+    fn escape(&mut self, s: &str) -> String {
+        self.re.replace(s, StringEscapeReplacer).to_string()
+    }
+}
+
+struct StringEscapeReplacer;
+
+impl regex::Replacer for StringEscapeReplacer {
+    fn replace_append(&mut self, caps: &regex::Captures<'_>, dst: &mut String) {
+        dst.push('\\');
+        dst.push_str(caps.get(0).map_or("\\", |m| m.as_str()));
+    }
+}
+
 struct ProjectDataWriter<'a> {
     output: RefCell<String>,
     logger: RefCell<&'a mut StringLogger>,
@@ -305,13 +330,11 @@ impl<'a> ProjectDataWriter<'a> {
     // === TABLES
     // =========================================================================
 
-    fn write_item_table(
+    fn write_item_table_names(
         &self,
         table_name_upper: &str,
-        table_name_lower: &str,
         table: &super::DataStoreItemTable
     ) -> Result<()> {
-        // names
         if ! table.items.is_empty() {
             self.write(format!(
                 "enum {}_TABLE_{}S {{\n",
@@ -329,8 +352,14 @@ impl<'a> ProjectDataWriter<'a> {
             self.write("};\n");
             self.write("\n");
         }
+        Ok(())
+    }
 
-        // sprites
+    fn write_item_table_data(
+        &self,
+        table_name_lower: &str,
+        table: &super::DataStoreItemTable
+    ) -> Result<()> {
         self.write(format!(
             "const struct {}_TABLE_ITEM {}_table_{}s[] = {{\n",
             self.ident.prefix_upper,
@@ -347,11 +376,10 @@ impl<'a> ProjectDataWriter<'a> {
         }
         self.write("};\n");
         self.write("\n");
-
         Ok(())
     }
 
-    fn write_effect_table(
+    fn write_effect_table_names(
         &self,
         table_name: &str,
         table: &super::DataStoreEffectTable
@@ -369,21 +397,72 @@ impl<'a> ProjectDataWriter<'a> {
             self.write("};\n");
             self.write("\n");
         }
-
         Ok(())
     }
 
-    fn write_tables(&self) -> Result<()> {
+    fn write_string_table_names(
+        &self,
+        table_name_upper: &str,
+        table: &super::DataStoreStringTable
+    ) -> Result<()> {
+        if ! table.items.is_empty() {
+            self.write(format!("enum {}_TABLE_{}S {{\n", self.ident.prefix_upper, table_name_upper));
+            for item in &table.items {
+                self.write(format!(
+                    "  {}_TABLE_{}_{},\n",
+                    self.ident.prefix_upper,
+                    table_name_upper,
+                    IdentStore::upper_cleanup(&item.name)
+                ));
+            }
+            self.write("};\n");
+            self.write("\n");
+        }
+        Ok(())
+    }
+
+    fn write_string_table_data(
+        &self,
+        table_name_lower: &str,
+        table: &super::DataStoreStringTable
+    ) -> Result<()> {
+        self.write(format!("const char *{}_table_{}s[] = {{\n", self.ident.prefix_lower, table_name_lower));
+        let mut escaper = StringEscaper::new()?;
+        for item in &table.items {
+            let escaped = escaper.escape(&item.value);
+            self.write(format!("  \"{}\",\n", escaped));
+        }
+        self.write("};\n");
+        self.write("\n");
+        Ok(())
+    }
+
+    fn write_tables_data(&self) -> Result<()> {
         self.write("// ================================================================\n");
         self.write("// === TABLES\n");
         self.write("// ================================================================\n");
         self.write("\n");
 
-        self.write_item_table("UPGRADE", "upgrade", &self.store.tables.upgrade)?;
-        self.write_item_table("COLLECTABLE", "collectable", &self.store.tables.collectable)?;
-        self.write_item_table("PICKUP", "pickup", &self.store.tables.pickup)?;
-        self.write_effect_table("EFFECT", &self.store.tables.effect)?;
-        self.write_effect_table("FLAG", &self.store.tables.flag)?;
+        self.write_item_table_data("upgrade", &self.store.tables.upgrade)?;
+        self.write_item_table_data("collectable", &self.store.tables.collectable)?;
+        self.write_item_table_data("pickup", &self.store.tables.pickup)?;
+        self.write_string_table_data("interact_prompt", &self.store.tables.interact_prompt)?;
+
+        Ok(())
+    }
+
+    fn write_tables_names(&self) -> Result<()> {
+        self.write("// ================================================================\n");
+        self.write("// === TABLES\n");
+        self.write("// ================================================================\n");
+        self.write("\n");
+
+        self.write_item_table_names("UPGRADE", &self.store.tables.upgrade)?;
+        self.write_item_table_names("COLLECTABLE", &self.store.tables.collectable)?;
+        self.write_item_table_names("PICKUP", &self.store.tables.pickup)?;
+        self.write_effect_table_names("EFFECT", &self.store.tables.effect)?;
+        self.write_effect_table_names("FLAG", &self.store.tables.flag)?;
+        self.write_string_table_names("INTERACT_PROMPT", &self.store.tables.interact_prompt)?;
 
         Ok(())
     }
@@ -449,7 +528,7 @@ impl<'a> ProjectDataWriter<'a> {
         player_char::write_player_chars(&self, &self.store.asset_ids.player_chars.store)?;
         enemy::write_enemies(&self, &self.store.asset_ids.enemies.store)?;
 
-        self.write_tables()?;
+        self.write_tables_data()?;
 
         room::write_scripts(&self, &self.store.asset_ids.rooms.store)?;
 
@@ -460,6 +539,7 @@ impl<'a> ProjectDataWriter<'a> {
         room::write_room_item_names(&self, &self.store.asset_ids.rooms.store)?;
         world::write_world_item_names(&self, &self.store.asset_ids.worlds.store)?;
         player_char::write_player_char_names(&self, &self.store.asset_ids.player_chars.store)?;
+        self.write_tables_names()?;
         self.write_asset_ids()?;
         self.write_sprite_sizes()?;
 

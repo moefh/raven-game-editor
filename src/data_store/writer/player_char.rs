@@ -108,8 +108,12 @@ pub fn write_player_chars(writer: &ProjectDataWriter, player_char_ids: &[DataAss
     for id in player_char_ids.iter() {
         if let Some(player_char) = writer.store.assets.player_chars.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::PlayerChar, *id)?;
+            let font_index = writer.ident.get_asset_index(DataAssetType::Font, player_char.font_id)?;
+            let gamepad_sprite_index = writer.ident.get_asset_index(DataAssetType::Sprite, player_char.gamepad_sprite_id)?;
             writer.write(format!(
-                "  {{ {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{} }},\n",
+                "  {{ &{}_fonts[{}], &{}_sprites[{}], {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{} }},\n",
+                writer.ident.prefix_lower, font_index,
+                writer.ident.prefix_lower, gamepad_sprite_index,
                 player_char.suits.len(),
                 player_char.weapons.len(),
                 writer.ident.prefix_lower, name_id,

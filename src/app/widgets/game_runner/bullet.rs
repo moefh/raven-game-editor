@@ -1,7 +1,6 @@
 use crate::data_store::{
     DataStore,
     DataAssetId,
-    Room,
 };
 
 use super::{
@@ -9,10 +8,12 @@ use super::{
     Direction,
     WindowContext,
     GameRunnerState,
+    GameAssets,
     AnimationDrawInfo,
     Animation,
     Enemy,
     CollisionRect,
+    DrawInfo,
 };
 
 pub struct Bullet {
@@ -29,7 +30,7 @@ pub struct Bullet {
 impl Bullet {
     pub fn tick_engine(
         &mut self,
-        _room: &Room,
+        _game_assets: &GameAssets,
         enemies: &mut [Enemy],
         store: &DataStore,
         game_state: &mut GameRunnerState
@@ -73,14 +74,13 @@ impl Bullet {
         ui: &mut egui::Ui,
         wc: &mut WindowContext,
         store: &DataStore,
-        screen_pos: egui::Pos2,
-        zoom: f32,
+        draw_info: &DrawInfo,
     ) {
-        let draw_info = AnimationDrawInfo {
+        let draw_anim_info = AnimationDrawInfo {
             x: self.x >> 8,
             y: self.y >> 8,
             direction: Direction::from_dx(self.dx),
         };
-        self.anim.draw(ui, wc, &draw_info, store, screen_pos, zoom);
+        self.anim.draw(ui, wc, &draw_anim_info, store, &draw_info);
     }
 }

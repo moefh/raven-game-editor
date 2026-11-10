@@ -14,6 +14,8 @@ use crate::data_store::{
     PlayerCharWeapon,
     SpriteAnimation,
     Sfx,
+    Font,
+    Sprite,
 };
 
 use super::{
@@ -32,12 +34,15 @@ use properties::PropertiesDialog;
 pub struct PlayerCharEditorAssetLists<'a> {
     pub animations: &'a DataAssetList<SpriteAnimation>,
     pub sfxs: &'a DataAssetList<Sfx>,
+    pub fonts: &'a DataAssetList<Font>,
+    pub sprites: &'a DataAssetList<Sprite>,
     pub asset_ids: &'a AssetIdCollection,
     pub tables: &'a DataStoreTables,
 }
 
 pub enum ItemAction {
     None,
+    SelectCharacter,
     AddSuit,
     SelectSuit(usize),
     RemoveSuit(usize),
@@ -48,12 +53,16 @@ pub enum ItemAction {
 
 #[derive(Clone, Copy)]
 pub enum ItemRef {
-    None,
+    Character,
     Suit(usize),
     Weapon(usize),
 }
 
 impl ItemRef {
+    pub fn is_character(&self) -> bool {
+        matches!(self, ItemRef::Character)
+    }
+
     pub fn is_suit(&self, suit_index: usize) -> bool {
         if let ItemRef::Suit(index) = self && *index == suit_index {
             true
@@ -140,12 +149,15 @@ struct Editor {
     id_trees_panel: egui::Id,
     id_suits_tree: egui::Id,
     id_weapons_tree: egui::Id,
+    id_grid_char: String,
     id_grid_suit: String,
     id_grid_weapon: String,
     selected_item: ItemRef,
     remove_item: ItemRef,
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_sfx_ids: Vec<DataAssetId>,
+    sorted_font_ids: Vec<DataAssetId>,
+    sorted_sprite_ids: Vec<DataAssetId>,
 }
 
 impl Editor {
@@ -155,48 +167,34 @@ impl Editor {
             id_trees_panel: egui::Id::unique(format!("editor_{}_trees_panel", asset_id)),
             id_suits_tree: egui::Id::unique(format!("editor_{}_suits_tree", asset_id)),
             id_weapons_tree: egui::Id::unique(format!("editor_{}_weapons_tree", asset_id)),
+            id_grid_char: format!("editor_panel_{}_char_grid", asset_id),
             id_grid_suit: format!("editor_panel_{}_suit_grid", asset_id),
             id_grid_weapon: format!("editor_panel_{}_weapon_grid", asset_id),
-            selected_item: ItemRef::None,
-            remove_item: ItemRef::None,
+            selected_item: ItemRef::Character,
+            remove_item: ItemRef::Character,
             sorted_animation_ids: Vec::new(),
             sorted_sfx_ids: Vec::new(),
+            sorted_font_ids: Vec::new(),
+            sorted_sprite_ids: Vec::new(),
         }
     }
 
     fn prepare_for_saving(&mut self, _player_char: &mut PlayerChar) {
     }
 
-    fn select_some_item(&mut self, player_char: &PlayerChar, suit_first: bool) -> bool {
-        if suit_first && ! player_char.suits.is_empty() {
-            self.selected_item = ItemRef::Suit(0);
-            return true;
-        }
-        if ! player_char.weapons.is_empty() {
-            self.selected_item = ItemRef::Weapon(0);
-            return true;
-        }
-        if ! player_char.suits.is_empty() {
-            self.selected_item = ItemRef::Suit(0);
-            return true;
-        }
-        self.selected_item = ItemRef::None;
-        false
-    }
-
     fn ensure_valid_selection(&mut self, player_char: &PlayerChar) {
         match self.selected_item {
-            ItemRef::None => {
-                self.select_some_item(player_char, true);
+            ItemRef::Character => {
+                // nothing to do; selection is always valid
             }
             ItemRef::Suit(index) => {
                 if player_char.suits.get(index).is_none() {
-                    self.select_some_item(player_char, true);
+                    self.selected_item = ItemRef::Character;
                 }
             }
             ItemRef::Weapon(index) => {
                 if player_char.weapons.get(index).is_none() {
-                    self.select_some_item(player_char, false);
+                    self.selected_item = ItemRef::Character;
                 }
             }
         }
@@ -216,7 +214,7 @@ impl Editor {
                     self.ensure_valid_selection(player_char);
                 }
             }
-            ItemRef::None => {}
+            ItemRef::Character => {}
         }
     }
 
@@ -233,7 +231,7 @@ impl Editor {
                     dialogs.confirmation_dialog.set_open(wc, "Remove Weapon", format!("Remove weapon '{}'?", weapon.name), "Yes", "No");
                 }
             }
-            ItemRef::None => {}
+            ItemRef::Character => {}
         }
     }
 
@@ -246,6 +244,9 @@ impl Editor {
         assets: &PlayerCharEditorAssetLists,
     ) {
         match action {
+            ItemAction::SelectCharacter => {
+                self.selected_item = ItemRef::Character;
+            }
             ItemAction::SelectSuit(index) => {
                 self.selected_item = ItemRef::Suit(index);
             }
@@ -290,6 +291,16 @@ impl Editor {
                 });
             });
         });
+    }
+
+    fn show_char_item(&self, ui: &mut egui::Ui) -> ItemAction {
+        let mut selected = self.selected_item.is_character();
+        let resp = ui.toggle_value(&mut selected, "Basic Info");
+        if resp.clicked() || resp.secondary_clicked() {
+            ItemAction::SelectCharacter
+        } else {
+            ItemAction::None
+        }
     }
 
     fn show_suits_tree(
@@ -453,6 +464,50 @@ impl Editor {
                     }
                 }
             });
+    }
+
+    fn show_char_editor_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        _wc: &mut WindowContext,
+        _dialogs: &mut Dialogs,
+        player_char: &mut PlayerChar,
+        assets: &PlayerCharEditorAssetLists,
+    ) {
+        egui::Panel::top(format!("editor_{}_char_top", self.asset_id)).show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.heading("Character");
+            ui.add_space(1.0);
+        });
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.add_space(5.0);
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                egui::Grid::new(&self.id_grid_char)
+                    .num_columns(2)
+                    .spacing([8.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label("Font:");
+                        Self::show_asset_id_editor(
+                            ui,
+                            "char_font_id",
+                            assets.fonts,
+                            &self.sorted_font_ids,
+                            &mut player_char.font_id
+                        );
+                        ui.end_row();
+
+                        ui.label("Gamepad Buttons:");
+                        Self::show_asset_id_editor(
+                            ui,
+                            "char_gamepad_sprite_id",
+                            assets.sprites,
+                            &self.sorted_sprite_ids,
+                            &mut player_char.gamepad_sprite_id
+                        );
+                        ui.end_row();
+                    });
+            });
+        });
     }
 
     fn show_suit_editor_tab(
@@ -700,11 +755,15 @@ impl Editor {
     fn clear_sorted_ids(&mut self) {
         self.sorted_animation_ids.clear();
         self.sorted_sfx_ids.clear();
+        self.sorted_font_ids.clear();
+        self.sorted_sprite_ids.clear();
     }
 
     fn sort_ids(&mut self, assets: &PlayerCharEditorAssetLists) {
         if self.sorted_animation_ids.len() != assets.asset_ids.animations.len() ||
-            self.sorted_sfx_ids.len() != assets.asset_ids.sfxs.len() {
+            self.sorted_sfx_ids.len() != assets.asset_ids.sfxs.len() ||
+            self.sorted_font_ids.len() != assets.asset_ids.fonts.len() ||
+            self.sorted_sprite_ids.len() != assets.asset_ids.sprites.len() {
             self.clear_sorted_ids();
         }
 
@@ -715,6 +774,14 @@ impl Editor {
         if self.sorted_sfx_ids.is_empty() {
             assets.asset_ids.sfxs.copy_to(&mut self.sorted_sfx_ids);
             data_store::utils::sort_asset_ids_by_name(&mut self.sorted_sfx_ids, assets.sfxs);
+        }
+        if self.sorted_font_ids.is_empty() {
+            assets.asset_ids.fonts.copy_to(&mut self.sorted_font_ids);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_font_ids, assets.fonts);
+        }
+        if self.sorted_sprite_ids.is_empty() {
+            assets.asset_ids.sprites.copy_to(&mut self.sorted_sprite_ids);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_sprite_ids, assets.sprites);
         }
     }
 
@@ -730,7 +797,7 @@ impl Editor {
         self.ensure_valid_selection(player_char);
         if dialogs.confirmation_dialog.open && dialogs.confirmation_dialog.show(wc) == DialogResult::Yes {
             self.remove_item(player_char, self.remove_item);
-            self.remove_item = ItemRef::None;
+            self.remove_item = ItemRef::Character;
         }
 
         self.show_menu_bar(ui, wc, dialogs, player_char);
@@ -738,6 +805,8 @@ impl Editor {
         egui::Panel::left(self.id_trees_panel).resizable(false).exact_size(200.0).show(ui, |ui| {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                let action = self.show_char_item(ui);
+                self.run_action(wc, dialogs, player_char, action, assets);
                 let action = self.show_suits_tree(ui, wc, dialogs, player_char);
                 self.run_action(wc, dialogs, player_char, action, assets);
                 let action = self.show_weapons_tree(ui, wc, dialogs, player_char);
@@ -746,13 +815,9 @@ impl Editor {
         });
 
         match self.selected_item {
+            ItemRef::Character => { self.show_char_editor_tab(ui, wc, dialogs, player_char, assets); }
             ItemRef::Suit(index) => { self.show_suit_editor_tab(ui, wc, dialogs, player_char, index, assets); }
             ItemRef::Weapon(index) => { self.show_weapon_editor_tab(ui, wc, dialogs, player_char, index, assets); }
-            ItemRef::None => {
-                egui::CentralPanel::default().show(ui, |ui| {
-                    ui.label("Nothing selected!");
-                });
-            }
         }
     }
 }

@@ -19,11 +19,11 @@ use super::{
     AssetEditorBase,
     WindowContext,
     SysDialogResponse,
+    FontPainter,
 };
 use super::widgets::{
     ImageEditorWidget,
     FontViewWidget,
-    FontPainter,
 };
 use super::super::{
     menu_item,
@@ -39,13 +39,21 @@ impl FontPainter for Font {
     }
 
     fn measure(&self, height: f32, text: &str) -> f32 {
-        let zoom = height / self.height as f32;
+        let width = self.width as f32 * height / self.height as f32;
         text.chars().fold(0.0, |size, _ch| {
-            size + zoom * self.width as f32
+            size + width
         })
     }
 
-    fn paint_char(&self, ui: &mut egui::Ui, wc: &mut WindowContext, ch: char, pos: egui::Pos2, height: f32) -> f32 {
+    fn paint_char(
+        &self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        ch: char,
+        pos: egui::Pos2,
+        height: f32,
+        color: egui::Color32
+    ) -> f32 {
         if (ch as u32) < Font::FIRST_CHAR { return 0.0; }
 
         let zoom = height / self.height as f32;
@@ -53,7 +61,10 @@ impl FontPainter for Font {
         let texture = self.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
         let image_size = self.get_item_size();
         let rect = egui::Rect::from_min_size(pos, egui::Vec2::new(width, height));
-        egui::Image::from_texture((texture.id(), image_size)).uv(self.get_item_uv(ch as u32 - Font::FIRST_CHAR)).paint_at(ui, rect);
+        egui::Image::from_texture((texture.id(), image_size))
+            .uv(self.get_item_uv(ch as u32 - Font::FIRST_CHAR))
+            .tint(color)
+            .paint_at(ui, rect);
         width
     }
 }
@@ -138,7 +149,10 @@ impl Editor {
     pub fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
-            image_editor: ImageEditorWidget::<Font>::new().with_selected_image('@' as u32 - Font::FIRST_CHAR).with_selection_enabled(false),
+            image_editor: ImageEditorWidget::<Font>::new()
+                .with_selected_image('@' as u32 - Font::FIRST_CHAR)
+                .with_selection_enabled(false)
+                .with_draw_tint(egui::Color32::from_rgb(0, 0, 255)),
             font_view: FontViewWidget::new(),
             export_sys_dlg_id: format!("editor_{}_export_font", asset_id),
         }

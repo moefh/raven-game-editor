@@ -550,9 +550,19 @@ impl RavenEditorApp {
                 })
             }
             DataAssetType::PlayerChar => {
-                self.store.add_player_char(self.new_asset_name(asset_type, name_prefix)).map(|id| {
-                    (id, self.editors.add_player_char(id))
-                })
+                if let Some(font_id) = self.store.asset_ids.fonts.get_first() &&
+                    let Some(gamepad_sprite_id) = self.store.asset_ids.sprites.get_first() {
+                        self.store.add_player_char(
+                            self.new_asset_name(asset_type, name_prefix),
+                            font_id,
+                            gamepad_sprite_id
+                        ).map(|id| {
+                            (id, self.editors.add_player_char(id))
+                        })
+                    } else {
+                        self.open_message_box("No Font Available", "You must create a font first!");
+                        None
+                    }
             }
             DataAssetType::Enemy => {
                 if let Some(anim_id) = self.store.asset_ids.animations.get_first() {
@@ -1137,6 +1147,8 @@ impl RavenEditorApp {
                 let assets = editors::PlayerCharEditorAssetLists {
                     animations: &self.store.assets.animations,
                     sfxs: &self.store.assets.sfxs,
+                    fonts: &self.store.assets.fonts,
+                    sprites: &self.store.assets.sprites,
                     asset_ids: &self.store.asset_ids,
                     tables: &self.store.tables,
                 };
