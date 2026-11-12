@@ -71,6 +71,7 @@ enum TriggerTreeAction {
     None,
     Add(Option<TreeViewFolderId>),
     Select(usize),
+    Duplicate(usize),
     Remove(usize),
 }
 
@@ -472,6 +473,15 @@ impl Editor {
         }
     }
 
+    fn duplicate_trigger(&mut self, room: &mut Room, trg_index: usize) {
+        if let Some(mut new_trigger) = room.triggers.get(trg_index).map(|tr| tr.clone()) {
+            let new_trigger_index = room.triggers.len();
+            new_trigger.name_id.push_str("_copy");
+            room.triggers.push(new_trigger);
+            self.room_editor.set_selected_item(RoomItemRef::Trigger(new_trigger_index), true);
+        }
+    }
+
     fn show_map_tree(&self, ui: &mut egui::Ui, room: &Room, maps: &DataAssetList<MapData>) -> (bool, Option<usize>) {
         let (mut choose_maps, mut sel_map) = (false, None);
 
@@ -551,6 +561,9 @@ impl Editor {
                     item_action = TriggerTreeAction::Select(item.item_id);
                 }
                 egui::Popup::context_menu(&resp).show(|ui| {
+                    if ui.add(menu_item(IMAGES.copy, " Duplicate trigger")).clicked() {
+                        item_action = TriggerTreeAction::Duplicate(item.item_id);
+                    }
                     if ui.add(menu_item(IMAGES.trash, " Remove trigger")).clicked() {
                         item_action = TriggerTreeAction::Remove(item.item_id);
                     }
@@ -846,6 +859,10 @@ impl Editor {
         });
         ui.end_row();
 
+        ui.label("Name:");
+        ui.add(egui::TextEdit::singleline(&mut trigger.name_id).desired_width(150.0));
+        ui.end_row();
+
         ui.label("Type:");
         let mut type_sel = RoomTriggerTypeSel::from_trigger_type(&trigger.trigger_type);
         egui::ComboBox::from_id_salt(format!("editor_{}_ent_prop_type", self.asset_id))
@@ -872,10 +889,6 @@ impl Editor {
                 }
             });
         type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
-        ui.end_row();
-
-        ui.label("Name:");
-        ui.add(egui::TextEdit::singleline(&mut trigger.name_id).desired_width(150.0));
         ui.end_row();
 
         ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
@@ -1343,6 +1356,9 @@ impl Editor {
                             self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
                             self.clear_sorted_ids();
                         }
+                        TriggerTreeAction::Duplicate(trg_index) => {
+                            self.duplicate_trigger(room, trg_index);
+                        }
                         TriggerTreeAction::Remove(trg_index) => {
                             self.remove_trigger(room, trg_index);
                         }
@@ -1353,6 +1369,7 @@ impl Editor {
             ui.separator();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 self.show_item_properties(ui, room, asset_ids, assets);
+                ui.add_space(8.0);
             });
         });
 
