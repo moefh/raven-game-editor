@@ -899,6 +899,16 @@ impl RavenEditorApp {
                     self.windows.collection.game_runner.open(ui.ctx());
                 }
 
+                ui.add_space(5.0);
+                ui.separator();
+                ui.add_space(5.0);
+
+                if ui.add(
+                    egui::Button::image(if self.sound_player.is_enabled() { IMAGES.sfx } else { IMAGES.sfx_disabled })
+                ).on_hover_text("Enable/Disable Sound").clicked() {
+                    self.sound_player.set_enabled(! self.sound_player.is_enabled());
+                }
+
                 ui.spacing_mut().item_spacing = spacing;
             });
 

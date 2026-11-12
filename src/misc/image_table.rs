@@ -164,6 +164,7 @@ image_table! {
     start_end: "../../assets/StartEndIcon.png",
     collapse_left: "../../assets/CollapseLeftIcon.png",
     collapse_right: "../../assets/CollapseRightIcon.png",
+    sfx_disabled: "../../assets/SfxDisabledIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",
