@@ -194,6 +194,17 @@ impl TriggerRect {
                     })
             }
 
+            RoomTriggerType::PlayAnimation { anim_id, .. } => {
+                assets.animations.get(&anim_id).map(|animation| {
+                    TriggerRect::rigid(
+                        trigger.x,
+                        trigger.y,
+                        animation.clip_rect.w.clamp(4, u16::MAX as i32) as u16,
+                        animation.clip_rect.h.clamp(4, u16::MAX as i32) as u16
+                    )
+                })
+            }
+
             RoomTriggerType::ChangeTiles { map_index, tile_change_index, .. } => {
                 room.maps.get(map_index as usize)
                     .and_then(|room_map| assets.maps.get(&room_map.map_id))
@@ -263,6 +274,7 @@ impl TriggerRect {
             RoomTriggerType::EnemySpawn {..} |
             RoomTriggerType::PlayerSpawn {..} |
             RoomTriggerType::RemoveEnemy {..} |
+            RoomTriggerType::PlayAnimation {..} |
             RoomTriggerType::PlaySfx {..} |
             RoomTriggerType::StopSfx {..} |
             RoomTriggerType::ChangeTiles {..} |
@@ -706,6 +718,15 @@ impl RoomEditorWidget {
         painter.rect_stroke(rect.expand(1.0), egui::CornerRadius::ZERO, inner_stroke, egui::StrokeKind::Outside);
     }
 
+    fn get_animation_sprite_frame(animation: &SpriteAnimation) -> u32 {
+        animation.loops
+            .first()
+            .or_else(|| animation.loops.first())
+            .and_then(|aloop| aloop.frame_indices.first())
+            .and_then(|frame| frame.head_index)
+            .unwrap_or(0) as u32
+    }
+
     fn get_enemy_sprite_frame(enemy: &Enemy, animation: &SpriteAnimation) -> u32 {
         let aloop = match enemy.enemy_type {
             EnemyType::Walker => { animation.loops.iter().find(|aloop| aloop.name_id == "run") }
@@ -763,6 +784,24 @@ impl RoomEditorWidget {
                                 )
                             }
                         };
+                        Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
+                        return true;
+                    }
+            }
+
+            RoomTriggerType::PlayAnimation { anim_id, .. } => {
+                if let Some(animation) = assets.animations.get(&anim_id) &&
+                    let Some(sprite) = assets.sprites.get(&animation.sprite_id) {
+                        let sprite_frame = Self::get_animation_sprite_frame(animation);
+                        let x = trigger.x as f32 - animation.clip_rect.x as f32;
+                        let y = trigger.y as f32 - animation.clip_rect.y as f32;
+                        let sprite_rect = Rect::from_min_size(
+                            Pos2::new(x, y),
+                            Vec2::new(sprite.width as f32, sprite.height as f32)
+                        );
+                        let draw_rect = to_canvas.transform_rect(sprite_rect);
+                        let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                        let uv = sprite.get_item_uv(sprite_frame);
                         Image::from_texture((texture.id(), sprite.get_item_size())).uv(uv).paint_at(ui, draw_rect);
                         return true;
                     }

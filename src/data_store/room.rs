@@ -122,6 +122,12 @@ pub enum RoomTriggerType {
         enemy_num: u16,
         on_effect_id: u16,
     },
+    PlayAnimation {
+        anim_id: DataAssetId,
+        on_effect_id: u16,
+        set_effect_id: u16,
+        set_flag_id: u16,
+    },
     PlaySfx {
         sfx_id: DataAssetId,
         sound_id: u16,
@@ -294,8 +300,15 @@ impl super::HashedData for Room {
                     hasher.add_u16(enemy_num);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
+                RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
                     hasher.add_u8(11);
+                    hasher.add_asset_id(anim_id);
+                    hasher.add_u16(on_effect_id);
+                    hasher.add_u16(set_effect_id);
+                    hasher.add_u16(set_flag_id);
+                }
+                RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
+                    hasher.add_u8(12);
                     hasher.add_asset_id(sfx_id);
                     hasher.add_u16(sound_id);
                     hasher.add_u16(volume);
@@ -304,23 +317,23 @@ impl super::HashedData for Room {
                     hasher.add_u16(on_effect_id);
                 }
                 RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
-                    hasher.add_u8(12);
+                    hasher.add_u8(13);
                     hasher.add_u16(sound_id);
                     hasher.add_u16(on_effect_id);
                 }
                 RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
-                    hasher.add_u8(13);
+                    hasher.add_u8(14);
                     hasher.add_u16(get_upgrade_id);
                     hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
-                    hasher.add_u8(14);
+                    hasher.add_u8(15);
                     hasher.add_u16(get_collectable_id);
                     hasher.add_u16(interact_prompt_id);
                     hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
-                    hasher.add_u8(15);
+                    hasher.add_u8(16);
                     hasher.add_u16(get_pickup_id);
                     hasher.add_u16(respawn_delay);
                     if let Some(sfx_id) = sfx_id {
@@ -381,6 +394,7 @@ pub enum RoomTriggerTypeIdent {
     DisableAnimation,
     ChangeTiles,
     RemoveEnemy,
+    PlayAnimation,
     PlaySfx,
     StopSfx,
     GetUpgrade,
@@ -401,6 +415,7 @@ impl RoomTriggerTypeIdent {
             RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeIdent::DisableAnimation }
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeIdent::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeIdent::RemoveEnemy }
+            RoomTriggerType::PlayAnimation {..} => { RoomTriggerTypeIdent::PlayAnimation }
             RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeIdent::PlaySfx }
             RoomTriggerType::StopSfx {..} => { RoomTriggerTypeIdent::StopSfx }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeIdent::GetUpgrade }
@@ -421,6 +436,7 @@ impl RoomTriggerTypeIdent {
             RoomTriggerTypeIdent::DisableAnimation => { "ROOM_TRIGGER_TYPE_DISABLE_ANIMATION" }
             RoomTriggerTypeIdent::ChangeTiles => { "ROOM_TRIGGER_TYPE_CHANGE_TILES" }
             RoomTriggerTypeIdent::RemoveEnemy => { "ROOM_TRIGGER_TYPE_REMOVE_ENEMY" }
+            RoomTriggerTypeIdent::PlayAnimation => { "ROOM_TRIGGER_TYPE_PLAY_ANIMATION" }
             RoomTriggerTypeIdent::PlaySfx => { "ROOM_TRIGGER_TYPE_PLAY_SFX" }
             RoomTriggerTypeIdent::StopSfx => { "ROOM_TRIGGER_TYPE_STOP_SFX" }
             RoomTriggerTypeIdent::GetUpgrade => { "ROOM_TRIGGER_TYPE_GET_UPGRADE" }

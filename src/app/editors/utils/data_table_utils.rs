@@ -332,6 +332,11 @@ pub fn fix_after_data_table_item_removed(
                 RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                 }
+                RoomTriggerType::PlayAnimation { on_effect_id, set_effect_id, set_flag_id, .. } => {
+                    fix_removed_effect(on_effect_id, data_table_ref, index);
+                    fix_removed_effect(set_effect_id, data_table_ref, index);
+                    fix_removed_flag(set_flag_id, data_table_ref, index);
+                }
                 RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                 }
@@ -448,6 +453,11 @@ pub fn fix_after_data_table_items_swapped(
                 }
                 RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
+                }
+                RoomTriggerType::PlayAnimation { on_effect_id, set_effect_id, set_flag_id, .. } => {
+                    fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
+                    fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(set_flag_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);

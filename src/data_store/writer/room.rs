@@ -129,6 +129,17 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
                 writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_num, on_effect_id));
             }
+            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
+                let anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, anim_id)?;
+                writer.write(format!(
+                    ".play_animation = {{ &{}_sprite_animations[{}], {}, {}, {} }}",
+                    writer.ident.prefix_lower,
+                    anim_index,
+                    on_effect_id,
+                    set_effect_id,
+                    set_flag_id,
+                ));
+            }
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
                 let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
                 writer.write(format!(

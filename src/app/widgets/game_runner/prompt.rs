@@ -101,11 +101,11 @@ fn draw_trigger_prompt(
                 for x in [-1, 0, 1] {
                     if x != 0 || y != 0 {
                         let pos = text_pos + Vec2::new(x as f32 * zoom, y as f32 * zoom);
-                        font.paint_string(ui, wc, prompt_string, pos, font_height, egui::Color32::WHITE);
+                        font.paint_string(ui, wc, prompt_string, pos, font_height, egui::Color32::BLACK);
                     }
                 }
             }
-            font.paint_string(ui, wc, prompt_string, text_pos, font_height, egui::Color32::BLUE);
+            font.paint_string(ui, wc, prompt_string, text_pos, font_height, egui::Color32::WHITE);
         }
 }
 

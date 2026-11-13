@@ -79,6 +79,7 @@ pub enum RoomTriggerTypeSel {
     DisableAnimation,
     ChangeTiles,
     RemoveEnemy,
+    PlayAnimation,
     PlaySfx,
     StopSfx,
     GetUpgrade,
@@ -99,6 +100,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::DisableAnimation {..} => { RoomTriggerTypeSel::DisableAnimation }
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeSel::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
+            RoomTriggerType::PlayAnimation {..} => { RoomTriggerTypeSel::PlayAnimation }
             RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeSel::PlaySfx }
             RoomTriggerType::StopSfx {..} => { RoomTriggerTypeSel::StopSfx }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
@@ -202,6 +204,19 @@ impl RoomTriggerTypeSel {
                 };
                 true
             }
+            RoomTriggerTypeSel::PlayAnimation if ! matches!(trigger_type, RoomTriggerType::PlayAnimation {..}) => {
+                if let Some(anim_id) = asset_ids.animations.get_first() {
+                    *trigger_type = RoomTriggerType::PlayAnimation {
+                        anim_id,
+                        on_effect_id: u16::MAX,
+                        set_effect_id: u16::MAX,
+                        set_flag_id: u16::MAX,
+                    };
+                    true
+                } else {
+                    false
+                }
+            }
             RoomTriggerTypeSel::PlaySfx if ! matches!(trigger_type, RoomTriggerType::PlaySfx {..}) => {
                 if let Some(sfx_id) = asset_ids.sfxs.get_first() {
                     *trigger_type = RoomTriggerType::PlaySfx {
@@ -260,9 +275,10 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::WallButton => { "wall button" }
             RoomTriggerTypeSel::DetectorButton => { "detector button" }
             RoomTriggerTypeSel::UnblockTiles => { "unblock tiles" }
-            RoomTriggerTypeSel::DisableAnimation => { "disable animation" }
+            RoomTriggerTypeSel::DisableAnimation => { "disable tile animation" }
             RoomTriggerTypeSel::ChangeTiles => { "change tiles" }
             RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
+            RoomTriggerTypeSel::PlayAnimation => { "play animation" }
             RoomTriggerTypeSel::PlaySfx => { "play sfx" }
             RoomTriggerTypeSel::StopSfx => { "stop sfx" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }

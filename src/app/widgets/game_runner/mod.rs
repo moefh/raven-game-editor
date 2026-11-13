@@ -120,6 +120,9 @@ struct RoomChangeInfo {
 }
 
 pub enum GameRunnerAction {
+    ActivateEffect { effect_id: u16 },
+    SetFlag { flag_id: u16 },
+    PlayAnimation { x: i32, y: i32, anim_id: DataAssetId, set_effect_id: u16, set_flag_id: u16 },
     PlaySfx { sfx_id: DataAssetId, volume: u16, pitch_shift: u16 },
     StopSfx,
 }
@@ -326,6 +329,7 @@ impl GameRunnerState {
                         }
                     }
                 }
+
                 RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } if on_effect_id==effect_id => {
                     let x_start = trigger.x as i32 / TILE_SIZE;
                     let y_start = trigger.y as i32 / TILE_SIZE;
@@ -350,6 +354,7 @@ impl GameRunnerState {
                             }
                         }
                 }
+
                 RoomTriggerType::DisableAnimation { width, height, on_effect_id } if on_effect_id == effect_id => {
                     let x_start = (trigger.x as i32 / TILE_SIZE).clamp(0, room_width);
                     let x_end = ((trigger.x as i32 + width as i32 - 1) / TILE_SIZE).clamp(0, room_width);
@@ -365,6 +370,16 @@ impl GameRunnerState {
 
                 RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } if on_effect_id == effect_id => {
                     enemies.retain(|e| e.id != enemy_num);
+                }
+
+                RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } if on_effect_id == effect_id => {
+                    self.actions.push(GameRunnerAction::PlayAnimation {
+                        x: trigger.x as i32,
+                        y: trigger.y as i32,
+                        anim_id,
+                        set_effect_id,
+                        set_flag_id,
+                    });
                 }
 
                 RoomTriggerType::PlaySfx { sfx_id, volume, pitch_shift, on_effect_id, .. } if on_effect_id == effect_id => {
@@ -496,8 +511,25 @@ impl GameRunnerWidget {
         None
     }
 
-    fn run_game_action(&self, wc: &mut WindowContext, action: &GameRunnerAction, _game_assets: &GameAssets, store: &DataStore) {
+    fn run_game_action(
+        &mut self,
+        wc: &mut WindowContext,
+        action: &GameRunnerAction,
+        game_assets: &GameAssets,
+        store: &DataStore
+    ) {
         match action {
+            GameRunnerAction::ActivateEffect { effect_id } => {
+                self.state.activate_effect(*effect_id, game_assets, &mut self.enemies, store);
+            }
+            GameRunnerAction::SetFlag { flag_id } => {
+                self.state.set_flag(*flag_id, game_assets, store);
+            }
+            GameRunnerAction::PlayAnimation { anim_id, x, y, set_effect_id, set_flag_id } => {
+                self.fx_display.push(
+                    EffectDisplay::new(*x, *y, Direction::Right, *anim_id).at_end(*set_effect_id, *set_flag_id)
+                );
+            }
             GameRunnerAction::PlaySfx { sfx_id, volume, pitch_shift, .. } => {
                 if let Some(sfx) = store.assets.sfxs.get(sfx_id) {
                     wc.sound_player.play_s16(
@@ -547,12 +579,12 @@ impl GameRunnerWidget {
             ! collided  // retain if not collided
         });
         self.fx_display.retain_mut(|fx_display| {
-            ! fx_display.tick_engine(store)
+            ! fx_display.tick_engine(&mut self.state, store)
         });
         let room_change = self.process_room_triggers(game_assets);
 
-        for action in &self.state.actions {
-            self.run_game_action(wc, action, game_assets, store);
+        while let Some(action) = self.state.actions.pop() {
+            self.run_game_action(wc, &action, game_assets, store);
         }
 
         room_change

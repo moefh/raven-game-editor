@@ -124,6 +124,13 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
+        (String::from("play_animation"), ValueDefStruct::new(vec![
+            (String::from("animation"), ValueDef::AssetRef),
+            (String::from("on_effect_id"), ValueDef::U16),
+            (String::from("set_effect_id"), ValueDef::U16),
+            (String::from("set_flag_id"), ValueDef::U16),
+        ])),
+
         (String::from("play_sfx"), ValueDefStruct::new(vec![
             (String::from("sfx"), ValueDef::AssetRef),
             (String::from("sound_id"), ValueDef::U16),
@@ -320,6 +327,19 @@ fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) ->
     })
 }
 
+fn conv_trigger_play_animation(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let anim_ref = data.get_asset_ref("animation")?;
+    let on_effect_id = data.get_u16("on_effect_id")?;
+    let set_effect_id = data.get_u16("set_effect_id")?;
+    let set_flag_id = data.get_u16("set_flag_id")?;
+    Ok(RoomTriggerType::PlayAnimation {
+        anim_id: anim_ref.get_asset_id(project_data)?,
+        on_effect_id,
+        set_effect_id,
+        set_flag_id,
+    })
+}
+
 fn conv_trigger_play_sfx(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
     let sfx_ref = data.get_asset_ref("sfx")?;
     let sound_id = data.get_u16("sound_id")?;
@@ -398,6 +418,8 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_change_tiles(type_data, project_data)?
     } else if RoomTriggerTypeIdent::RemoveEnemy.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_remove_enemy(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::PlayAnimation.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_play_animation(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlaySfx.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_play_sfx(type_data, project_data)?
     } else if RoomTriggerTypeIdent::StopSfx.matches_enum_ident(&trigger_type.name, prefix) {

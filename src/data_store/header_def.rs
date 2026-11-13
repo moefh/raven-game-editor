@@ -166,8 +166,9 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_DISABLE_ANIMATION,
    $<PREFIX>_ROOM_TRIGGER_TYPE_CHANGE_TILES,
    $<PREFIX>_ROOM_TRIGGER_TYPE_REMOVE_ENEMY,
-   $<PREFIX>_ROOM_TRIGGER_TYPE_STOP_SFX,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_ANIMATION,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_SFX,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_STOP_SFX,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_UPGRADE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_COLLECTABLE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_PICKUP,
@@ -244,6 +245,12 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t enemy_id;
             uint16_t on_effect_id;
         } remove_enemy;
+        struct {
+            const struct RAVEN_SPRITE_ANIMATION *anim;
+            uint16_t on_effect_id;
+            uint16_t set_effect_id;
+            uint16_t set_flag_id;
+        } play_animation;
         struct {
             const struct RAVEN_SFX *sfx;
             uint16_t sfx_id;

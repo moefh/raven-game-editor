@@ -224,6 +224,11 @@ fn check_room_project_table_refs(
             RoomTriggerType::RemoveEnemy { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
+            RoomTriggerType::PlayAnimation { on_effect_id, set_effect_id, set_flag_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+                check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
+                check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
+            }
             RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }

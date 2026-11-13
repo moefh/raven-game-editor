@@ -86,6 +86,7 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
         RoomTriggerType::DisableAnimation {..} => { IMAGES.room_effect }
         RoomTriggerType::ChangeTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
+        RoomTriggerType::PlayAnimation {..} => { IMAGES.animation }
         RoomTriggerType::PlaySfx {..} => { IMAGES.sfx }
         RoomTriggerType::StopSfx {..} => { IMAGES.sfx }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
@@ -879,6 +880,7 @@ impl Editor {
                     RoomTriggerTypeSel::DisableAnimation,
                     RoomTriggerTypeSel::ChangeTiles,
                     RoomTriggerTypeSel::RemoveEnemy,
+                    RoomTriggerTypeSel::PlayAnimation,
                     RoomTriggerTypeSel::PlaySfx,
                     RoomTriggerTypeSel::StopSfx,
                     RoomTriggerTypeSel::GetUpgrade,
@@ -1092,7 +1094,25 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
+                self.show_effect_id_editor(ui, "remove_enemy_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id,  } => {
+                ui.label("Animation:");
+                self.show_asset_id_editor(ui, "play_animation_asset_id", assets.animations, &self.sorted_animation_ids, anim_id);
+                ui.end_row();
+
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "play_animation_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Set Effect:");
+                self.show_effect_id_editor(ui, "play_animation_set_effect_id", set_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Set Flag:");
+                self.show_effect_id_editor(ui, "play_animation_flag_effect_id", set_flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 
@@ -1120,7 +1140,7 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
+                self.show_effect_id_editor(ui, "play_sfx_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 
@@ -1130,7 +1150,7 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "remove_enemt_on_effect_id", on_effect_id, &assets.tables.effect);
+                self.show_effect_id_editor(ui, "stop_sfx_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
             }
 

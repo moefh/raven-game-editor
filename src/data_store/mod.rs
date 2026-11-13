@@ -448,6 +448,7 @@ impl AssetCollection {
 
                     RoomTriggerType::EnemySpawn { enemy_id, .. } => { enemy_id == id }
                     RoomTriggerType::Door { dest_room_id, .. } => { dest_room_id == id && room.asset.id != id }
+                    RoomTriggerType::PlayAnimation { anim_id, .. } => { anim_id == id }
                     RoomTriggerType::PlaySfx { sfx_id, .. } => { sfx_id == id }
                 }
             }) {
