@@ -478,6 +478,7 @@ impl Editor {
         if let Some(mut new_trigger) = room.triggers.get(trg_index).map(|tr| tr.clone()) {
             let new_trigger_index = room.triggers.len();
             new_trigger.name_id.push_str("_copy");
+            new_trigger.trigger_id = 1 + room.triggers.iter().fold(0, |max, tr| { max.max(tr.trigger_id) });
             room.triggers.push(new_trigger);
             self.room_editor.set_selected_item(RoomItemRef::Trigger(new_trigger_index), true);
         }
