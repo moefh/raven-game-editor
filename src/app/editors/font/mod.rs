@@ -20,6 +20,7 @@ use super::{
     WindowContext,
     SysDialogResponse,
     FontPainter,
+    EditorAction,
 };
 use super::widgets::{
     ImageEditorWidget,
@@ -221,6 +222,11 @@ impl Editor {
                     }
                     if ui.add(menu_item(IMAGES.arrow_right, " Shift right")).clicked() {
                         self.shift_image(font, 1, 0);
+                    }
+                });
+                ui.menu_button("Tools", |ui| {
+                    if ui.add(menu_item_no_image(" Make proportional font")).clicked() {
+                        wc.editor_actions.push(EditorAction::PropFontFromFont { font_id: font.asset.id });
                     }
                 });
             });

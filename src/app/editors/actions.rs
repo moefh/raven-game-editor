@@ -1,9 +1,11 @@
 use crate::data_store::{
+    DataAssetType,
     DataAssetId,
     DataStore,
 };
 
 use super::{
+    copy_font_chars_to_prop_font,
     fix_after_tileset_tiles_added,
     fix_after_tileset_tiles_removed,
     fix_after_tileset_tiles_shuffled,
@@ -18,6 +20,8 @@ use super::{
     DataTableReference,
 };
 use super::super::{
+    add_asset,
+    make_unique_asset_name,
     AppWindows,
     AssetExporter,
 };
@@ -30,6 +34,7 @@ pub enum EditorAction {
     ExportWorld { world_id: DataAssetId },
     ExportSpriteAnimation { animation_id: DataAssetId },
     ExportTileAnimation { tile_anim_id: DataAssetId },
+    PropFontFromFont { font_id: DataAssetId },
     TilesetTilesAdded { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
     TilesetTilesRemoved { tileset_id: DataAssetId, hole_start: u8, hole_size: u8, num_tiles_after_hole: u8 },
     TilesetTilesShuffled { tileset_id: DataAssetId, shuffle: Vec<u32> },
@@ -161,6 +166,35 @@ impl EditorAction {
                         ]
                     );
                 }
+            }
+
+            EditorAction::PropFontFromFont { font_id } => {
+                let prop_font_id = match add_asset(
+                    DataAssetType::PropFont,
+                    None,
+                    store,
+                    editors,
+                    wc.window_tracker,
+                ) {
+                    Ok(prop_font_id) => { prop_font_id }
+                    Err((err_title, err_msg)) => {
+                        wc.dialogs.open_message_box(wc.window_tracker, err_title, err_msg);
+                        return;
+                    }
+                };
+                if let Some(font) = store.assets.fonts.get(&font_id) {
+                    let prop_font_name = make_unique_asset_name(
+                        DataAssetType::PropFont,
+                        &font.asset.name,
+                        false,
+                        store
+                    );
+                    if let Some(prop_font) = store.assets.prop_fonts.get_mut(&prop_font_id) {
+                        prop_font.asset.name = prop_font_name;
+                        copy_font_chars_to_prop_font(font, prop_font);
+                    }
+                }
+                editors.activate_editor(wc.egui.ctx, prop_font_id);
             }
 
             EditorAction::TilesetTilesAdded { tileset_id, hole_start, hole_size, num_tiles_after_hole } => {

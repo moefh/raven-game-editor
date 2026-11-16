@@ -6,6 +6,7 @@ mod editors;
 mod settings;
 mod recent_projects;
 mod asset_exporter;
+mod asset_utils;
 pub mod checker;
 pub mod project_comparer;
 pub mod widgets;
@@ -67,7 +68,8 @@ pub use settings::{
     get_setting_zoom,
     AppSettings,
 };
-pub use asset_exporter::AssetExporter;
+pub use asset_exporter::{*};
+pub use asset_utils::{*};
 pub use crate::platform::{
     KeyboardPressed,
     GamepadManager,
@@ -182,16 +184,6 @@ impl RavenEditorApp {
 
     fn activate_window(ctx: &egui::Context, window_id: egui::Id) {
         ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, window_id));
-    }
-
-    fn activate_asset_editor(&mut self, ctx: &egui::Context, asset_id: DataAssetId) {
-        if let Some(editor) = self.editors.get_editor_mut(asset_id) {
-            if ! editor.open {
-                editor.open = true;
-            } else {
-                Self::activate_window(ctx, editor.egui_id);
-            }
-        }
     }
 
     fn fix_visuals(visuals: &mut egui::style::Visuals) {
@@ -416,36 +408,6 @@ impl RavenEditorApp {
         }
     }
 
-    fn make_unique_asset_name(&self, asset_type: DataAssetType, name: &str, force_number: bool) -> String {
-        let mut num = 1;
-        let mut unique_name = String::from(name);
-        if force_number {
-            unique_name.push_str(&format!("{}", num));
-            num += 1;
-        }
-        loop {
-            if ! self.store.asset_ids
-                .ids_of_type(asset_type)
-                .any(|&id| self.store.assets.get_asset(id).is_some_and(|a| a.name == unique_name)) {
-                    return unique_name;
-                }
-            unique_name.replace_range(.., &format!("{}{}", name, num));
-            num += 1;
-        }
-    }
-
-    fn new_asset_name(&self, asset_type: DataAssetType, given_prefix: Option<String>) -> String {
-        let name = if let Some(prefix) = ASSET_DEFS.iter().find(|def| def.asset_type == asset_type).map(|def| def.default_name_prefix) {
-            match &given_prefix {
-                Some(s) => { format!("{}/new_{}", s, prefix) }
-                None => { format!("new_{}", prefix) }
-            }
-        } else {
-            format!("{:?}", asset_type)
-        };
-        self.make_unique_asset_name(asset_type, &name, true)
-    }
-
     fn rename_asset_folder(&mut self, asset_type: DataAssetType, tree_node_id: widgets::AssetTreeNodeId, new_name: String) {
         if let Some(old_name) = self.asset_tree.get_node_name(asset_type, tree_node_id) {
             for &asset_id in self.store.asset_ids.ids_of_type(asset_type) {
@@ -463,121 +425,6 @@ impl RavenEditorApp {
             self.open_message_box("Asset Has Dependents", "This asset is being used.");
         } else {
             self.open_confirmation_dialog_for(ConfirmationDialogAction::DeleteAsset(id));
-        }
-    }
-
-    fn remove_asset(&mut self, id: DataAssetId) {
-        self.store.remove_asset(id, &mut self.metadata);
-        self.editors.remove_editor(id);
-        self.window_tracker.remove_editor(id);
-    }
-
-    fn duplicate_asset(&mut self, id: DataAssetId, asset_type: DataAssetType) {
-        let dup_name = if let Some(asset) = self.store.assets.get_asset(id) {
-            self.make_unique_asset_name(asset_type, &format!("{}_copy", asset.name), false)
-        } else {
-            self.new_asset_name(asset_type, None)
-        };
-        if let Some(dup_id) = self.store.duplicate_asset(id, &dup_name, &mut self.metadata) {
-            let egui_id = self.editors.add_asset(dup_id, asset_type);
-            self.window_tracker.add_editor(egui_id, dup_id);
-        } else {
-            self.open_message_box("Error", "Couldn't duplicate asset.");
-        }
-    }
-
-    fn add_asset(&mut self, asset_type: DataAssetType, name_prefix: Option<String>) {
-        let added = match asset_type {
-            DataAssetType::Tileset => {
-                self.store.add_tileset(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_tileset(id)))
-            }
-            DataAssetType::MapData => {
-                if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
-                    self.store.add_map(self.new_asset_name(asset_type, name_prefix), tileset_id).map(|id| {
-                        (id, self.editors.add_map(id))
-                    })
-                } else {
-                    self.open_message_box("No Tileset Available", "You must create a tileset first!");
-                    None
-                }
-            }
-            DataAssetType::Room => {
-                self.store.add_room(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_room(id)))
-            }
-            DataAssetType::World => {
-                self.store.add_world(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_world(id)))
-            }
-            DataAssetType::Sprite => {
-                self.store.add_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sprite(id)))
-            }
-            DataAssetType::PalSprite => {
-                self.store.add_pal_sprite(self.new_asset_name(asset_type, name_prefix)).map(|id| {
-                    (id, self.editors.add_pal_sprite(id))
-                })
-            }
-            DataAssetType::SpriteAnimation => {
-                if let Some(sprite_id) = self.store.asset_ids.sprites.get_first() {
-                    self.store.add_animation(self.new_asset_name(asset_type, name_prefix), sprite_id).map(|id| {
-                        (id, self.editors.add_animation(id))
-                    })
-                } else {
-                    self.open_message_box("No Sprite Available", "You must create a sprite first!");
-                    None
-                }
-            }
-            DataAssetType::TileAnimation => {
-                if let Some(tileset_id) = self.store.asset_ids.tilesets.get_first() {
-                    self.store.add_tile_anim(self.new_asset_name(asset_type, name_prefix), tileset_id, tileset_id).map(|id| {
-                        (id, self.editors.add_tile_anim(id))
-                    })
-                } else {
-                    self.open_message_box("No Tileset Available", "You must create a tileset first!");
-                    None
-                }
-            }
-            DataAssetType::Sfx => {
-                self.store.add_sfx(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_sfx(id)))
-            }
-            DataAssetType::ModData => {
-                self.store.add_mod(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_mod(id)))
-            }
-            DataAssetType::Font => {
-                self.store.add_font(self.new_asset_name(asset_type, name_prefix)).map(|id| (id, self.editors.add_font(id)))
-            }
-            DataAssetType::PropFont => {
-                self.store.add_prop_font(self.new_asset_name(asset_type, name_prefix)).map(|id| {
-                    (id, self.editors.add_prop_font(id))
-                })
-            }
-            DataAssetType::PlayerChar => {
-                if let Some(font_id) = self.store.asset_ids.fonts.get_first() &&
-                    let Some(gamepad_sprite_id) = self.store.asset_ids.sprites.get_first() {
-                        self.store.add_player_char(
-                            self.new_asset_name(asset_type, name_prefix),
-                            font_id,
-                            gamepad_sprite_id
-                        ).map(|id| {
-                            (id, self.editors.add_player_char(id))
-                        })
-                    } else {
-                        self.open_message_box("No Font Available", "You must create a font first!");
-                        None
-                    }
-            }
-            DataAssetType::Enemy => {
-                if let Some(anim_id) = self.store.asset_ids.animations.get_first() {
-                    self.store.add_enemy(self.new_asset_name(asset_type, name_prefix), anim_id).map(|id| {
-                        (id, self.editors.add_enemy(id))
-                    })
-                } else {
-                    self.open_message_box("No Sprite Animation Available", "You must create a sprite animation first!");
-                    None
-                }
-            }
-        };
-
-        if let Some((asset_id, egui_id)) = added {
-            self.window_tracker.add_editor(egui_id, asset_id)
         }
     }
 
@@ -678,7 +525,7 @@ impl RavenEditorApp {
                     }
                     ConfirmationDialogAction::DeleteAsset(asset_id) => {
                         if confirmation_dialog_result == DialogResult::Yes {
-                            self.remove_asset(*asset_id);
+                            remove_asset(*asset_id, &mut self.store, &mut self.metadata, &mut self.editors, &mut self.window_tracker);
                         }
                     }
                 }
@@ -794,7 +641,15 @@ impl RavenEditorApp {
                 ui.menu_button("Project", |ui| {
                     for asset_def in ASSET_DEFS {
                         if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
-                            self.add_asset(asset_def.asset_type, None);
+                            if let Err((err_title, err_msg)) = add_asset(
+                                asset_def.asset_type,
+                                None,
+                                &mut self.store,
+                                &mut self.editors,
+                                &mut self.window_tracker,
+                            ) {
+                                self.open_message_box(err_title, err_msg);
+                            }
                         }
                     }
                     ui.separator();
@@ -998,10 +853,15 @@ impl RavenEditorApp {
                     for action in &[folder_action, item_action] {
                         match action {
                             AssetTreeAction::AddAsset(tree_node_id) => {
-                                self.add_asset(
+                                if let Err((err_title, err_msg)) = add_asset(
                                     asset_def.asset_type,
-                                    self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id)
-                                );
+                                    self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id),
+                                    &mut self.store,
+                                    &mut self.editors,
+                                    &mut self.window_tracker,
+                                ) {
+                                    self.open_message_box(err_title, err_msg);
+                                }
                             }
                             AssetTreeAction::RenameFolder(tree_node_id) => {
                                 self.open_text_input_dialog_for(TextInputDialogAction::RenameAssetFolder(asset_def.asset_type, *tree_node_id))
@@ -1015,7 +875,16 @@ impl RavenEditorApp {
                                 }
                             }
                             AssetTreeAction::DuplicateAsset(asset_id) => {
-                                self.duplicate_asset(*asset_id, asset_def.asset_type);
+                                if let Err(msg) = duplicate_asset(
+                                    *asset_id,
+                                    asset_def.asset_type,
+                                    &mut self.store,
+                                    &mut self.metadata,
+                                    &mut self.editors,
+                                    &mut self.window_tracker,
+                                ) {
+                                    self.open_message_box("Error", msg);
+                                }
                             }
                             AssetTreeAction::RemoveAsset(asset_id) => {
                                 self.request_remove_asset(*asset_id);
@@ -1263,7 +1132,7 @@ impl eframe::App for RavenEditorApp {
                     self.windows.close(window_id);
                 }
                 AppWindowAction::ActivateAssetEditor(asset_id) => {
-                    self.activate_asset_editor(ui.ctx(), asset_id);
+                    self.editors.activate_editor(ui.ctx(), asset_id);
                 }
             }
         }

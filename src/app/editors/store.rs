@@ -464,4 +464,14 @@ impl EditorStore {
             self.room_names.remove(room_id);
         }
     }
+
+    pub fn activate_editor(&mut self, ctx: &egui::Context, asset_id: DataAssetId) {
+        if let Some(editor) = self.get_editor_mut(asset_id) {
+            if ! editor.open {
+                editor.open = true;
+            } else {
+                ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, editor.egui_id));
+            }
+        }
+    }
 }
