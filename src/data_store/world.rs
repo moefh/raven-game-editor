@@ -78,7 +78,7 @@ impl super::GenericAsset for World {
         // header: num_regions(2) + pad(2) + regions<ptr>(4)
         let header = 2 + 2 + 4;
 
-        // region[0..num_regions]: x(1) + y(1) + w(1) + h(1) + block_bitmap<ptr>(4) + blocks<ptr>(4) + room_ids<ptr>(4)
+        // region[0..num_regions]: x(1) + y(1) + w(1) + h(1) + block_bitmap<ptr>(4) + blocks<ptr>(4) + room_indices(2)
         let regions = self.regions.len() * (1 + 1 + 1 + 1 + 4 + 4 + 4);
 
         // room ids: regions[..]: 4*ceil((w*h)/32) + region.num_set_blocks + region.num_rooms * room_index(2)

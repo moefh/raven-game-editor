@@ -28,6 +28,7 @@ pub enum ValueDef {
     U32Array,
     I8Array,
     I16Array,
+    IdentifierOrNumberArray,
     ArrayRef,
     AssetRef,
     Identifier,
@@ -49,6 +50,12 @@ impl ValueDefStruct {
     }
 }
 
+#[derive(Debug)]
+pub enum ValueDefIdentifierOrNumber {
+    Identifier(String),
+    Number(u64),
+}
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Value {
@@ -63,6 +70,7 @@ pub enum Value {
     U32Array(ValueArray<u32>),
     I8Array(ValueArray<i8>),
     I16Array(ValueArray<i16>),
+    IdentifierOrNumberArray(ValueArray<ValueDefIdentifierOrNumber>),
     StructArray(ValueArray<ValueStruct>),
     Identifier(ValueName),
     ArrayRef(ValueName),
@@ -85,6 +93,7 @@ impl Value {
             Value::U32Array(..) => { "u32[]" }
             Value::I8Array(..) => { "i8[]" }
             Value::I16Array(..) => { "i16[]" }
+            Value::IdentifierOrNumberArray(..) => { "identifier_or_number[]" }
             Value::StructArray(..) => { "struct[]" }
             Value::Identifier(..) => { "identifier" }
             Value::ArrayRef(..) => { "array" }
@@ -103,6 +112,9 @@ impl Value {
     fn get_u32_array(&self) -> Option<&ValueArray<u32>> { if let Value::U32Array(v) = self { Some(v) } else { None } }
     fn get_i8_array(&self) -> Option<&ValueArray<i8>> { if let Value::I8Array(v) = self { Some(v) } else { None } }
     fn get_i16_array(&self) -> Option<&ValueArray<i16>> { if let Value::I16Array(v) = self { Some(v) } else { None } }
+    fn get_identifier_or_number_array(&self) -> Option<&ValueArray<ValueDefIdentifierOrNumber>> {
+        if let Value::IdentifierOrNumberArray(v) = self { Some(v) } else { None }
+    }
     fn get_struct_array(&self) -> Option<&ValueArray<ValueStruct>> { if let Value::StructArray(v) = self { Some(v) } else { None } }
     fn get_identifier(&self) -> Option<&ValueName> { if let Value::Identifier(v) = self { Some(v) } else { None } }
     fn get_array_ref(&self) -> Option<&ValueName> { if let Value::ArrayRef(v) = self { Some(v) } else { None } }
@@ -373,55 +385,95 @@ impl ValueName {
             }
         }
     }
+
+    pub fn get_identifier_or_number_array<'a>(&self, data: &'a ProjectData) -> Result<&'a Vec<ValueDefIdentifierOrNumber>> {
+        match data.data_arrays.get(&self.name) {
+            Some(Value::IdentifierOrNumberArray(a))  => { Ok(&a.values) }
+            _ => { self.error_not_found(data) }
+        }
+    }
 }
 
 #[derive(Debug)]
-pub enum ValueAssetRefPointer {
-    Asset { asset_type: DataAssetType, index: usize },
-    Null,
+pub enum ValueAssetRefReference {
+    Identifier { identifier: String },
+    TableElement { asset_type: DataAssetType, index: usize },
+    None,
 }
 
 #[derive(Debug)]
 pub struct ValueAssetRef {
-    pub pointer: ValueAssetRefPointer,
+    pub reference: ValueAssetRefReference,
     pub pos: TokenPosition,
 }
 
 impl ValueAssetRef {
-    pub fn pointer(asset_type: DataAssetType, index: usize, pos: TokenPosition) -> Self {
+    pub fn identifier(identifier: String, pos: TokenPosition) -> Self {
         ValueAssetRef {
-            pointer: ValueAssetRefPointer::Asset { asset_type, index },
+            reference: ValueAssetRefReference::Identifier { identifier },
             pos,
         }
     }
 
-    pub fn null(pos: TokenPosition) -> Self {
+    pub fn table_element(asset_type: DataAssetType, index: usize, pos: TokenPosition) -> Self {
         ValueAssetRef {
-            pointer: ValueAssetRefPointer::Null,
+            reference: ValueAssetRefReference::TableElement { asset_type, index },
+            pos,
+        }
+    }
+
+    pub fn none(pos: TokenPosition) -> Self {
+        ValueAssetRef {
+            reference: ValueAssetRefReference::None,
             pos,
         }
     }
 
     pub fn get_asset_id(&self, data: &ProjectData) -> Result<DataAssetId> {
-        if let ValueAssetRefPointer::Asset { asset_type, index } = self.pointer {
-            match data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
-                Some(id) => { Ok(*id) }
-                None => { error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos) }
+        match &self.reference {
+            ValueAssetRefReference::Identifier { identifier } => {
+                if let Some(asset_type) = data.get_asset_type_from_ident_prefix(identifier) &&
+                    let Some(enum_items) = data.get_asset_enum_items(asset_type) &&
+                    let Some(index) = enum_items.iter().position(|enum_ident| enum_ident == identifier) &&
+                    let Some(asset_id) = data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
+                        Ok(*asset_id)
+                    } else {
+                        error(format!("invalid asset reference: {}", identifier), self.pos)
+                    }
             }
-        } else {
-            error("expected asset reference, got NULL", self.pos)
+            ValueAssetRefReference::TableElement { asset_type, index } => {
+                if let Some(asset_id) = data.asset_ids.get(asset_type).and_then(|v| v.get(*index)) {
+                    Ok(*asset_id)
+                } else {
+                    error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos)
+                }
+            }
+            ValueAssetRefReference::None => {
+                error("expected asset reference, got no asset", self.pos)
+            }
         }
     }
 
     pub fn get_asset_id_or_none(&self, data: &ProjectData) -> Result<Option<DataAssetId>> {
-        match self.pointer {
-            ValueAssetRefPointer::Asset { asset_type, index } => {
-                match data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
-                    Some(id) => { Ok(Some(*id)) }
-                    None => { error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos) }
+        match &self.reference {
+            ValueAssetRefReference::Identifier { identifier } => {
+                if let Some(asset_type) = data.get_asset_type_from_ident_prefix(identifier) &&
+                    let Some(enum_items) = data.get_asset_enum_items(asset_type) &&
+                    let Some(index) = enum_items.iter().position(|enum_ident| enum_ident == identifier) &&
+                    let Some(asset_id) = data.asset_ids.get(&asset_type).and_then(|v| v.get(index)) {
+                        Ok(Some(*asset_id))
+                    } else {
+                        error(format!("invalid asset reference: {}", identifier), self.pos)
+                    }
+            }
+            ValueAssetRefReference::TableElement { asset_type, index } => {
+                if let Some(asset_id) = data.asset_ids.get(asset_type).and_then(|v| v.get(*index)) {
+                    Ok(Some(*asset_id))
+                } else {
+                    error(format!("invalid asset reference: {:?}[{}]", asset_type, index), self.pos)
                 }
             }
-            ValueAssetRefPointer::Null => {
+            ValueAssetRefReference::None => {
                 Ok(None)
             }
         }

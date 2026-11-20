@@ -375,9 +375,9 @@ impl super::GenericAsset for Room {
         let triggers = self.triggers.len() * (2usize * 4 + 2usize * 8);
 
         // parallax:
-        //   header: tileset<ptr>(4) + u16(2) * (width, height) + tiles<ptr>(4)
+        //   header: u16(2) * (tileset_index, width, height, pad) + tiles<ptr>(4)
         //   tiles:  w * h * [u8(1)]
-        let parallax = 4usize + 2usize * 2 + 4usize + (self.parallax.width as usize * self.parallax.height as usize);
+        let parallax = 2usize * 4 + 4usize + (self.parallax.width as usize * self.parallax.height as usize);
 
         header + maps + triggers + parallax
     }

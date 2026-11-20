@@ -77,7 +77,7 @@ impl super::GenericAsset for Enemy {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // sprite_animation<ptr>(4) + enemy_type(2) + health(2)
-        4 + 2 + 2
+        // sprite_animation_index(2) + enemy_type(2) + health(2)
+        2 + 2 + 2
     }
 }

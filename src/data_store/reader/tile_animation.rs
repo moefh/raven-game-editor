@@ -35,7 +35,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     let anim_tileset_ref = asset_struct.get_asset_ref("anim_tileset")?;
     let loops_array = asset_struct.get_struct_array("loops")?;
 
-    let name = project_data.get_asset_name_id(asset_id, DataAssetType::TileAnimation).ok_or_else(|| {
+    let name = project_data.get_asset_id_name(asset_id, DataAssetType::TileAnimation).ok_or_else(|| {
         err("can't find tile animation in asset id enums definitions", asset_struct.pos)
     })?;
 

@@ -27,7 +27,7 @@ impl DataStoreStringTable {
     }
 
     pub fn data_size(&self) -> usize {
-        let pointers = 4 * self.items.len();
+        let pointers = 4usize * self.items.len();
         let strings = self.items.iter().fold(0, |size, item| size + item.value.len() + 1);
 
         pointers + strings
@@ -76,7 +76,7 @@ impl DataStoreItemTable {
     }
 
     pub fn data_size(&self) -> usize {
-        // ptr<4> * num_items
-        4 * self.items.len()
+        // sprite_index(2) * num_items
+        2usize * self.items.len()
     }
 }

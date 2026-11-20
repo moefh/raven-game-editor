@@ -157,16 +157,12 @@ pub fn write_maps(writer: &ProjectDataWriter, map_ids: &[DataAssetId]) -> Result
             ));
 
             // tileset
-            let tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, map_data.tileset_id)?;
-            writer.write(format!("    &{}_tilesets[{}],\n", writer.ident.prefix_lower, tileset_index));
+            let tileset_ident = writer.ident.get_asset_ident(DataAssetType::Tileset, map_data.tileset_id)?;
+            writer.write(format!("    {},  // tileset\n", tileset_ident));
 
             // tile animation
-            if let Some(tile_anim_id) = map_data.tile_anim_id {
-                let tile_anim_index = writer.ident.get_asset_index(DataAssetType::TileAnimation, tile_anim_id)?;
-                writer.write(format!("    &{}_tile_animations[{}],\n", writer.ident.prefix_lower, tile_anim_index));
-            } else {
-                writer.write("    NULL, // tile animation\n");
-            }
+            let tile_anim_ident = writer.ident.get_asset_ident_or_none(DataAssetType::TileAnimation, map_data.tile_anim_id)?;
+            writer.write(format!("    {},  // tile animation\n", tile_anim_ident));
 
             // tiles
             writer.write(format!("    {}_map_tiles_{},\n", writer.ident.prefix_lower, name_id));

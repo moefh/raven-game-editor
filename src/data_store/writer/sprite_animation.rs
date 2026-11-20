@@ -22,20 +22,50 @@ pub struct AnimationInfo {
     pub loop_index_to_name_id: HashMap<usize,String>,
 }
 
-fn write_animation_frames(writer: &ProjectDataWriter, anim: &SpriteAnimation, name_id: &str) -> AnimationInfo {
+fn get_animation_frames(anim: &SpriteAnimation) -> AnimationInfo {
     let add_foot = anim.loops.iter().any(|l| l.frame_indices.iter().any(|f| f.foot_index.is_some()));
     let mut loop_offsets = Vec::new();
     let mut loop_index_to_name_id = HashMap::new();
+
+    let mut offset = 0;
+    for (loop_index, aloop) in anim.loops.iter().enumerate() {
+        let use_loop_name_id = if aloop.name_id == "names" { "names0" } else { &aloop.name_id };
+        IdentStore::add_unique_name_id(loop_index, use_loop_name_id, &mut loop_index_to_name_id);
+        loop_offsets.push(offset);
+        offset += aloop.frame_indices.len() * if add_foot { 2 } else { 1 };
+    }
+
+    AnimationInfo {
+        add_foot,
+        loop_offsets,
+        loop_index_to_name_id,
+    }
+}
+
+pub fn get_animation_info(
+    writer: &ProjectDataWriter,
+    anim_ids: &[DataAssetId]
+) -> Result<HashMap<DataAssetId, AnimationInfo>> {
+    let mut animation_info = HashMap::new();
+
+    for id in anim_ids.iter() {
+        if let Some(anim) = writer.store.assets.animations.get(id) {
+            animation_info.insert(*id, get_animation_frames(anim));
+        }
+    }
+
+    Ok(animation_info)
+}
+
+fn write_animation_frames(writer: &ProjectDataWriter, anim: &SpriteAnimation, name_id: &str) -> Result<()> {
+    let add_foot = anim.loops.iter().any(|l| l.frame_indices.iter().any(|f| f.foot_index.is_some()));
 
     writer.write(format!(
         "static const uint8_t {}_sprite_animation_frames_{}[] = {{\n",
         writer.ident.prefix_lower,
         name_id
     ));
-    let mut offset = 0;
-    for (loop_index, aloop) in anim.loops.iter().enumerate() {
-        let use_loop_name_id = if aloop.name_id == "names" { "names0" } else { &aloop.name_id };
-        IdentStore::add_unique_name_id(loop_index, use_loop_name_id, &mut loop_index_to_name_id);
+    for aloop in anim.loops.iter() {
         if ! aloop.frame_indices.is_empty() {
             writer.write(format!("  // {}\n  ", aloop.name_id));
             for frame in aloop.frame_indices.iter() {
@@ -46,31 +76,27 @@ fn write_animation_frames(writer: &ProjectDataWriter, anim: &SpriteAnimation, na
             }
             writer.write("\n");
         }
-        loop_offsets.push(offset);
-        offset += aloop.frame_indices.len() * if add_foot { 2 } else { 1 };
     }
     writer.write("};\n");
     writer.write("\n");
 
-    AnimationInfo {
-        add_foot,
-        loop_offsets,
-        loop_index_to_name_id,
-    }
+    Ok(())
 }
 
-pub fn write_sprite_animations(writer: &ProjectDataWriter, anim_ids: &[DataAssetId]) -> Result<HashMap<DataAssetId, AnimationInfo>> {
+pub fn write_sprite_animations(
+    writer: &ProjectDataWriter,
+    anim_ids: &[DataAssetId],
+    animation_info: &HashMap<DataAssetId, AnimationInfo>,
+) -> Result<()> {
     writer.write("// ================================================================\n");
     writer.write("// === SPRITE ANIMATIONS\n");
     writer.write("// ================================================================\n");
     writer.write("\n");
 
-    let mut animation_info = HashMap::new();
-
     for id in anim_ids.iter() {
         if let Some(anim) = writer.store.assets.animations.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
-            animation_info.insert(*id, write_animation_frames(writer, anim, name_id));
+            write_animation_frames(writer, anim, name_id)?;
         }
     }
 
@@ -83,13 +109,13 @@ pub fn write_sprite_animations(writer: &ProjectDataWriter, anim_ids: &[DataAsset
     for id in anim_ids.iter() {
         if let Some(anim) = writer.store.assets.animations.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::SpriteAnimation, *id)?;
-            let sprite_index = writer.ident.get_asset_index(DataAssetType::Sprite, anim.sprite_id)?;
+            let sprite_ident = writer.ident.get_asset_ident(DataAssetType::Sprite, anim.sprite_id)?;
             let info = animation_info.get(id).ok_or_else(|| {
                 Error::other(format!("can't find info for animation {}", id))
             })?;
             writer.write("  {\n");
             writer.write(format!("    {}_sprite_animation_frames_{},\n", writer.ident.prefix_lower, name_id));
-            writer.write(format!("    &{}_sprites[{}],\n", writer.ident.prefix_lower, sprite_index));
+            writer.write(format!("    {},\n", sprite_ident));
             writer.write(format!(
                 "    {{ {}, {}, {}, {} }},\n",
                 anim.clip_rect.x,
@@ -127,13 +153,13 @@ pub fn write_sprite_animations(writer: &ProjectDataWriter, anim_ids: &[DataAsset
     writer.write("};\n");
     writer.write("\n");
 
-    Ok(animation_info)
+    Ok(())
 }
 
 pub fn write_animation_names(
     writer: &ProjectDataWriter,
     anim_ids: &[DataAssetId],
-    animation_info: HashMap<DataAssetId, AnimationInfo>
+    animation_info: &HashMap<DataAssetId, AnimationInfo>
 ) -> Result<()> {
     writer.write("// ================================================================\n");
     writer.write("// === SPRITE ANIMATION LOOP NAMES\n");

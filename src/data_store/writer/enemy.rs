@@ -22,12 +22,11 @@ pub fn write_enemies(writer: &ProjectDataWriter, enemy_ids: &[DataAssetId]) -> R
     ));
     for id in enemy_ids.iter() {
         if let Some(enemy) = writer.store.assets.enemies.get(id) {
-            let anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, enemy.anim_id)?;
+            let anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, enemy.anim_id)?;
             writer.write(format!(
-                "  {{ {}, &{}_sprite_animations[{}], {} }},\n",
+                "  {{ {}, {}, {} }},\n",
                 enemy.enemy_type.value(),
-                writer.ident.prefix_lower,
-                anim_index,
+                anim_ident,
                 enemy.health,
             ));
         }

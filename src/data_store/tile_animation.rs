@@ -58,8 +58,8 @@ impl super::GenericAsset for TileAnimation {
         // loop: start(1) + length(1)
         let loop_size = 1usize + 1usize;
 
-        // header: parent_tileset<ptr>(4) + anim_tileset<ptr>(4)
-        let header =  4usize + 4usize;
+        // header: parent_tileset_index(2) + anim_tileset_index(2)
+        let header =  2usize + 2usize;
 
         header + Self::NUM_LOOPS * loop_size
     }

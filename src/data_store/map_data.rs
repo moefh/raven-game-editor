@@ -105,8 +105,8 @@ impl super::GenericAsset for MapData {
 
     fn data_size(&self) -> usize {
         // header: u16(2) * (w,h) + has_bb(1) + pad(1) + num_tile_changes(2) +
-        //         ptr(4) * (tileset,tile_anim,tile_data,tile_changes)<ptr>
-        let header = 2usize * 2 + 1usize + 1usize + 2usize + 4usize * 4;
+        //         u16(2) * (tileset,tile_anim,tile_data,tile_changes)
+        let header = 2usize * 2 + 1usize + 1usize + 2usize + 2usize * 4;
 
         // tile_data:
         //   tiles:    w * h * [u8(1) * (fg,bg,fx)]

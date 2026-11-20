@@ -22,11 +22,11 @@ pub fn write_tile_animations(writer: &ProjectDataWriter, tanim_ids: &[DataAssetI
     ));
     for id in tanim_ids.iter() {
         if let Some(tanim) = writer.store.assets.tile_anims.get(id) {
-            let parent_tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, tanim.parent_tileset_id)?;
-            let anim_tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, tanim.anim_tileset_id)?;
+            let parent_tileset_ident = writer.ident.get_asset_ident(DataAssetType::Tileset, tanim.parent_tileset_id)?;
+            let anim_tileset_ident = writer.ident.get_asset_ident(DataAssetType::Tileset, tanim.anim_tileset_id)?;
             writer.write("  {\n");
-            writer.write(format!("    &{}_tilesets[{}],  // parent\n", writer.ident.prefix_lower, parent_tileset_index));
-            writer.write(format!("    &{}_tilesets[{}],  // animations\n", writer.ident.prefix_lower, anim_tileset_index));
+            writer.write(format!("    {},  // parent\n", parent_tileset_ident));
+            writer.write(format!("    {},  // animations\n", anim_tileset_ident));
             writer.write("    {");
             for (index, tloop) in tanim.loops.iter().enumerate() {
                 if index.is_multiple_of(8) { writer.write("\n     "); }

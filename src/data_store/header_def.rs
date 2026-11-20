@@ -97,8 +97,8 @@ struct $<PREFIX>_MAP {
     int16_t h;
     uint8_t has_bb_layer;
     uint16_t num_tile_changes;
-    const struct $<PREFIX>_IMAGE *tileset;
-    const struct $<PREFIX>_TILE_ANIMATION *animation;
+    uint16_t tileset_index;        // $<prefix>_tilesets[]
+    uint16_t tile_animation_index; // $<prefix>_tile_animations[]
     const uint8_t *tiles;
     const struct $<PREFIX>_MAP_TILE_CHANGE *tile_changes;
 };
@@ -123,7 +123,7 @@ struct $<PREFIX>_SPRITE_ANIMATION_COLLISION {
 
 struct $<PREFIX>_SPRITE_ANIMATION {
     const uint8_t *frame_indices;
-    const struct $<PREFIX>_IMAGE *sprite;
+    uint16_t sprite_index;  // $<prefix>_sprites[]
     struct $<PREFIX>_SPRITE_ANIMATION_COLLISION collision;
     int8_t use_foot_frames;
     int8_t foot_overlap;
@@ -177,7 +177,7 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
 struct $<PREFIX>_ROOM_MAP_INFO {
     uint16_t x;
     uint16_t y;
-    const struct $<PREFIX>_MAP *map;
+    uint16_t map_index; // $<prefix>_maps[]
 };
 
 struct $<PREFIX>_ROOM_TRIGGER_INFO {
@@ -198,13 +198,13 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint8_t direction;
         } player_spawn;
         struct {
-            const struct $<PREFIX>_ROOM *dest_room;
+            uint16_t dest_room_index; // $<prefix>_rooms[]
             uint16_t dest_trigger_id;
             uint16_t req_flag_id;
         } door;
         struct {
             uint16_t enemy_id;
-            const struct $<PREFIX>_ENEMY *enemy;
+            uint16_t enemy_index;  // $<prefix>_enemies[]
             uint8_t direction;
             uint16_t req_flag_id;
         } enemy_spawn;
@@ -246,13 +246,13 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t on_effect_id;
         } remove_enemy;
         struct {
-            const struct RAVEN_SPRITE_ANIMATION *anim;
+            uint16_t anim_index;  // $<prefix>_sprite_animations[]
             uint16_t on_effect_id;
             uint16_t set_effect_id;
             uint16_t set_flag_id;
         } play_animation;
         struct {
-            const struct RAVEN_SFX *sfx;
+            uint16_t sfx_index;  // $<prefix>_sfxs[]
             uint16_t sfx_id;
             uint16_t volume;
             uint16_t pitch_shift;
@@ -275,13 +275,13 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         struct {
             uint16_t get_pickup_id;
             uint16_t respawn_delay;
-            const struct RAVEN_SFX *sfx;
+            uint16_t sfx_index;  // $<prefix>_sfxs[]
         } get_pickup;
     };
 };
 
 struct $<PREFIX>_ROOM_PARALLAX {
-    const struct $<PREFIX>_IMAGE *tileset;
+    uint16_t tileset_index;  // $<prefix>_tilesets[]
     uint16_t width;
     uint16_t height;
     const uint8_t *tiles;
@@ -324,8 +324,8 @@ struct $<PREFIX>_TILE_ANIMATION_LOOP {
 };
 
 struct $<PREFIX>_TILE_ANIMATION {
-    const struct $<PREFIX>_IMAGE *parent_tileset;
-    const struct $<PREFIX>_IMAGE *anim_tileset;
+    uint16_t parent_tileset_index;  // $<prefix>_tilesets[]
+    uint16_t anim_tileset_index;    // $<prefix>_tilesets[]
     const struct $<PREFIX>_TILE_ANIMATION_LOOP loops[256];
 };
 
@@ -334,16 +334,16 @@ struct $<PREFIX>_TILE_ANIMATION {
 #ifndef $<PREFIX>_SKIP_STRUCTS_PLAYER_CHAR
 
 struct $<PREFIX>_PLAYER_CHAR_SUIT {
-    const struct $<PREFIX>_SPRITE_ANIMATION *animation;
+    uint16_t animation_index;  // $<prefix>_sprite_animations[]
     uint16_t req_upgrade_id;
 };
 
 struct $<PREFIX>_PLAYER_CHAR_WEAPON {
-    const struct $<PREFIX>_SPRITE_ANIMATION *shoot_anim;
-    const struct $<PREFIX>_SFX *shoot_sfx;
-    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_anim;
-    const struct $<PREFIX>_SPRITE_ANIMATION *bullet_hit_anim;
-    const struct $<PREFIX>_SFX *bullet_hit_sfx;
+    uint16_t shoot_anim_index;       // $<prefix>_sprite_animations[]
+    uint16_t shoot_sfx_index;        // $<prefix>_sfxs[]
+    uint16_t bullet_anim_index;      // $<prefix>_sprite_animations[]
+    uint16_t bullet_hit_anim_index;  // $<prefix>_sprite_animations[]
+    uint16_t bullet_hit_sfx_index;   // $<prefix>_sfxs[]
 
     uint16_t req_collectable_id;
     uint16_t ammo_pickup_id;
@@ -360,8 +360,8 @@ struct $<PREFIX>_PLAYER_CHAR_WEAPON {
 };
 
 struct $<PREFIX>_PLAYER_CHAR {
-    const struct $<PREFIX>_FONT *font;
-    const struct $<PREFIX>_IMAGE *gamepad_sprite;
+    uint16_t font_index;            // $<prefix>_fonts[]
+    uint16_t gamepad_sprite_index;  // $<prefix>_sprites[]
     uint16_t num_suits;
     uint16_t num_weapons;
     const struct $<PREFIX>_PLAYER_CHAR_SUIT *suits;
@@ -374,7 +374,7 @@ struct $<PREFIX>_PLAYER_CHAR {
 
 struct $<PREFIX>_ENEMY {
     uint16_t type;
-    const struct $<PREFIX>_SPRITE_ANIMATION *anim;
+    uint16_t anim_index;  // $<prefix>_sprite_animations[]
     uint16_t health;
 };
 
@@ -383,7 +383,7 @@ struct $<PREFIX>_ENEMY {
 #ifndef $<PREFIX>_SKIP_STRUCTS_DATA_TABLES
 
 struct $<PREFIX>_TABLE_ITEM {
-    const struct $<PREFIX>_IMAGE *sprite;
+    uint16_t sprite_index;  // $<prefix>_sprite[]
 };
 
 #endif /* $<PREFIX>_SKIP_STRUCTS_DATA_TABLES */

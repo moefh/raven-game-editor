@@ -29,7 +29,7 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
     let animation_ref = asset_struct.get_asset_ref("animation")?;
     let health = asset_struct.get_u16("health")?;
 
-    let name = project_data.get_asset_name_id(asset_id, DataAssetType::Enemy).ok_or_else(|| {
+    let name = project_data.get_asset_id_name(asset_id, DataAssetType::Enemy).ok_or_else(|| {
         err("can't find enemy in asset id enums definitions", asset_struct.pos)
     })?;
 

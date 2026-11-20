@@ -20,8 +20,8 @@ fn write_player_char_suits(writer: &ProjectDataWriter, player_char: &PlayerChar,
     ));
     for suit in player_char.suits.iter() {
         writer.write("  {\n");
-        let anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, suit.anim_id)?;
-        writer.write(format!("    &{}_sprite_animations[{}],\n", writer.ident.prefix_lower, anim_index));
+        let anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, suit.anim_id)?;
+        writer.write(format!("    {},\n", anim_ident));
         writer.write(format!("    {},\n", suit.req_upgrade_id));
         writer.write("  },\n");
     }
@@ -40,29 +40,17 @@ fn write_player_char_weapons(writer: &ProjectDataWriter, player_char: &PlayerCha
     ));
     for weapon in player_char.weapons.iter() {
         writer.write("  {\n");
-        let shoot_anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, weapon.shoot.anim_id)?;
-        writer.write(format!("    &{}_sprite_animations[{}],\n", writer.ident.prefix_lower, shoot_anim_index));
-        if let Some(sfx_id) = weapon.shoot.sfx_id {
-            let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
-            writer.write(format!("    &{}_sfxs[{}],\n", writer.ident.prefix_lower, sfx_index));
-        } else {
-            writer.write("    NULL,  // shoot sfx\n");
-        }
+        let shoot_anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, weapon.shoot.anim_id)?;
+        writer.write(format!("    {},  // shoot animation\n", shoot_anim_ident));
+        let shoot_sfx_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Sfx, weapon.shoot.sfx_id)?;
+        writer.write(format!("    {},  // shoot sfx\n", shoot_sfx_ident));
 
-        let bullet_anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, weapon.bullet.anim_id)?;
-        writer.write(format!("    &{}_sprite_animations[{}],\n", writer.ident.prefix_lower, bullet_anim_index));
-        if let Some(anim_id) = weapon.bullet.hit_anim_id {
-            let anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, anim_id)?;
-            writer.write(format!("    &{}_sprite_animations[{}],\n", writer.ident.prefix_lower, anim_index));
-        } else {
-            writer.write("    NULL,  // bullet hit animation\n");
-        }
-        if let Some(sfx_id) = weapon.bullet.hit_sfx_id {
-            let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
-            writer.write(format!("    &{}_sfxs[{}],\n", writer.ident.prefix_lower, sfx_index));
-        } else {
-            writer.write("    NULL,  // bullet sfx\n");
-        }
+        let bullet_anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, weapon.bullet.anim_id)?;
+        writer.write(format!("    {},  // bullet animation\n", bullet_anim_ident));
+        let hit_anim_ident = writer.ident.get_asset_ident_or_none(DataAssetType::SpriteAnimation, weapon.bullet.hit_anim_id)?;
+        writer.write(format!("    {},  // bullet hit animation\n", hit_anim_ident));
+        let hit_sfx_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Sfx, weapon.bullet.hit_sfx_id)?;
+        writer.write(format!("    {},  // bullet hit sfx\n", hit_sfx_ident));
 
         writer.write(format!("    {},\n", weapon.req_collectable_id));
         writer.write(format!("    {},\n", weapon.bullet.ammo_pickup_id));
@@ -108,12 +96,12 @@ pub fn write_player_chars(writer: &ProjectDataWriter, player_char_ids: &[DataAss
     for id in player_char_ids.iter() {
         if let Some(player_char) = writer.store.assets.player_chars.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::PlayerChar, *id)?;
-            let font_index = writer.ident.get_asset_index(DataAssetType::Font, player_char.font_id)?;
-            let gamepad_sprite_index = writer.ident.get_asset_index(DataAssetType::Sprite, player_char.gamepad_sprite_id)?;
+            let font_ident = writer.ident.get_asset_ident(DataAssetType::Font, player_char.font_id)?;
+            let gamepad_sprite_ident = writer.ident.get_asset_ident(DataAssetType::Sprite, player_char.gamepad_sprite_id)?;
             writer.write(format!(
-                "  {{ &{}_fonts[{}], &{}_sprites[{}], {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{} }},\n",
-                writer.ident.prefix_lower, font_index,
-                writer.ident.prefix_lower, gamepad_sprite_index,
+                "  {{ {}, {}, {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{} }},\n",
+                font_ident,
+                gamepad_sprite_ident,
                 player_char.suits.len(),
                 player_char.weapons.len(),
                 writer.ident.prefix_lower, name_id,

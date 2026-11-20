@@ -85,17 +85,16 @@ fn write_world_region_room_indices(
     world_name_id: &str
 ) -> Result<()> {
     writer.write(format!(
-        "static const uint16_t {}_world_{}_region_{}_room_indices[] = {{",
+        "static const uint16_t {}_world_{}_region_{}_room_indices[] = {{\n",
         writer.ident.prefix_lower,
         world_name_id,
         region_index
     ));
-    for (index, &room_id) in region.rooms.iter().enumerate() {
-        if index % 16 == 0 { writer.write("\n    "); }
-        let room_index = writer.ident.get_asset_index(DataAssetType::Room, room_id)?;
-        writer.write(format!("{},", room_index));
+    for &room_id in &region.rooms {
+        let room_ident = writer.ident.get_asset_ident(DataAssetType::Room, room_id)?;
+        writer.write(format!("    {},\n", room_ident));
     }
-    writer.write("\n};\n\n");
+    writer.write("};\n\n");
     Ok(())
 }
 

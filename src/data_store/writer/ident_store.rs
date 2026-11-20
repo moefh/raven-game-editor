@@ -8,6 +8,9 @@ use super::{
     DataAssetType,
     DataAsset,
 };
+use super::super::utils::{
+    get_asset_type_upper_name,
+};
 
 pub struct IdentStore {
     pub prefix_upper: String,
@@ -78,10 +81,24 @@ impl IdentStore {
         })
     }
 
-    pub fn get_asset_index(&self, asset_type: DataAssetType, id: DataAssetId) -> Result<usize> {
-        self.type_to_id_to_index.get(&asset_type).and_then(|indices| indices.get(&id)).copied().ok_or_else(|| {
-            Error::other(format!("can't find asset id {} of type {:?}", id, asset_type))
-        })
+    pub fn get_asset_ident(&self, asset_type: DataAssetType, id: DataAssetId) -> Result<String> {
+        let name_id = self.get_asset_name_id(asset_type, id)?;
+        let name_id_upper = name_id.to_ascii_uppercase();
+        let mut ident = String::new();
+        ident.push_str(&self.prefix_upper);
+        ident.push('_');
+        ident.push_str(get_asset_type_upper_name(asset_type));
+        ident.push_str("_ID_");
+        ident.push_str(&name_id_upper);
+        Ok(ident)
+    }
+
+    pub fn get_asset_ident_or_none(&self, asset_type: DataAssetType, id: Option<DataAssetId>) -> Result<String> {
+        if let Some(id) = id {
+            self.get_asset_ident(asset_type, id)
+        } else {
+            Ok("0xffff".to_owned())
+        }
     }
 
     pub fn add_assets(&mut self, asset_type: DataAssetType, store: &DataStore) {

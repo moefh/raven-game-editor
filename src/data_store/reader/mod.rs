@@ -47,6 +47,9 @@ use super::{
     AssetCollection,
     AssetIdCollection,
 };
+use super::utils::{
+    get_asset_type_upper_name,
+};
 
 pub fn err<S: AsRef<str>>(msg: S, pos: TokenPosition) -> Error {
     Error::other(format!("line {}: {}", pos.line, msg.as_ref()))
@@ -182,23 +185,10 @@ static METADATA_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLoc
     ])
 });
 
-fn get_asset_type_upper_name(asset_type: DataAssetType) -> &'static str {
-    match asset_type {
-        DataAssetType::Sfx => { "SFX" }
-        DataAssetType::MapData => { "MAP" }
-        DataAssetType::Room => { "ROOM" }
-        DataAssetType::Font => { "FONT" }
-        DataAssetType::World => { "WORLD" }
-        DataAssetType::Tileset => { "TILESET" }
-        DataAssetType::Sprite => { "SPRITE" }
-        DataAssetType::ModData => { "MOD" }
-        DataAssetType::PropFont => { "PROP_FONT" }
-        DataAssetType::PalSprite => { "PAL_SPRITE" }
-        DataAssetType::SpriteAnimation => { "SPRITE_ANIMATION" }
-        DataAssetType::TileAnimation => { "TILE_ANIMATION" }
-        DataAssetType::PlayerChar => { "PLAYER_CHAR" }
-        DataAssetType::Enemy => { "ENEMY" }
-    }
+// allow array types to be overriden based on type/name (e.g. room indices
+// in a world region are uint16_t written as enum identifiers or numbers)
+fn override_array_type(project_data: &ProjectData, element_type: &str, array_name: &str) -> Option<ValueDef> {
+    world::override_array_type(project_data, element_type, array_name)
 }
 
 pub struct ProjectData {
@@ -222,6 +212,23 @@ pub struct ProjectData {
 }
 
 impl ProjectData {
+    const ASSET_TYPES: &[DataAssetType] = &[
+        DataAssetType::Sfx,
+        DataAssetType::MapData,
+        DataAssetType::Room,
+        DataAssetType::Font,
+        DataAssetType::World,
+        DataAssetType::Tileset,
+        DataAssetType::Sprite,
+        DataAssetType::ModData,
+        DataAssetType::PropFont,
+        DataAssetType::PalSprite,
+        DataAssetType::SpriteAnimation,
+        DataAssetType::TileAnimation,
+        DataAssetType::PlayerChar,
+        DataAssetType::Enemy,
+    ];
+
     pub fn new() -> Self {
         ProjectData {
             prefix: String::from("PROJECT"),
@@ -242,6 +249,29 @@ impl ProjectData {
             item_tables: HashMap::new(),
             asset_ids: HashMap::new(),
         }
+    }
+
+    // "$<PREFIX>_$<ASSET_TYPE>_ID_xxx" -> (asset_type, "xxx")
+    pub fn ident_to_asset_type_and_ident_name<'a>(&self, ident: &'a str) -> Option<(DataAssetType, &'a str)> {
+        let ident = ident.strip_prefix(&self.prefix_upper)?;
+        for &asset_type in Self::ASSET_TYPES {
+            let asset_type_upper_name = get_asset_type_upper_name(asset_type);
+            let ident = match ident.strip_prefix(asset_type_upper_name) {
+                Some(ident) => { ident }
+                None => { continue; }
+            };
+            let ident = match ident.strip_prefix("_ID_") {
+                Some(ident) => { ident }
+                None => { continue; }
+            };
+            return Some((asset_type, ident));
+        }
+
+        None
+    }
+
+    pub fn get_asset_type_from_ident_prefix(&self, ident: &str) -> Option<DataAssetType> {
+        self.ident_to_asset_type_and_ident_name(ident).map(|(asset_type, _)| asset_type)
     }
 
     pub fn extract_asset_name<'a>(&self, array_prefix: &str, value_name: &'a ValueName) -> Result<&'a str> {
@@ -268,11 +298,20 @@ impl ProjectData {
         true
     }
 
-    // look for enum with tag
-    //    <prefix><asset_type>_IDS
-    // and get the nth item's <X> part if it's in the form
-    //    <prefix><asset_type>_ID_<X>
-    pub fn get_asset_name_id(
+    // return the enum with tag "$<PREFIX>_$<ASSET_TYPE>_IDS"
+    pub fn get_asset_enum_items(&self, asset_type: DataAssetType) -> Option<&[String]> {
+        let upper_type_name = get_asset_type_upper_name(asset_type);
+        let enum_tag_parts = &[ &self.prefix_upper, upper_type_name, "_IDS" ];
+        for (name, enum_items) in self.enums.iter() {
+            if Self::check_name_match(name, enum_tag_parts) {
+                return Some(enum_items);
+            }
+        }
+        None
+    }
+
+    // return the index of the asset_id in the enum with tag "$<PREFIX>_$<ASSET_TYPE>_IDS"
+    pub fn get_asset_id_name(
         &self,
         asset_id: DataAssetId,
         asset_type: DataAssetType,
@@ -283,21 +322,16 @@ impl ProjectData {
             .and_then(|ids| ids.iter().position(|&id| id == asset_id))?;
 
         let upper_type_name = get_asset_type_upper_name(asset_type);
-        let enum_tag_parts = &[ &self.prefix_upper, upper_type_name, "_IDS" ];
         let enum_item_prefix = &[ &self.prefix_upper, upper_type_name, "_ID_" ];
         let enum_item_prefix_len = enum_item_prefix.iter().fold(0, |len, p| len + p.len());
-        for (name, enum_items) in self.enums.iter() {
-            if Self::check_name_match(name, enum_tag_parts) {
-                return if let Some(item_name) = enum_items.get(index) &&
-                    item_name.len() > enum_item_prefix_len &&
-                    Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
-                        Some(String::from(&item_name[enum_item_prefix_len..]).to_lowercase())
-                    } else {
-                        None
-                    };
+        if let Some(asset_ids_enum) = self.get_asset_enum_items(asset_type) &&
+            let Some(item_name) = asset_ids_enum.get(index) &&
+            item_name.len() > enum_item_prefix_len &&
+            Self::check_name_match(&item_name[..enum_item_prefix_len], enum_item_prefix) {
+                Some(String::from(&item_name[enum_item_prefix_len..]).to_lowercase())
+            } else {
+                None
             }
-        }
-        None
     }
 
     // look for enum with tag
@@ -472,8 +506,19 @@ impl<'a> ProjectDataReader<'a> {
     }
 
     // ========================================================
-    // === NUMBER
+    // === NUMBER, IDENTIFIER
     // ========================================================
+
+    fn read_identifier_or_number(&mut self) -> Result<ValueDefIdentifierOrNumber> {
+        let mut t = self.read()?;
+        if let Some(ident) = t.drain_ident() {
+            Ok(ValueDefIdentifierOrNumber::Identifier(ident))
+        } else if let Some(num) = t.get_number() {
+            Ok(ValueDefIdentifierOrNumber::Number(num))
+        } else {
+            error(format!("expected identifier or number, found '{}'", t), t.pos)
+        }
+    }
 
     fn read_number(&mut self, max: u64) -> Result<u64> {
         let t = self.read()?;
@@ -582,6 +627,35 @@ impl<'a> ProjectDataReader<'a> {
         Ok(ValueStruct::new(values, start.pos))
     }
 
+    fn read_asset_ref(&mut self) -> Result<ValueAssetRef> {
+        let mut token = self.expect_token()?;
+
+        if let Some(ident) = token.drain_ident() {
+            if ident == "NULL" {
+                return Ok(ValueAssetRef::none(token.pos));
+            } else {
+                return Ok(ValueAssetRef::identifier(ident, token.pos));
+            }
+        }
+
+        if let Some(number) = token.get_number() {
+            if number == u16::MAX as u64 {
+                return Ok(ValueAssetRef::none(token.pos));
+            }
+        } else if token.is_punct('&') {
+            let mut asset_array_token = self.expect_any_ident("asset array name")?;
+            if let Some(asset_array_name) = asset_array_token.drain_ident() {
+                let asset_type = self.get_asset_type_for_array_name(&asset_array_name, asset_array_token.pos)?;
+                self.expect_punct('[')?;
+                let index = self.read_number(u16::MAX as u64)? as usize;
+                self.expect_punct(']')?;
+                return Ok(ValueAssetRef::table_element(asset_type, index, token.pos));
+            }
+        }
+
+        error(format!("expected '&', 'NULL', asset identifier enum or 0xffff, got '{}'", token), token.pos)
+    }
+
     fn read_value(&mut self, value_type: &ValueDef) -> Result<Value> {
         match value_type {
             ValueDef::U8  => { Ok(Value::U8 (self.read_number(u8::MAX  as u64)? as u8, self.last_pos)) }
@@ -596,24 +670,34 @@ impl<'a> ProjectDataReader<'a> {
                     self.read_array(|r| { Ok(r.read_number(u8::MAX as u64)? as u8) })?
                 ))
             }
+
             ValueDef::U16Array => {
                 Ok(Value::U16Array(
                     self.read_array(|r| { Ok(r.read_number(u16::MAX as u64)? as u16) })?
                 ))
             }
+
             ValueDef::U32Array => {
                 Ok(Value::U32Array(
                     self.read_array(|r| { Ok(r.read_number(u32::MAX as u64)? as u32) })?
                 ))
             }
+
             ValueDef::I8Array => {
                 Ok(Value::I8Array(
                     self.read_array(|r| { Ok(r.read_signed_number(i8::MIN as i64, i8::MAX as i64)? as i8) })?
                 ))
             }
+
             ValueDef::I16Array => {
                 Ok(Value::I16Array(
                     self.read_array(|r| { Ok(r.read_signed_number(i16::MIN as i64, i16::MAX as i64)? as i16) })?
+                ))
+            }
+
+            ValueDef::IdentifierOrNumberArray => {
+                Ok(Value::IdentifierOrNumberArray(
+                    self.read_array(|r| { r.read_identifier_or_number() })?
                 ))
             }
 
@@ -646,23 +730,7 @@ impl<'a> ProjectDataReader<'a> {
             }
 
             ValueDef::AssetRef => {
-                let token = self.read()?;
-                if token.get_ident().is_some_and(|ident| ident == "NULL") {
-                    Ok(Value::AssetRef(ValueAssetRef::null(token.pos)))
-                } else if token.is_punct('&') {
-                    let mut ident_token = self.expect_any_ident("asset array name")?;
-                    self.expect_punct('[')?;
-                    let index = self.read_number(u32::MAX as u64)? as usize;
-                    self.expect_punct(']')?;
-                    if let Some(name) = ident_token.drain_ident() {
-                        let asset_type = self.get_asset_type_for_array_name(&name, ident_token.pos)?;
-                        Ok(Value::AssetRef(ValueAssetRef::pointer(asset_type, index, ident_token.pos)))
-                    } else {
-                        error(format!("unexpected '{}'", ident_token), ident_token.pos)
-                    }
-                } else {
-                    error(format!("unexpected '{}'", token), token.pos)
-                }
+                Ok(Value::AssetRef(self.read_asset_ref()?))
             }
 
             ValueDef::Struct(value_defs) => {
@@ -681,7 +749,10 @@ impl<'a> ProjectDataReader<'a> {
             self.expect_punct('[')?;
             self.expect_punct(']')?;
             self.expect_punct('=')?;
-            if let Some(value_type) = ARRAY_DEFS.get(type_name) {
+            if let Some(value_type) = override_array_type(&self.data, type_name, &name) {
+                let value = self.read_value(&value_type)?;
+                self.data.data_arrays.insert(name, value);
+            } else if let Some(value_type) = ARRAY_DEFS.get(type_name) {
                 let value = self.read_value(value_type)?;
                 self.data.data_arrays.insert(name, value);
             } else {

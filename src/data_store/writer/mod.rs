@@ -107,6 +107,10 @@ impl<'a> ProjectDataWriter<'a> {
         self.write(format!("#define {}_DATA_SAVE_TIMESTAMP 0x{}\n", self.ident.prefix_upper, timestamp));
 
         self.write("\n");
+        Ok(())
+    }
+
+    fn write_data_start(&self) -> Result<()> {
         self.write(format!("#if {}_DATA_BYTES\n", self.ident.prefix_upper));
         self.write("\n");
         Ok(())
@@ -228,7 +232,7 @@ impl<'a> ProjectDataWriter<'a> {
 
     fn write_asset_ids(&self) -> Result<()> {
         self.write("// ================================================================\n");
-        self.write("// === IDS\n");
+        self.write("// === ASSET IDS\n");
         self.write("// ================================================================\n");
         self.write("\n");
 
@@ -367,12 +371,8 @@ impl<'a> ProjectDataWriter<'a> {
             table_name_lower
         ));
         for item in &table.items {
-            let sprite_index = self.ident.get_asset_index(DataAssetType::Sprite, item.sprite_id)?;
-            self.write(format!(
-                "  {{ &{}_sprites[{}] }},\n",
-                self.ident.prefix_lower,
-                sprite_index
-            ));
+            let sprite_ident = self.ident.get_asset_ident(DataAssetType::Sprite, item.sprite_id)?;
+            self.write(format!("  {{ {} }},\n", sprite_ident));
         }
         self.write("};\n");
         self.write("\n");
@@ -513,6 +513,21 @@ impl<'a> ProjectDataWriter<'a> {
         self.gen_unique_asset_names()?;
         self.write_header()?;
 
+        let anim_info = sprite_animation::get_animation_info(&self, &self.store.asset_ids.animations.store)?;
+
+        // ids and names
+        self.write_asset_ids()?;
+        sprite_animation::write_animation_names(&self, &self.store.asset_ids.animations.store, &anim_info)?;
+        map_data::write_map_item_names(&self, &self.store.asset_ids.maps.store)?;
+        room::write_room_item_names(&self, &self.store.asset_ids.rooms.store)?;
+        world::write_world_item_names(&self, &self.store.asset_ids.worlds.store)?;
+        player_char::write_player_char_names(&self, &self.store.asset_ids.player_chars.store)?;
+        self.write_tables_names()?;
+        self.write_sprite_sizes()?;
+
+        self.write_data_start()?;
+
+        // assets
         font::write_fonts(&self, &self.store.asset_ids.fonts.store)?;
         prop_font::write_prop_fonts(&self, &self.store.asset_ids.prop_fonts.store)?;
         pal_sprite::write_pal_sprites(&self, &self.store.asset_ids.pal_sprites.store)?;
@@ -521,7 +536,7 @@ impl<'a> ProjectDataWriter<'a> {
         tileset::write_tilesets(&self, &self.store.asset_ids.tilesets.store)?;
         sprite::write_sprites(&self, &self.store.asset_ids.sprites.store)?;
         map_data::write_maps(&self, &self.store.asset_ids.maps.store)?;
-        let anim_info = sprite_animation::write_sprite_animations(&self, &self.store.asset_ids.animations.store)?;
+        sprite_animation::write_sprite_animations(&self, &self.store.asset_ids.animations.store, &anim_info)?;
         tile_animation::write_tile_animations(&self, &self.store.asset_ids.tile_anims.store)?;
         room::write_rooms(&self, &self.store.asset_ids.rooms.store)?;
         world::write_worlds(&self, &self.store.asset_ids.worlds.store)?;
@@ -529,19 +544,9 @@ impl<'a> ProjectDataWriter<'a> {
         enemy::write_enemies(&self, &self.store.asset_ids.enemies.store)?;
 
         self.write_tables_data()?;
-
         room::write_scripts(&self, &self.store.asset_ids.rooms.store)?;
 
         self.write_data_end()?;
-
-        sprite_animation::write_animation_names(&self, &self.store.asset_ids.animations.store, anim_info)?;
-        map_data::write_map_item_names(&self, &self.store.asset_ids.maps.store)?;
-        room::write_room_item_names(&self, &self.store.asset_ids.rooms.store)?;
-        world::write_world_item_names(&self, &self.store.asset_ids.worlds.store)?;
-        player_char::write_player_char_names(&self, &self.store.asset_ids.player_chars.store)?;
-        self.write_tables_names()?;
-        self.write_asset_ids()?;
-        self.write_sprite_sizes()?;
 
         self.write_metadata()?;
 
@@ -566,10 +571,14 @@ pub fn serialize_map(
 ) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
+
     writer.write_header()?;
+    map_data::write_map_item_names(&writer, &[map_id])?;
+
+    writer.write_data_start()?;
     map_data::write_maps(&writer, &[map_id])?;
     writer.write_data_end()?;
-    map_data::write_map_item_names(&writer, &[map_id])?;
+
     Ok(writer.output.take())
 }
 
@@ -581,11 +590,15 @@ pub fn serialize_room(
 ) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
+
     writer.write_header()?;
+    room::write_room_item_names(&writer, &[room_id])?;
+
+    writer.write_data_start()?;
     room::write_rooms(&writer, &[room_id])?;
     room::write_scripts(&writer, &[room_id])?;
     writer.write_data_end()?;
-    room::write_room_item_names(&writer, &[room_id])?;
+
     Ok(writer.output.take())
 }
 
@@ -597,10 +610,14 @@ pub fn serialize_world(
 ) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
+
     writer.write_header()?;
+    world::write_world_item_names(&writer, &[world_id])?;
+
+    writer.write_data_start()?;
     world::write_worlds(&writer, &[world_id])?;
     writer.write_data_end()?;
-    world::write_world_item_names(&writer, &[world_id])?;
+
     Ok(writer.output.take())
 }
 
@@ -612,10 +629,15 @@ pub fn serialize_sprite_animation(
 ) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
+
     writer.write_header()?;
-    let info = sprite_animation::write_sprite_animations(&writer, &[animation_id])?;
+    let info = sprite_animation::get_animation_info(&writer, &[animation_id])?;
+    sprite_animation::write_animation_names(&writer, &[animation_id], &info)?;
+
+    writer.write_data_start()?;
+    sprite_animation::write_sprite_animations(&writer, &[animation_id], &info)?;
     writer.write_data_end()?;
-    sprite_animation::write_animation_names(&writer, &[animation_id], info)?;
+
     Ok(writer.output.take())
 }
 
@@ -627,9 +649,13 @@ pub fn serialize_tile_animation(
 ) -> Result<String> {
     let mut writer = ProjectDataWriter::new(store, metadata, logger);
     writer.gen_unique_asset_names()?;
+
     writer.write_header()?;
+    writer.write_asset_ids_for([tile_anim_id].iter(), DataAssetType::TileAnimation, "TILE_ANIMATION")?;
+
+    writer.write_data_start()?;
     tile_animation::write_tile_animations(&writer, &[tile_anim_id])?;
     writer.write_data_end()?;
-    writer.write_asset_ids_for([tile_anim_id].iter(), DataAssetType::TileAnimation, "TILE_ANIMATION")?;
+
     Ok(writer.output.take())
 }

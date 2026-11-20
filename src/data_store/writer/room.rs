@@ -17,8 +17,8 @@ fn write_room_maps(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Re
     writer.write(format!("static const struct {}_ROOM_MAP_INFO {}_room_maps_{}[] = {{\n",
         writer.ident.prefix_upper, writer.ident.prefix_lower, name_id));
     for room_map in room.maps.iter() {
-        let map_index = writer.ident.get_asset_index(DataAssetType::MapData, room_map.map_id)?;
-        writer.write(format!("  {{ {}, {}, &{}_maps[{}] }},\n", room_map.x, room_map.y, writer.ident.prefix_lower, map_index));
+        let map_ident = writer.ident.get_asset_ident(DataAssetType::MapData, room_map.map_id)?;
+        writer.write(format!("  {{ {}, {}, {} }},\n", room_map.x, room_map.y, map_ident));
     }
     writer.write("};\n");
     writer.write("\n");
@@ -53,12 +53,11 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
             RoomTriggerType::Door { dest_room_id, dest_trigger_id, req_flag_id } => {
-                let dest_room_index = writer.ident.get_asset_index(DataAssetType::Room, dest_room_id)?;
+                let dest_room_ident = writer.ident.get_asset_ident(DataAssetType::Room, dest_room_id)?;
                 writer.write(
                     format!(
-                        ".door = {{ &{}_rooms[{}], {}, {} }}",
-                        writer.ident.prefix_lower,
-                        dest_room_index,
+                        ".door = {{ {}, {}, {} }}",
+                        dest_room_ident,
                         dest_trigger_id,
                         req_flag_id
                     )
@@ -68,13 +67,12 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 writer.write(format!(".player_spawn = {{ {} }}", direction.value()));
             }
             RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } => {
-                let enemy_index = writer.ident.get_asset_index(DataAssetType::Enemy, enemy_id)?;
+                let enemy_ident = writer.ident.get_asset_ident(DataAssetType::Enemy, enemy_id)?;
                 writer.write(
                     format!(
-                        ".enemy_spawn = {{ {}, &{}_enemies[{}], {}, {} }}",
+                        ".enemy_spawn = {{ {}, {}, {}, {} }}",
                         enemy_num,
-                        writer.ident.prefix_lower,
-                        enemy_index,
+                        enemy_ident,
                         direction.value(),
                         req_flag_id,
                     )
@@ -130,22 +128,20 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_num, on_effect_id));
             }
             RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
-                let anim_index = writer.ident.get_asset_index(DataAssetType::SpriteAnimation, anim_id)?;
+                let anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, anim_id)?;
                 writer.write(format!(
-                    ".play_animation = {{ &{}_sprite_animations[{}], {}, {}, {} }}",
-                    writer.ident.prefix_lower,
-                    anim_index,
+                    ".play_animation = {{ {}, {}, {}, {} }}",
+                    anim_ident,
                     on_effect_id,
                     set_effect_id,
                     set_flag_id,
                 ));
             }
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
-                let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
+                let sfx_ident = writer.ident.get_asset_ident(DataAssetType::Sfx, sfx_id)?;
                 writer.write(format!(
-                    ".play_sfx = {{ &{}_sfxs[{}], {}, {}, {}, {}, {} }}",
-                    writer.ident.prefix_lower,
-                    sfx_index,
+                    ".play_sfx = {{ {}, {}, {}, {}, {}, {} }}",
+                    sfx_ident,
                     sound_id,
                     volume,
                     pitch_shift,
@@ -168,18 +164,13 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
             RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
-                if let Some(sfx_id) = sfx_id {
-                    let sfx_index = writer.ident.get_asset_index(DataAssetType::Sfx, sfx_id)?;
-                    writer.write(format!(
-                        ".get_pickup = {{ {}, {}, &{}_sfxs[{}], }}",
-                        get_pickup_id,
-                        respawn_delay,
-                        writer.ident.prefix_lower,
-                        sfx_index,
-                    ));
-                } else {
-                    writer.write(format!(".get_pickup = {{ {}, {}, NULL }}", get_pickup_id, respawn_delay));
-                }
+                let sfx_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Sfx, sfx_id)?;
+                writer.write(format!(
+                    ".get_pickup = {{ {}, {}, {}, }}",
+                    get_pickup_id,
+                    respawn_delay,
+                    sfx_ident,
+                ));
             }
         }
         writer.write(" },\n");
@@ -242,19 +233,18 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
                 writer.ident.prefix_lower,
                 name_id
             ));
-            if let Some(tileset_id) = room.parallax.tileset_id && room.parallax.width != 0 && room.parallax.height != 0 {
-                let tileset_index = writer.ident.get_asset_index(DataAssetType::Tileset, tileset_id)?;
+            let tileset_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Tileset, room.parallax.tileset_id)?;
+            if room.parallax.tileset_id.is_some() && room.parallax.width != 0 && room.parallax.height != 0 {
                 writer.write(format!(
-                    "    {{ &{}_tilesets[{}], {}, {}, {}_room_parallax_tiles_{} }}\n",
-                    writer.ident.prefix_lower,
-                    tileset_index,
+                    "    {{ {}, {}, {}, {}_room_parallax_tiles_{} }}\n",
+                    tileset_ident,
                     room.parallax.width,
                     room.parallax.height,
                     writer.ident.prefix_lower,
                     name_id,
                 ));
             } else {
-                writer.write("    { NULL, 0, 0, NULL }\n");
+                writer.write(format!("    {{ {}, 0, 0, NULL }}\n", tileset_ident));
             }
             writer.write("  },\n");
         }

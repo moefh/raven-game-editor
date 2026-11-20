@@ -164,21 +164,21 @@ impl super::GenericAsset for PlayerChar {
     fn asset(&self) -> &super::DataAsset { &self.asset }
 
     fn data_size(&self) -> usize {
-        // header: (font<ptr>, gamepad_sprite<ptr>)(4) + num_suits(2) + num_weapons(2) + (suits, weapons) * pointer(4)
-        let header = 4usize * 2 + 2 + 2 + 4usize * 2;
+        // header: (font_index, gamepad_sprite_index) * u16(2) + num_suits(2) + num_weapons(2) + (suits, weapons) * pointer(4)
+        let header = 2usize * 2 + 2usize + 2usize + 4usize * 2;
 
-        // suit: animation<ptr>(4) + req_upgrade_id(2) + pad(2)
-        let suits = (4 + 2 + 2) * self.suits.len();
+        // suit: animation_index(2) + req_upgrade_id(2) + pad(2)
+        let suits = (2 + 2 + 2) * self.suits.len();
 
         // weapon:
-        //   (bullet_anim, bullet_sfx, shoot_anim, shoot_sfx) * ptr(4) +
+        //   (bullet_anim_index, bullet_sfx_index, shoot_anim_index, shoot_sfx_index) * u16(2) +
         //   req_collectable_id(2) + bullet_ammo_pickup_id(2) +
         //   crouch_x(1) + crouch_y(1) + bullet_x(1) + bullet_y(1) +
         //   bullet_dx(2) + bullet_dy(2) +
         //   bullet_damage(2) + bullet_initial_delay(1) + bullet_interval(1) +
         //   shoot_anim_len(1) + pad(3)
         let weapons = { (
-            4usize * 4 +
+            2usize * 4 +
                 2 + 2 +
                 1 + 1 + 1 + 1 +
                 2 + 2 +

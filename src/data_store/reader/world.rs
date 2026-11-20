@@ -4,6 +4,7 @@ use super::{
     error,
     ValueDef,
     ValueDefStruct,
+    ValueDefIdentifierOrNumber,
     ValueStruct,
     ProjectData,
 };
@@ -14,6 +15,13 @@ use super::super::{
     World,
     WorldRegion,
 };
+
+pub fn override_array_type(project_data: &ProjectData, _element_type: &str, array_name: &str) -> Option<ValueDef> {
+    let array_name = array_name.strip_prefix(&project_data.prefix_lower)?;
+    let array_name = array_name.strip_prefix("world_")?;
+    if ! array_name.ends_with("_room_indices") { return None; }
+    Some(ValueDef::IdentifierOrNumberArray)
+}
 
 pub fn get_asset_def() -> ValueDefStruct
 {
@@ -85,11 +93,25 @@ fn conv_region(region: &ValueStruct, name: String, project_data: &ProjectData) -
     let blocks = conv_blocks(width, height, block_bitmap, blocks_data, blocks_array.pos)?;
 
     let mut rooms = Vec::new();
-    for room_index in room_indices_array.get_u16_array(project_data)? {
-        match project_data.asset_ids.get(&DataAssetType::Room).and_then(|room_ids| room_ids.get(*room_index as usize)) {
-            Some(id) => { rooms.push(*id) }
-            None => {
-                return error(format!("invalid world region room index: {}", room_index), room_indices_array.pos);
+    for room_element in room_indices_array.get_identifier_or_number_array(project_data)? {
+        match room_element {
+            ValueDefIdentifierOrNumber::Identifier(room_ident) => {
+                if let Some(room_idents) = project_data.get_asset_enum_items(DataAssetType::Room) &&
+                    let Some(room_index) = room_idents.iter().position(|ident| ident == room_ident) &&
+                    let Some(room_ids) = project_data.asset_ids.get(&DataAssetType::Room) &&
+                    let Some(room_id) = room_ids.get(room_index) {
+                        rooms.push(*room_id)
+                    } else {
+                        return error(format!("invalid world region room: {}", room_ident), room_indices_array.pos);
+                    }
+            }
+            ValueDefIdentifierOrNumber::Number(room_index) => {
+                if let Some(room_ids) = project_data.asset_ids.get(&DataAssetType::Room) &&
+                    let Some(room_id) = room_ids.get(*room_index as usize) {
+                        rooms.push(*room_id)
+                    } else {
+                        return error(format!("invalid world region room: {}", room_index), room_indices_array.pos);
+                    }
             }
         }
     }
