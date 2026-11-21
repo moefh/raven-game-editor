@@ -641,14 +641,19 @@ impl RavenEditorApp {
                 ui.menu_button("Project", |ui| {
                     for asset_def in ASSET_DEFS {
                         if ui.add(menu_item(include_ref_image!(asset_def.image), asset_def.add_menu_item)).clicked() {
-                            if let Err((err_title, err_msg)) = add_asset(
+                            match add_asset(
                                 asset_def.asset_type,
                                 None,
                                 &mut self.store,
                                 &mut self.editors,
                                 &mut self.window_tracker,
                             ) {
-                                self.open_message_box(err_title, err_msg);
+                                Ok(asset_id) => {
+                                    self.editors.activate_editor(ui.ctx(), asset_id);
+                                }
+                                Err((err_title, err_msg)) => {
+                                    self.open_message_box(err_title, err_msg);
+                                }
                             }
                         }
                     }
@@ -853,14 +858,19 @@ impl RavenEditorApp {
                     for action in &[folder_action, item_action] {
                         match action {
                             AssetTreeAction::AddAsset(tree_node_id) => {
-                                if let Err((err_title, err_msg)) = add_asset(
+                                match add_asset(
                                     asset_def.asset_type,
                                     self.asset_tree.get_node_name(asset_def.asset_type, *tree_node_id),
                                     &mut self.store,
                                     &mut self.editors,
                                     &mut self.window_tracker,
                                 ) {
-                                    self.open_message_box(err_title, err_msg);
+                                    Ok(asset_id) => {
+                                        self.editors.activate_editor(ui.ctx(), asset_id);
+                                    }
+                                    Err((err_title, err_msg)) => {
+                                        self.open_message_box(err_title, err_msg);
+                                    }
                                 }
                             }
                             AssetTreeAction::RenameFolder(tree_node_id) => {
@@ -875,7 +885,7 @@ impl RavenEditorApp {
                                 }
                             }
                             AssetTreeAction::DuplicateAsset(asset_id) => {
-                                if let Err(msg) = duplicate_asset(
+                                match duplicate_asset(
                                     *asset_id,
                                     asset_def.asset_type,
                                     &mut self.store,
@@ -883,7 +893,12 @@ impl RavenEditorApp {
                                     &mut self.editors,
                                     &mut self.window_tracker,
                                 ) {
-                                    self.open_message_box("Error", msg);
+                                    Ok(asset_id) => {
+                                        self.editors.activate_editor(ui.ctx(), asset_id);
+                                    }
+                                    Err(msg) => {
+                                        self.open_message_box("Error", msg);
+                                    }
                                 }
                             }
                             AssetTreeAction::RemoveAsset(asset_id) => {
