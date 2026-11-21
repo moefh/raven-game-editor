@@ -8,6 +8,7 @@ use super::{
 use super::super::{
     DataAssetId,
     DataAssetType,
+    FontDataAssetId,
     PlayerChar,
 };
 
@@ -96,17 +97,30 @@ pub fn write_player_chars(writer: &ProjectDataWriter, player_char_ids: &[DataAss
     for id in player_char_ids.iter() {
         if let Some(player_char) = writer.store.assets.player_chars.get(id) {
             let name_id = writer.ident.get_asset_name_id(DataAssetType::PlayerChar, *id)?;
-            let font_ident = writer.ident.get_asset_ident(DataAssetType::Font, player_char.font_id)?;
+            let (font_type_upper, font_type_lower, font_ident) = match player_char.font_id {
+                FontDataAssetId::Fixed(font_id) => {
+                    ("FIXED", "fixed", writer.ident.get_asset_ident(DataAssetType::Font, font_id)?)
+                }
+                FontDataAssetId::Prop(font_id) => {
+                    ("PROP", "prop", writer.ident.get_asset_ident(DataAssetType::PropFont, font_id)?)
+                }
+            };
             let gamepad_sprite_ident = writer.ident.get_asset_ident(DataAssetType::Sprite, player_char.gamepad_sprite_id)?;
+            writer.write("  {\n");
             writer.write(format!(
-                "  {{ {}, {}, {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{} }},\n",
-                font_ident,
-                gamepad_sprite_ident,
+                "    {{ {}_FONT_TYPE_{}, .{}_index = {} }},\n",
+                writer.ident.prefix_upper, font_type_upper,
+                font_type_lower, font_ident
+            ));
+            writer.write(format!("    {},\n", gamepad_sprite_ident));
+            writer.write(format!(
+                "    {}, {}, {}_player_char_suits_{}, {}_player_char_weapons_{}\n",
                 player_char.suits.len(),
                 player_char.weapons.len(),
                 writer.ident.prefix_lower, name_id,
                 writer.ident.prefix_lower, name_id,
             ));
+            writer.write("  },\n");
         }
     }
     writer.write("};\n");

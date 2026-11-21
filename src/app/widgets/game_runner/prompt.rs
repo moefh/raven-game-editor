@@ -64,35 +64,35 @@ fn draw_trigger_prompt(
     let player_rect = CollisionRect::new(player.x, player.y, player_anim.clip_rect.w, player_anim.clip_rect.h);
     if player_rect.intersects_rect(&prompt_info.trigger_rect) &&
         let Some(prompt) = store.tables.interact_prompt.items.get(prompt_info.interact_prompt_id as usize) {
-            let font = game_assets.font;
+            let font = &game_assets.font;
             let zoom = prompt_info.zoom;
             let screen_pos = prompt_info.screen_pos;
-            let font_height = font.height as f32 * zoom;
+            let font_height = font.font_height();
             let font_width = font.measure(font_height, &prompt.value);
             let pos = screen_pos + Vec2::new(
-                zoom * (prompt_info.trigger_rect.x as f32 + 0.5 * prompt_info.trigger_rect.w as f32) - 0.5 * font_width,
+                zoom * (prompt_info.trigger_rect.x as f32 + 0.5 * prompt_info.trigger_rect.w as f32 - 0.5 * font_width),
                 zoom * (prompt_info.trigger_rect.y as f32 - 0.5 * Tileset::TILE_SIZE as f32),
             );
 
             let (btn_index, prompt_string) = extract_trigger_prompt_button(&prompt.value);
             let text_pos = if let Some(btn) = btn_index {
                 let sprite = game_assets.gamepad_sprite;
-                let sprite_offset = zoom * 0.5 * Vec2::new(
-                    sprite.width as f32 + 6.0,
-                    sprite.height as f32 - font.height as f32,
+                let sprite_offset = zoom * Vec2::new(
+                    6.0,
+                    sprite.height as f32 - font.font_height()
                 );
 
                 let sprite_size = Vec2::new(sprite.width as f32, sprite.height as f32);
                 let sprite_uv = sprite.get_item_uv(btn);
                 let draw_rect = egui::Rect::from_min_size(
-                    pos - sprite_offset,
+                    pos - 0.5 * sprite_offset,
                     zoom * sprite_size,
                 );
 
                 let texture = game_assets.gamepad_sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
                 egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
 
-                pos + sprite_offset
+                pos + zoom * Vec2::new(sprite.width as f32, 0.0)
             } else {
                 pos
             };
@@ -101,11 +101,11 @@ fn draw_trigger_prompt(
                 for x in [-1, 0, 1] {
                     if x != 0 || y != 0 {
                         let pos = text_pos + Vec2::new(x as f32 * zoom, y as f32 * zoom);
-                        font.paint_string(ui, wc, prompt_string, pos, font_height, egui::Color32::BLACK);
+                        font.paint_string(ui, wc, prompt_string, pos, font_height * zoom, egui::Color32::BLACK);
                     }
                 }
             }
-            font.paint_string(ui, wc, prompt_string, text_pos, font_height, egui::Color32::WHITE);
+            font.paint_string(ui, wc, prompt_string, text_pos, font_height * zoom, egui::Color32::WHITE);
         }
 }
 

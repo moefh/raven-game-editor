@@ -1,5 +1,6 @@
 use super::{
     DataAssetId,
+    FontDataAssetId,
 };
 
 #[derive(Clone)]
@@ -94,7 +95,7 @@ impl PlayerCharWeapon {
 
 pub struct PlayerChar {
     pub asset: super::DataAsset,
-    pub font_id: DataAssetId,
+    pub font_id: FontDataAssetId,
     pub gamepad_sprite_id: DataAssetId,
     pub suits: Vec<PlayerCharSuit>,
     pub weapons: Vec<PlayerCharWeapon>,
@@ -104,7 +105,7 @@ impl PlayerChar {
     pub fn new(id: super::DataAssetId, name: String, font_id: DataAssetId, gamepad_sprite_id: DataAssetId) -> Self {
         PlayerChar {
             asset: super::DataAsset::new(super::DataAssetType::PlayerChar, id, name),
-            font_id,
+            font_id: FontDataAssetId::Fixed(font_id),
             gamepad_sprite_id,
             suits: Vec::new(),
             weapons: Vec::new(),
@@ -115,7 +116,7 @@ impl PlayerChar {
 impl super::HashedData for PlayerChar {
     fn data_hash(&self, hasher: &mut super::DataHasher) {
         hasher.add_data_asset(&self.asset);
-        hasher.add_asset_id(self.font_id);
+        hasher.add_font_asset_id(self.font_id);
         hasher.add_asset_id(self.gamepad_sprite_id);
 
         for suit in &self.suits {

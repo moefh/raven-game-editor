@@ -1042,6 +1042,7 @@ impl RavenEditorApp {
                     animations: &self.store.assets.animations,
                     sfxs: &self.store.assets.sfxs,
                     fonts: &self.store.assets.fonts,
+                    prop_fonts: &self.store.assets.prop_fonts,
                     sprites: &self.store.assets.sprites,
                     asset_ids: &self.store.asset_ids,
                     tables: &self.store.tables,

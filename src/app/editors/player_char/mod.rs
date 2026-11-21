@@ -5,6 +5,7 @@ use crate::data_store::{
     self,
     DataAssetId,
     DataAssetList,
+    FontDataAssetId,
     AssetIdCollection,
     GenericAsset,
     DataStoreTables,
@@ -16,6 +17,7 @@ use crate::data_store::{
     Sfx,
     Font,
     Sprite,
+    PropFont,
 };
 
 use super::{
@@ -35,6 +37,7 @@ pub struct PlayerCharEditorAssetLists<'a> {
     pub animations: &'a DataAssetList<SpriteAnimation>,
     pub sfxs: &'a DataAssetList<Sfx>,
     pub fonts: &'a DataAssetList<Font>,
+    pub prop_fonts: &'a DataAssetList<PropFont>,
     pub sprites: &'a DataAssetList<Sprite>,
     pub asset_ids: &'a AssetIdCollection,
     pub tables: &'a DataStoreTables,
@@ -76,6 +79,28 @@ impl ItemRef {
             true
         } else {
             false
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum FontAssetTypeSel {
+    Fixed,
+    Prop,
+}
+
+impl FontAssetTypeSel {
+    fn from_font_asset_id(font_asset_id: FontDataAssetId) -> Self {
+        match font_asset_id {
+            FontDataAssetId::Fixed(_) => FontAssetTypeSel::Fixed,
+            FontDataAssetId::Prop(_) => FontAssetTypeSel::Prop,
+        }
+    }
+
+    fn text(self) -> &'static str {
+        match self {
+            FontAssetTypeSel::Fixed => { "fixed" }
+            FontAssetTypeSel::Prop => { "proportional" }
         }
     }
 }
@@ -157,6 +182,7 @@ struct Editor {
     sorted_animation_ids: Vec<DataAssetId>,
     sorted_sfx_ids: Vec<DataAssetId>,
     sorted_font_ids: Vec<DataAssetId>,
+    sorted_prop_font_ids: Vec<DataAssetId>,
     sorted_sprite_ids: Vec<DataAssetId>,
 }
 
@@ -175,6 +201,7 @@ impl Editor {
             sorted_animation_ids: Vec::new(),
             sorted_sfx_ids: Vec::new(),
             sorted_font_ids: Vec::new(),
+            sorted_prop_font_ids: Vec::new(),
             sorted_sprite_ids: Vec::new(),
         }
     }
@@ -486,14 +513,48 @@ impl Editor {
                     .num_columns(2)
                     .spacing([8.0, 4.0])
                     .show(ui, |ui| {
+                        ui.label("Font Type:");
+                        let mut font_type_sel = FontAssetTypeSel::from_font_asset_id(player_char.font_id);
+                        egui::ComboBox::from_id_salt("char_font_type")
+                            .selected_text(font_type_sel.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut font_type_sel, FontAssetTypeSel::Fixed, FontAssetTypeSel::Fixed.text());
+                                ui.selectable_value(&mut font_type_sel, FontAssetTypeSel::Prop, FontAssetTypeSel::Prop.text());
+                            });
+                        ui.end_row();
+                        if FontAssetTypeSel::from_font_asset_id(player_char.font_id) != font_type_sel {
+                            match font_type_sel {
+                                FontAssetTypeSel::Fixed if let Some(font_id) = self.sorted_font_ids.first() => {
+                                    player_char.font_id = FontDataAssetId::Fixed(*font_id);
+                                }
+                                FontAssetTypeSel::Prop if let Some(font_id) = self.sorted_prop_font_ids.first() => {
+                                    player_char.font_id = FontDataAssetId::Prop(*font_id);
+                                }
+                                _ => {}
+                            }
+                        }
+
                         ui.label("Font:");
-                        Self::show_asset_id_editor(
-                            ui,
-                            "char_font_id",
-                            assets.fonts,
-                            &self.sorted_font_ids,
-                            &mut player_char.font_id
-                        );
+                        match &mut player_char.font_id {
+                            FontDataAssetId::Fixed(font_id) => {
+                                Self::show_asset_id_editor(
+                                    ui,
+                                    "char_font_id",
+                                    assets.fonts,
+                                    &self.sorted_font_ids,
+                                    font_id
+                                );
+                            }
+                            FontDataAssetId::Prop(font_id) => {
+                                Self::show_asset_id_editor(
+                                    ui,
+                                    "char_prop_font_id",
+                                    assets.prop_fonts,
+                                    &self.sorted_prop_font_ids,
+                                    font_id
+                                );
+                            }
+                        }
                         ui.end_row();
 
                         ui.label("Gamepad Buttons:");
@@ -756,6 +817,7 @@ impl Editor {
         self.sorted_animation_ids.clear();
         self.sorted_sfx_ids.clear();
         self.sorted_font_ids.clear();
+        self.sorted_prop_font_ids.clear();
         self.sorted_sprite_ids.clear();
     }
 
@@ -763,6 +825,7 @@ impl Editor {
         if self.sorted_animation_ids.len() != assets.asset_ids.animations.len() ||
             self.sorted_sfx_ids.len() != assets.asset_ids.sfxs.len() ||
             self.sorted_font_ids.len() != assets.asset_ids.fonts.len() ||
+            self.sorted_prop_font_ids.len() != assets.asset_ids.prop_fonts.len() ||
             self.sorted_sprite_ids.len() != assets.asset_ids.sprites.len() {
             self.clear_sorted_ids();
         }
@@ -778,6 +841,10 @@ impl Editor {
         if self.sorted_font_ids.is_empty() {
             assets.asset_ids.fonts.copy_to(&mut self.sorted_font_ids);
             data_store::utils::sort_asset_ids_by_name(&mut self.sorted_font_ids, assets.fonts);
+        }
+        if self.sorted_prop_font_ids.is_empty() {
+            assets.asset_ids.prop_fonts.copy_to(&mut self.sorted_prop_font_ids);
+            data_store::utils::sort_asset_ids_by_name(&mut self.sorted_prop_font_ids, assets.prop_fonts);
         }
         if self.sorted_sprite_ids.is_empty() {
             assets.asset_ids.sprites.copy_to(&mut self.sorted_sprite_ids);

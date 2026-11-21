@@ -40,6 +40,15 @@ impl DataHasher {
         }
     }
 
+    pub fn add_font_asset_id(&mut self, id: super::FontDataAssetId) {
+        if self.include_ids {
+            match id {
+                super::FontDataAssetId::Fixed(id) => { self.add_u32(id.id) }
+                super::FontDataAssetId::Prop(id) => { self.add_u32(id.id) }
+            }
+        }
+    }
+
     pub fn add_data_asset(&mut self, asset: &super::DataAsset) {
         self.add_str(asset.asset_type.name());
         self.add_asset_id(asset.id);

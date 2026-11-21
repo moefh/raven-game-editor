@@ -46,6 +46,7 @@ use super::{
     DataStoreStringTableItem,
     AssetCollection,
     AssetIdCollection,
+    FontDataAssetId,
 };
 use super::utils::{
     get_asset_type_upper_name,
@@ -189,6 +190,53 @@ static METADATA_STRUCT_DEFS: LazyLock<HashMap<String, ValueDefStruct>> = LazyLoc
 // in a world region are uint16_t written as enum identifiers or numbers)
 fn override_array_type(project_data: &ProjectData, element_type: &str, array_name: &str) -> Option<ValueDef> {
     world::override_array_type(project_data, element_type, array_name)
+}
+
+fn font_ref_value_def() -> ValueDef {
+    ValueDef::Struct(ValueDefStruct::new(vec![
+        (String::from("type"), ValueDef::Identifier),
+        (String::from("font"), ValueDef::Custom(custom_read_font_ref)),  // AssetRef
+    ]))
+}
+
+fn custom_read_font_ref(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.expect_punct('.')?;
+    let mut type_token = reader.expect_any_ident("fixed_index or prop_index")?;
+    reader.expect_punct('=')?;
+    if let Some(type_name) = type_token.drain_ident() {
+        if type_name == "fixed_index" || type_name == "prop_index" {
+            Ok(Value::AssetRef(reader.read_asset_ref()?))
+        } else {
+            error(format!("unknown font type: {}", type_name), type_token.pos)
+        }
+    } else {
+        error(format!("unexpected {}", type_token), type_token.pos)
+    }
+}
+
+fn get_font_ref_asset_id(val_struct: &ValueStruct, project_data: &ProjectData) -> Result<FontDataAssetId> {
+    let font_type = val_struct.get_identifier("type")?;
+    let font_type_no_prefix = font_type.name.strip_prefix(&project_data.prefix_upper).ok_or_else(|| {
+        err(format!("invalid font type: {}", font_type.name), font_type.pos)
+    })?;
+    let font_ref = val_struct.get_asset_ref("font")?;
+    let font_asset_id = font_ref.get_asset_id(project_data)?;
+    match font_type_no_prefix {
+        "FONT_TYPE_FIXED" => {
+            if project_data.asset_ids.get(&DataAssetType::Font).is_some_and(|asset_ids| asset_ids.contains(&font_asset_id)) {
+                return Ok(FontDataAssetId::Fixed(font_asset_id));
+            }
+        }
+        "FONT_TYPE_PROP" => {
+            if project_data.asset_ids.get(&DataAssetType::PropFont).is_some_and(|asset_ids| asset_ids.contains(&font_asset_id)) {
+                return Ok(FontDataAssetId::Prop(font_asset_id));
+            }
+        }
+        _ => {
+            return error(format!("invalid font type: {}", font_type.name), font_type.pos);
+        }
+    }
+    error(format!("font type {} doesn't match reference", font_type.name), font_type.pos)
 }
 
 pub struct ProjectData {

@@ -137,6 +137,12 @@ impl StringLogger {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum FontDataAssetId {
+    Fixed(DataAssetId),
+    Prop(DataAssetId),
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,
@@ -463,7 +469,11 @@ impl AssetCollection {
             }
         }
         for pchar in self.player_chars.iter() {
-            if pchar.font_id == id { return true; }
+            match pchar.font_id {
+                FontDataAssetId::Fixed(font_id) if font_id == id => { return true; }
+                FontDataAssetId::Prop(font_id) if font_id == id => { return true; }
+                _ => {}
+            }
             if pchar.gamepad_sprite_id == id { return true; }
             for suit in pchar.suits.iter() {
                 if suit.anim_id == id { return true; }

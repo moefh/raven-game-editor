@@ -5,6 +5,19 @@ const HEADER_TEMPLATE: &str = r###"
 #include <stddef.h>
 #include <stdint.h>
 
+enum $<PREFIX>_FONT_TYPE {
+    $<PREFIX>_FONT_TYPE_FIXED,
+    $<PREFIX>_FONT_TYPE_PROP,
+};
+
+struct $<PREFIX>_FONT_REF {
+    uint16_t type;              // $<PREFIX>_FONT_TYPE_xxx
+    union {
+        uint16_t fixed_index;   // $<prefix>_fonts[]
+        uint16_t prop_index;    // $<prefix>_prop_fonts[]
+    };
+};
+
 #ifndef $<PREFIX>_SKIP_STRUCTS_MOD
 
 struct $<PREFIX>_MOD_SAMPLE {
@@ -360,7 +373,7 @@ struct $<PREFIX>_PLAYER_CHAR_WEAPON {
 };
 
 struct $<PREFIX>_PLAYER_CHAR {
-    uint16_t font_index;            // $<prefix>_fonts[]
+    struct $<PREFIX>_FONT_REF font;
     uint16_t gamepad_sprite_index;  // $<prefix>_sprites[]
     uint16_t num_suits;
     uint16_t num_weapons;

@@ -5,6 +5,7 @@ mod animation;
 mod effect_display;
 mod prompt;
 mod util;
+mod font;
 pub mod consts;
 pub mod controller;
 pub mod collision;
@@ -34,7 +35,6 @@ use crate::data_store::{
     MapData,
     Tileset,
     PlayerChar,
-    Font,
 };
 use crate::image::{
     ImageCollection,
@@ -57,6 +57,7 @@ use super::super::editors::{
     DrawRoomLayerData,
 };
 
+use font::{*};
 use animation::{*};
 use controller::{*};
 use collision::{*};
@@ -91,7 +92,7 @@ pub struct DrawInfo {
 
 pub struct GameAssets<'a> {
     pub room: &'a Room,
-    pub font: &'a Font,
+    pub font: GameAssetFont<'a>,
     pub gamepad_sprite: &'a Sprite,
     pub player_char: &'a PlayerChar,
     pub char_anim: &'a SpriteAnimation,
@@ -102,7 +103,7 @@ impl<'a> GameAssets<'a> {
         let room = store.assets.rooms.get(&room_id)?;
         let player_char_id = store.asset_ids.player_chars.get_first()?;
         let player_char = store.assets.player_chars.get(&player_char_id)?;
-        let font = store.assets.fonts.get(&player_char.font_id)?;
+        let font = GameAssetFont::from_font_asset_id(&player_char.font_id, store)?;
         let gamepad_sprite = store.assets.sprites.get(&player_char.gamepad_sprite_id)?;
         let suit = player_char.suits.first()?;
         Some(GameAssets {
