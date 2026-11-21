@@ -81,6 +81,6 @@ impl Bullet {
             y: self.y >> 8,
             direction: Direction::from_dx(self.dx),
         };
-        self.anim.draw(ui, wc, &draw_anim_info, store, &draw_info);
+        self.anim.draw(ui, wc, &draw_anim_info, store, draw_info);
     }
 }
