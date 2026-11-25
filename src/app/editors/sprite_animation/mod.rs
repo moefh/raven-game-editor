@@ -40,6 +40,12 @@ enum EditorTabs {
     Frames,
 }
 
+enum ListItemAction {
+    None,
+    MoveUp(usize),
+    MoveDown(usize),
+}
+
 #[derive(Clone)]
 struct FrameDragPayload {
     frame: usize,
@@ -647,11 +653,42 @@ impl Editor {
         egui::Panel::left(self.panel_id_loops).resizable(false).max_size(120.0).show(ui, |ui| {
             ui.add_space(5.0);
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                let mut action = ListItemAction::None;
                 for (loop_index, aloop) in animation.loops.iter().enumerate() {
                     let selected = self.selected_loop == loop_index;
                     let button = egui::Button::selectable(selected, &aloop.name_id).wrap_mode(egui::TextWrapMode::Truncate);
-                    if ui.add(button).clicked() {
+                    let resp = ui.add(button);
+                    egui::Popup::context_menu(&resp).show(|ui| {
+                        if ui.add_enabled(
+                            loop_index > 0,
+                            menu_item(IMAGES.arrow_up, " Move Up")
+                        ).clicked() {
+                            action = ListItemAction::MoveUp(loop_index);
+                        }
+                        if ui.add_enabled(
+                            loop_index + 1 < animation.loops.len(),
+                            menu_item(IMAGES.arrow_down, " Move Down")
+                        ).clicked() {
+                            action = ListItemAction::MoveDown(loop_index);
+                        }
+                    });
+                    if resp.clicked() {
                         self.select_loop(loop_index);
+                    }
+                }
+                match action {
+                    ListItemAction::None => {}
+                    ListItemAction::MoveUp(index) => {
+                        if index > 0 {
+                            animation.loops.swap(index-1, index);
+                            self.select_loop(index-1);
+                        }
+                    }
+                    ListItemAction::MoveDown(index) => {
+                        if index + 1 < animation.loops.len() {
+                            animation.loops.swap(index, index+1);
+                            self.select_loop(index+1);
+                        }
                     }
                 }
             });
