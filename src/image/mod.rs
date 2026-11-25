@@ -3,6 +3,7 @@ mod image_collection_alt_id;
 mod image_collection_io;
 mod texture_manager;
 mod static_image_store;
+mod dynamic_image;
 mod image_pixels;
 mod colorset;
 pub mod colors;
@@ -26,6 +27,9 @@ pub use image_collection_io::{
 pub use image_pixels::{
     ImagePixels,
     ImagePixelsCollection,
+};
+pub use dynamic_image::{
+    DynamicImage,
 };
 pub use colorset::{
     ColorSet,

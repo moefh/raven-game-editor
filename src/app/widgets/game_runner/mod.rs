@@ -3,13 +3,14 @@ mod bullet;
 mod enemy;
 mod animation;
 mod effect_display;
+mod darkness;
+mod cutscene;
 mod prompt;
 mod util;
 mod font;
 pub mod consts;
 pub mod controller;
 pub mod collision;
-pub mod cutscene;
 
 use std::collections::{
     HashSet,
@@ -75,6 +76,9 @@ use bullet::{
 use effect_display::{
     EffectDisplay,
 };
+use darkness::{
+    DarknessState,
+};
 use cutscene::{
     CutsceneState,
 };
@@ -91,6 +95,7 @@ pub const EMPTY_ANIMATION_LOOP: SpriteAnimationLoop = SpriteAnimationLoop {
 };
 
 pub struct DrawInfo {
+    room_pos: (i32, i32),
     pos: Pos2,
     zoom: f32,
 }
@@ -101,6 +106,7 @@ pub struct GameAssets<'a> {
     pub gamepad_sprite: &'a Sprite,
     pub player_char: &'a PlayerChar,
     pub char_anim: &'a SpriteAnimation,
+    pub char_sprite: &'a Sprite,
 }
 
 impl<'a> GameAssets<'a> {
@@ -111,12 +117,15 @@ impl<'a> GameAssets<'a> {
         let font = GameAssetFont::from_font_asset_id(&player_char.font_id, store)?;
         let gamepad_sprite = store.assets.sprites.get(&player_char.gamepad_sprite_id)?;
         let suit = player_char.suits.first()?;
+        let char_anim = store.assets.animations.get(&suit.anim_id)?;
+        let char_sprite = store.assets.sprites.get(&char_anim.sprite_id)?;
         Some(GameAssets {
             room,
             font,
             gamepad_sprite,
             player_char,
-            char_anim: store.assets.animations.get(&suit.anim_id)?,
+            char_anim,
+            char_sprite,
         })
     }
 }
@@ -471,6 +480,7 @@ pub struct GameRunnerWidget {
     pub fx_display: Vec<EffectDisplay>,
     pub player: Player,
     pub controller: Controller,
+    pub darkness: DarknessState,
     pub cutscene: CutsceneState,
     screen_ui: ScreenUi,
     state: GameRunnerState,
@@ -483,7 +493,7 @@ impl GameRunnerWidget {
     pub const WIDTH: i32 = 320;
     pub const HEIGHT: i32 = 240;
     pub const SCREEN_SIZE: Vec2 = Vec2 { x: Self::WIDTH as f32, y: Self::HEIGHT as f32 };
-    pub const SCREEN_HEADER_HEIGHT: i32 = 32;
+    pub const HUD_HEIGHT: i32 = 32;
 
     pub fn new() -> Self {
         GameRunnerWidget {
@@ -491,6 +501,7 @@ impl GameRunnerWidget {
             frame_counter: 0,
             screen_ui: ScreenUi::new(),
             cutscene: CutsceneState::new(),
+            darkness: DarknessState::new(),
             player: Player::new(),
             enemies: Vec::new(),
             bullets: Vec::new(),
@@ -597,10 +608,11 @@ impl GameRunnerWidget {
         game_assets: &mut GameAssets,
         store: &DataStore
     ) -> Option<RoomChangeInfo> {
-        if self.cutscene.tick_engine(game_assets, store, &mut self.state, &mut self.player, &mut self.enemies) {
+        if self.cutscene.tick_engine(game_assets, store, &mut self.state, &mut self.player, &mut self.enemies, &mut self.darkness) {
             self.cutscene.clear();
             self.state.hud_disabled = false;
         }
+        self.darkness.tick_engine();
 
         for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
@@ -701,13 +713,13 @@ impl GameRunnerWidget {
     // ================================================
 
     fn follow_player(&mut self, player_anim: &SpriteAnimation) {
-        let height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
+        let height = Self::HEIGHT - Self::HUD_HEIGHT;
         self.state.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
         self.state.room_y = self.player.y + (player_anim.clip_rect.h - height) / 2;
     }
 
     fn clip_scroll(&mut self, room_size: RoomSize) {
-        let height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
+        let height = Self::HEIGHT - Self::HUD_HEIGHT;
         if room_size.width as i32 >= Self::WIDTH {
             self.state.room_x = self.state.room_x.clamp(0, room_size.width as i32 - Self::WIDTH);
         } else {
@@ -841,7 +853,7 @@ impl GameRunnerWidget {
         if game_assets.room.parallax.width == 0 || game_assets.room.parallax.height == 0 {
             return egui::Vec2::ZERO;
         }
-        let self_height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
+        let self_height = Self::HEIGHT - Self::HUD_HEIGHT;
         let room_w = room_size.width as i32 - Self::WIDTH;
         let room_h = room_size.height as i32 - self_height;
         let para_x = if room_w <= 0 { 0 } else {
@@ -868,6 +880,7 @@ impl GameRunnerWidget {
         let zoom = (canvas_rect.width() / Self::SCREEN_SIZE.x).min(canvas_rect.height() / Self::SCREEN_SIZE.y);
         let screen_size = zoom * Self::SCREEN_SIZE;
         let full_draw_info = DrawInfo {
+            room_pos: (self.state.room_x, self.state.room_y),
             pos: canvas_rect.min + 0.5 * (canvas_rect.size() - screen_size),
             zoom,
         };
@@ -878,7 +891,7 @@ impl GameRunnerWidget {
         self.clip_scroll(room_size);
 
         // room
-        let room_top = zoom * Self::SCREEN_HEADER_HEIGHT as f32;
+        let room_top = zoom * Self::HUD_HEIGHT as f32;
         let room_rect = Rect::from_min_max(
             Pos2::new(screen_rect.min.x, screen_rect.min.y + room_top),
             screen_rect.max
@@ -890,14 +903,15 @@ impl GameRunnerWidget {
             screen_rect: room_rect,
             animation_step: Some(self.map_animation_step),
         };
-        let draw_info = DrawInfo {
-            pos: draw_map_info.pos,
-            zoom,
-        };
         let draw_room_info = DrawRoomLayerInfo {
             zoom,
             pos: room_pos - zoom * self.calc_parallax_pos(self.state.room_x, self.state.room_y, room_size, game_assets),
             screen_rect: room_rect,
+        };
+        let draw_info = DrawInfo {
+            zoom,
+            pos: draw_map_info.pos,
+            room_pos: (self.state.room_x, self.state.room_y),
         };
 
         self.draw_room_bg(ui, wc, game_assets, store, &draw_map_info, &draw_room_info);
@@ -911,6 +925,11 @@ impl GameRunnerWidget {
             enemy.draw(ui, wc, store, draw_map_info.pos, zoom);
         }
         self.draw_room_fg(ui, wc, game_assets, store, &draw_map_info);
+
+        if self.darkness.enabled {
+            self.darkness.draw(ui, wc, game_assets, &self.player, &draw_info);
+        }
+
         draw_room_trigger_prompts(ui, wc, &self.state, game_assets, &self.player, store, &draw_info);
 
         for fx_display in self.fx_display.iter_mut() {

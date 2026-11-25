@@ -104,7 +104,7 @@ fn write_mod_pattern(writer: &ProjectDataWriter, mod_data: &ModData, name_id: &s
     for pattern_num in 0..num_patterns {
         writer.write(format!("  // pattern {}\n", pattern_num));
         for row in 0..64 {
-            writer.write("  ");
+            writer.write(" ");
             for ch in 0..num_channels {
                 let cell_index = (64 * pattern_num + row) * num_channels + ch;
                 if cell_index >= mod_data.pattern.len() { break; }
@@ -115,7 +115,7 @@ fn write_mod_pattern(writer: &ProjectDataWriter, mod_data: &ModData, name_id: &s
                     let (note, octave) = ModData::get_period_note(cell.period);
                     if note < 0 || octave < 0 { 0xff } else { note + octave * 12 }
                 };
-                writer.write(format!("{{ {:>2}, {:#04x}, {:#05x}, }}, ", cell.sample, note_index, cell.effect));
+                writer.write(format!(" {{ {:>2}, {:#04x}, {:#05x}, }},", cell.sample, note_index, cell.effect));
             }
             writer.write("\n");
         }

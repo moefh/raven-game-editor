@@ -115,7 +115,7 @@ impl TextureManager {
     ) -> &egui::TextureHandle {
         let load_image = || {
             let (h, data) = Self::clip_image_height(ctx, w, h, data);
-            let pixels: Vec::<egui::Color32> = data.iter().map(|pix| {
+            let pixels: Vec::<egui::Color32> = data[0..w*h].iter().map(|pix| {
                 self.color_to_rgb_transp[*pix as usize]
             }).collect();
             ctx.load_texture(

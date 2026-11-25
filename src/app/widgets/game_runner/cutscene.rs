@@ -11,7 +11,17 @@ use super::{
     Player,
     PlayerState,
     Enemy,
+    DarknessState,
 };
+
+struct ActionData<'a> {
+    assets: &'a GameAssets<'a>,
+    //store: &'a DataStore,
+    state: &'a mut GameRunnerState,
+    player: &'a mut Player,
+    //enemies: &'a mut Vec<Enemy>,
+    darkness: &'a mut DarknessState,
+}
 
 pub struct CutsceneState {
     pub cutscene_index: Option<usize>,
@@ -41,14 +51,10 @@ impl CutsceneState {
         self.done = false;
     }
 
-    fn run_action(
+    fn run_action<'a>(
         &mut self,
         cutscene: &RoomCutscene,
-        assets: &GameAssets,
-        _store: &DataStore,
-        state: &mut GameRunnerState,
-        player: &mut Player,
-        _enemies: &mut Vec<Enemy>,
+        data: &mut ActionData<'a>,
     ) -> bool {
         if let Some(action) = cutscene.actions.get(self.action_index) {
             match action.action_type {
@@ -56,28 +62,28 @@ impl CutsceneState {
                     true
                 }
 
-                RoomCutsceneActionType::DispelDarkness {..} => {
-                    // TODO: implement darkness
+                RoomCutsceneActionType::DispelDarkness { speed } => {
+                    data.darkness.dispel(speed);
                     true
                 }
 
-                RoomCutsceneActionType::SetPlayerDarkness {..} => {
-                    // TODO: implement darkness
+                RoomCutsceneActionType::SetPlayerDarkness { radius, fall_off, off_x, off_y } => {
+                    data.darkness.set_at_player(radius, fall_off, off_x, off_y);
                     true
                 }
 
-                RoomCutsceneActionType::MovePlayerDarkness {..} => {
-                    // TODO: implement darkness
+                RoomCutsceneActionType::MovePlayerDarkness { off_x, off_y, speed } => {
+                    data.darkness.move_at_player(off_x, off_y, speed);
                     true
                 }
 
                 RoomCutsceneActionType::SetPlayerState { state } => {
-                    player.set_state(PlayerState::from_value(state));
+                    data.player.set_state(PlayerState::from_value(state));
                     true
                 }
 
                 RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
-                    state.actions.push(GameRunnerAction::ActivateEffect { effect_id: set_effect_id });
+                    data.state.actions.push(GameRunnerAction::ActivateEffect { effect_id: set_effect_id });
                     true
                 }
 
@@ -87,16 +93,16 @@ impl CutsceneState {
                 }
 
                 RoomCutsceneActionType::WaitPlayerAnimationEnd {} => {
-                    if let Some(cur_loop) = player.char_anim.advance(assets.char_anim) {
+                    if let Some(cur_loop) = data.player.char_anim.advance(data.assets.char_anim) {
                         // true if player animation ended
-                        (player.char_anim.frame >> 8) as usize >= cur_loop.frame_indices.len()
+                        (data.player.char_anim.frame >> 8) as usize >= cur_loop.frame_indices.len()
                     } else {
                         true
                     }
                 }
 
                 RoomCutsceneActionType::SetHudEnabled { enabled } => {
-                    state.hud_disabled = enabled == 0;
+                    data.state.hud_disabled = enabled == 0;
                     true
                 }
             }
@@ -109,13 +115,22 @@ impl CutsceneState {
     pub fn tick_engine(
         &mut self,
         assets: &GameAssets,
-        store: &DataStore,
+        _store: &DataStore,
         state: &mut GameRunnerState,
         player: &mut Player,
-        enemies: &mut Vec<Enemy>,
+        _enemies: &mut Vec<Enemy>,
+        darkness: &mut DarknessState,
     ) -> bool {
         if let Some(cutscene) = self.cutscene_index.and_then(|ci| assets.room.cutscenes.get(ci)) {
-            while ! self.done && self.run_action(cutscene, assets, store, state, player, enemies) {
+            let mut data = ActionData {
+                assets,
+                //store,
+                state,
+                player,
+                //enemies,
+                darkness,
+            };
+            while ! self.done && self.run_action(cutscene, &mut data) {
                 self.action_index += 1;
                 self.action_frame = 0;
             }
