@@ -21,10 +21,15 @@ impl ExpandItemInfo {
     }
 
     fn clear(&mut self) {
+        self.scroll_to_item = None;
+        self.expand_to_show_item = None;
+        self.expand_folders.clear();
+    }
+
+    fn scroll_to_expand_item(&mut self) {
         if let Some(item) = self.expand_to_show_item {
             self.scroll_to_item = Some(item);
             self.expand_to_show_item = None;
-            self.expand_folders.clear();
         }
     }
 
@@ -108,7 +113,12 @@ impl TreeViewFolder {
             expand.add_folder(self.node_id);
             true
         } else {
-            self.folders.iter().any(|folder| folder.collect_folders_to_expand(expand_item_id, expand))
+            if self.folders.iter().any(|folder| folder.collect_folders_to_expand(expand_item_id, expand)) {
+                expand.add_folder(self.node_id);
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -261,7 +271,7 @@ impl TreeViewFolder {
                 if scroll_to_item {
                     // only clear scroll_to_item when we're sure we showed it scrolled;
                     // this can be many frames after the folder is set open due to animation
-                    expand_info.scroll_to_item = None;
+                    expand_info.clear();
                 }
                 show_item(ui, self, item, scroll_to_item);
             }
@@ -314,9 +324,9 @@ impl TreeViewWidget {
         if let Some(expand_item_id) = self.expand_info.expand_to_show_item {
             self.expand_info.scroll_to_item = None;
             self.root.collect_folders_to_expand(expand_item_id, &mut self.expand_info);
+            self.expand_info.scroll_to_expand_item();
         }
         self.root.show(ui, is_folder_open, show_folder, show_item, &mut self.expand_info);
-        self.expand_info.clear();
     }
 
     pub fn get_node_name(&self, node_id: TreeViewFolderId) -> Option<String> {
