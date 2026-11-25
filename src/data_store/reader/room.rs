@@ -18,19 +18,25 @@ use super::super::{
     Room,
     RoomMap,
     RoomTrigger,
+    RoomCutscene,
     RoomParallax,
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomTriggerMapLayer,
     RoomEntityDirection,
+    RoomCutsceneAction,
+    RoomCutsceneActionType,
+    RoomCutsceneActionTypeIdent,
 };
 
 pub fn get_asset_def() -> ValueDefStruct {
     ValueDefStruct::new(vec![
         (String::from("num_maps"), ValueDef::U16),
         (String::from("num_triggers"), ValueDef::U16),
+        (String::from("num_cutscenes"), ValueDef::U16),
         (String::from("maps"), ValueDef::ArrayRef),      // ROOM_MAP_INFO
         (String::from("triggers"), ValueDef::ArrayRef),  // ROOM_TRIGGER_INFO
+        (String::from("cutscenes"), ValueDef::ArrayRef), // ROOM_CUTSCENE
         (String::from("parallax"), ValueDef::Struct(ValueDefStruct::new(vec![
             (String::from("tileset_id"), ValueDef::AssetRef),
             (String::from("width"), ValueDef::U16),
@@ -52,7 +58,15 @@ pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
             (String::from("trigger_id"), ValueDef::U16),
             (String::from("x"), ValueDef::I16),
             (String::from("y"), ValueDef::I16),
-            (String::from("trigger"), ValueDef::Custom(custom_read_room_trigger_info)),  // ValueStruct
+            (String::from("trigger"), ValueDef::Custom(custom_read_room_trigger_info)),    // ValueStruct
+        ])),
+        (String::from("ROOM_CUTSCENE"), ValueDefStruct::new(vec![
+            (String::from("num_actions"), ValueDef::U16),
+            (String::from("actions"), ValueDef::ArrayRef), // ROOM_CUTSCENE_ACTION
+        ])),
+        (String::from("ROOM_CUTSCENE_ACTION"), ValueDefStruct::new(vec![
+            (String::from("type"), ValueDef::Identifier),
+            (String::from("action"), ValueDef::Custom(custom_read_room_cutscene_action)),  // ValueStruct
         ])),
     ]
 }
@@ -61,12 +75,14 @@ pub fn get_global_struct_defs() -> Vec<(String, ValueDefStruct)> {
 static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
     HashMap::from([
         (String::from("any"), ValueDefStruct::new(vec![
-            (String::from("data0"), ValueDef::U32),
-            (String::from("data1"), ValueDef::U32),
-            (String::from("data2"), ValueDef::U32),
-            (String::from("data3"), ValueDef::U32),
-            (String::from("data4"), ValueDef::U32),
-            (String::from("data5"), ValueDef::U32),
+            (String::from("data0"), ValueDef::U16),
+            (String::from("data1"), ValueDef::U16),
+            (String::from("data2"), ValueDef::U16),
+            (String::from("data3"), ValueDef::U16),
+            (String::from("data4"), ValueDef::U16),
+            (String::from("data5"), ValueDef::U16),
+            (String::from("data6"), ValueDef::U16),
+            (String::from("data7"), ValueDef::U16),
         ])),
 
         (String::from("door"), ValueDefStruct::new(vec![
@@ -131,6 +147,13 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("set_flag_id"), ValueDef::U16),
         ])),
 
+        (String::from("play_cutscene"), ValueDefStruct::new(vec![
+            (String::from("cutscene_index"), ValueDef::U16),
+            (String::from("on_effect_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
+            (String::from("deny_flag_id"), ValueDef::U16),
+        ])),
+
         (String::from("play_sfx"), ValueDefStruct::new(vec![
             (String::from("sfx"), ValueDef::AssetRef),
             (String::from("sound_id"), ValueDef::U16),
@@ -165,6 +188,56 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
             (String::from("get_pickup_id"), ValueDef::U16),
             (String::from("respawn_delay"), ValueDef::U16),
             (String::from("sfx"), ValueDef::AssetRef),
+        ])),
+
+        (String::from("on_load_room"), ValueDefStruct::new(vec![
+            (String::from("set_effect_id"), ValueDef::U16),
+            (String::from("set_flag_id"), ValueDef::U16),
+            (String::from("req_flag_id"), ValueDef::U16),
+            (String::from("deny_flag_id"), ValueDef::U16),
+        ])),
+
+    ])
+});
+
+// structs inside the room cutscene action data union
+static CUTSCENE_ACTION_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock::new(|| {
+    HashMap::from([
+        (String::from("any"), ValueDefStruct::new(vec![
+            (String::from("data0"), ValueDef::U16),
+            (String::from("data1"), ValueDef::U16),
+            (String::from("data2"), ValueDef::U16),
+            (String::from("data3"), ValueDef::U16),
+            (String::from("data4"), ValueDef::U16),
+            (String::from("data5"), ValueDef::U16),
+        ])),
+        (String::from("wait_frames"), ValueDefStruct::new(vec![
+            (String::from("num_frames"), ValueDef::U16),
+        ])),
+        (String::from("wait_player_anim_end"), ValueDefStruct::new(vec![
+        ])),
+        (String::from("dispel_darkness"), ValueDefStruct::new(vec![
+            (String::from("speed"), ValueDef::U16),
+        ])),
+        (String::from("set_player_darkness"), ValueDefStruct::new(vec![
+            (String::from("radius"), ValueDef::U16),
+            (String::from("fall_off"), ValueDef::U8),
+            (String::from("off_x"), ValueDef::I8),
+            (String::from("off_y"), ValueDef::I8),
+        ])),
+        (String::from("move_player_darkness"), ValueDefStruct::new(vec![
+            (String::from("off_x"), ValueDef::I8),
+            (String::from("off_y"), ValueDef::I8),
+            (String::from("speed"), ValueDef::U16),
+        ])),
+        (String::from("set_player_state"), ValueDefStruct::new(vec![
+            (String::from("state"), ValueDef::U8),
+        ])),
+        (String::from("activate_effect"), ValueDefStruct::new(vec![
+            (String::from("set_effect_id"), ValueDef::U16),
+        ])),
+        (String::from("set_hud_enabled"), ValueDefStruct::new(vec![
+            (String::from("enabled"), ValueDef::U8),
         ])),
     ])
 });
@@ -214,6 +287,21 @@ fn custom_read_room_trigger_info(reader: &mut ProjectDataReader) -> Result<Value
         }
     } else {
         error(format!("unexpected {}", trigger_type_token), trigger_type_token.pos)
+    }
+}
+
+fn custom_read_room_cutscene_action(reader: &mut ProjectDataReader) -> Result<Value> {
+    reader.expect_punct('.')?;
+    let mut action_type_token = reader.expect_any_ident("cutscene action union member name")?;
+    reader.expect_punct('=')?;
+    if let Some(action_type) = action_type_token.drain_ident() {
+        if let Some(struct_def) = CUTSCENE_ACTION_VALUE_TYPES.get(&action_type) {
+            Ok(Value::Struct(reader.read_struct(struct_def)?))
+        } else {
+            error(format!("unknown cutscene action type: {}", action_type), action_type_token.pos)
+        }
+    } else {
+        error(format!("unexpected {}", action_type_token), action_type_token.pos)
     }
 }
 
@@ -340,6 +428,19 @@ fn conv_trigger_play_animation(data: &ValueStruct, project_data: &ProjectData) -
     })
 }
 
+fn conv_trigger_play_cutscene(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let cutscene_index = data.get_u16("cutscene_index")?;
+    let on_effect_id = data.get_u16("on_effect_id")?;
+    let req_flag_id = data.get_u16("req_flag_id")?;
+    let deny_flag_id = data.get_u16("deny_flag_id")?;
+    Ok(RoomTriggerType::PlayCutscene {
+        cutscene_index,
+        on_effect_id,
+        req_flag_id,
+        deny_flag_id,
+    })
+}
+
 fn conv_trigger_play_sfx(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
     let sfx_ref = data.get_asset_ref("sfx")?;
     let sound_id = data.get_u16("sound_id")?;
@@ -390,6 +491,15 @@ fn conv_trigger_get_pickup(data: &ValueStruct, project_data: &ProjectData) -> Re
     })
 }
 
+fn conv_trigger_on_load_room(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    Ok(RoomTriggerType::OnLoadRoom {
+        set_effect_id: data.get_u16("set_effect_id")?,
+        set_flag_id: data.get_u16("set_flag_id")?,
+        req_flag_id: data.get_u16("req_flag_id")?,
+        deny_flag_id: data.get_u16("deny_flag_id")?,
+    })
+}
+
 fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData) -> Result<RoomTrigger> {
     let trigger_type = trigger.get_identifier("type")?;
     let trigger_id = trigger.get_u16("trigger_id")?;
@@ -420,6 +530,8 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_remove_enemy(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlayAnimation.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_play_animation(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::PlayCutscene.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_play_cutscene(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlaySfx.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_play_sfx(type_data, project_data)?
     } else if RoomTriggerTypeIdent::StopSfx.matches_enum_ident(&trigger_type.name, prefix) {
@@ -430,6 +542,8 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_get_collectable(type_data, project_data)?
     } else if RoomTriggerTypeIdent::GetPickup.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_get_pickup(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::OnLoadRoom.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_on_load_room(type_data, project_data)?
     } else {
         error(format!("unknown trigger type ident: {}", trigger_type.name), trigger_type.pos)?
     };
@@ -440,6 +554,134 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         x,
         y,
         trigger_type,
+    })
+}
+
+fn conv_action_any(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    Ok(RoomCutsceneActionType::Unknown {
+        data0: data.get_u16("data0")?,
+        data1: data.get_u16("data1")?,
+        data2: data.get_u16("data2")?,
+        data3: data.get_u16("data3")?,
+        data4: data.get_u16("data4")?,
+        data5: data.get_u16("data5")?,
+    })
+}
+
+fn conv_action_wait_frames(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let num_frames = data.get_u16("num_frames")?;
+    Ok(RoomCutsceneActionType::WaitFrames {
+        num_frames,
+    })
+}
+
+fn conv_action_wait_player_animation_end(_data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    Ok(RoomCutsceneActionType::WaitPlayerAnimationEnd {})
+}
+
+fn conv_action_dispel_darkness(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let speed = data.get_u16("speed")?;
+    Ok(RoomCutsceneActionType::DispelDarkness {
+        speed,
+    })
+}
+
+fn conv_action_set_player_darkness(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let radius = data.get_u16("radius")?;
+    let fall_off = data.get_u8("fall_off")?;
+    let off_x = data.get_i8("off_x")?;
+    let off_y = data.get_i8("off_y")?;
+    Ok(RoomCutsceneActionType::SetPlayerDarkness {
+        radius,
+        fall_off,
+        off_x,
+        off_y,
+    })
+}
+
+fn conv_action_move_player_darkness(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let off_x = data.get_i8("off_x")?;
+    let off_y = data.get_i8("off_y")?;
+    let speed = data.get_u16("speed")?;
+    Ok(RoomCutsceneActionType::MovePlayerDarkness {
+        off_x,
+        off_y,
+        speed,
+    })
+}
+
+fn conv_action_set_player_state(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let state = data.get_u8("state")?;
+    Ok(RoomCutsceneActionType::SetPlayerState {
+        state,
+    })
+}
+
+fn conv_action_activate_effect(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let set_effect_id = data.get_u16("set_effect_id")?;
+    Ok(RoomCutsceneActionType::ActivateEffect {
+        set_effect_id,
+    })
+}
+
+fn conv_action_set_hud_enabled(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomCutsceneActionType> {
+    let enabled = data.get_u8("enabled")?;
+    Ok(RoomCutsceneActionType::SetHudEnabled {
+        enabled,
+    })
+}
+
+fn conv_action(action: &ValueStruct, project_data: &ProjectData) -> Result<RoomCutsceneAction> {
+    let action_type = action.get_identifier("type")?;
+    let type_data = action.get_struct("action")?;
+
+    let prefix = &project_data.prefix_upper;
+    let action_type = if RoomCutsceneActionTypeIdent::Unknown.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_any(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::WaitFrames.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_wait_frames(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::WaitPlayerAnimationEnd.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_wait_player_animation_end(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::DispelDarkness.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_dispel_darkness(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::SetPlayerDarkness.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_set_player_darkness(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::MovePlayerDarkness.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_move_player_darkness(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::SetPlayerState.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_set_player_state(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::ActivateEffect.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_activate_effect(type_data, project_data)?
+    } else if RoomCutsceneActionTypeIdent::SetHudEnabled.matches_enum_ident(&action_type.name, prefix) {
+        conv_action_set_hud_enabled(type_data, project_data)?
+    } else {
+        error(format!("unknown cutscene action type ident: {}", action_type.name), action_type.pos)?
+    };
+
+    Ok(RoomCutsceneAction {
+        action_type,
+    })
+}
+
+fn conv_cutscene(cutscene: &ValueStruct, name: String, project_data: &ProjectData) -> Result<RoomCutscene> {
+    let num_actions = cutscene.get_u16("num_actions")?;
+    let actions_array = cutscene.get_array_ref("actions")?;
+
+    let actions = actions_array.get_struct_array(project_data)?;
+    let actions: Vec<_> = actions.values.iter().map(|action| {
+        conv_action(action, project_data)
+    }).collect::<Result<Vec<_>>>()?;
+
+    if num_actions as usize != actions.len() {
+        return error(
+            format!("invalid number of room cutscene actions: expected {}, got {}", num_actions, actions.len()),
+            actions_array.pos
+        );
+    }
+
+    Ok(RoomCutscene {
+        name_id: name,
+        actions,
     })
 }
 
@@ -481,13 +723,16 @@ fn conv_parallax(para_struct: &ValueStruct, project_data: &ProjectData) -> Resul
 pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &ProjectData) -> Result<Room> {
     let num_maps = asset_struct.get_u16("num_maps")?;
     let num_triggers = asset_struct.get_u16("num_triggers")?;
+    let num_cutscenes = asset_struct.get_u16("num_cutscenes")?;
     let maps_array = asset_struct.get_array_ref("maps")?;
     let triggers_array = asset_struct.get_array_ref("triggers")?;
+    let cutscenes_array = asset_struct.get_array_ref("cutscenes")?;
     let parallax = asset_struct.get_struct("parallax")?;
 
     let name = project_data.extract_asset_name("room_maps_", maps_array)?;
     let maps = maps_array.get_struct_array(project_data)?;
     let triggers = triggers_array.get_struct_array(project_data)?;
+    let cutscenes = cutscenes_array.get_struct_array(project_data)?;
 
     let maps: Vec<_> = maps.values.iter().map(|m| conv_map(m, project_data)).collect::<Result<Vec<_>>>()?;
     let triggers: Vec<_> = triggers.values.iter().enumerate().map(|(index, trigger)| {
@@ -495,6 +740,12 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
             .get_asset_data_name(index, "ROOM", name, "TRG")
             .unwrap_or_else(|| format!("trigger_{}", index));
         conv_trigger(trigger, name, project_data)
+    }).collect::<Result<Vec<_>>>()?;
+    let cutscenes: Vec<_> = cutscenes.values.iter().enumerate().map(|(index, cutscene)| {
+        let name = project_data
+            .get_asset_data_name(index, "ROOM", name, "CUTSCENE")
+            .unwrap_or_else(|| format!("cutscene_{}", index));
+        conv_cutscene(cutscene, name, project_data)
     }).collect::<Result<Vec<_>>>()?;
 
     if num_maps as usize != maps.len() {
@@ -509,13 +760,19 @@ pub fn create(asset_id: DataAssetId, asset_struct: &ValueStruct, project_data: &
             triggers_array.pos
         );
     }
+    if num_cutscenes as usize != cutscenes.len() {
+        return error(
+            format!("invalid number of room cutscenes: expected {}, got {}", num_cutscenes, cutscenes.len()),
+            cutscenes_array.pos
+        );
+    }
     let has_script = project_data.room_names_with_scripts.contains(name);
-
 
     Ok(Room {
         asset: DataAsset::new(DataAssetType::Room, asset_id, DataAsset::identifier_to_name(name)),
         maps,
         triggers,
+        cutscenes,
         has_script,
         parallax: conv_parallax(parallax, project_data)?,
     })

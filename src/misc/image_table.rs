@@ -165,6 +165,8 @@ image_table! {
     collapse_left: "../../assets/CollapseLeftIcon.png",
     collapse_right: "../../assets/CollapseRightIcon.png",
     sfx_disabled: "../../assets/SfxDisabledIcon.png",
+    cutscene: "../../assets/CutsceneIcon.png",
+    switch: "../../assets/SwitchIcon.png",
 
     // assets
     tileset: "../../assets/TilesetIcon.png",

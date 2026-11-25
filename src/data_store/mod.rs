@@ -61,6 +61,10 @@ pub use room::{
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomTriggerMapLayer,
+    RoomCutscene,
+    RoomCutsceneAction,
+    RoomCutsceneActionType,
+    RoomCutsceneActionTypeIdent,
     RoomEntityDirection,
 };
 pub use world::{
@@ -437,6 +441,25 @@ impl AssetCollection {
             if room.maps.iter().any(|m| m.map_id == id) {
                 return true;
             }
+            if room.cutscenes.iter().any(|cs| {
+                cs.actions.iter().any(|a| {
+                    match a.action_type {
+                        RoomCutsceneActionType::Unknown {..} |
+                        RoomCutsceneActionType::SetHudEnabled {..} |
+                        RoomCutsceneActionType::WaitFrames {..} |
+                        RoomCutsceneActionType::WaitPlayerAnimationEnd {..} |
+                        RoomCutsceneActionType::DispelDarkness {..} |
+                        RoomCutsceneActionType::SetPlayerDarkness {..} |
+                        RoomCutsceneActionType::MovePlayerDarkness {..} |
+                        RoomCutsceneActionType::SetPlayerState {..} |
+                        RoomCutsceneActionType::ActivateEffect {..} => {
+                            false
+                        }
+                    }
+                })
+            }) {
+                return true;
+            }
             if room.triggers.iter().any(|t| {
                 match t.trigger_type {
                     RoomTriggerType::Unknown {..} |
@@ -450,6 +473,8 @@ impl AssetCollection {
                     RoomTriggerType::DisableAnimation {..} |
                     RoomTriggerType::ChangeTiles {..} |
                     RoomTriggerType::RemoveEnemy {..} |
+                    RoomTriggerType::PlayCutscene {..} |
+                    RoomTriggerType::OnLoadRoom {..} |
                     RoomTriggerType::StopSfx {..} => { false }
 
                     RoomTriggerType::EnemySpawn { enemy_id, .. } => { enemy_id == id }

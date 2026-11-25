@@ -9,6 +9,7 @@ mod font;
 pub mod consts;
 pub mod controller;
 pub mod collision;
+pub mod cutscene;
 
 use std::collections::{
     HashSet,
@@ -63,6 +64,7 @@ use controller::{*};
 use collision::{*};
 use player::{
     Player,
+    PlayerState,
 };
 use enemy::{
     Enemy,
@@ -72,6 +74,9 @@ use bullet::{
 };
 use effect_display::{
     EffectDisplay,
+};
+use cutscene::{
+    CutsceneState,
 };
 use prompt::{
     draw_room_trigger_prompts,
@@ -123,6 +128,7 @@ struct RoomChangeInfo {
 pub enum GameRunnerAction {
     ActivateEffect { effect_id: u16 },
     SetFlag { flag_id: u16 },
+    PlayCutscene { cutscene_index: u16 },
     PlayAnimation { x: i32, y: i32, anim_id: DataAssetId, set_effect_id: u16, set_flag_id: u16 },
     PlaySfx { sfx_id: DataAssetId, volume: u16, pitch_shift: u16 },
     StopSfx,
@@ -138,6 +144,17 @@ pub struct GameRunnerRoomState {
 }
 
 impl GameRunnerRoomState {
+    fn new() -> Self {
+        GameRunnerRoomState {
+            width: 0,
+            height: 0,
+            fx: Vec::new(),
+            bb: Vec::new(),
+            bg: Vec::new(),
+            fg: Vec::new(),
+        }
+    }
+
     fn load_state_room(&mut self, game_assets: &GameAssets, store: &DataStore) {
         let room_size = RoomSize::from_room(game_assets.room, &store.assets.maps);
         let layer_len = (room_size.width * room_size.height) as usize;
@@ -220,6 +237,7 @@ pub struct GameRunnerState {
     pub room_x: i32,
     pub room_y: i32,
     pub room: GameRunnerRoomState,
+    pub hud_disabled: bool,
     pub activated_effect_ids: HashSet<u16>,
     pub acquired_upgrade_ids: HashSet<u16>,
     pub acquired_collectable_ids: HashSet<u16>,
@@ -233,24 +251,19 @@ impl GameRunnerState {
         GameRunnerState {
             room_x: 0,
             room_y: 0,
+            hud_disabled: false,
             activated_effect_ids: HashSet::new(),
             acquired_upgrade_ids: HashSet::new(),
             acquired_collectable_ids: HashSet::new(),
             acquired_flag_ids: HashSet::new(),
             acquired_pickups: HashMap::new(),
             actions: Vec::new(),
-            room: GameRunnerRoomState {
-                width: 0,
-                height: 0,
-                fx: Vec::new(),
-                bb: Vec::new(),
-                bg: Vec::new(),
-                fg: Vec::new(),
-            },
+            room: GameRunnerRoomState::new(),
         }
     }
 
     pub fn clear(&mut self) {
+        self.hud_disabled = false;
         self.activated_effect_ids.clear();
         self.acquired_upgrade_ids.clear();
         self.acquired_collectable_ids.clear();
@@ -304,6 +317,28 @@ impl GameRunnerState {
                 let Some(enemy) = Enemy::new(enemy_num, (trigger.x, trigger.y), enemy_id, direction, game_assets, store) {
                     enemies.push(enemy);
                 }
+        }
+    }
+
+    pub fn activate_load_room_triggers(
+        &mut self,
+        game_assets: &GameAssets,
+        enemies: &mut Vec<Enemy>,
+        store: &DataStore
+    ) {
+        for trigger in &game_assets.room.triggers {
+            if let RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } = trigger.trigger_type {
+                let has_flag_requirements = (req_flag_id == u16::MAX || self.is_flag_set(req_flag_id)) &&
+                    (deny_flag_id == u16::MAX || ! self.is_flag_set(deny_flag_id));
+                if has_flag_requirements {
+                    if set_flag_id != u16::MAX {
+                        self.set_flag(set_flag_id, game_assets, store);
+                    }
+                    if set_effect_id != u16::MAX {
+                        self.activate_effect(set_effect_id, game_assets, enemies, store);
+                    }
+                }
+            }
         }
     }
 
@@ -373,6 +408,14 @@ impl GameRunnerState {
                     enemies.retain(|e| e.id != enemy_num);
                 }
 
+                RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => if on_effect_id == effect_id {
+                    let has_flag_requirements = (req_flag_id == u16::MAX || self.is_flag_set(req_flag_id)) &&
+                        (deny_flag_id == u16::MAX || ! self.is_flag_set(deny_flag_id));
+                    if has_flag_requirements {
+                        self.actions.push(GameRunnerAction::PlayCutscene { cutscene_index });
+                    }
+                }
+
                 RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } if on_effect_id == effect_id => {
                     self.actions.push(GameRunnerAction::PlayAnimation {
                         x: trigger.x as i32,
@@ -426,8 +469,9 @@ pub struct GameRunnerWidget {
     pub enemies: Vec<Enemy>,
     pub bullets: Vec<Bullet>,
     pub fx_display: Vec<EffectDisplay>,
-    pub player: Option<Player>,
+    pub player: Player,
     pub controller: Controller,
+    pub cutscene: CutsceneState,
     screen_ui: ScreenUi,
     state: GameRunnerState,
     map_animation_step: u32,
@@ -446,7 +490,8 @@ impl GameRunnerWidget {
             required_assets_message: None,
             frame_counter: 0,
             screen_ui: ScreenUi::new(),
-            player: None,
+            cutscene: CutsceneState::new(),
+            player: Player::new(),
             enemies: Vec::new(),
             bullets: Vec::new(),
             fx_display: Vec::new(),
@@ -470,19 +515,17 @@ impl GameRunnerWidget {
         dy: i32,
         player_anim: &SpriteAnimation
     ) {
-        if let Some(player) = &mut self.player {
-            const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
-            let tile_x = door_exit.x as i32 / TILE_SIZE;
-            let tile_y = door_exit.y as i32 / TILE_SIZE;
-            if get_room_tile_at(&self.state.room, tile_x + 1, tile_y) == 0x0f {
-                player.x = dx + door_exit.x as i32 + TILE_SIZE + 2;
-                if player.dx < 0 { player.dx = 0; }
-            } else {
-                player.x = dx + door_exit.x as i32 - 2 - player_anim.clip_rect.w;
-                if player.dx > 0 { player.dx = 0; }
-            }
-            player.y = dy + door_exit.y as i32;
+        const TILE_SIZE: i32 = Tileset::TILE_SIZE as i32;
+        let tile_x = door_exit.x as i32 / TILE_SIZE;
+        let tile_y = door_exit.y as i32 / TILE_SIZE;
+        if get_room_tile_at(&self.state.room, tile_x + 1, tile_y) == 0x0f {
+            self.player.x = dx + door_exit.x as i32 + TILE_SIZE + 2;
+            if self.player.dx < 0 { self.player.dx = 0; }
+        } else {
+            self.player.x = dx + door_exit.x as i32 - 2 - player_anim.clip_rect.w;
+            if self.player.dx > 0 { self.player.dx = 0; }
         }
+        self.player.y = dy + door_exit.y as i32;
     }
 
     fn advance_frame_counter(&mut self, wc: &WindowContext) -> bool {
@@ -503,10 +546,9 @@ impl GameRunnerWidget {
                 let player_anim = game_assets.char_anim;
                 let has_flag_requirements = req_flag_id == u16::MAX || self.state.is_flag_set(req_flag_id);
                 let rect = CollisionRect::new(door.x as i32, door.y as i32, Tileset::TILE_SIZE as i32, 4*Tileset::TILE_SIZE as i32);
-                if has_flag_requirements &&
-                    self.player.as_ref().map(|player| player.collides_with_door(player_anim, &rect)).unwrap_or(false) {
-                        return Some(RoomChangeInfo { src_door_index: door_index });
-                    }
+                if has_flag_requirements && self.player.collides_with_door(player_anim, &rect) {
+                    return Some(RoomChangeInfo { src_door_index: door_index });
+                }
             }
         }
         None
@@ -525,6 +567,9 @@ impl GameRunnerWidget {
             }
             GameRunnerAction::SetFlag { flag_id } => {
                 self.state.set_flag(*flag_id, game_assets, store);
+            }
+            GameRunnerAction::PlayCutscene { cutscene_index } => {
+                self.cutscene.load(*cutscene_index as usize);
             }
             GameRunnerAction::PlayAnimation { anim_id, x, y, set_effect_id, set_flag_id } => {
                 self.fx_display.push(
@@ -552,21 +597,22 @@ impl GameRunnerWidget {
         game_assets: &mut GameAssets,
         store: &DataStore
     ) -> Option<RoomChangeInfo> {
-        self.state.actions.clear();
+        if self.cutscene.tick_engine(game_assets, store, &mut self.state, &mut self.player, &mut self.enemies) {
+            self.cutscene.clear();
+            self.state.hud_disabled = false;
+        }
 
         for delay in self.state.acquired_pickups.values_mut() {
             if *delay != 0 && *delay != u16::MAX { *delay -= 1; }
         }
-        if let Some(player) = &mut self.player {
-            player.tick_engine(game_assets, store, &self.controller, &mut self.state, &mut self.enemies, &mut self.bullets);
-            for enemy in self.enemies.iter_mut() {
-                enemy.tick_engine(player, store, &mut self.state, game_assets);
-            }
+        self.player.tick_engine(game_assets, store, &self.controller, &mut self.state, &mut self.enemies, &mut self.bullets);
+        for enemy in self.enemies.iter_mut() {
+            enemy.tick_engine(&self.player, store, &mut self.state, game_assets);
         }
         self.bullets.retain_mut(|bullet| {
             let collided = bullet.tick_engine(game_assets, &mut self.enemies, store, &mut self.state);
             if collided {
-                if let Some(bullet_anim) = store.assets.animations.get(&bullet.anim.sprite_anim_id) &&
+                if let Some(bullet_anim) = bullet.anim.get_anim(store) &&
                     let Some(effect_anim) = bullet.effect_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id)) {
                         let direction = Direction::from_dx(bullet.dx);
                         let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
@@ -599,7 +645,8 @@ impl GameRunnerWidget {
         self.last_game_runner_step = 0;
         self.map_animation_step = 0;
         self.state.clear();
-        self.player = None;
+        self.cutscene.clear();
+        self.player.clear();
         self.enemies.clear();
         self.bullets.clear();
         self.fx_display.clear();
@@ -619,7 +666,7 @@ impl GameRunnerWidget {
         let game_assets = GameAssets::load(room_id, store)
             .ok_or_else(|| String::from("error loading player character assets"))?;
         self.load_room(&game_assets, store);
-        self.player = Some(Player::new(&game_assets));
+        self.player.load(&game_assets);
         Ok(())
     }
 
@@ -634,6 +681,7 @@ impl GameRunnerWidget {
         self.state.room_x = 0;
         self.state.room_y = 0;
         self.state.room.load_state_room(game_assets, store);
+        self.state.activate_load_room_triggers(game_assets, &mut self.enemies, store);
     }
 
     fn spawn_enemies(&mut self, game_assets: &GameAssets, store: &DataStore) {
@@ -654,10 +702,8 @@ impl GameRunnerWidget {
 
     fn follow_player(&mut self, player_anim: &SpriteAnimation) {
         let height = Self::HEIGHT - Self::SCREEN_HEADER_HEIGHT;
-        if let Some(player) = &self.player {
-            self.state.room_x = player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
-            self.state.room_y = player.y + (player_anim.clip_rect.h - height) / 2;
-        }
+        self.state.room_x = self.player.x + (player_anim.clip_rect.w - Self::WIDTH) / 2;
+        self.state.room_y = self.player.y + (player_anim.clip_rect.h - height) / 2;
     }
 
     fn clip_scroll(&mut self, room_size: RoomSize) {
@@ -855,23 +901,17 @@ impl GameRunnerWidget {
         };
 
         self.draw_room_bg(ui, wc, game_assets, store, &draw_map_info, &draw_room_info);
-        if let Some(player) = &mut self.player {
-            player.draw(ui, wc, store, &draw_info);
-        }
+        self.player.draw(ui, wc, store, &draw_info);
         self.draw_room_triggers(ui, wc, game_assets, store, &draw_info);
         for bullet in self.bullets.iter_mut() {
             bullet.draw(ui, wc, store, &draw_info);
         }
-        if let Some(player) = &mut self.player {
-            player.draw_weapon(ui, wc, store, game_assets, &draw_info);
-        }
+        self.player.draw_weapon(ui, wc, store, game_assets, &draw_info);
         for enemy in self.enemies.iter_mut() {
             enemy.draw(ui, wc, store, draw_map_info.pos, zoom);
         }
         self.draw_room_fg(ui, wc, game_assets, store, &draw_map_info);
-        if let Some(player) = &self.player {
-            draw_room_trigger_prompts(ui, wc, &self.state, game_assets, player, store, &draw_info);
-        }
+        draw_room_trigger_prompts(ui, wc, &self.state, game_assets, &self.player, store, &draw_info);
 
         for fx_display in self.fx_display.iter_mut() {
             fx_display.draw(ui, wc, store, &draw_info);
@@ -883,16 +923,17 @@ impl GameRunnerWidget {
             Pos2::new(screen_rect.max.x, screen_rect.min.y + room_top)
         );
         ui.painter().rect_filled(header_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0, 0, 0));
-        if let Some(sprite) = self.screen_ui.energy_sprite.and_then(|id| store.assets.sprites.get(&id)) {
-            let sprite_uv = sprite.get_item_uv(0);
-            let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
-            let draw_rect = egui::Rect::from_min_size(
-                full_draw_info.pos + full_draw_info.zoom * egui::Vec2::new(2.0, 0.0),
-                full_draw_info.zoom * sprite_size
-            );
-            let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
-            egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
-        }
+        if ! self.state.hud_disabled &&
+            let Some(sprite) = self.screen_ui.energy_sprite.and_then(|id| store.assets.sprites.get(&id)) {
+                let sprite_uv = sprite.get_item_uv(0);
+                let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
+                let draw_rect = egui::Rect::from_min_size(
+                    full_draw_info.pos + full_draw_info.zoom * egui::Vec2::new(2.0, 0.0),
+                    full_draw_info.zoom * sprite_size
+                );
+                let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Opaque);
+                egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
+            }
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, wc: &mut WindowContext, window_id: egui::Id, store: &DataStore) {
@@ -914,8 +955,8 @@ impl GameRunnerWidget {
             if wc.is_window_on_top(window_id) {
                 self.controller.update(ui, wc);
             }
-            if let Some(player) = &mut self.player {
-                player.control(&self.controller, self.frame_counter, &game_assets);
+            if self.cutscene.cutscene_index.is_none() {
+                self.player.control(&self.controller, self.frame_counter, &game_assets);
             }
             if let Some(room_change) = self.tick_engine(wc, &mut game_assets, store) &&
                let Some(door) = game_assets.room.triggers.get(room_change.src_door_index) &&
@@ -924,9 +965,8 @@ impl GameRunnerWidget {
                 let Some(dest_trigger) = dest_room.triggers.iter().find(|tr| tr.trigger_id == dest_trigger_id) {
                     game_assets.room = dest_room;
                     self.load_room(&game_assets, store);
-                    let (dx, dy) = self.player.as_ref().map(|player| {
-                        (player.x - door.x as i32, player.y - door.y as i32)
-                    }).unwrap_or_else(|| (0, 0));
+                    let dx = self.player.x - door.x as i32;
+                    let dy = self.player.y - door.y as i32;
                     self.place_player_at_door_exit(dest_trigger, dx, dy, game_assets.char_anim);
                     self.follow_player(game_assets.char_anim);
                     return;  // room changed; don't show this frame

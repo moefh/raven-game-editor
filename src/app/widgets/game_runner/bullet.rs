@@ -38,7 +38,7 @@ impl Bullet {
         self.x += self.dx;
         self.y += self.dy;
 
-        if let Some(sprite_anim) = store.assets.animations.get(&self.anim.sprite_anim_id) {
+        if let Some(sprite_anim) = self.anim.get_anim(store) {
             let x = self.x >> 8;
             let y = self.y >> 8;
 

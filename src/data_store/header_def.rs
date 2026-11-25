@@ -168,6 +168,18 @@ struct $<PREFIX>_PROP_FONT {
 
 #ifndef $<PREFIX>_SKIP_STRUCTS_ROOM
 
+enum $<PREFIX>_ROOM_ACTION_TYPE {
+   $<PREFIX>_ROOM_ACTION_TYPE_UNKNOWN,
+   $<PREFIX>_ROOM_ACTION_TYPE_WAIT_FRAMES,
+   $<PREFIX>_ROOM_ACTION_TYPE_WAIT_PLAYER_ANIM_END,
+   $<PREFIX>_ROOM_ACTION_TYPE_DISPEL_DARKNESS,
+   $<PREFIX>_ROOM_ACTION_TYPE_SET_PLAYER_DARKNESS,
+   $<PREFIX>_ROOM_ACTION_TYPE_MOVE_PLAYER_DARKNESS,
+   $<PREFIX>_ROOM_ACTION_TYPE_SET_PLAYER_STATE,
+   $<PREFIX>_ROOM_ACTION_TYPE_ACTIVATE_EFFECT,
+   $<PREFIX>_ROOM_ACTION_TYPE_SET_HUD_ENABLED,
+};
+
 enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_UNKNOWN,
    $<PREFIX>_ROOM_TRIGGER_TYPE_DOOR,
@@ -180,17 +192,66 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_CHANGE_TILES,
    $<PREFIX>_ROOM_TRIGGER_TYPE_REMOVE_ENEMY,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_ANIMATION,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_CUTSCENE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_SFX,
    $<PREFIX>_ROOM_TRIGGER_TYPE_STOP_SFX,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_UPGRADE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_COLLECTABLE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_GET_PICKUP,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_ON_LOAD_ROOM,
 };
 
 struct $<PREFIX>_ROOM_MAP_INFO {
     uint16_t x;
     uint16_t y;
     uint16_t map_index; // $<prefix>_maps[]
+};
+
+struct $<PREFIX>_ROOM_CUTSCENE_ACTION {
+    uint16_t type; // enum $<PREFIX>_ROOM_ACTION_TYPE
+    union {
+        struct {
+            uint16_t data0;
+            uint16_t data1;
+            uint16_t data2;
+            uint16_t data3;
+            uint16_t data4;
+            uint16_t data5;
+        } any;
+        struct {
+            uint8_t num_frames;
+        } wait_frames;
+        struct {
+        } wait_player_anim_end;
+        struct {
+            uint16_t speed;
+        } dispel_darkness;
+        struct {
+            uint16_t radius;
+            uint8_t fall_off;
+            int8_t off_x;
+            int8_t off_y;
+        } set_player_darkness;
+        struct {
+            int8_t off_x;
+            int8_t off_y;
+            uint16_t speed;
+        } move_player_darkness;
+        struct {
+            uint8_t state;
+        } set_player_state;
+        struct {
+            uint16_t set_effect_id;
+        } activate_effect;
+        struct {
+            uint16_t enabled;
+        } set_hud_enabled;
+    };
+};
+
+struct RAVEN_ROOM_CUTSCENE {
+    uint16_t num_actions;
+    const struct RAVEN_ROOM_CUTSCENE_ACTION *actions;
 };
 
 struct $<PREFIX>_ROOM_TRIGGER_INFO {
@@ -206,6 +267,8 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t data3;
             uint16_t data4;
             uint16_t data5;
+            uint16_t data6;
+            uint16_t data7;
         } any;
         struct {
             uint8_t direction;
@@ -265,6 +328,12 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t set_flag_id;
         } play_animation;
         struct {
+            uint16_t cutscene_index;
+            uint16_t on_effect_id;
+            uint16_t req_flag_id;
+            uint16_t deny_flag_id;
+        } play_cutscene;
+        struct {
             uint16_t sfx_index;  // $<prefix>_sfxs[]
             uint16_t sfx_id;
             uint16_t volume;
@@ -290,6 +359,12 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
             uint16_t respawn_delay;
             uint16_t sfx_index;  // $<prefix>_sfxs[]
         } get_pickup;
+        struct {
+            uint16_t set_effect_id;
+            uint16_t set_flag_id;
+            uint16_t req_flag_id;
+            uint16_t deny_flag_id;
+        } on_load_room;
     };
 };
 
@@ -303,8 +378,10 @@ struct $<PREFIX>_ROOM_PARALLAX {
 struct $<PREFIX>_ROOM {
     uint16_t num_maps;
     uint16_t num_triggers;
+    uint16_t num_cutscenes;
     const struct $<PREFIX>_ROOM_MAP_INFO *maps;
     const struct $<PREFIX>_ROOM_TRIGGER_INFO *triggers;
+    const struct $<PREFIX>_ROOM_CUTSCENE *cutscenes;
     struct $<PREFIX>_ROOM_PARALLAX parallax;
 };
 

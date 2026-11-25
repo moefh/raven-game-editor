@@ -1,5 +1,6 @@
 mod properties;
 mod map_selection;
+mod cutscene_properties;
 
 use std::collections::HashMap;
 
@@ -20,6 +21,9 @@ use crate::data_store::{
     RoomTrigger,
     RoomTriggerType,
     RoomTriggerMapLayer,
+    RoomCutscene,
+    RoomCutsceneAction,
+    RoomCutsceneActionType,
     RoomEntityDirection,
     MapData,
     Tileset,
@@ -36,6 +40,7 @@ use super::{
     SysDialogOpenFile,
     RoomSize,
     RoomTriggerTypeSel,
+    RoomCutsceneActionTypeSel,
     EditorAction,
     MapTileFixer,
 };
@@ -59,12 +64,14 @@ use super::super::widgets::{
 
 use properties::PropertiesDialog;
 use map_selection::MapSelectionDialog;
+use cutscene_properties::CutscenePropertiesDialog;
 
 const ZOOM_OPTIONS: &[f32] = &[ 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0 ];
 
 enum EditorTab {
     Maps,
     Parallax,
+    Cutscenes,
 }
 
 enum TriggerTreeAction {
@@ -75,18 +82,28 @@ enum TriggerTreeAction {
     Remove(usize),
 }
 
+enum CutsceneListItemAction {
+    None,
+    Edit(usize),
+    Remove(usize),
+    MoveUp(usize),
+    MoveDown(usize),
+}
+
 fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
     match trigger.trigger_type {
         RoomTriggerType::Door {..} => { IMAGES.room }
-        RoomTriggerType::PlayerSpawn {..} => { IMAGES.info }
+        RoomTriggerType::OnLoadRoom {..} => { IMAGES.room }
+        RoomTriggerType::PlayerSpawn {..} => { IMAGES.player_char }
         RoomTriggerType::EnemySpawn {..} => { IMAGES.animation }
-        RoomTriggerType::WallButton {..} => { IMAGES.log }
-        RoomTriggerType::DetectorButton {..} => { IMAGES.log }
+        RoomTriggerType::WallButton {..} => { IMAGES.switch }
+        RoomTriggerType::DetectorButton {..} => { IMAGES.switch }
         RoomTriggerType::UnblockTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::DisableAnimation {..} => { IMAGES.room_effect }
         RoomTriggerType::ChangeTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
         RoomTriggerType::PlayAnimation {..} => { IMAGES.animation }
+        RoomTriggerType::PlayCutscene {..} => { IMAGES.cutscene }
         RoomTriggerType::PlaySfx {..} => { IMAGES.sfx }
         RoomTriggerType::StopSfx {..} => { IMAGES.sfx }
         RoomTriggerType::GetUpgrade {..} => { IMAGES.room_item }
@@ -210,6 +227,7 @@ impl MapTileFixer for RoomEditor {
 struct Dialogs {
     properties_dialog: PropertiesDialog,
     map_selection_dialog: MapSelectionDialog,
+    cutscene_properties_dialog: CutscenePropertiesDialog,
 }
 
 impl Dialogs {
@@ -217,6 +235,7 @@ impl Dialogs {
         Dialogs {
             properties_dialog: PropertiesDialog::new(),
             map_selection_dialog: MapSelectionDialog::new(),
+            cutscene_properties_dialog: CutscenePropertiesDialog::new(),
         }
     }
 
@@ -250,6 +269,9 @@ impl Dialogs {
         if self.properties_dialog.open {
             self.properties_dialog.show(wc, room, asset_ids, assets.tilesets);
         }
+        if self.cutscene_properties_dialog.open {
+            self.cutscene_properties_dialog.show(wc, room);
+        }
         let selected_map_id = Self::get_selected_map_id(editor, room);
         if self.map_selection_dialog.open && self.map_selection_dialog.show(wc, room, assets.maps, assets.tilesets) {
             Self::select_map_id(selected_map_id, editor, room);
@@ -261,6 +283,8 @@ struct Editor {
     asset_id: DataAssetId,
     import_sys_dlg_id: String,
     selected_tab: EditorTab,
+    selected_cutscene: usize,
+    selected_action: usize,
     room_editor: RoomEditorWidget,
     trigger_tree: TreeViewWidget,
     tile_picker: ImagePickerWidget,
@@ -273,11 +297,16 @@ struct Editor {
 }
 
 impl Editor {
+    const CUTSCENE_LIST_PANEL_WIDTH: f32 = 190.0;
+    const CUTSCENE_TIMELINE_PANEL_WIDTH: f32 = 270.0;
+
     fn new(asset_id: DataAssetId) -> Self {
         Editor {
             asset_id,
             import_sys_dlg_id: format!("editor_{}_import_room", asset_id),
             selected_tab: EditorTab::Maps,
+            selected_cutscene: 0,
+            selected_action: 0,
             room_editor: RoomEditorWidget::new(),
             sorted_enemy_ids: Vec::new(),
             sorted_animation_ids: Vec::new(),
@@ -385,6 +414,8 @@ impl Editor {
                                 }
                             });
                         }
+                    }
+                    EditorTab::Cutscenes => {
                     }
                 }
             });
@@ -509,6 +540,7 @@ impl Editor {
                         let mut selected = self.room_editor.get_selected_item().is_the_map(map_index);
                         let button = egui::Button::image_and_text(IMAGES.map_data, &map.asset.name)
                             .frame_when_inactive(selected)
+                            .selected(selected)
                             .frame(true);
                         let resp = ui.add(button);
                         if resp.clicked() {
@@ -556,6 +588,7 @@ impl Editor {
                 let mut selected = self.room_editor.get_selected_item().is_the_trigger(item.item_id);
                 let button = egui::Button::image_and_text(get_trigger_image(trg), &item.display_name)
                     .frame_when_inactive(selected)
+                    .selected(selected)
                     .frame(true);
                 let resp = ui.add(button);
                 if resp.clicked() {
@@ -596,7 +629,6 @@ impl Editor {
         maps: &DataAssetList<MapData>
     ) -> Option<()> {
         let room_map = room.maps.get_mut(map_index)?;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_map_prop_tree", self.asset_id));
 
         let map_name = if let Some(map_data) = maps.get(&room_map.map_id) {
             &map_data.asset.name
@@ -604,30 +636,27 @@ impl Editor {
             &format!("?map_id:{}", room_map.map_id)
         };
 
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true).show_header(ui, |ui| {
-            ui.add(egui::Button::image_and_text(IMAGES.map_data, "Map").frame(false));
-        }).body(|ui| {
-            egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
-                .num_columns(2)
-                .spacing([8.0, 2.0])
-                .show(ui, |ui| {
-                    ui.label("Map:");
-                    ui.label(map_name);
-                    ui.end_row();
+        egui::Grid::new(format!("editor_{}_map_prop_grid", self.asset_id))
+            .num_columns(2)
+            .spacing([8.0, 2.0])
+            .show(ui, |ui| {
+                ui.label("Map:");
+                ui.label(map_name);
+                ui.end_row();
 
-                    if self.room_editor.lock_maps {
-                        ui.label("X:"); ui.label(format!("{}", room_map.x)); ui.end_row();
-                        ui.label("Y:"); ui.label(format!("{}", room_map.y)); ui.end_row();
-                    } else {
-                        ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
-                        ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
-                    }
-                    if let Some(map) = maps.get(&room_map.map_id) {
-                        ui.label("Width:"); ui.label(format!("{}", map.width)); ui.end_row();
-                        ui.label("Height:"); ui.label(format!("{}", map.height)); ui.end_row();
-                    }
-                });
-        });
+                if self.room_editor.lock_maps {
+                    ui.label("X:"); ui.label(format!("{}", room_map.x)); ui.end_row();
+                    ui.label("Y:"); ui.label(format!("{}", room_map.y)); ui.end_row();
+                } else {
+                    ui.label("X:"); ui.add(egui::DragValue::new(&mut room_map.x).speed(1.0).range(0..=2048)); ui.end_row();
+                    ui.label("Y:"); ui.add(egui::DragValue::new(&mut room_map.y).speed(1.0).range(0..=2048)); ui.end_row();
+                }
+                if let Some(map) = maps.get(&room_map.map_id) {
+                    ui.label("Width:"); ui.label(format!("{}", map.width)); ui.end_row();
+                    ui.label("Height:"); ui.label(format!("{}", map.height)); ui.end_row();
+                }
+            });
+
         None
     }
 
@@ -783,7 +812,7 @@ impl Editor {
             });
     }
 
-    fn show_trigger_map_layer_editor(&self, ui: &mut egui::Ui, combo_id: &str, map_layer: &mut RoomTriggerMapLayer) {
+    fn show_map_layer_editor(&self, ui: &mut egui::Ui, combo_id: &str, map_layer: &mut RoomTriggerMapLayer) {
         let sel_layer_text = match map_layer {
             RoomTriggerMapLayer::Background2 => { "2nd background" }
             RoomTriggerMapLayer::Background => { "background" }
@@ -795,6 +824,26 @@ impl Editor {
                 ui.selectable_value(map_layer, RoomTriggerMapLayer::Background2, "2nd background");
                 ui.selectable_value(map_layer, RoomTriggerMapLayer::Background, "background");
                 ui.selectable_value(map_layer, RoomTriggerMapLayer::Foreground, "foreground");
+            });
+    }
+
+    fn show_cutscene_index_editor(
+        &self,
+        ui: &mut egui::Ui,
+        combo_id: &str,
+        cutscenes: &[RoomCutscene],
+        cutscene_index: &mut u16,
+    ) {
+        let cur_name = match cutscenes.get(*cutscene_index as usize) {
+            Some(cutscene) => { &cutscene.name_id }
+            None => { "??" }
+        };
+        egui::ComboBox::from_id_salt(combo_id)
+            .selected_text(cur_name)
+            .show_ui(ui, |ui| {
+                for (index, cutscene) in cutscenes.iter().enumerate() {
+                    ui.selectable_value(cutscene_index, (index & 0xffff) as u16, &cutscene.name_id);
+                }
             });
     }
 
@@ -852,6 +901,7 @@ impl Editor {
         asset_ids: &AssetIdCollection,
         assets: &RoomEditorAssetLists,
         room_maps: &[RoomMap],
+        room_cutscenes: &[RoomCutscene],
     ) {
         ui.label("Trigger id:");
         ui.horizontal(|ui| {
@@ -882,20 +932,19 @@ impl Editor {
                     RoomTriggerTypeSel::ChangeTiles,
                     RoomTriggerTypeSel::RemoveEnemy,
                     RoomTriggerTypeSel::PlayAnimation,
+                    RoomTriggerTypeSel::PlayCutscene,
                     RoomTriggerTypeSel::PlaySfx,
                     RoomTriggerTypeSel::StopSfx,
                     RoomTriggerTypeSel::GetUpgrade,
                     RoomTriggerTypeSel::GetCollectable,
                     RoomTriggerTypeSel::GetPickup,
+                    RoomTriggerTypeSel::OnLoadRoom,
                 ] {
                     ui.selectable_value(&mut type_sel, sel, sel.text());
                 }
             });
         type_sel.convert_trigger_type(&mut trigger.trigger_type, asset_ids);
         ui.end_row();
-
-        ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
-        ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
 
         match &mut trigger.trigger_type {
             RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5, data6, data7 } => {
@@ -984,14 +1033,6 @@ impl Editor {
                 req_flag_id,
                 req_collectable_id
             } => {
-                ui.label("Width:");
-                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
-                ui.label("Height:");
-                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
                 ui.label("Prompt:");
                 self.show_string_id_editor(ui, "wall_button_prompt_id", interact_prompt_id, &assets.tables.interact_prompt);
                 ui.end_row();
@@ -1011,9 +1052,7 @@ impl Editor {
                 ui.label("Set Flag:");
                 self.show_effect_id_editor(ui, "wall_button_flag_id", set_flag_id, &assets.tables.flag);
                 ui.end_row();
-            }
 
-            RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -1021,7 +1060,9 @@ impl Editor {
                 ui.label("Height:");
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
+            }
 
+            RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 ui.label("Req Flag:");
                 self.show_effect_id_editor(ui, "detector_button_req_flag_id", req_flag_id, &assets.tables.flag);
                 ui.end_row();
@@ -1037,9 +1078,7 @@ impl Editor {
                 ui.label("Set Flag:");
                 self.show_effect_id_editor(ui, "detector_button_flag_id", set_flag_id, &assets.tables.flag);
                 ui.end_row();
-            }
 
-            RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -1047,13 +1086,27 @@ impl Editor {
                 ui.label("Height:");
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
+            }
 
+            RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
                 ui.label("On Effect:");
                 self.show_effect_id_editor(ui, "unblock_tiles_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Width:");
+                ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Height:");
+                ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
 
             RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "disable_animation_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(width).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
@@ -1061,13 +1114,13 @@ impl Editor {
                 ui.label("Height:");
                 ui.add(egui::DragValue::new(height).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
-
-                ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "disable_animation_on_effect_id", on_effect_id, &assets.tables.effect);
-                ui.end_row();
             }
 
             RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } => {
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "change_tiles_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
                 ui.label("Map:");
                 self.show_trigger_map_index_editor(ui, "change_tiles_map_index", map_index, assets.maps, room_maps);
                 ui.end_row();
@@ -1081,31 +1134,27 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("Layer:");
-                self.show_trigger_map_layer_editor(ui, "change_tiles_map_layer", map_layer);
-                ui.end_row();
-
-                ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "change_tiles_on_effect_id", on_effect_id, &assets.tables.effect);
+                self.show_map_layer_editor(ui, "change_tiles_map_layer", map_layer);
                 ui.end_row();
             }
 
             RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
-                ui.label("Enemy Num:");
-                ui.add(egui::DragValue::new(enemy_num).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
                 ui.label("On Effect:");
                 self.show_effect_id_editor(ui, "remove_enemy_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
+
+                ui.label("Enemy Num:");
+                ui.add(egui::DragValue::new(enemy_num).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
             }
 
-            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id,  } => {
-                ui.label("Animation:");
-                self.show_asset_id_editor(ui, "play_animation_asset_id", assets.animations, &self.sorted_animation_ids, anim_id);
-                ui.end_row();
-
+            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
                 ui.label("On Effect:");
                 self.show_effect_id_editor(ui, "play_animation_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Animation:");
+                self.show_asset_id_editor(ui, "play_animation_asset_id", assets.animations, &self.sorted_animation_ids, anim_id);
                 ui.end_row();
 
                 ui.label("Set Effect:");
@@ -1113,11 +1162,33 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("Set Flag:");
-                self.show_effect_id_editor(ui, "play_animation_flag_effect_id", set_flag_id, &assets.tables.flag);
+                self.show_effect_id_editor(ui, "play_animation_set_flag_id", set_flag_id, &assets.tables.flag);
+                ui.end_row();
+            }
+
+            RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "play_cutscene_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Cutscene:");
+                self.show_cutscene_index_editor(ui, "play_cutscene_asset_id", room_cutscenes, cutscene_index);
+                ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "play_cutscene_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
+
+                ui.label("Deny Flag:");
+                self.show_effect_id_editor(ui, "play_cutscene_deny_flag_id", deny_flag_id, &assets.tables.flag);
                 ui.end_row();
             }
 
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "play_sfx_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
                 ui.label("Sfx:");
                 self.show_asset_id_editor(ui, "play_sfx_asset_id", assets.sfxs, &self.sorted_sfx_ids, sfx_id);
                 ui.end_row();
@@ -1139,19 +1210,15 @@ impl Editor {
                 ui.add(egui::Checkbox::without_text(&mut loop_checked));
                 *play_loop = if loop_checked { 1 } else { 0 };
                 ui.end_row();
-
-                ui.label("On Effect:");
-                self.show_effect_id_editor(ui, "play_sfx_on_effect_id", on_effect_id, &assets.tables.effect);
-                ui.end_row();
             }
 
             RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
-                ui.label("Sound Id:");
-                ui.add(egui::DragValue::new(sound_id).speed(1.0).range(0..=u16::MAX));
-                ui.end_row();
-
                 ui.label("On Effect:");
                 self.show_effect_id_editor(ui, "stop_sfx_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Sound Id:");
+                ui.add(egui::DragValue::new(sound_id).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
 
@@ -1192,7 +1259,28 @@ impl Editor {
                 self.show_optional_asset_id_editor(ui, "get_pickup_sfx_asset_id", assets.sfxs, &self.sorted_sfx_ids, sfx_id);
                 ui.end_row();
             }
+
+            RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
+                ui.label("Set Effect:");
+                self.show_effect_id_editor(ui, "on_load_room_set_effect_id", set_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Set Flag:");
+                self.show_effect_id_editor(ui, "on_load_room_set_flag_id", set_flag_id, &assets.tables.flag);
+                ui.end_row();
+
+                ui.label("Req Flag:");
+                self.show_effect_id_editor(ui, "play_cutscene_req_flag_id", req_flag_id, &assets.tables.flag);
+                ui.end_row();
+
+                ui.label("Deny Flag:");
+                self.show_effect_id_editor(ui, "play_cutscene_deny_flag_id", deny_flag_id, &assets.tables.flag);
+                ui.end_row();
+            }
         }
+
+        ui.label("X:"); ui.add(egui::DragValue::new(&mut trigger.x).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
+        ui.label("Y:"); ui.add(egui::DragValue::new(&mut trigger.y).speed(1.0).range(-256..=i16::MAX)); ui.end_row();
     }
 
     fn show_trigger_properties(
@@ -1204,24 +1292,24 @@ impl Editor {
         assets: &RoomEditorAssetLists
     ) -> Option<()> {
         let trigger = room.triggers.get_mut(trg_index)?;
-        let tree_node_id = ui.make_persistent_id(format!("editor_{}_trg_prop_tree", self.asset_id));
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), tree_node_id, true)
-            .show_header(ui, |ui| {
-                ui.add(egui::Button::image_and_text(get_trigger_image(trigger), &trigger.name_id).frame(false));
-            }).body(|ui| {
-                egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
-                    .num_columns(2)
-                    .spacing([8.0, 2.0])
-                    .show(ui, |ui| {
-                        self.show_trigger_properties_grid(ui, trigger, asset_ids, assets, &room.maps);
-                    });
-            });
+
+        egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+            egui::Grid::new(format!("editor_{}_trg_prop_grid", self.asset_id))
+                .num_columns(2)
+                .spacing([8.0, 2.0])
+                .show(ui, |ui| {
+                    self.show_trigger_properties_grid(ui, trigger, asset_ids, assets, &room.maps, &room.cutscenes);
+                });
+            ui.add_space(8.0);
+        });
         None
     }
 
     fn show_item_properties(&self, ui: &mut egui::Ui, room: &mut Room, asset_ids: &AssetIdCollection, assets: &RoomEditorAssetLists) {
         match self.room_editor.get_selected_item() {
-            RoomItemRef::None | RoomItemRef::Screen => {}
+            RoomItemRef::None | RoomItemRef::Screen => {
+                ui.label("No item selected");
+            }
             RoomItemRef::Map(map_index) => { self.show_map_properties(ui, map_index, room, assets.maps); },
             RoomItemRef::Trigger(trg_index) => { self.show_trigger_properties(ui, trg_index, room, asset_ids, assets); },
         }
@@ -1357,41 +1445,39 @@ impl Editor {
     ) {
         self.show_maps_toolbar(ui, wc, room);
 
-        // properties panel:
-        egui::Panel::left(format!("editor_panel_{}_properties", self.asset_id)).resizable(false).exact_size(300.0).show(ui, |ui| {
+        // map/trigger tree
+        egui::Panel::left(format!("editor_panel_{}_trigger_tree", self.asset_id)).resizable(false).exact_size(200.0).show(ui, |ui| {
             ui.add_space(5.0);
-            let want_height = 70.0_f32.max(ui.available_height() / 2.0);
-            ui.allocate_ui(egui::Vec2::new(300.0, want_height), |ui| {
-                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                    let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
-                    let trigger_action = self.show_trigger_tree(ui, room);
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                let (change_maps, sel_map) = self.show_map_tree(ui, room, assets.maps);
+                let trigger_action = self.show_trigger_tree(ui, room);
 
-                    if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
-                    if let Some(map_index) = sel_map {
-                        self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
+                if change_maps { dialogs.map_selection_dialog.set_open(wc, room, assets.maps); }
+                if let Some(map_index) = sel_map {
+                    self.room_editor.set_selected_item(RoomItemRef::Map(map_index), true);
+                    self.clear_sorted_ids();
+                }
+                match trigger_action {
+                    TriggerTreeAction::Add(folder_id) => { self.add_trigger(room, folder_id); }
+                    TriggerTreeAction::Select(trg_index) => {
+                        self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
                         self.clear_sorted_ids();
                     }
-                    match trigger_action {
-                        TriggerTreeAction::Add(folder_id) => { self.add_trigger(room, folder_id); }
-                        TriggerTreeAction::Select(trg_index) => {
-                            self.room_editor.set_selected_item(RoomItemRef::Trigger(trg_index), true);
-                            self.clear_sorted_ids();
-                        }
-                        TriggerTreeAction::Duplicate(trg_index) => {
-                            self.duplicate_trigger(room, trg_index);
-                        }
-                        TriggerTreeAction::Remove(trg_index) => {
-                            self.remove_trigger(room, trg_index);
-                        }
-                        TriggerTreeAction::None => {}
+                    TriggerTreeAction::Duplicate(trg_index) => {
+                        self.duplicate_trigger(room, trg_index);
                     }
-                });
+                    TriggerTreeAction::Remove(trg_index) => {
+                        self.remove_trigger(room, trg_index);
+                    }
+                    TriggerTreeAction::None => {}
+                }
             });
-            ui.separator();
-            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-                self.show_item_properties(ui, room, asset_ids, assets);
-                ui.add_space(8.0);
-            });
+        });
+
+        // trigger properties
+        egui::Panel::left(format!("editor_panel_{}_trigger_properties", self.asset_id)).resizable(false).exact_size(250.0).show(ui, |ui| {
+            ui.add_space(5.0);
+            self.show_item_properties(ui, room, asset_ids, assets);
         });
 
         // body:
@@ -1473,7 +1559,7 @@ impl Editor {
     ) {
         self.show_parallax_toolbar(ui);
 
-        egui::Panel::left(format!("editor_panel_{}_left", self.asset_id)).resizable(false).show(ui, |ui| {
+        egui::Panel::left(format!("editor_panel_{}_parallax_left", self.asset_id)).resizable(false).show(ui, |ui| {
             ui.add_space(5.0);
             if let Some(tileset) = room.parallax.tileset_id.and_then(|tileset_id| assets.tilesets.get(&tileset_id)) {
                 if let ImagePickerSelection::Some(tile) = self.tile_picker_popup.show_anchor(
@@ -1513,6 +1599,295 @@ impl Editor {
         }
     }
 
+    fn show_cutscene_action_properties(
+        &self,
+        ui: &mut egui::Ui,
+        _wc: &mut WindowContext,
+        action: &mut RoomCutsceneAction,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists,
+        _room_maps: &[RoomMap],
+    ) {
+        ui.label("Type:");
+        let mut type_sel = RoomCutsceneActionTypeSel::from_action_type(&action.action_type);
+        egui::ComboBox::from_id_salt(format!("editor_{}_cs_action_prop_type", self.asset_id))
+            .selected_text(type_sel.text())
+            .show_ui(ui, |ui| {
+                for sel in [
+                    RoomCutsceneActionTypeSel::Unknown,
+                    RoomCutsceneActionTypeSel::WaitFrames,
+                    RoomCutsceneActionTypeSel::WaitPlayerAnimationEnd,
+                    RoomCutsceneActionTypeSel::DispelDarkness,
+                    RoomCutsceneActionTypeSel::SetPlayerDarkness,
+                    RoomCutsceneActionTypeSel::MovePlayerDarkness,
+                    RoomCutsceneActionTypeSel::SetPlayerState,
+                    RoomCutsceneActionTypeSel::ActivateEffect,
+                    RoomCutsceneActionTypeSel::SetHudEnabled,
+                ] {
+                    ui.selectable_value(&mut type_sel, sel, sel.text());
+                }
+            });
+        type_sel.convert_action_type(&mut action.action_type, asset_ids);
+        ui.end_row();
+
+        match &mut action.action_type {
+            RoomCutsceneActionType::Unknown { data0, data1, data2, data3, data4, data5 } => {
+                ui.label("Data0:"); ui.add(egui::DragValue::new(data0).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data1:"); ui.add(egui::DragValue::new(data1).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data2:"); ui.add(egui::DragValue::new(data2).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data3:"); ui.add(egui::DragValue::new(data3).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data4:"); ui.add(egui::DragValue::new(data4).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+                ui.label("Data5:"); ui.add(egui::DragValue::new(data5).speed(1.0).range(0..=u16::MAX)); ui.end_row();
+            }
+
+            RoomCutsceneActionType::WaitFrames { num_frames } => {
+                ui.label("Num Frames:");
+                ui.add(egui::DragValue::new(num_frames).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::WaitPlayerAnimationEnd {} => {
+            }
+
+            RoomCutsceneActionType::DispelDarkness { speed } => {
+                ui.label("Speed:");
+                ui.add(egui::DragValue::new(speed).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::SetPlayerDarkness { radius, fall_off, off_x, off_y } => {
+                ui.label("Radius:");
+                ui.add(egui::DragValue::new(radius).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Fall off:");
+                ui.add(egui::DragValue::new(fall_off).speed(1.0).range(0..=u8::MAX));
+                ui.end_row();
+
+                ui.label("Offset X:");
+                ui.add(egui::DragValue::new(off_x).speed(1.0).range(i8::MIN..=i8::MAX));
+                ui.end_row();
+
+                ui.label("Offset y:");
+                ui.add(egui::DragValue::new(off_y).speed(1.0).range(i8::MIN..=i8::MAX));
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::MovePlayerDarkness { off_x, off_y, speed } => {
+                ui.label("Offset X:");
+                ui.add(egui::DragValue::new(off_x).speed(1.0).range(i8::MIN..=i8::MAX));
+                ui.end_row();
+
+                ui.label("Offset y:");
+                ui.add(egui::DragValue::new(off_y).speed(1.0).range(i8::MIN..=i8::MAX));
+                ui.end_row();
+
+                ui.label("Speed:");
+                ui.add(egui::DragValue::new(speed).speed(1.0).range(1..=u16::MAX));
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::SetPlayerState { state } => {
+                ui.label("State:");
+                ui.add(egui::DragValue::new(state).speed(1.0).range(0..=u8::MAX));
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
+                ui.label("Set Effect:");
+                self.show_effect_id_editor(ui, "cutscene_action_effect_id", set_effect_id, &assets.tables.effect);
+                ui.end_row();
+            }
+
+            RoomCutsceneActionType::SetHudEnabled { enabled } => {
+                ui.label("Enabled:");
+                let mut checked = *enabled != 0;
+                ui.add(egui::Checkbox::without_text(&mut checked));
+                *enabled = if checked { 1 } else { 0 };
+                ui.end_row();
+            }
+        }
+    }
+
+    fn show_cutscenes_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        wc: &mut WindowContext,
+        dialogs: &mut Dialogs,
+        room: &mut Room,
+        asset_ids: &AssetIdCollection,
+        assets: &RoomEditorAssetLists
+    ) {
+        //self.show_cutscenes_toolbar(ui);
+
+        egui::Panel::left(format!("editor_panel_{}_cutscenes_list", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            ui.allocate_ui(egui::Vec2::new(Self::CUTSCENE_LIST_PANEL_WIDTH, ui.available_height()), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Cutscenes");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                        ui.horizontal(|ui| {
+                            if ui.add(
+                                egui::Button::image(IMAGES.add).frame_when_inactive(false)
+                            ).on_hover_text("Add cutscene").clicked() {
+                                room.cutscenes.push(RoomCutscene {
+                                    name_id: String::from("new_cutscene"),
+                                    actions: Vec::new(),
+                                });
+                            }
+                        });
+                    });
+                });
+                ui.separator();
+                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                    let mut item_action = CutsceneListItemAction::None;
+                    for (cutscene_index, cutscene) in room.cutscenes.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            let spacing = ui.spacing().item_spacing;
+                            ui.spacing_mut().item_spacing = egui::Vec2::new(2.0, 0.0);
+                            if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove cutscene").clicked() {
+                                item_action = CutsceneListItemAction::Remove(cutscene_index);
+                            }
+                            if ui.add(egui::Button::image(IMAGES.pen)).on_hover_text("Cutscene properties").clicked() {
+                                item_action = CutsceneListItemAction::Edit(cutscene_index);
+                            }
+                            let button = egui::Button::new(&cutscene.name_id)
+                                .selected(self.selected_cutscene == cutscene_index)
+                                .frame_when_inactive(self.selected_cutscene == cutscene_index)
+                                .gap(8.0);
+                            if ui.add(button).clicked() && self.selected_cutscene != cutscene_index {
+                                self.selected_cutscene = cutscene_index;
+                                self.selected_action = 0;
+                            }
+                            ui.spacing_mut().item_spacing = spacing;
+                        });
+                    }
+                    match item_action {
+                        CutsceneListItemAction::None => {}
+                        CutsceneListItemAction::MoveUp(_) => {}
+                        CutsceneListItemAction::MoveDown(_) => {}
+                        CutsceneListItemAction::Remove(cutscene_index) => {
+                            room.cutscenes.remove(cutscene_index);
+                            if self.selected_cutscene > cutscene_index || self.selected_cutscene >= room.cutscenes.len() {
+                                self.selected_cutscene = self.selected_cutscene.saturating_sub(1);
+                            }
+                        }
+                        CutsceneListItemAction::Edit(cutscene_index) => {
+                            dialogs.cutscene_properties_dialog.set_open(wc, room, cutscene_index);
+                        }
+                    }
+                });
+            });
+        });
+
+        egui::Panel::left(format!("editor_panel_{}_cutscenes_timeline", self.asset_id)).resizable(false).show(ui, |ui| {
+            ui.add_space(5.0);
+            ui.allocate_ui(egui::Vec2::new(Self::CUTSCENE_TIMELINE_PANEL_WIDTH, ui.available_height()), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Timeline");
+                    if let Some(cutscene) = room.cutscenes.get_mut(self.selected_cutscene) {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                            ui.horizontal(|ui| {
+                                if ui.add(
+                                    egui::Button::image(IMAGES.add).frame_when_inactive(false)
+                                ).on_hover_text("Add action").clicked() {
+                                    self.selected_action = cutscene.actions.len();
+                                    cutscene.actions.push(RoomCutsceneAction {
+                                        action_type: RoomCutsceneActionType::Unknown {
+                                            data0: 0,
+                                            data1: 0,
+                                            data2: 0,
+                                            data3: 0,
+                                            data4: 0,
+                                            data5: 0,
+                                        },
+                                    });
+                                }
+                            });
+                        });
+                    }
+                });
+                ui.separator();
+                egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                    if let Some(cutscene) = room.cutscenes.get_mut(self.selected_cutscene) {
+                        let mut item_action = CutsceneListItemAction::None;
+                        for (action_index, action) in cutscene.actions.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                let spacing = ui.spacing().item_spacing;
+                                ui.spacing_mut().item_spacing = egui::Vec2::new(2.0, 0.0);
+                                if ui.add(egui::Button::image(IMAGES.trash)).on_hover_text("Remove action").clicked() {
+                                    item_action = CutsceneListItemAction::Remove(action_index);
+                                }
+                                if ui.add_enabled(
+                                    action_index > 0,
+                                    egui::Button::image(IMAGES.arrow_up)
+                                ).on_hover_text("Move up").clicked() {
+                                    item_action = CutsceneListItemAction::MoveUp(action_index);
+                                }
+                                if ui.add_enabled(
+                                    action_index+1 < cutscene.actions.len(),
+                                    egui::Button::image(IMAGES.arrow_down)
+                                ).on_hover_text("Move down").clicked() {
+                                    item_action = CutsceneListItemAction::MoveDown(action_index);
+                                }
+                                let sel = RoomCutsceneActionTypeSel::from_action_type(&action.action_type);
+                                let button = egui::Button::new(sel.text())
+                                    .truncate()
+                                    .selected(self.selected_action == action_index)
+                                    .frame_when_inactive(self.selected_action == action_index)
+                                    .gap(8.0);
+                                if ui.add(button).clicked() {
+                                    self.selected_action = action_index;
+                                }
+                                ui.spacing_mut().item_spacing = spacing;
+                            });
+                        }
+                        match item_action {
+                            CutsceneListItemAction::None => {}
+                            CutsceneListItemAction::Edit(_) => {}
+                            CutsceneListItemAction::Remove(action_index) => {
+                                cutscene.actions.remove(action_index);
+                                if self.selected_action > action_index || self.selected_action >= cutscene.actions.len() {
+                                    self.selected_action = self.selected_action.saturating_sub(1);
+                                }
+                            }
+                            CutsceneListItemAction::MoveUp(action_index) => {
+                                if action_index > 0 {
+                                    cutscene.actions.swap(action_index - 1, action_index);
+                                    self.selected_action = action_index - 1;
+                                }
+                            }
+                            CutsceneListItemAction::MoveDown(action_index) => {
+                                if action_index+1 < cutscene.actions.len() {
+                                    cutscene.actions.swap(action_index, action_index + 1);
+                                    self.selected_action = action_index + 1;
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Action");
+            });
+            ui.separator();
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+                if let Some(cutscene) = room.cutscenes.get_mut(self.selected_cutscene) &&
+                    let Some(action) = cutscene.actions.get_mut(self.selected_action) {
+                        egui::Grid::new(format!("editor_{}_cutscene_action_prop_grid", self.asset_id))
+                            .num_columns(2)
+                            .spacing([8.0, 2.0])
+                            .show(ui, |ui| {
+                                self.show_cutscene_action_properties(ui, wc, action, asset_ids, assets, &room.maps);
+                            });
+                    }
+            });
+        });
+    }
+
     fn show_tabs_toolbar(&mut self, ui: &mut egui::Ui, room: &Room) {
         egui::Panel::top(format!("editor_panel_{}_tabs_toolbar", self.asset_id)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -1521,6 +1896,12 @@ impl Editor {
                     egui::Button::selectable(matches!(self.selected_tab, EditorTab::Maps), "Maps")
                 ).clicked() {
                     self.selected_tab = EditorTab::Maps;
+                }
+                if ui.add_enabled(
+                    true,
+                    egui::Button::selectable(matches!(self.selected_tab, EditorTab::Cutscenes), "Cutscenes")
+                ).clicked() {
+                    self.selected_tab = EditorTab::Cutscenes;
                 }
                 if ui.add_enabled(
                     room.parallax.tileset_id.is_some(),
@@ -1602,6 +1983,7 @@ impl Editor {
         match self.selected_tab {
             EditorTab::Maps => { self.show_maps_tab(ui, wc, dialogs, room, asset_ids, assets); }
             EditorTab::Parallax => { self.show_parallax_tab(ui, wc, dialogs, room, asset_ids, assets); }
+            EditorTab::Cutscenes => { self.show_cutscenes_tab(ui, wc, dialogs, room, asset_ids, assets); }
         }
     }
 }

@@ -231,6 +231,8 @@ impl TriggerRect {
                 Some(TriggerRect::rigid(trigger.x, trigger.y, 64, 64))
             }
 
+            RoomTriggerType::OnLoadRoom {..} |
+            RoomTriggerType::PlayCutscene {..} |
             RoomTriggerType::RemoveEnemy {..} |
             RoomTriggerType::PlaySfx {..} |
             RoomTriggerType::StopSfx {..} => {
@@ -267,6 +269,7 @@ impl TriggerRect {
                 *width = (self.x2 - self.x1).clamp(0, u16::MAX as i32) as u16;
                 *height = (self.y2 - self.y1).clamp(0, u16::MAX as i32) as u16;
             }
+            RoomTriggerType::OnLoadRoom {..} |
             RoomTriggerType::GetUpgrade {..} |
             RoomTriggerType::GetCollectable {..} |
             RoomTriggerType::GetPickup {..} |
@@ -275,6 +278,7 @@ impl TriggerRect {
             RoomTriggerType::PlayerSpawn {..} |
             RoomTriggerType::RemoveEnemy {..} |
             RoomTriggerType::PlayAnimation {..} |
+            RoomTriggerType::PlayCutscene {..} |
             RoomTriggerType::PlaySfx {..} |
             RoomTriggerType::StopSfx {..} |
             RoomTriggerType::ChangeTiles {..} |

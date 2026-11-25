@@ -12,6 +12,7 @@ use crate::data_store::{
     RoomTriggerType,
     RoomEntityDirection,
     RoomTriggerMapLayer,
+    RoomCutsceneActionType,
 };
 use crate::image::{
     TextureSlot,
@@ -70,8 +71,10 @@ impl RoomSize {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RoomTriggerTypeSel {
     Unknown,
-    Door,
+    OnLoadRoom,
+    PlayCutscene,
     PlayerSpawn,
+    Door,
     EnemySpawn,
     WallButton,
     DetectorButton,
@@ -90,10 +93,10 @@ pub enum RoomTriggerTypeSel {
 impl RoomTriggerTypeSel {
     pub fn from_trigger_type(trigger_type: &RoomTriggerType) -> Self {
         match trigger_type {
-            RoomTriggerType::Unknown { .. } => RoomTriggerTypeSel::Unknown,
-            RoomTriggerType::Door { .. } => RoomTriggerTypeSel::Door,
-            RoomTriggerType::PlayerSpawn { .. } => RoomTriggerTypeSel::PlayerSpawn,
-            RoomTriggerType::EnemySpawn { .. } => RoomTriggerTypeSel::EnemySpawn,
+            RoomTriggerType::Unknown { .. } => { RoomTriggerTypeSel::Unknown }
+            RoomTriggerType::Door { .. } => { RoomTriggerTypeSel::Door }
+            RoomTriggerType::PlayerSpawn { .. } => { RoomTriggerTypeSel::PlayerSpawn }
+            RoomTriggerType::EnemySpawn { .. } => { RoomTriggerTypeSel::EnemySpawn }
             RoomTriggerType::WallButton {..} => { RoomTriggerTypeSel::WallButton }
             RoomTriggerType::DetectorButton {..} => { RoomTriggerTypeSel::DetectorButton }
             RoomTriggerType::UnblockTiles {..} => { RoomTriggerTypeSel::UnblockTiles }
@@ -101,11 +104,13 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeSel::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
             RoomTriggerType::PlayAnimation {..} => { RoomTriggerTypeSel::PlayAnimation }
+            RoomTriggerType::PlayCutscene {..} => { RoomTriggerTypeSel::PlayCutscene }
             RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeSel::PlaySfx }
             RoomTriggerType::StopSfx {..} => { RoomTriggerTypeSel::StopSfx }
             RoomTriggerType::GetUpgrade {..} => { RoomTriggerTypeSel::GetUpgrade }
             RoomTriggerType::GetCollectable {..} => { RoomTriggerTypeSel::GetCollectable }
             RoomTriggerType::GetPickup {..} => { RoomTriggerTypeSel::GetPickup }
+            RoomTriggerType::OnLoadRoom {..} => { RoomTriggerTypeSel::OnLoadRoom }
         }
     }
 
@@ -217,6 +222,15 @@ impl RoomTriggerTypeSel {
                     false
                 }
             }
+            RoomTriggerTypeSel::PlayCutscene if ! matches!(trigger_type, RoomTriggerType::PlayCutscene {..}) => {
+                *trigger_type = RoomTriggerType::PlayCutscene {
+                    cutscene_index: 0,
+                    on_effect_id: u16::MAX,
+                    req_flag_id: u16::MAX,
+                    deny_flag_id: u16::MAX,
+                };
+                true
+            }
             RoomTriggerTypeSel::PlaySfx if ! matches!(trigger_type, RoomTriggerType::PlaySfx {..}) => {
                 if let Some(sfx_id) = asset_ids.sfxs.get_first() {
                     *trigger_type = RoomTriggerType::PlaySfx {
@@ -262,16 +276,25 @@ impl RoomTriggerTypeSel {
                 };
                 true
             }
+            RoomTriggerTypeSel::OnLoadRoom if ! matches!(trigger_type, RoomTriggerType::OnLoadRoom {..}) => {
+                *trigger_type = RoomTriggerType::OnLoadRoom {
+                    set_effect_id: u16::MAX,
+                    set_flag_id: u16::MAX,
+                    req_flag_id: u16::MAX,
+                    deny_flag_id: u16::MAX,
+                };
+                true
+            }
             _ => { false }
         }
     }
 
     pub fn text(&self) -> &'static str {
         match self {
-            RoomTriggerTypeSel::Unknown => "any",
-            RoomTriggerTypeSel::Door => "door",
-            RoomTriggerTypeSel::PlayerSpawn => "player spawn",
-            RoomTriggerTypeSel::EnemySpawn => "enemy spawn",
+            RoomTriggerTypeSel::Unknown => { "any" }
+            RoomTriggerTypeSel::Door => { "door" }
+            RoomTriggerTypeSel::PlayerSpawn => { "player spawn" }
+            RoomTriggerTypeSel::EnemySpawn => { "enemy spawn" }
             RoomTriggerTypeSel::WallButton => { "wall button" }
             RoomTriggerTypeSel::DetectorButton => { "detector button" }
             RoomTriggerTypeSel::UnblockTiles => { "unblock tiles" }
@@ -279,11 +302,151 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::ChangeTiles => { "change tiles" }
             RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
             RoomTriggerTypeSel::PlayAnimation => { "play animation" }
+            RoomTriggerTypeSel::PlayCutscene => { "play cutscene" }
             RoomTriggerTypeSel::PlaySfx => { "play sfx" }
             RoomTriggerTypeSel::StopSfx => { "stop sfx" }
             RoomTriggerTypeSel::GetUpgrade => { "upgrade" }
             RoomTriggerTypeSel::GetCollectable => { "collectable" }
             RoomTriggerTypeSel::GetPickup => { "pickup" }
+            RoomTriggerTypeSel::OnLoadRoom => { "on load room" }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RoomCutsceneActionTypeSel {
+    Unknown,
+    WaitFrames,
+    WaitPlayerAnimationEnd,
+    DispelDarkness,
+    SetPlayerDarkness,
+    MovePlayerDarkness,
+    SetPlayerState,
+    ActivateEffect,
+    SetHudEnabled,
+}
+
+impl RoomCutsceneActionTypeSel {
+    pub fn from_action_type(action_type: &RoomCutsceneActionType) -> Self {
+        match action_type {
+            RoomCutsceneActionType::Unknown { .. } => { RoomCutsceneActionTypeSel::Unknown }
+            RoomCutsceneActionType::WaitFrames { .. } => { RoomCutsceneActionTypeSel::WaitFrames }
+            RoomCutsceneActionType::WaitPlayerAnimationEnd { .. } => { RoomCutsceneActionTypeSel::WaitPlayerAnimationEnd }
+            RoomCutsceneActionType::DispelDarkness { .. } => { RoomCutsceneActionTypeSel::DispelDarkness }
+            RoomCutsceneActionType::SetPlayerDarkness { .. } => { RoomCutsceneActionTypeSel::SetPlayerDarkness }
+            RoomCutsceneActionType::MovePlayerDarkness { .. } => { RoomCutsceneActionTypeSel::MovePlayerDarkness }
+            RoomCutsceneActionType::SetPlayerState { .. } => { RoomCutsceneActionTypeSel::SetPlayerState }
+            RoomCutsceneActionType::ActivateEffect { .. } => { RoomCutsceneActionTypeSel::ActivateEffect }
+            RoomCutsceneActionType::SetHudEnabled { .. } => { RoomCutsceneActionTypeSel::SetHudEnabled }
+        }
+    }
+
+    pub fn convert_action_type(&self, action_type: &mut RoomCutsceneActionType, _asset_ids: &AssetIdCollection) -> bool {
+        match self {
+            RoomCutsceneActionTypeSel::Unknown if ! matches!(
+                action_type,
+                RoomCutsceneActionType::Unknown {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::Unknown {
+                    data0: 0,
+                    data1: 0,
+                    data2: 0,
+                    data3: 0,
+                    data4: 0,
+                    data5: 0,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::WaitFrames if ! matches!(
+                action_type,
+                RoomCutsceneActionType::WaitFrames {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::WaitFrames {
+                    num_frames: 1,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::WaitPlayerAnimationEnd if ! matches!(
+                action_type,
+                RoomCutsceneActionType::WaitPlayerAnimationEnd {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::WaitPlayerAnimationEnd {};
+                true
+            }
+            RoomCutsceneActionTypeSel::DispelDarkness if ! matches!(
+                action_type,
+                RoomCutsceneActionType::DispelDarkness {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::DispelDarkness {
+                    speed: 256,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::SetPlayerDarkness if ! matches!(
+                action_type,
+                RoomCutsceneActionType::SetPlayerDarkness {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::SetPlayerDarkness {
+                    radius: 30,
+                    fall_off: 0,
+                    off_x: 0,
+                    off_y: 0,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::MovePlayerDarkness if ! matches!(
+                action_type,
+                RoomCutsceneActionType::MovePlayerDarkness {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::MovePlayerDarkness {
+                    off_x: 0,
+                    off_y: 0,
+                    speed: 256,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::SetPlayerState if ! matches!(
+                action_type,
+                RoomCutsceneActionType::SetPlayerState {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::SetPlayerState {
+                    state: 0,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::ActivateEffect if ! matches!(
+                action_type,
+                RoomCutsceneActionType::ActivateEffect {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::ActivateEffect {
+                    set_effect_id: u16::MAX,
+                };
+                true
+            }
+            RoomCutsceneActionTypeSel::SetHudEnabled if ! matches!(
+                action_type,
+                RoomCutsceneActionType::SetHudEnabled {..}
+            ) => {
+                *action_type = RoomCutsceneActionType::SetHudEnabled {
+                    enabled: 0,
+                };
+                true
+            }
+            _ => { false }
+        }
+    }
+
+    pub fn text(&self) -> &'static str {
+        match self {
+            RoomCutsceneActionTypeSel::Unknown => { "any" }
+            RoomCutsceneActionTypeSel::WaitFrames => { "wait" }
+            RoomCutsceneActionTypeSel::WaitPlayerAnimationEnd => { "wait player anim" }
+            RoomCutsceneActionTypeSel::DispelDarkness => { "dispel darkness" }
+            RoomCutsceneActionTypeSel::SetPlayerDarkness => { "set player darkness" }
+            RoomCutsceneActionTypeSel::MovePlayerDarkness => { "move player darkness" }
+            RoomCutsceneActionTypeSel::SetPlayerState => { "set player state" }
+            RoomCutsceneActionTypeSel::ActivateEffect => { "activate effect" }
+            RoomCutsceneActionTypeSel::SetHudEnabled => { "hud visibility" }
         }
     }
 }

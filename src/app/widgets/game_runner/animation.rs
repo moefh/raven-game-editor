@@ -23,23 +23,46 @@ pub struct AnimationDrawInfo {
 }
 
 pub struct Animation {
-    pub sprite_anim_id: DataAssetId,
+    pub sprite_anim_id: Option<DataAssetId>,
     pub aloop: usize,
     pub frame: u32,  // 24.8 fixpoint
 }
 
 impl Animation {
-    pub fn new(sprite_anim_id: DataAssetId) -> Self {
+    pub fn new() -> Self {
         Animation {
-            sprite_anim_id,
+            sprite_anim_id: None,
             frame: 0,
             aloop: 0,
         }
     }
 
+    pub fn with_anim_id(sprite_anim_id: DataAssetId) -> Self {
+        Animation {
+            sprite_anim_id: Some(sprite_anim_id),
+            frame: 0,
+            aloop: 0,
+        }
+    }
+
+    pub fn load_anim_id(&mut self, sprite_anim_id: DataAssetId) {
+        self.sprite_anim_id = Some(sprite_anim_id);
+        self.reset();
+    }
+
+    pub fn clear(&mut self) {
+        self.sprite_anim_id = None;
+        self.frame = 0;
+        self.aloop = 0;
+    }
+
     pub fn reset(&mut self) {
         self.frame = 0;
         self.aloop = 0;
+    }
+
+    pub fn get_anim<'a>(&self, store: &'a DataStore) -> Option<&'a SpriteAnimation> {
+        self.sprite_anim_id.and_then(|anim_id| store.assets.animations.get(&anim_id))
     }
 
     fn get_sprite_frame(&mut self, anim: &SpriteAnimation) -> u32 {
@@ -81,34 +104,36 @@ impl Animation {
         store: &DataStore,
         draw_info: &DrawInfo,
     ) {
-        if let Some(anim) = store.assets.animations.get(&self.sprite_anim_id) && let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
-            let draw_x = match draw.direction {
-                Direction::Left  => { draw.x - (sprite.width as i32 - (anim.clip_rect.x + anim.clip_rect.w)) }
-                Direction::Right => { draw.x - anim.clip_rect.x }
-            };
-            let draw_y = draw.y - anim.clip_rect.y;
-            let draw_frame = self.get_sprite_frame(anim);
+        if let Some(anim_id) = self.sprite_anim_id &&
+            let Some(anim) = store.assets.animations.get(&anim_id) &&
+            let Some(sprite) = store.assets.sprites.get(&anim.sprite_id) {
+                let draw_x = match draw.direction {
+                    Direction::Left  => { draw.x - (sprite.width as i32 - (anim.clip_rect.x + anim.clip_rect.w)) }
+                    Direction::Right => { draw.x - anim.clip_rect.x }
+                };
+                let draw_y = draw.y - anim.clip_rect.y;
+                let draw_frame = self.get_sprite_frame(anim);
 
-            let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
-            let sprite_uv = match draw.direction {
-                Direction::Left => {
-                    let uv = sprite.get_item_uv(draw_frame);
-                    egui::Rect::from_min_max(
-                        egui::Pos2::new(uv.max.x, uv.min.y),
-                        egui::Pos2::new(uv.min.x, uv.max.y)
-                    )
-                }
-                Direction::Right => {
-                    sprite.get_item_uv(draw_frame)
-                }
-            };
+                let sprite_size = egui::Vec2::new(sprite.width as f32, sprite.height as f32);
+                let sprite_uv = match draw.direction {
+                    Direction::Left => {
+                        let uv = sprite.get_item_uv(draw_frame);
+                        egui::Rect::from_min_max(
+                            egui::Pos2::new(uv.max.x, uv.min.y),
+                            egui::Pos2::new(uv.min.x, uv.max.y)
+                        )
+                    }
+                    Direction::Right => {
+                        sprite.get_item_uv(draw_frame)
+                    }
+                };
 
-            let draw_rect = egui::Rect::from_min_size(
-                draw_info.pos + draw_info.zoom * egui::Vec2::new(draw_x as f32, draw_y as f32),
-                draw_info.zoom * sprite_size
-            );
-            let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
-            egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
-        }
+                let draw_rect = egui::Rect::from_min_size(
+                    draw_info.pos + draw_info.zoom * egui::Vec2::new(draw_x as f32, draw_y as f32),
+                    draw_info.zoom * sprite_size
+                );
+                let texture = sprite.texture(wc.tex_man, wc.egui.ctx, TextureSlot::Transparent);
+                egui::Image::from_texture((texture.id(), sprite_size)).uv(sprite_uv).paint_at(ui, draw_rect);
+            }
     }
 }

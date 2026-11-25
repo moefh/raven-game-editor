@@ -77,12 +77,14 @@ pub enum AssetError {
     RoomDoorWithInvalidDestination { trigger_index: usize },
     RoomChangeTileWithInvalidTileChange { trigger_index: usize },
     RoomChangeTileWithInvalidMap { trigger_index: usize },
+    RoomTriggerWithInvalidCutscene { trigger_index: usize },
     RoomTriggerWithInvalidEffect { trigger_index: usize },
     RoomTriggerWithInvalidFlag { trigger_index: usize },
     RoomTriggerWithInvalidUpgrade { trigger_index: usize },
     RoomTriggerWithInvalidCollectable { trigger_index: usize },
     RoomTriggerWithInvalidPickup { trigger_index: usize },
     RoomTriggerWithInvalidInteractPrompt { trigger_index: usize },
+    RoomCutsceneActionWithInvalidEffect { cutscene_index: usize, action_index: usize },
     WorldRegionsUsingSameRoom { room_id: DataAssetId, region1_index: usize, region2_index: usize },
     ModPatternTooSmall { expected: usize, got: usize },
     ModNoteOutOfTune { song_position: u32, row: u32, chan: u8, sharp_by: u16 },
@@ -211,6 +213,24 @@ impl AssetError {
                 if let Some(room) = store.assets.rooms.get(&asset_id) &&
                     let Some(trigger) = room.triggers.get(*trigger_index) {
                         ui.label(format!("  -> change_tile '{}' has invalid map", trigger.name_id));
+                    }
+            }
+
+            AssetError::RoomCutsceneActionWithInvalidEffect { cutscene_index, action_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(cutscene) = room.cutscenes.get(*cutscene_index)  {
+                        ui.label(format!(
+                            "  -> cutscene '{}' action {} has invalid effect table item",
+                            cutscene.name_id,
+                            action_index
+                        ));
+                    }
+            }
+
+            AssetError::RoomTriggerWithInvalidCutscene { trigger_index } => {
+                if let Some(room) = store.assets.rooms.get(&asset_id) &&
+                    let Some(trigger) = room.triggers.get(*trigger_index) {
+                        ui.label(format!("  -> trigger '{}' has invalid cutscene reference", trigger.name_id));
                     }
             }
 

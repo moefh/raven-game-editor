@@ -28,7 +28,7 @@ impl EffectDisplay {
             x,
             y,
             direction,
-            anim: Animation::new(sprite_anim_id),
+            anim: Animation::with_anim_id(sprite_anim_id),
             set_effect_id: u16::MAX,
             set_flag_id: u16::MAX,
         }
@@ -45,12 +45,11 @@ impl EffectDisplay {
         game_state: &mut GameRunnerState,
         store: &DataStore
     ) -> bool {
-        let ended = if let Some(sprite_anim) = store.assets.animations.get(&self.anim.sprite_anim_id) &&
-            let Some(cur_loop) = self.anim.advance(sprite_anim) {
-                (self.anim.frame >> 8) as usize >= cur_loop.frame_indices.len()
-            } else {
-                true
-            };
+        let ended = if let Some(anim) = self.anim.get_anim(store) && let Some(cur_loop) = self.anim.advance(anim) {
+            (self.anim.frame >> 8) as usize >= cur_loop.frame_indices.len()
+        } else {
+            true
+        };
         if ended {
             if self.set_effect_id != u16::MAX {
                 game_state.actions.push(GameRunnerAction::ActivateEffect { effect_id: self.set_effect_id });

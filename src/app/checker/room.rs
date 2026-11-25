@@ -10,6 +10,7 @@ use crate::data_store::{
     DataAssetList,
     Room,
     RoomTriggerType,
+    RoomCutsceneActionType,
     MapData,
     Tileset,
 };
@@ -183,12 +184,42 @@ fn check_room_trigger_interact_prompt_id(prompt_id: u16, tables: &DataStoreTable
     }
 }
 
+fn check_room_action_effect(
+    effect_id: u16,
+    tables: &DataStoreTables,
+    cutscene_index: usize,
+    action_index: usize,
+    errors: &mut Vec<AssetError>
+) {
+    if effect_id != u16::MAX && effect_id as usize >= tables.effect.names.len() {
+        errors.push(AssetError::RoomCutsceneActionWithInvalidEffect { cutscene_index, action_index });
+    }
+}
+
 fn check_room_project_table_refs(
     room: &Room,
     tables: &DataStoreTables,
     errors: &mut Vec<AssetError>,
     _warn: &mut Vec<AssetWarning>,
 ) {
+    for (cutscene_index, cutscene) in room.cutscenes.iter().enumerate() {
+        for (action_index, action) in cutscene.actions.iter().enumerate() {
+            match action.action_type {
+                RoomCutsceneActionType::Unknown {..} => {}
+                RoomCutsceneActionType::SetHudEnabled {..} => {}
+                RoomCutsceneActionType::WaitFrames {..} => {}
+                RoomCutsceneActionType::WaitPlayerAnimationEnd {} => {}
+                RoomCutsceneActionType::DispelDarkness {..} => {}
+                RoomCutsceneActionType::SetPlayerDarkness {..} => {}
+                RoomCutsceneActionType::MovePlayerDarkness {..} => {}
+                RoomCutsceneActionType::SetPlayerState {..} => {}
+                RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
+                    check_room_action_effect(set_effect_id, tables, cutscene_index, action_index, errors);
+                }
+            }
+        }
+    }
+
     for (trigger_index, trigger) in room.triggers.iter().enumerate() {
         match trigger.trigger_type {
             RoomTriggerType::Unknown {..} => {}
@@ -229,6 +260,14 @@ fn check_room_project_table_refs(
                 check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
                 check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
             }
+            RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
+                if cutscene_index as usize >= room.cutscenes.len() {
+                    errors.push(AssetError::RoomTriggerWithInvalidCutscene { trigger_index });
+                }
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+                check_room_trigger_flag(deny_flag_id, tables, trigger_index, errors);
+            }
             RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
@@ -246,6 +285,12 @@ fn check_room_project_table_refs(
             }
             RoomTriggerType::GetPickup { get_pickup_id, .. } => {
                 check_room_trigger_pickup(get_pickup_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
+                check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
+                check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
+                check_room_trigger_flag(req_flag_id, tables, trigger_index, errors);
+                check_room_trigger_flag(deny_flag_id, tables, trigger_index, errors);
             }
         }
     }

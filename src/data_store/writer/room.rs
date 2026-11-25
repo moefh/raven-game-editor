@@ -11,6 +11,8 @@ use super::super::{
     Room,
     RoomTriggerType,
     RoomTriggerTypeIdent,
+    RoomCutsceneActionType,
+    RoomCutsceneActionTypeIdent,
 };
 
 fn write_room_maps(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Result<()> {
@@ -137,6 +139,15 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                     set_flag_id,
                 ));
             }
+            RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
+                writer.write(format!(
+                    ".play_cutscene = {{ {}, {}, {}, {} }}",
+                    cutscene_index,
+                    on_effect_id,
+                    req_flag_id,
+                    deny_flag_id,
+                ));
+            }
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
                 let sfx_ident = writer.ident.get_asset_ident(DataAssetType::Sfx, sfx_id)?;
                 writer.write(format!(
@@ -172,8 +183,127 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                     sfx_ident,
                 ));
             }
+            RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
+                writer.write(format!(
+                    ".on_load_room = {{ {}, {}, {}, {} }}",
+                    set_effect_id,
+                    set_flag_id,
+                    req_flag_id,
+                    deny_flag_id,
+                ));
+            }
         }
         writer.write(" },\n");
+    }
+    writer.write("};\n");
+    writer.write("\n");
+
+    Ok(())
+}
+
+fn write_room_cutscenes(writer: &ProjectDataWriter, room: &Room, name_id: &str) -> Result<()> {
+    for (index, cutscene) in room.cutscenes.iter().enumerate() {
+        writer.write(format!(
+            "static const struct {}_ROOM_CUTSCENE_ACTION {}_room_cutscene_{}_{}[] = {{\n",
+            writer.ident.prefix_upper,
+            writer.ident.prefix_lower,
+            name_id,
+            index,
+        ));
+        for action in &cutscene.actions {
+            let enum_type_ident = RoomCutsceneActionTypeIdent::from_action_type(&action.action_type).enum_ident();
+
+            writer.write("  {\n");
+            writer.write(format!(
+                "    {}_{},\n",
+                writer.ident.prefix_upper,
+                enum_type_ident
+            ));
+            match action.action_type {
+                RoomCutsceneActionType::Unknown { data0, data1, data2, data3, data4, data5 } => {
+                    writer.write(format!(
+                        "    .any = {{ {}, {}, {}, {}, {}, {} }}\n",
+                        data0,
+                        data1,
+                        data2,
+                        data3,
+                        data4,
+                        data5,
+                    ));
+                }
+                RoomCutsceneActionType::WaitFrames { num_frames } => {
+                    writer.write(format!(
+                        "    .wait_frames = {{ {} }}\n",
+                        num_frames,
+                    ));
+                }
+                RoomCutsceneActionType::WaitPlayerAnimationEnd {} => {
+                    writer.write(
+                        "    .wait_player_anim_end = {}\n",
+                    );
+                }
+                RoomCutsceneActionType::DispelDarkness { speed } => {
+                    writer.write(format!(
+                        "    .dispel_darkness = {{ {} }}\n",
+                        speed,
+                    ));
+                }
+                RoomCutsceneActionType::SetPlayerDarkness { radius, fall_off, off_x, off_y } => {
+                    writer.write(format!(
+                        "    .set_player_darkness = {{ {}, {}, {}, {} }}\n",
+                        radius,
+                        fall_off,
+                        off_x,
+                        off_y,
+                    ));
+                }
+                RoomCutsceneActionType::MovePlayerDarkness { off_x, off_y, speed } => {
+                    writer.write(format!(
+                        "    .move_player_darkness = {{ {}, {}, {} }}\n",
+                        off_x,
+                        off_y,
+                        speed,
+                    ));
+                }
+                RoomCutsceneActionType::SetPlayerState { state } => {
+                    writer.write(format!(
+                        "    .set_player_state = {{ {} }}\n",
+                        state,
+                    ));
+                }
+                RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
+                    writer.write(format!(
+                        "    .activate_effect = {{ {} }}\n",
+                        set_effect_id,
+                    ));
+                }
+                RoomCutsceneActionType::SetHudEnabled { enabled } => {
+                    writer.write(format!(
+                        "    .set_hud_enabled = {{ {} }}\n",
+                        enabled,
+                    ));
+                }
+            }
+            writer.write("  },\n");
+        }
+        writer.write("};\n");
+        writer.write("\n");
+    }
+
+    writer.write(format!(
+        "static const struct {}_ROOM_CUTSCENE {}_room_cutscenes_{}[] = {{\n",
+        writer.ident.prefix_upper,
+        writer.ident.prefix_lower,
+        name_id
+    ));
+    for (index, cutscene) in room.cutscenes.iter().enumerate() {
+        writer.write(format!(
+            "  {{ {}, {}_room_cutscene_{}_{} }},\n",
+            cutscene.actions.len(),
+            writer.ident.prefix_lower,
+            name_id,
+            index,
+        ));
     }
     writer.write("};\n");
     writer.write("\n");
@@ -210,6 +340,7 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
             write_room_maps(writer, room, name_id)?;
             write_room_triggers(writer, room, name_id)?;
+            write_room_cutscenes(writer, room, name_id)?;
             write_room_parallax_tiles(writer, room, name_id)?;
         }
     }
@@ -225,13 +356,16 @@ pub fn write_rooms(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Resu
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
             writer.write("  {\n");
             writer.write(format!(
-                "    {}, {}, {}_room_maps_{}, {}_room_triggers_{},\n",
+                "    {}, {}, {}, {}_room_maps_{}, {}_room_triggers_{}, {}_room_cutscenes_{},\n",
                 room.maps.len(),
                 room.triggers.len(),
+                room.cutscenes.len(),
                 writer.ident.prefix_lower,
                 name_id,
                 writer.ident.prefix_lower,
-                name_id
+                name_id,
+                writer.ident.prefix_lower,
+                name_id,
             ));
             let tileset_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Tileset, room.parallax.tileset_id)?;
             if room.parallax.tileset_id.is_some() && room.parallax.width != 0 && room.parallax.height != 0 {
@@ -274,6 +408,30 @@ fn write_room_trigger_names(writer: &ProjectDataWriter, room: &Room, name_id_upp
     Ok(())
 }
 
+fn write_room_cutscene_names(writer: &ProjectDataWriter, room: &Room, name_id_upper: &str) -> Result<()> {
+    let mut index_to_name_id = HashMap::new();
+
+    writer.write(format!("enum {}_ROOM_{}_CUTSCENE_NAMES {{\n", writer.ident.prefix_upper, name_id_upper));
+    for (index, cutscene) in room.cutscenes.iter().enumerate() {
+        let use_name_id = if cutscene.name_id == "names" { "names0" } else { &cutscene.name_id };
+        IdentStore::add_unique_name_id(index, use_name_id, &mut index_to_name_id);
+        let cutscene_name_id = index_to_name_id.get(&index).ok_or_else(|| {
+            Error::other(format!("error reading name of cutscene {} room {}", index, room.asset.id))
+        })?;
+        writer.write(format!(
+            "  {}_ROOM_{}_CUTSCENE_{},\n",
+            writer.ident.prefix_upper,
+            name_id_upper,
+            cutscene_name_id.to_ascii_uppercase()
+        ));
+    }
+    writer.write(format!("  {}_ROOM_{}_NUM_CUTSCENES,\n", writer.ident.prefix_upper, name_id_upper));
+    writer.write("};\n");
+    writer.write("\n");
+
+    Ok(())
+}
+
 pub fn write_room_item_names(writer: &ProjectDataWriter, room_ids: &[DataAssetId]) -> Result<()> {
     writer.write("// ================================================================\n");
     writer.write("// === ROOM ITEM NAMES\n");
@@ -285,6 +443,7 @@ pub fn write_room_item_names(writer: &ProjectDataWriter, room_ids: &[DataAssetId
             let name_id = writer.ident.get_asset_name_id(DataAssetType::Room, *id)?;
             let name_id_upper = name_id.to_ascii_uppercase();
             write_room_trigger_names(writer, room, &name_id_upper)?;
+            write_room_cutscene_names(writer, room, &name_id_upper)?;
         }
     }
 

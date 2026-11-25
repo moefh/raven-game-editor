@@ -6,6 +6,7 @@ use crate::data_store::{
     DataStoreStringTable,
     DataStoreStringTableItem,
     RoomTriggerType,
+    RoomCutsceneActionType,
 };
 use super::super::{
     WindowContext,
@@ -298,6 +299,25 @@ pub fn fix_after_data_table_item_removed(
     index: usize
 ) {
     for room in store.assets.rooms.iter_mut() {
+        for cutscene in room.cutscenes.iter_mut() {
+            for action in cutscene.actions.iter_mut() {
+                match &mut action.action_type {
+                    RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
+                        fix_removed_effect(set_effect_id, data_table_ref, index);
+                    }
+                    RoomCutsceneActionType::Unknown {..} |
+                    RoomCutsceneActionType::SetHudEnabled {..} |
+                    RoomCutsceneActionType::DispelDarkness {..} |
+                    RoomCutsceneActionType::SetPlayerDarkness {..} |
+                    RoomCutsceneActionType::MovePlayerDarkness {..} |
+                    RoomCutsceneActionType::SetPlayerState {..} |
+                    RoomCutsceneActionType::WaitPlayerAnimationEnd {..} |
+                    RoomCutsceneActionType::WaitFrames {..} => {
+                        // nothing to fix
+                    }
+                }
+            }
+        }
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
                 RoomTriggerType::WallButton {
@@ -337,6 +357,11 @@ pub fn fix_after_data_table_item_removed(
                     fix_removed_effect(set_effect_id, data_table_ref, index);
                     fix_removed_flag(set_flag_id, data_table_ref, index);
                 }
+                RoomTriggerType::PlayCutscene { on_effect_id, req_flag_id, deny_flag_id, .. } => {
+                    fix_removed_effect(on_effect_id, data_table_ref, index);
+                    fix_removed_flag(req_flag_id, data_table_ref, index);
+                    fix_removed_flag(deny_flag_id, data_table_ref, index);
+                }
                 RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                 }
@@ -360,6 +385,12 @@ pub fn fix_after_data_table_item_removed(
                 }
                 RoomTriggerType::EnemySpawn { req_flag_id, .. } => {
                     fix_removed_flag(req_flag_id, data_table_ref, index);
+                }
+                RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
+                    fix_removed_effect(set_effect_id, data_table_ref, index);
+                    fix_removed_flag(set_flag_id, data_table_ref, index);
+                    fix_removed_flag(req_flag_id, data_table_ref, index);
+                    fix_removed_flag(deny_flag_id, data_table_ref, index);
                 }
                 RoomTriggerType::Unknown {..} | RoomTriggerType::PlayerSpawn {..} => {
                     // nothing to fix
@@ -420,6 +451,27 @@ pub fn fix_after_data_table_items_swapped(
     index2: usize
 ) {
     for room in store.assets.rooms.iter_mut() {
+        for cutscene in room.cutscenes.iter_mut() {
+            for action in cutscene.actions.iter_mut() {
+                match &mut action.action_type {
+                    RoomCutsceneActionType::ActivateEffect { set_effect_id } => {
+                        fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
+                    }
+                    RoomCutsceneActionType::Unknown {..} |
+                    RoomCutsceneActionType::SetHudEnabled {..} |
+                    RoomCutsceneActionType::DispelDarkness {..} |
+                    RoomCutsceneActionType::SetPlayerDarkness {..} |
+                    RoomCutsceneActionType::MovePlayerDarkness {..} |
+                    RoomCutsceneActionType::SetPlayerState {..} |
+                    RoomCutsceneActionType::WaitPlayerAnimationEnd {..} |
+                    RoomCutsceneActionType::WaitFrames {..} => {
+                        // nothing to fix
+                    }
+                }
+            }
+        }
+    }
+    for room in store.assets.rooms.iter_mut() {
         for trigger in room.triggers.iter_mut() {
             match &mut trigger.trigger_type {
                 RoomTriggerType::WallButton {
@@ -459,6 +511,11 @@ pub fn fix_after_data_table_items_swapped(
                     fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
                     fix_swapped_flag(set_flag_id, data_table_ref, index1, index2);
                 }
+                RoomTriggerType::PlayCutscene { on_effect_id, req_flag_id, deny_flag_id, .. } => {
+                    fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(deny_flag_id, data_table_ref, index1, index2);
+                }
                 RoomTriggerType::PlaySfx { on_effect_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
                 }
@@ -482,6 +539,12 @@ pub fn fix_after_data_table_items_swapped(
                 }
                 RoomTriggerType::EnemySpawn { req_flag_id, ..} => {
                     fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
+                }
+                RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
+                    fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(set_flag_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(req_flag_id, data_table_ref, index1, index2);
+                    fix_swapped_flag(deny_flag_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::Unknown {..} | RoomTriggerType::PlayerSpawn {..} => {
                     // nothing to fix
