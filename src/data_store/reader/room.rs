@@ -153,7 +153,7 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("stop_animation"), ValueDefStruct::new(vec![
             (String::from("anim_num"), ValueDef::U16),
-            (String::from("layer"), ValueDef::U8),
+            (String::from("on_effect_id"), ValueDef::U16),
         ])),
 
         (String::from("play_cutscene"), ValueDefStruct::new(vec![
