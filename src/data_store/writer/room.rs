@@ -38,12 +38,12 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
     for trg in room.triggers.iter() {
         let enum_type_ident = RoomTriggerTypeIdent::from_trigger_type(&trg.trigger_type).enum_ident();
 
-        writer.write("  {  ");
-        writer.write(format!("{}_{}, {}, {}, {}, ", writer.ident.prefix_upper, enum_type_ident, trg.trigger_id, trg.x, trg.y));
+        writer.write("  {\n");
+        writer.write(format!("    {}_{}, {}, {}, {},\n", writer.ident.prefix_upper, enum_type_ident, trg.trigger_id, trg.x, trg.y));
         match trg.trigger_type {
             RoomTriggerType::Unknown { data0, data1, data2, data3, data4, data5, data6, data7 } => {
                 writer.write(format!(
-                    ".any = {{ {}, {}, {}, {}, {}, {}, {}, {} }}",
+                    "    .any = {{ {}, {}, {}, {}, {}, {}, {}, {} }}\n",
                     data0,
                     data1,
                     data2,
@@ -58,7 +58,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 let dest_room_ident = writer.ident.get_asset_ident(DataAssetType::Room, dest_room_id)?;
                 writer.write(
                     format!(
-                        ".door = {{ {}, {}, {} }}",
+                        "    .door = {{ {}, {}, {} }}\n",
                         dest_room_ident,
                         dest_trigger_id,
                         req_flag_id
@@ -66,13 +66,13 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 );
             }
             RoomTriggerType::PlayerSpawn { direction } => {
-                writer.write(format!(".player_spawn = {{ {} }}", direction.value()));
+                writer.write(format!("    .player_spawn = {{ {} }}\n", direction.value()));
             }
             RoomTriggerType::EnemySpawn { enemy_id, enemy_num, direction, req_flag_id } => {
                 let enemy_ident = writer.ident.get_asset_ident(DataAssetType::Enemy, enemy_id)?;
                 writer.write(
                     format!(
-                        ".enemy_spawn = {{ {}, {}, {}, {} }}",
+                        "    .enemy_spawn = {{ {}, {}, {}, {} }}\n",
                         enemy_num,
                         enemy_ident,
                         direction.value(),
@@ -90,7 +90,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 req_collectable_id,
             } => {
                 writer.write(format!(
-                    ".wall_button = {{ {}, {}, {}, {}, {}, {}, {} }}",
+                    "    .wall_button = {{ {}, {}, {}, {}, {}, {}, {} }}\n",
                     width,
                     height,
                     interact_prompt_id,
@@ -102,7 +102,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             }
             RoomTriggerType::DetectorButton { width, height, set_effect_id, set_flag_id, req_flag_id, req_collectable_id } => {
                 writer.write(format!(
-                    ".detector_button = {{ {}, {}, {}, {}, {}, {} }}",
+                    "    .detector_button = {{ {}, {}, {}, {}, {}, {} }}\n",
                     width,
                     height,
                     set_effect_id,
@@ -112,14 +112,14 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
             RoomTriggerType::UnblockTiles { width, height, on_effect_id } => {
-                writer.write(format!(".unblock_tiles = {{ {}, {}, {} }}", width, height, on_effect_id));
+                writer.write(format!("    .unblock_tiles = {{ {}, {}, {} }}\n", width, height, on_effect_id));
             }
             RoomTriggerType::DisableAnimation { width, height, on_effect_id } => {
-                writer.write(format!(".disable_animation = {{ {}, {}, {} }}", width, height, on_effect_id));
+                writer.write(format!("    .disable_animation = {{ {}, {}, {} }}\n", width, height, on_effect_id));
             }
             RoomTriggerType::ChangeTiles { map_index, tile_change_index, map_layer, on_effect_id } => {
                 writer.write(format!(
-                    ".change_tiles = {{ {}, {}, {}, {} }}",
+                    "    .change_tiles = {{ {}, {}, {}, {} }}\n",
                     map_index,
                     tile_change_index,
                     map_layer.value(),
@@ -127,21 +127,31 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
             RoomTriggerType::RemoveEnemy { enemy_num, on_effect_id } => {
-                writer.write(format!(".remove_enemy = {{ {}, {} }}", enemy_num, on_effect_id));
+                writer.write(format!("    .remove_enemy = {{ {}, {} }}\n", enemy_num, on_effect_id));
             }
-            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
+            RoomTriggerType::PlayAnimation { anim_id, anim_num, direction, layer, on_effect_id, set_effect_id, set_flag_id } => {
                 let anim_ident = writer.ident.get_asset_ident(DataAssetType::SpriteAnimation, anim_id)?;
                 writer.write(format!(
-                    ".play_animation = {{ {}, {}, {}, {} }}",
+                    "    .play_animation = {{ {}, {}, {}, {}, {}, {}, {} }}\n",
                     anim_ident,
+                    anim_num,
+                    direction.value(),
+                    layer.value(),
                     on_effect_id,
                     set_effect_id,
                     set_flag_id,
                 ));
             }
+            RoomTriggerType::StopAnimation { anim_num, on_effect_id } => {
+                writer.write(format!(
+                    "    .stop_animation = {{ {}, {} }}\n",
+                    anim_num,
+                    on_effect_id,
+                ));
+            }
             RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
                 writer.write(format!(
-                    ".play_cutscene = {{ {}, {}, {}, {} }}",
+                    "    .play_cutscene = {{ {}, {}, {}, {} }}\n",
                     cutscene_index,
                     on_effect_id,
                     req_flag_id,
@@ -151,7 +161,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
                 let sfx_ident = writer.ident.get_asset_ident(DataAssetType::Sfx, sfx_id)?;
                 writer.write(format!(
-                    ".play_sfx = {{ {}, {}, {}, {}, {}, {} }}",
+                    "    .play_sfx = {{ {}, {}, {}, {}, {}, {} }}\n",
                     sfx_ident,
                     sound_id,
                     volume,
@@ -161,14 +171,14 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
             RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
-                writer.write(format!(".stop_sfx = {{ {}, {} }}", sound_id, on_effect_id));
+                writer.write(format!("    .stop_sfx = {{ {}, {} }}\n", sound_id, on_effect_id));
             }
             RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
-                writer.write(format!(".get_upgrade = {{ {}, {} }}", get_upgrade_id, req_flag_id));
+                writer.write(format!("    .get_upgrade = {{ {}, {} }}\n", get_upgrade_id, req_flag_id));
             }
             RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
                 writer.write(format!(
-                    ".get_collectable = {{ {}, {}, {} }}",
+                    "    .get_collectable = {{ {}, {}, {} }}\n",
                     get_collectable_id,
                     interact_prompt_id,
                     req_flag_id
@@ -177,7 +187,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
                 let sfx_ident = writer.ident.get_asset_ident_or_none(DataAssetType::Sfx, sfx_id)?;
                 writer.write(format!(
-                    ".get_pickup = {{ {}, {}, {}, }}",
+                    "    .get_pickup = {{ {}, {}, {}, }}\n",
                     get_pickup_id,
                     respawn_delay,
                     sfx_ident,
@@ -185,7 +195,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
             }
             RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
                 writer.write(format!(
-                    ".on_load_room = {{ {}, {}, {}, {} }}",
+                    "    .on_load_room = {{ {}, {}, {}, {} }}\n",
                     set_effect_id,
                     set_flag_id,
                     req_flag_id,
@@ -193,7 +203,7 @@ fn write_room_triggers(writer: &ProjectDataWriter, room: &Room, name_id: &str) -
                 ));
             }
         }
-        writer.write(" },\n");
+        writer.write("  },\n");
     }
     writer.write("};\n");
     writer.write("\n");

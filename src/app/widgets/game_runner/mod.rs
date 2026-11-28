@@ -34,6 +34,8 @@ use crate::data_store::{
     RoomTrigger,
     RoomTriggerType,
     RoomTriggerMapLayer,
+    RoomTriggerAnimationLayer,
+    RoomEntityDirection,
     MapData,
     Tileset,
     PlayerChar,
@@ -135,11 +137,33 @@ struct RoomChangeInfo {
 }
 
 pub enum GameRunnerAction {
-    ActivateEffect { effect_id: u16 },
-    SetFlag { flag_id: u16 },
-    PlayCutscene { cutscene_index: u16 },
-    PlayAnimation { x: i32, y: i32, anim_id: DataAssetId, set_effect_id: u16, set_flag_id: u16 },
-    PlaySfx { sfx_id: DataAssetId, volume: u16, pitch_shift: u16 },
+    ActivateEffect {
+        effect_id: u16,
+    },
+    SetFlag {
+        flag_id: u16,
+    },
+    PlayCutscene {
+        cutscene_index: u16,
+    },
+    PlayAnimation {
+        x: i32,
+        y: i32,
+        anim_id: DataAssetId,
+        anim_num: u16,
+        direction: RoomEntityDirection,
+        layer: RoomTriggerAnimationLayer,
+        set_effect_id: u16,
+        set_flag_id: u16,
+    },
+    StopAnimation {
+        anim_num: u16,
+    },
+    PlaySfx {
+        sfx_id: DataAssetId,
+        volume: u16,
+        pitch_shift: u16,
+    },
     StopSfx,
 }
 
@@ -425,13 +449,30 @@ impl GameRunnerState {
                     }
                 }
 
-                RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } if on_effect_id == effect_id => {
+                RoomTriggerType::PlayAnimation {
+                    anim_id,
+                    anim_num,
+                    direction,
+                    layer,
+                    on_effect_id,
+                    set_effect_id,
+                    set_flag_id,
+                } if on_effect_id == effect_id => {
                     self.actions.push(GameRunnerAction::PlayAnimation {
                         x: trigger.x as i32,
                         y: trigger.y as i32,
                         anim_id,
+                        anim_num,
+                        direction,
+                        layer,
                         set_effect_id,
                         set_flag_id,
+                    });
+                }
+
+                RoomTriggerType::StopAnimation { anim_num, on_effect_id } if on_effect_id == effect_id => {
+                    self.actions.push(GameRunnerAction::StopAnimation {
+                        anim_num,
                     });
                 }
 
@@ -582,10 +623,20 @@ impl GameRunnerWidget {
             GameRunnerAction::PlayCutscene { cutscene_index } => {
                 self.cutscene.load(*cutscene_index as usize);
             }
-            GameRunnerAction::PlayAnimation { anim_id, x, y, set_effect_id, set_flag_id } => {
+            GameRunnerAction::PlayAnimation { anim_id, anim_num, direction, layer, x, y, set_effect_id, set_flag_id } => {
                 self.fx_display.push(
-                    EffectDisplay::new(*x, *y, Direction::Right, *anim_id).at_end(*set_effect_id, *set_flag_id)
+                    EffectDisplay::new(
+                        *x,
+                        *y,
+                        *anim_num,
+                        Direction::from_room_entity(*direction),
+                        *layer,
+                        *anim_id,
+                    ).at_end(*set_effect_id, *set_flag_id)
                 );
+            }
+            GameRunnerAction::StopAnimation { anim_num } => {
+                self.fx_display.retain(|a| a.effect_num != *anim_num);
             }
             GameRunnerAction::PlaySfx { sfx_id, volume, pitch_shift, .. } => {
                 if let Some(sfx) = store.assets.sfxs.get(sfx_id) {
@@ -629,7 +680,14 @@ impl GameRunnerWidget {
                         let direction = Direction::from_dx(bullet.dx);
                         let x = (bullet.x>>8) + bullet_anim.clip_rect.w/2 - effect_anim.clip_rect.w/2;
                         let y = (bullet.y>>8) + bullet_anim.clip_rect.h/2 - effect_anim.clip_rect.h/2;
-                        self.fx_display.push(EffectDisplay::new(x, y, direction, effect_anim.asset.id));
+                        self.fx_display.push(EffectDisplay::new(
+                            x,
+                            y,
+                            0xffff,
+                            direction,
+                            RoomTriggerAnimationLayer::Darkness,
+                            effect_anim.asset.id
+                        ));
                     }
                 if let Some(sfx) = bullet.hit_sfx_id.and_then(|sfx_id| store.assets.sfxs.get(&sfx_id)) {
                     wc.sound_player.play_s16(&sfx.samples, 44100.0, 1.0);
@@ -920,21 +978,31 @@ impl GameRunnerWidget {
         for bullet in self.bullets.iter_mut() {
             bullet.draw(ui, wc, store, &draw_info);
         }
+        for fx_display in self.fx_display.iter_mut() {
+            if fx_display.layer == RoomTriggerAnimationLayer::Background {
+                fx_display.draw(ui, wc, store, &draw_info);
+            }
+        }
         self.player.draw_weapon(ui, wc, store, game_assets, &draw_info);
         for enemy in self.enemies.iter_mut() {
             enemy.draw(ui, wc, store, draw_map_info.pos, zoom);
         }
         self.draw_room_fg(ui, wc, game_assets, store, &draw_map_info);
-
+        for fx_display in self.fx_display.iter_mut() {
+            if fx_display.layer == RoomTriggerAnimationLayer::Foreground {
+                fx_display.draw(ui, wc, store, &draw_info);
+            }
+        }
         if self.darkness.enabled {
             self.darkness.draw(ui, wc, game_assets, &self.player, &draw_info);
         }
+        for fx_display in self.fx_display.iter_mut() {
+            if fx_display.layer == RoomTriggerAnimationLayer::Darkness {
+                fx_display.draw(ui, wc, store, &draw_info);
+            }
+        }
 
         draw_room_trigger_prompts(ui, wc, &self.state, game_assets, &self.player, store, &draw_info);
-
-        for fx_display in self.fx_display.iter_mut() {
-            fx_display.draw(ui, wc, store, &draw_info);
-        }
 
         // header
         let header_rect = Rect::from_min_max(

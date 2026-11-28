@@ -192,6 +192,7 @@ enum $<PREFIX>_ROOM_TRIGGER_TYPE {
    $<PREFIX>_ROOM_TRIGGER_TYPE_CHANGE_TILES,
    $<PREFIX>_ROOM_TRIGGER_TYPE_REMOVE_ENEMY,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_ANIMATION,
+   $<PREFIX>_ROOM_TRIGGER_TYPE_STOP_ANIMATION,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_CUTSCENE,
    $<PREFIX>_ROOM_TRIGGER_TYPE_PLAY_SFX,
    $<PREFIX>_ROOM_TRIGGER_TYPE_STOP_SFX,
@@ -323,10 +324,15 @@ struct $<PREFIX>_ROOM_TRIGGER_INFO {
         } remove_enemy;
         struct {
             uint16_t anim_index;  // $<prefix>_sprite_animations[]
+            uint16_t anim_num;
+            uint8_t layer;
             uint16_t on_effect_id;
             uint16_t set_effect_id;
             uint16_t set_flag_id;
         } play_animation;
+        struct {
+            uint16_t anim_num;
+        } stop_animation;
         struct {
             uint16_t cutscene_index;
             uint16_t on_effect_id;

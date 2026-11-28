@@ -23,6 +23,7 @@ use super::super::{
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomTriggerMapLayer,
+    RoomTriggerAnimationLayer,
     RoomEntityDirection,
     RoomCutsceneAction,
     RoomCutsceneActionType,
@@ -142,9 +143,17 @@ static TRIGGER_VALUE_TYPES: LazyLock<HashMap<String,ValueDefStruct>> = LazyLock:
 
         (String::from("play_animation"), ValueDefStruct::new(vec![
             (String::from("animation"), ValueDef::AssetRef),
+            (String::from("anim_num"), ValueDef::U16),
+            (String::from("direction"), ValueDef::U8),
+            (String::from("layer"), ValueDef::U8),
             (String::from("on_effect_id"), ValueDef::U16),
             (String::from("set_effect_id"), ValueDef::U16),
             (String::from("set_flag_id"), ValueDef::U16),
+        ])),
+
+        (String::from("stop_animation"), ValueDefStruct::new(vec![
+            (String::from("anim_num"), ValueDef::U16),
+            (String::from("layer"), ValueDef::U8),
         ])),
 
         (String::from("play_cutscene"), ValueDefStruct::new(vec![
@@ -417,14 +426,29 @@ fn conv_trigger_remove_enemy(data: &ValueStruct, _project_data: &ProjectData) ->
 
 fn conv_trigger_play_animation(data: &ValueStruct, project_data: &ProjectData) -> Result<RoomTriggerType> {
     let anim_ref = data.get_asset_ref("animation")?;
+    let anim_num = data.get_u16("anim_num")?;
+    let direction = data.get_u8("direction")?;
+    let layer = data.get_u8("layer")?;
     let on_effect_id = data.get_u16("on_effect_id")?;
     let set_effect_id = data.get_u16("set_effect_id")?;
     let set_flag_id = data.get_u16("set_flag_id")?;
     Ok(RoomTriggerType::PlayAnimation {
         anim_id: anim_ref.get_asset_id(project_data)?,
+        anim_num,
+        direction: RoomEntityDirection::from(direction),
+        layer: RoomTriggerAnimationLayer::from(layer),
         on_effect_id,
         set_effect_id,
         set_flag_id,
+    })
+}
+
+fn conv_trigger_stop_animation(data: &ValueStruct, _project_data: &ProjectData) -> Result<RoomTriggerType> {
+    let anim_num = data.get_u16("anim_num")?;
+    let on_effect_id = data.get_u16("on_effect_id")?;
+    Ok(RoomTriggerType::StopAnimation {
+        anim_num,
+        on_effect_id,
     })
 }
 
@@ -530,6 +554,8 @@ fn conv_trigger(trigger: &ValueStruct, name: String, project_data: &ProjectData)
         conv_trigger_remove_enemy(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlayAnimation.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_play_animation(type_data, project_data)?
+    } else if RoomTriggerTypeIdent::StopAnimation.matches_enum_ident(&trigger_type.name, prefix) {
+        conv_trigger_stop_animation(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlayCutscene.matches_enum_ident(&trigger_type.name, prefix) {
         conv_trigger_play_cutscene(type_data, project_data)?
     } else if RoomTriggerTypeIdent::PlaySfx.matches_enum_ident(&trigger_type.name, prefix) {

@@ -1,6 +1,7 @@
 use crate::data_store::{
     DataStore,
     DataAssetId,
+    RoomTriggerAnimationLayer,
 };
 
 use super::{
@@ -16,18 +17,29 @@ use super::{
 pub struct EffectDisplay {
     pub x: i32,
     pub y: i32,
+    pub effect_num: u16,
     pub direction: Direction,
+    pub layer: RoomTriggerAnimationLayer,
     pub anim: Animation,
     pub set_effect_id: u16,
     pub set_flag_id: u16,
 }
 
 impl EffectDisplay {
-    pub fn new(x: i32, y: i32, direction: Direction, sprite_anim_id: DataAssetId) -> Self {
+    pub fn new(
+        x: i32,
+        y: i32,
+        effect_num: u16,
+        direction: Direction,
+        layer: RoomTriggerAnimationLayer,
+        sprite_anim_id: DataAssetId,
+    ) -> Self {
         EffectDisplay {
             x,
             y,
+            effect_num,
             direction,
+            layer,
             anim: Animation::with_anim_id(sprite_anim_id),
             set_effect_id: u16::MAX,
             set_flag_id: u16::MAX,

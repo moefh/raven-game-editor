@@ -357,6 +357,9 @@ pub fn fix_after_data_table_item_removed(
                     fix_removed_effect(set_effect_id, data_table_ref, index);
                     fix_removed_flag(set_flag_id, data_table_ref, index);
                 }
+                RoomTriggerType::StopAnimation { on_effect_id, .. } => {
+                    fix_removed_effect(on_effect_id, data_table_ref, index);
+                }
                 RoomTriggerType::PlayCutscene { on_effect_id, req_flag_id, deny_flag_id, .. } => {
                     fix_removed_effect(on_effect_id, data_table_ref, index);
                     fix_removed_flag(req_flag_id, data_table_ref, index);
@@ -510,6 +513,9 @@ pub fn fix_after_data_table_items_swapped(
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);
                     fix_swapped_effect(set_effect_id, data_table_ref, index1, index2);
                     fix_swapped_flag(set_flag_id, data_table_ref, index1, index2);
+                }
+                RoomTriggerType::StopAnimation { on_effect_id, .. } => {
+                    fix_swapped_flag(on_effect_id, data_table_ref, index1, index2);
                 }
                 RoomTriggerType::PlayCutscene { on_effect_id, req_flag_id, deny_flag_id, .. } => {
                     fix_swapped_effect(on_effect_id, data_table_ref, index1, index2);

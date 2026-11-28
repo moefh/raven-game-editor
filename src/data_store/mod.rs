@@ -61,6 +61,7 @@ pub use room::{
     RoomTriggerType,
     RoomTriggerTypeIdent,
     RoomTriggerMapLayer,
+    RoomTriggerAnimationLayer,
     RoomCutscene,
     RoomCutsceneAction,
     RoomCutsceneActionType,
@@ -475,6 +476,7 @@ impl AssetCollection {
                     RoomTriggerType::RemoveEnemy {..} |
                     RoomTriggerType::PlayCutscene {..} |
                     RoomTriggerType::OnLoadRoom {..} |
+                    RoomTriggerType::StopAnimation {..} |
                     RoomTriggerType::StopSfx {..} => { false }
 
                     RoomTriggerType::EnemySpawn { enemy_id, .. } => { enemy_id == id }

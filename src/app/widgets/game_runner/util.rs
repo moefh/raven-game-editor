@@ -20,6 +20,13 @@ pub enum Direction {
 }
 
 impl Direction {
+    pub fn from_room_entity(dir: RoomEntityDirection) -> Self {
+        match dir {
+            RoomEntityDirection::Right => { Direction::Right }
+            RoomEntityDirection::Left => { Direction::Left }
+        }
+    }
+
     pub fn from_dx(dx: i32) -> Self {
         if dx < 0 {
             Direction::Left

@@ -52,6 +52,33 @@ impl From<u8> for RoomTriggerMapLayer {
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum RoomTriggerAnimationLayer {
+    Background,
+    Foreground,
+    Darkness,
+}
+
+impl RoomTriggerAnimationLayer {
+    pub fn value(self) -> u8 {
+        match self {
+            RoomTriggerAnimationLayer::Background => { 0 }
+            RoomTriggerAnimationLayer::Foreground => { 1 }
+            RoomTriggerAnimationLayer::Darkness => { 2 }
+        }
+    }
+}
+
+impl From<u8> for RoomTriggerAnimationLayer {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => { RoomTriggerAnimationLayer::Background }
+            1 => { RoomTriggerAnimationLayer::Foreground }
+            _ => { RoomTriggerAnimationLayer::Darkness }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RoomMap {
     pub x: u16,
@@ -122,17 +149,24 @@ pub enum RoomTriggerType {
         enemy_num: u16,
         on_effect_id: u16,
     },
-    PlayAnimation {
-        anim_id: DataAssetId,
-        on_effect_id: u16,
-        set_effect_id: u16,
-        set_flag_id: u16,
-    },
     PlayCutscene {
         cutscene_index: u16,
         on_effect_id: u16,
         req_flag_id: u16,
         deny_flag_id: u16,
+    },
+    PlayAnimation {
+        anim_id: DataAssetId,
+        anim_num: u16,
+        direction: RoomEntityDirection,
+        layer: RoomTriggerAnimationLayer,
+        on_effect_id: u16,
+        set_effect_id: u16,
+        set_flag_id: u16,
+    },
+    StopAnimation {
+        anim_num: u16,
+        on_effect_id: u16,
     },
     PlaySfx {
         sfx_id: DataAssetId,
@@ -390,22 +424,30 @@ impl super::HashedData for Room {
                     hasher.add_u16(enemy_num);
                     hasher.add_u16(on_effect_id);
                 }
-                RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
+                RoomTriggerType::PlayAnimation { anim_id, anim_num, direction, layer, on_effect_id, set_effect_id, set_flag_id } => {
                     hasher.add_u8(11);
                     hasher.add_asset_id(anim_id);
+                    hasher.add_u16(anim_num);
+                    hasher.add_u8(direction.value());
+                    hasher.add_u8(layer.value());
                     hasher.add_u16(on_effect_id);
                     hasher.add_u16(set_effect_id);
                     hasher.add_u16(set_flag_id);
                 }
-                RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
+                RoomTriggerType::StopAnimation { anim_num, on_effect_id } => {
                     hasher.add_u8(12);
+                    hasher.add_u16(anim_num);
+                    hasher.add_u16(on_effect_id);
+                }
+                RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
+                    hasher.add_u8(13);
                     hasher.add_u16(cutscene_index);
                     hasher.add_u16(on_effect_id);
                     hasher.add_u16(req_flag_id);
                     hasher.add_u16(deny_flag_id);
                 }
                 RoomTriggerType::PlaySfx { sfx_id, sound_id, volume, pitch_shift, play_loop, on_effect_id } => {
-                    hasher.add_u8(13);
+                    hasher.add_u8(14);
                     hasher.add_asset_id(sfx_id);
                     hasher.add_u16(sound_id);
                     hasher.add_u16(volume);
@@ -414,23 +456,23 @@ impl super::HashedData for Room {
                     hasher.add_u16(on_effect_id);
                 }
                 RoomTriggerType::StopSfx { sound_id, on_effect_id } => {
-                    hasher.add_u8(14);
+                    hasher.add_u8(15);
                     hasher.add_u16(sound_id);
                     hasher.add_u16(on_effect_id);
                 }
                 RoomTriggerType::GetUpgrade { get_upgrade_id, req_flag_id } => {
-                    hasher.add_u8(15);
+                    hasher.add_u8(16);
                     hasher.add_u16(get_upgrade_id);
                     hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetCollectable { get_collectable_id, interact_prompt_id, req_flag_id } => {
-                    hasher.add_u8(16);
+                    hasher.add_u8(17);
                     hasher.add_u16(get_collectable_id);
                     hasher.add_u16(interact_prompt_id);
                     hasher.add_u16(req_flag_id);
                 }
                 RoomTriggerType::GetPickup { get_pickup_id, respawn_delay, sfx_id } => {
-                    hasher.add_u8(17);
+                    hasher.add_u8(18);
                     hasher.add_u16(get_pickup_id);
                     hasher.add_u16(respawn_delay);
                     if let Some(sfx_id) = sfx_id {
@@ -441,7 +483,7 @@ impl super::HashedData for Room {
                     }
                 }
                 RoomTriggerType::OnLoadRoom { set_effect_id, set_flag_id, req_flag_id, deny_flag_id } => {
-                    hasher.add_u8(18);
+                    hasher.add_u8(19);
                     hasher.add_u16(set_flag_id);
                     hasher.add_u16(set_effect_id);
                     hasher.add_u16(req_flag_id);
@@ -506,6 +548,7 @@ pub enum RoomTriggerTypeIdent {
     ChangeTiles,
     RemoveEnemy,
     PlayAnimation,
+    StopAnimation,
     PlayCutscene,
     PlaySfx,
     StopSfx,
@@ -529,6 +572,7 @@ impl RoomTriggerTypeIdent {
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeIdent::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeIdent::RemoveEnemy }
             RoomTriggerType::PlayAnimation {..} => { RoomTriggerTypeIdent::PlayAnimation }
+            RoomTriggerType::StopAnimation {..} => { RoomTriggerTypeIdent::StopAnimation }
             RoomTriggerType::PlayCutscene {..} => { RoomTriggerTypeIdent::PlayCutscene }
             RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeIdent::PlaySfx }
             RoomTriggerType::StopSfx {..} => { RoomTriggerTypeIdent::StopSfx }
@@ -552,6 +596,7 @@ impl RoomTriggerTypeIdent {
             RoomTriggerTypeIdent::ChangeTiles => { "ROOM_TRIGGER_TYPE_CHANGE_TILES" }
             RoomTriggerTypeIdent::RemoveEnemy => { "ROOM_TRIGGER_TYPE_REMOVE_ENEMY" }
             RoomTriggerTypeIdent::PlayAnimation => { "ROOM_TRIGGER_TYPE_PLAY_ANIMATION" }
+            RoomTriggerTypeIdent::StopAnimation => { "ROOM_TRIGGER_TYPE_STOP_ANIMATION" }
             RoomTriggerTypeIdent::PlayCutscene => { "ROOM_TRIGGER_TYPE_PLAY_CUTSCENE" }
             RoomTriggerTypeIdent::PlaySfx => { "ROOM_TRIGGER_TYPE_PLAY_SFX" }
             RoomTriggerTypeIdent::StopSfx => { "ROOM_TRIGGER_TYPE_STOP_SFX" }

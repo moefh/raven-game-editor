@@ -12,6 +12,7 @@ use crate::data_store::{
     RoomTriggerType,
     RoomEntityDirection,
     RoomTriggerMapLayer,
+    RoomTriggerAnimationLayer,
     RoomCutsceneActionType,
 };
 use crate::image::{
@@ -83,6 +84,7 @@ pub enum RoomTriggerTypeSel {
     ChangeTiles,
     RemoveEnemy,
     PlayAnimation,
+    StopAnimation,
     PlaySfx,
     StopSfx,
     GetUpgrade,
@@ -104,6 +106,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerType::ChangeTiles {..} => { RoomTriggerTypeSel::ChangeTiles }
             RoomTriggerType::RemoveEnemy {..} => { RoomTriggerTypeSel::RemoveEnemy }
             RoomTriggerType::PlayAnimation {..} => { RoomTriggerTypeSel::PlayAnimation }
+            RoomTriggerType::StopAnimation {..} => { RoomTriggerTypeSel::StopAnimation }
             RoomTriggerType::PlayCutscene {..} => { RoomTriggerTypeSel::PlayCutscene }
             RoomTriggerType::PlaySfx {..} => { RoomTriggerTypeSel::PlaySfx }
             RoomTriggerType::StopSfx {..} => { RoomTriggerTypeSel::StopSfx }
@@ -213,6 +216,9 @@ impl RoomTriggerTypeSel {
                 if let Some(anim_id) = asset_ids.animations.get_first() {
                     *trigger_type = RoomTriggerType::PlayAnimation {
                         anim_id,
+                        anim_num: 0,
+                        direction: RoomEntityDirection::Right,
+                        layer: RoomTriggerAnimationLayer::Foreground,
                         on_effect_id: u16::MAX,
                         set_effect_id: u16::MAX,
                         set_flag_id: u16::MAX,
@@ -221,6 +227,13 @@ impl RoomTriggerTypeSel {
                 } else {
                     false
                 }
+            }
+            RoomTriggerTypeSel::StopAnimation if ! matches!(trigger_type, RoomTriggerType::StopAnimation {..}) => {
+                *trigger_type = RoomTriggerType::StopAnimation {
+                    anim_num: 0,
+                    on_effect_id: u16::MAX,
+                };
+                true
             }
             RoomTriggerTypeSel::PlayCutscene if ! matches!(trigger_type, RoomTriggerType::PlayCutscene {..}) => {
                 *trigger_type = RoomTriggerType::PlayCutscene {
@@ -302,6 +315,7 @@ impl RoomTriggerTypeSel {
             RoomTriggerTypeSel::ChangeTiles => { "change tiles" }
             RoomTriggerTypeSel::RemoveEnemy => { "remove enemy" }
             RoomTriggerTypeSel::PlayAnimation => { "play animation" }
+            RoomTriggerTypeSel::StopAnimation => { "stop animation" }
             RoomTriggerTypeSel::PlayCutscene => { "play cutscene" }
             RoomTriggerTypeSel::PlaySfx => { "play sfx" }
             RoomTriggerTypeSel::StopSfx => { "stop sfx" }

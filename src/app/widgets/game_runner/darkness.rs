@@ -172,8 +172,8 @@ impl DarknessState {
 
         self.target_offset_x = off_x;
         self.target_offset_y = off_y;
-        self.delta_offset_x = (off_x - self.offset_x).signum() as i16 * speed;
-        self.delta_offset_y = (off_y - self.offset_y).signum() as i16 * speed;
+        self.delta_offset_x = (off_x - self.offset_x).signum() * speed;
+        self.delta_offset_y = (off_y - self.offset_y).signum() * speed;
         if ! self.control_enabled {
             self.delta_radius = 0;
         }
@@ -236,8 +236,8 @@ impl DarknessState {
         let screen_x = draw_info.room_pos.0;
         let screen_y = draw_info.room_pos.1;
         Self::dark_rect(ui, draw_info, screen_x, screen_y, screen_x + WIDTH, draw_y);
-        Self::dark_rect(ui, draw_info, screen_x, draw_y, draw_x, draw_y + image_h as i32);
-        Self::dark_rect(ui, draw_info, draw_x + image_w, draw_y, screen_x + WIDTH, draw_y + image_h as i32);
+        Self::dark_rect(ui, draw_info, screen_x, draw_y, draw_x, draw_y + image_h);
+        Self::dark_rect(ui, draw_info, draw_x + image_w, draw_y, screen_x + WIDTH, draw_y + image_h);
         Self::dark_rect(ui, draw_info, screen_x, draw_y + image_h, screen_x + WIDTH, screen_y + HEIGHT);
     }
 }

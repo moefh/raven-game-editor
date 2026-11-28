@@ -21,6 +21,7 @@ use crate::data_store::{
     RoomTrigger,
     RoomTriggerType,
     RoomTriggerMapLayer,
+    RoomTriggerAnimationLayer,
     RoomCutscene,
     RoomCutsceneAction,
     RoomCutsceneActionType,
@@ -103,6 +104,7 @@ fn get_trigger_image(trigger: &RoomTrigger) -> egui::ImageSource<'static> {
         RoomTriggerType::ChangeTiles {..} => { IMAGES.room_effect }
         RoomTriggerType::RemoveEnemy {..} => { IMAGES.room_effect }
         RoomTriggerType::PlayAnimation {..} => { IMAGES.animation }
+        RoomTriggerType::StopAnimation {..} => { IMAGES.animation }
         RoomTriggerType::PlayCutscene {..} => { IMAGES.cutscene }
         RoomTriggerType::PlaySfx {..} => { IMAGES.sfx }
         RoomTriggerType::StopSfx {..} => { IMAGES.sfx }
@@ -827,6 +829,30 @@ impl Editor {
             });
     }
 
+    fn show_animation_layer_editor(&self, ui: &mut egui::Ui, combo_id: &str, anim_layer: &mut RoomTriggerAnimationLayer) {
+        let sel_layer_text = match anim_layer {
+            RoomTriggerAnimationLayer::Background => { "background" }
+            RoomTriggerAnimationLayer::Foreground => { "foreground" }
+            RoomTriggerAnimationLayer::Darkness => { "darkness" }
+        };
+        egui::ComboBox::from_id_salt(format!("editor_{}_trg_{}", self.asset_id, combo_id))
+            .selected_text(sel_layer_text)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(anim_layer, RoomTriggerAnimationLayer::Background, "background");
+                ui.selectable_value(anim_layer, RoomTriggerAnimationLayer::Foreground, "foreground");
+                ui.selectable_value(anim_layer, RoomTriggerAnimationLayer::Darkness, "darkness");
+            });
+    }
+
+    fn show_direction_editor(&self, ui: &mut egui::Ui, combo_id: &str, direction: &mut RoomEntityDirection) {
+        egui::ComboBox::from_id_salt(combo_id)
+            .selected_text(if *direction == RoomEntityDirection::Right { "Right" } else { "Left" })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
+                ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
+            });
+    }
+
     fn show_cutscene_index_editor(
         &self,
         ui: &mut egui::Ui,
@@ -931,8 +957,9 @@ impl Editor {
                     RoomTriggerTypeSel::DisableAnimation,
                     RoomTriggerTypeSel::ChangeTiles,
                     RoomTriggerTypeSel::RemoveEnemy,
-                    RoomTriggerTypeSel::PlayAnimation,
                     RoomTriggerTypeSel::PlayCutscene,
+                    RoomTriggerTypeSel::PlayAnimation,
+                    RoomTriggerTypeSel::StopAnimation,
                     RoomTriggerTypeSel::PlaySfx,
                     RoomTriggerTypeSel::StopSfx,
                     RoomTriggerTypeSel::GetUpgrade,
@@ -960,12 +987,7 @@ impl Editor {
 
             RoomTriggerType::PlayerSpawn { direction } => {
                 ui.label("Dir:");
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_player_spawn_direction", self.asset_id))
-                    .selected_text(if *direction == RoomEntityDirection::Right { "Right" } else { "Left" })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
-                        ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
-                    });
+                self.show_direction_editor(ui, "player_spawn_direction", direction);
                 ui.end_row();
             }
 
@@ -981,12 +1003,7 @@ impl Editor {
                 ui.end_row();
 
                 ui.label("Dir:");
-                egui::ComboBox::from_id_salt(format!("editor_{}_trg_enemy_spawn_direction", self.asset_id))
-                    .selected_text(if *direction == RoomEntityDirection::Right { "Right" } else { "Left" })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(direction, RoomEntityDirection::Right, "Right");
-                        ui.selectable_value(direction, RoomEntityDirection::Left, "Left");
-                    });
+                self.show_direction_editor(ui, "enemy_spawn_direction", direction);
                 ui.end_row();
 
                 ui.label("Enemy Num:");
@@ -1148,7 +1165,7 @@ impl Editor {
                 ui.end_row();
             }
 
-            RoomTriggerType::PlayAnimation { anim_id, on_effect_id, set_effect_id, set_flag_id } => {
+            RoomTriggerType::PlayAnimation { anim_id, anim_num, direction, layer, on_effect_id, set_effect_id, set_flag_id } => {
                 ui.label("On Effect:");
                 self.show_effect_id_editor(ui, "play_animation_on_effect_id", on_effect_id, &assets.tables.effect);
                 ui.end_row();
@@ -1157,12 +1174,34 @@ impl Editor {
                 self.show_asset_id_editor(ui, "play_animation_asset_id", assets.animations, &self.sorted_animation_ids, anim_id);
                 ui.end_row();
 
+                ui.label("Anim Num:");
+                ui.add(egui::DragValue::new(anim_num).speed(1.0).range(0..=u16::MAX));
+                ui.end_row();
+
+                ui.label("Dir:");
+                self.show_direction_editor(ui, "play_direction", direction);
+                ui.end_row();
+
+                ui.label("Layer:");
+                self.show_animation_layer_editor(ui, "play_animation_layer", layer);
+                ui.end_row();
+
                 ui.label("Set Effect:");
                 self.show_effect_id_editor(ui, "play_animation_set_effect_id", set_effect_id, &assets.tables.effect);
                 ui.end_row();
 
                 ui.label("Set Flag:");
                 self.show_effect_id_editor(ui, "play_animation_set_flag_id", set_flag_id, &assets.tables.flag);
+                ui.end_row();
+            }
+
+            RoomTriggerType::StopAnimation { anim_num, on_effect_id } => {
+                ui.label("On Effect:");
+                self.show_effect_id_editor(ui, "stop_animation_on_effect_id", on_effect_id, &assets.tables.effect);
+                ui.end_row();
+
+                ui.label("Anim Num:");
+                ui.add(egui::DragValue::new(anim_num).speed(1.0).range(0..=u16::MAX));
                 ui.end_row();
             }
 

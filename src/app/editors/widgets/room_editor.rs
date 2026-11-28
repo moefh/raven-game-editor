@@ -235,6 +235,7 @@ impl TriggerRect {
             RoomTriggerType::PlayCutscene {..} |
             RoomTriggerType::RemoveEnemy {..} |
             RoomTriggerType::PlaySfx {..} |
+            RoomTriggerType::StopAnimation {..} |
             RoomTriggerType::StopSfx {..} => {
                 None
             }
@@ -278,6 +279,7 @@ impl TriggerRect {
             RoomTriggerType::PlayerSpawn {..} |
             RoomTriggerType::RemoveEnemy {..} |
             RoomTriggerType::PlayAnimation {..} |
+            RoomTriggerType::StopAnimation {..} |
             RoomTriggerType::PlayCutscene {..} |
             RoomTriggerType::PlaySfx {..} |
             RoomTriggerType::StopSfx {..} |

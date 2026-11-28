@@ -84,8 +84,7 @@ fn check_room_trigger_ids(room: &Room, errors: &mut Vec<AssetError>, _warnings: 
             continue;
         }
         let t1 = &room.triggers[trigger1_index];
-        for trigger2_index in trigger1_index+1..num_triggers {
-            let t2 = &room.triggers[trigger2_index];
+        for (trigger2_index, t2) in room.triggers.iter().enumerate().take(num_triggers).skip(trigger1_index+1) {
             if t1.trigger_id == t2.trigger_id {
                 warned.insert(trigger2_index);
                 errors.push(AssetError::RoomTriggersWithSameId {
@@ -259,6 +258,9 @@ fn check_room_project_table_refs(
                 check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
                 check_room_trigger_effect(set_effect_id, tables, trigger_index, errors);
                 check_room_trigger_flag(set_flag_id, tables, trigger_index, errors);
+            }
+            RoomTriggerType::StopAnimation { on_effect_id, .. } => {
+                check_room_trigger_effect(on_effect_id, tables, trigger_index, errors);
             }
             RoomTriggerType::PlayCutscene { cutscene_index, on_effect_id, req_flag_id, deny_flag_id } => {
                 if cutscene_index as usize >= room.cutscenes.len() {
